@@ -17,7 +17,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { cn } from '@/lib/cn';
-import { ParamList, ResetAllButton, ResultView, WorkflowPicker } from './StudioPanels';
+import { ParamList, PromptPanel, ResetAllButton, ResultView, WorkflowPicker } from './StudioPanels';
 import { GenerateBar } from './StudioView';
 import { exposedParams, useStudio } from './studioStore';
 import { paramLabel, randomSeed, type WorkflowParam } from './params';
@@ -185,6 +185,7 @@ export function StudioMobile({ library, run, host }: { library: Library; run: Ru
               </div>
               <ResetAllButton />
             </div>
+            <PromptPanel large />
             {/* The controller's selection is drawn here rather than inside ParamList so the list
                 stays the same component the desktop uses. */}
             <div className="relative">

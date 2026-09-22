@@ -6,8 +6,9 @@
  * anticipated, so it holds the raw document and reads specs out of it on demand.
  *
  * Results are tracked here rather than through the generate view's history so the two can never
- * corrupt each other's state. Studio polls `/history` for the prompt it submitted and keeps every
- * image the run produced, newest first.
+ * corrupt each other's state. On open, Studio reads the server's own `/history`, so every image the
+ * server still holds is there after a reload or on another device; after that the socket adds each
+ * new image as it is saved. Newest first.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { comfyHttpFor, queueGraph, viewUrl } from '@/lib/comfy';
@@ -73,7 +74,38 @@ export interface StudioRun {
   queueRemaining: number;
 }
 
-const MAX_RESULTS = 60;
+const MAX_RESULTS = 300;
+
+type HistoryImage = { filename: string; subfolder?: string; type?: string };
+type HistoryRecord = {
+  prompt?: [number, string, ...unknown[]];
+  outputs?: Record<string, { images?: HistoryImage[] }>;
+  status?: { completed?: boolean };
+};
+
+/**
+ * Every image in a server's `/history`, newest first.
+ *
+ * Ordered by the queue number ComfyUI gives each prompt, which only goes up. That includes other
+ * clients' runs on the same server, which is what "history" should mean on a shared box.
+ */
+async function loadServerHistory(host: string): Promise<StudioResult[]> {
+  const res = await fetch(`${comfyHttpFor(host)}/history?max_items=${MAX_RESULTS}`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const all = await res.json() as Record<string, HistoryRecord>;
+  const runs = Object.entries(all)
+    .filter(([, r]) => r.status?.completed !== false)
+    .sort(([, a], [, b]) => (b.prompt?.[0] ?? 0) - (a.prompt?.[0] ?? 0));
+  const out: StudioResult[] = [];
+  for (const [id, r] of runs) {
+    for (const node of Object.values(r.outputs ?? {})) {
+      for (const img of node.images ?? []) {
+        out.push({ url: viewUrl(img, host), filename: img.filename, promptId: id, createdAt: r.prompt?.[0] ?? 0 });
+      }
+    }
+  }
+  return out.slice(0, MAX_RESULTS);
+}
 /** Safety net only: the socket drives everything, but a missed `executed` should not hang forever. */
 const WATCHDOG_MS = 8000;
 
@@ -178,6 +210,21 @@ export function useStudioRun(host: string | null, info: ObjectInfo | null): Stud
       onEvent,
     });
   }, [host, finish]);
+
+  // What the server already made, so history is there before anything is generated here.
+  useEffect(() => {
+    if (!host) { setResults([]); return; }
+    let cancelled = false;
+    void loadServerHistory(host).then(found => {
+      if (cancelled) return;
+      setResults(prev => {
+        // Anything the socket delivered while this was loading stays on top.
+        const known = new Set(prev.map(r => r.url));
+        return [...prev, ...found.filter(f => !known.has(f.url))].slice(0, MAX_RESULTS);
+      });
+    }).catch(() => { /* no history is not an error worth showing */ });
+    return () => { cancelled = true; };
+  }, [host]);
 
   // Revoke the last preview URL when the hook goes away.
   useEffect(() => () => { if (previewUrl.current) URL.revokeObjectURL(previewUrl.current); }, []);

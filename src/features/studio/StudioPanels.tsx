@@ -3,14 +3,18 @@
  * area. Keeping them here means the phone and the desktop show the same thing arranged
  * differently, rather than being two implementations that drift apart.
  */
+import { useEffect, useRef, useState } from 'react';
 import type { SavedWorkflow } from '@/lib/comfy';
+import { useCanvasStore } from '@/lib/canvasStore';
+import { useShortcut, ShortcutPriority } from '@/hooks/useShortcut';
+import { FullscreenImage } from '@/components/FullscreenImage';
 import { cn } from '@/lib/cn';
 import { IconButton } from '@/components/ui/IconButton';
 import { ResetIcon } from '@/components/ui/icons';
 import { ParamField } from './ParamField';
 import { ImageInput, isImageParam } from './ImageInput';
 import { paramLabel, type WorkflowParam } from './params';
-import { exposedParams, useStudio } from './studioStore';
+import { composePrompt, exposedParams, promptCandidates, useStudio } from './studioStore';
 
 /**
  * Stable empties.
@@ -86,9 +90,14 @@ export function ParamList({ large, host }: { large?: boolean; host: string | nul
   const setValue = useStudio(s => s.setValue);
   const resetValue = useStudio(s => s.resetValue);
   const toggleExposed = useStudio(s => s.toggleExposed);
+  // A string or null, so comparing by reference is safe: this re-renders only when it changes.
+  const targetId = useStudio(s => s.targetId());
 
   if (!path) return <Hint>Pick a workflow to see its controls.</Hint>;
   if (!params.length) return <Hint>This workflow has no adjustable inputs.</Hint>;
+  // The prompt box is filled from the prompt panel above, so offering it here as well would be two
+  // editors for one field, with this one silently overwritten on every run.
+  const shownParams = targetId ? params.filter(p => p.id !== targetId) : params;
 
   const valueOf = (p: WorkflowParam) => (p.id in values ? values[p.id] : p.value);
 
@@ -115,7 +124,7 @@ export function ParamList({ large, host }: { large?: boolean; host: string | nul
     );
 
   if (mode === 'simple') {
-    const shown = exposedParams(params, exposedIds);
+    const shown = exposedParams(shownParams, exposedIds);
     if (!shown.length) {
       return (
         <Hint>
@@ -128,7 +137,7 @@ export function ParamList({ large, host }: { large?: boolean; host: string | nul
 
   // Advanced: every knob, grouped by node, in graph order.
   const groups: { nodeId: number; label: string; items: WorkflowParam[] }[] = [];
-  for (const p of params) {
+  for (const p of shownParams) {
     const last = groups[groups.length - 1];
     if (last && last.nodeId === p.nodeId) last.items.push(p);
     else groups.push({ nodeId: p.nodeId, label: p.nodeLabel, items: [p] });
@@ -168,6 +177,97 @@ export function ParamList({ large, host }: { large?: boolean; host: string | nul
 }
 
 /**
+ * The prompt, split in two.
+ *
+ * Keywords belong to the workflow: the score tags Pony wants, the quality prefix an Illustrious
+ * merge wants, a LoRA's trigger word. The prompt is the subject, and by default it is shared, so
+ * switching from one workflow to another keeps what was being drawn and swaps only the model's own
+ * vocabulary. A workflow can opt out and keep a prompt of its own.
+ *
+ * Both are joined, keywords first, into the workflow's positive text box on every run.
+ */
+export function PromptPanel({ large }: { large?: boolean }) {
+  const path = useStudio(s => s.path);
+  const params = useStudio(s => s.params);
+  const targetId = useStudio(s => s.targetId());
+  const keywords = useStudio(s => (s.path ? s.keywords[s.path] ?? '' : ''));
+  const shared = useStudio(s => (s.path ? s.useShared[s.path] !== false : true));
+  const prompt = useStudio(s => (s.path && s.useShared[s.path] === false ? s.ownPrompt[s.path] ?? '' : s.sharedPrompt));
+  const setKeywords = useStudio(s => s.setKeywords);
+  const setPrompt = useStudio(s => s.setPrompt);
+  const setUseShared = useStudio(s => s.setUseShared);
+  const setPromptTarget = useStudio(s => s.setPromptTarget);
+
+  if (!path || !targetId) return null;
+  const candidates = promptCandidates(params);
+  const box = cn(
+    'scroll-y w-full resize-y rounded-lg border border-border-subtle bg-bg-base px-3 py-2.5',
+    'text-fg-primary outline-none placeholder:text-fg-muted focus:border-accent',
+    large ? 'text-[15px]' : 'text-[13px]',
+  );
+  const label = 'text-[11px] font-semibold uppercase tracking-wide text-fg-muted';
+  const sent = composePrompt(keywords, prompt);
+
+  return (
+    <section className="flex flex-col gap-2 border-b border-border-subtle pb-4">
+      <div className="flex flex-col gap-1">
+        <span className={label}>Keywords · this workflow</span>
+        <textarea
+          value={keywords}
+          onChange={e => setKeywords(e.target.value)}
+          rows={2}
+          aria-label="Keywords for this workflow"
+          placeholder="Tags only this model needs, e.g. score_9, score_8_up"
+          className={box}
+        />
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <div className="flex items-center justify-between gap-2">
+          <span className={label}>Prompt</span>
+          <label className="flex items-center gap-1.5 text-[11.5px] text-fg-secondary">
+            <input
+              type="checkbox"
+              checked={shared}
+              onChange={e => setUseShared(e.target.checked)}
+              className="h-3.5 w-3.5 accent-[var(--accent,#4F8AFF)]"
+            />
+            Shared with other workflows
+          </label>
+        </div>
+        <textarea
+          value={prompt}
+          onChange={e => setPrompt(e.target.value)}
+          rows={large ? 6 : 5}
+          aria-label="Prompt"
+          placeholder="What to draw"
+          className={box}
+        />
+      </div>
+
+      <div className="flex items-center gap-2 text-[11px] text-fg-muted">
+        <span className="shrink-0">Sent to</span>
+        {candidates.length > 1 ? (
+          <select
+            value={targetId}
+            onChange={e => setPromptTarget(e.target.value)}
+            aria-label="Which text box receives the prompt"
+            className="min-w-0 flex-1 truncate rounded border border-border-subtle bg-bg-base px-1.5 py-0.5 text-fg-secondary"
+          >
+            {candidates.map(c => <option key={c.id} value={c.id}>{c.nodeLabel} #{c.nodeId}</option>)}
+          </select>
+        ) : (
+          <span className="truncate text-fg-secondary">
+            {candidates[0]?.nodeLabel} #{candidates[0]?.nodeId}
+          </span>
+        )}
+        <span className="shrink-0 tabular-nums" title={sent}>{sent.length} chars</span>
+      </div>
+    </section>
+  );
+}
+
+/**
  * What the run is doing, and what it made.
  *
  * While a job is live this shows ComfyUI's own preview frames — the partially-denoised image it
@@ -187,8 +287,37 @@ export function ResultView({
   preview?: string | null;
   queueRemaining?: number;
 }) {
-  // A live preview outranks the last finished image: it is what is happening now.
-  const shown = busy && preview ? preview : latest?.url ?? null;
+  // The image picked from the strip, by URL so it stays put while new results push the list along.
+  // Null means "follow the newest", which is what a finished run should show.
+  const [picked, setPicked] = useState<string | null>(null);
+  const [fullscreen, setFullscreen] = useState<number | null>(null);
+  const stripRef = useRef<HTMLDivElement>(null);
+
+  // A new image landing means a run finished: show it, rather than holding an old pick.
+  const newest = latest?.url ?? null;
+  useEffect(() => { setPicked(null); }, [newest]);
+
+  const index = picked ? Math.max(0, results.findIndex(r => r.url === picked)) : 0;
+  const current = results[index] ?? null;
+  // A live preview outranks everything: it is what is happening now.
+  const livePreview = busy && preview ? preview : null;
+  const shown = livePreview ?? current?.url ?? null;
+
+  // ← older, → newer: the same direction as the generate view's history.
+  const step = (dir: 1 | -1) => {
+    if (!results.length) return;
+    const next = Math.min(results.length - 1, Math.max(0, index + dir));
+    setPicked(results[next].url);
+  };
+  const inStudio = () => useCanvasStore.getState().mainView === 'studio' && fullscreen === null;
+  useShortcut('ArrowLeft', () => step(1), { priority: ShortcutPriority.Panel + 10, when: inStudio });
+  useShortcut('ArrowRight', () => step(-1), { priority: ShortcutPriority.Panel + 10, when: inStudio });
+
+  // Keep the picked thumbnail in view as the arrows walk the strip.
+  useEffect(() => {
+    const el = stripRef.current?.querySelector<HTMLElement>(`[data-index="${index}"]`);
+    el?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+  }, [index]);
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3">
@@ -196,13 +325,22 @@ export function ResultView({
         {shown ? (
           <img
             src={shown}
-            alt={busy && preview ? 'Live preview' : 'Latest generation'}
-            className="max-h-full max-w-full object-contain"
+            alt={livePreview ? 'Live preview' : current?.filename ?? 'Generation'}
+            onClick={() => { if (!livePreview && current) setFullscreen(index); }}
+            // h-full w-full + object-contain scales a small preview frame up to the whole area,
+            // where max-* alone left a 512px preview sitting in the middle of a large pane.
+            className={cn('h-full w-full object-contain', !livePreview && 'cursor-zoom-in')}
           />
         ) : (
           <p className="px-6 text-center text-[13px] italic text-fg-muted">
             {busy ? (status ?? 'Working…') : 'No image yet — press Generate.'}
           </p>
+        )}
+
+        {!busy && results.length > 1 && (
+          <span className="pointer-events-none absolute right-2 top-2 rounded bg-black/55 px-1.5 py-0.5 text-[11px] tabular-nums text-white/85">
+            {index + 1} / {results.length}
+          </span>
         )}
 
         {busy && (
@@ -230,17 +368,35 @@ export function ResultView({
         )}
       </div>
 
-      {results.length > 1 && (
-        <div className="scroll-x-thin flex shrink-0 gap-2 pb-1">
-          {results.map(r => (
-            <img
+      {results.length > 0 && (
+        <div ref={stripRef} className="scroll-x-thin flex shrink-0 gap-2 pb-1">
+          {results.map((r, i) => (
+            <button
               key={r.url}
-              src={r.url}
-              alt={r.filename}
-              className="h-16 w-16 shrink-0 rounded-md object-cover ring-1 ring-border-subtle"
-            />
+              type="button"
+              data-index={i}
+              onClick={() => setPicked(r.url)}
+              onDoubleClick={() => setFullscreen(i)}
+              aria-label={`Show ${r.filename}`}
+              className={cn(
+                'h-16 w-16 shrink-0 overflow-hidden rounded-md ring-1 transition-shadow',
+                i === index && !livePreview ? 'ring-2 ring-accent' : 'ring-border-subtle hover:ring-fg-muted',
+              )}
+            >
+              <img src={r.url} alt="" loading="lazy" className="h-full w-full object-cover" />
+            </button>
           ))}
         </div>
+      )}
+
+      {fullscreen !== null && (
+        <FullscreenImage
+          items={results.map(r => ({ key: r.url, url: r.url }))}
+          index={fullscreen}
+          onIndexChange={i => { setFullscreen(i); setPicked(results[i]?.url ?? null); }}
+          onClose={() => setFullscreen(null)}
+          pageCaption={results[fullscreen]?.filename}
+        />
       )}
     </div>
   );

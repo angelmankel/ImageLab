@@ -14,7 +14,7 @@ import { useStore } from '@/lib/store';
 import { useCanvasStore } from '@/lib/canvasStore';
 import { useIsDesktop } from '@/hooks/useIsDesktop';
 import { cn } from '@/lib/cn';
-import { ParamList, ResetAllButton, ResultView, WorkflowPicker } from './StudioPanels';
+import { ParamList, PromptPanel, ResetAllButton, ResultView, WorkflowPicker } from './StudioPanels';
 import { StudioMobile } from './StudioMobile';
 import { useObjectInfo, useStudioRun } from './useStudioRun';
 import { useWorkflowLibrary } from './useWorkflowLibrary';
@@ -143,7 +143,8 @@ function StudioDesktop({ library, run, host }: { library: Library; run: Run; hos
           <ResetAllButton />
         </header>
 
-        <div className="scroll-y min-h-0 flex-1 px-3 py-3">
+        <div className="scroll-y flex min-h-0 flex-1 flex-col gap-4 px-3 py-3">
+          <PromptPanel />
           <ParamList host={host} />
         </div>
 
