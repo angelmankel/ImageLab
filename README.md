@@ -31,10 +31,9 @@ That copies `dist/` onto the pod's volume, where nginx and the pod app serve it.
 | | |
 |---|---|
 | ComfyUI | `/prompt`, `/history`, `/object_info`, `/view`, `/upload/image`, `/ws` |
-| ImageLabCore | `/imagelab/hashes`, `/imagelab/downloads`, `/imagelab/favorites`, `/imagelab/version` |
-| the pod app | `/pod/app/api/*` — model installer and the file APIs |
+| ImageLabCore | `/imagelab/api/hashes`, `/imagelab/api/downloads`, `/imagelab/api/favorites`, `/imagelab/api/version` |
 
-All three live on the same origin behind one nginx with basic auth.
+Both live on the same origin behind one nginx with basic auth.
 
 ## Layout
 

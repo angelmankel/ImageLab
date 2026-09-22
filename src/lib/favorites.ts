@@ -1,5 +1,5 @@
 /**
- * Client for the `/imagelab/favorites` endpoints on the ComfyUI custom node.
+ * Client for the `/imagelab/api/favorites` endpoints on the ComfyUI custom node.
  *
  * The custom node persists explicitly favorited images into
  * `<comfy_output>/imagelab_favorites/<MM-DD-YYYY>/<filename>` so they survive
@@ -32,7 +32,7 @@ export async function createFavorite(
   host: string,
   source: { filename: string; subfolder?: string; type?: string },
 ): Promise<ServerFavorite> {
-  const res = await fetch(`${comfyHttpFor(host)}/imagelab/favorites`, {
+  const res = await fetch(`${comfyHttpFor(host)}/imagelab/api/favorites`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -62,13 +62,13 @@ export async function listFavorites(
   host: string,
   _ifNoneMatch?: string,
 ): Promise<FavoritesSnapshot | null> {
-  const res = await fetch(`${comfyHttpFor(host)}/imagelab/favorites`);
+  const res = await fetch(`${comfyHttpFor(host)}/imagelab/api/favorites`);
   if (!res.ok) throw new Error(`Favorites list failed (${res.status})`);
   return await res.json() as FavoritesSnapshot;
 }
 
 export async function deleteFavorite(host: string, favoriteId: string): Promise<void> {
-  const res = await fetch(`${comfyHttpFor(host)}/imagelab/favorites/${favoriteId}`, {
+  const res = await fetch(`${comfyHttpFor(host)}/imagelab/api/favorites/${favoriteId}`, {
     method: 'DELETE',
   });
   if (!res.ok && res.status !== 404) {
@@ -80,5 +80,5 @@ export async function deleteFavorite(host: string, favoriteId: string): Promise<
 export function favoriteViewUrl(host: string, favoriteId: string): string {
   const [date, ...rest] = favoriteId.split('/');
   const filename = rest.join('/');
-  return `${comfyHttpFor(host)}/imagelab/favorites/view?` + new URLSearchParams({ date, filename });
+  return `${comfyHttpFor(host)}/imagelab/api/favorites/view?` + new URLSearchParams({ date, filename });
 }

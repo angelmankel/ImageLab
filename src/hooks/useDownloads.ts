@@ -4,7 +4,7 @@ import { useDownloadsStore } from '@/features/downloads/store';
 
 /**
  * Drives the downloads panel's polling. The ImageLab node doesn't push
- * progress, so we poll `GET /imagelab/downloads` on every server — fast
+ * progress, so we poll `GET /imagelab/api/downloads` on every server — fast
  * (1.5s) while anything is actively downloading, slow (10s) when idle, just
  * to pick up downloads started elsewhere (e.g. the `IMAGELAB_AUTO_DOWNLOAD`
  * env var on server boot).

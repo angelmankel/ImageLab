@@ -94,13 +94,13 @@ export interface ModelHashes {
 
 /**
  * Fetch the model-hash cache from the ImageLab custom node
- * (`GET /imagelab/hashes`) on a ComfyUI server.
+ * (`GET /imagelab/api/hashes`) on a ComfyUI server.
  *
  * Pass the previous response's `version` as `knownVersion` — the endpoint
  * answers `304` when nothing has changed, in which case this returns `null`.
  */
 export async function fetchModelHashes(host: string, knownVersion?: string): Promise<ModelHashes | null> {
-  const res = await fetch(`${comfyHttpFor(host)}/imagelab/hashes`, {
+  const res = await fetch(`${comfyHttpFor(host)}/imagelab/api/hashes`, {
     headers: knownVersion ? { 'If-None-Match': `"${knownVersion}"` } : {},
   });
   if (res.status === 304) return null;
@@ -128,7 +128,7 @@ export interface Download {
 
 /** Every download a server's node is tracking (active + finished). */
 export async function fetchDownloads(host: string): Promise<Download[]> {
-  const res = await fetch(`${comfyHttpFor(host)}/imagelab/downloads`);
+  const res = await fetch(`${comfyHttpFor(host)}/imagelab/api/downloads`);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const body = await res.json();
   return body.downloads ?? [];
@@ -145,7 +145,7 @@ export async function startDownload(
   folder?: string,
   filename?: string,
 ): Promise<void> {
-  const res = await fetch(`${comfyHttpFor(host)}/imagelab/downloads`, {
+  const res = await fetch(`${comfyHttpFor(host)}/imagelab/api/downloads`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ version_id: versionId, folder, filename }),
@@ -158,7 +158,7 @@ export async function startDownload(
 
 /** Cancel an in-flight download, or dismiss a finished/failed row. */
 export async function cancelDownload(host: string, versionId: number): Promise<void> {
-  const res = await fetch(`${comfyHttpFor(host)}/imagelab/downloads/${versionId}`, { method: 'DELETE' });
+  const res = await fetch(`${comfyHttpFor(host)}/imagelab/api/downloads/${versionId}`, { method: 'DELETE' });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
 }
 
@@ -166,7 +166,7 @@ export async function cancelDownload(host: string, versionId: number): Promise<v
 export async function deleteModel(host: string, folder: string, filename: string): Promise<void> {
   const path = filename.split('/').map(encodeURIComponent).join('/');
   const res = await fetch(
-    `${comfyHttpFor(host)}/imagelab/models/${encodeURIComponent(folder)}/${path}`,
+    `${comfyHttpFor(host)}/imagelab/api/models/${encodeURIComponent(folder)}/${path}`,
     { method: 'DELETE' },
   );
   if (!res.ok) {
@@ -701,7 +701,7 @@ export function buildGraph(
   // PreviewImage drops the result into ComfyUI's `temp/` folder instead of
   // `output/`. ComfyUI wipes `temp/` on next startup, so unfavorited generations
   // self-clean. Explicit favorites are copied into the imagelab_favorites tree
-  // by /imagelab/favorites and survive restarts. See `lib/favorites.ts`.
+  // by /imagelab/api/favorites and survive restarts. See `lib/favorites.ts`.
   graph["9"] = { class_type: "PreviewImage", inputs: { images: img }};
   return { graph, clampNotes };
 }

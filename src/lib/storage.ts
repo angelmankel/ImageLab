@@ -95,7 +95,7 @@ export const RESOLUTION_PRESETS: Array<[number, number]> = [
 // Where ImageLab is served from decides which ComfyUI it talks to.
 //
 // The production build ships inside the pod image and nginx serves it next to ComfyUI on the same
-// origin (`/lab/`, or `/pod/app/lab/`). That origin IS a ComfyUI server, so it is the one to use:
+// origin (`/imagelab/`). That origin IS a ComfyUI server, so it is the one to use:
 // same-origin means no CORS, no mixed content, and the basic auth the browser already holds is
 // sent with every fetch and with the websocket. Hard-coding a hostname here instead is what made a
 // pod-served ImageLab sit there saying "Offline — no servers reachable" while ComfyUI answered on
