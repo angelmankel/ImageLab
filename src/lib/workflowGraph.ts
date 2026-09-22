@@ -103,9 +103,14 @@ export function nodeSpec(info: ObjectInfo, classType: string): NodeSpec | undefi
       else type = String(t);
       if (WIDGET_TYPES.has(type)) {
         const fallback = type === "COMBO" ? options?.[0] : type === "STRING" ? "" : type === "BOOLEAN" ? false : 0;
+        // The ComfyUI editor gives an INT named seed / noise_seed a control_after_generate slot
+        // even when the node does not declare one (UltimateSDUpscale's seed, for one). The saved
+        // widgets_values then carry that extra "randomize", so the spec has to agree or every
+        // widget after the seed is read one slot off.
+        const control = o.control_after_generate ?? (type === "INT" && (name === "seed" || name === "noise_seed"));
         inputs.push({
           name, type, optional: group === "optional",
-          widget: { default: o.default ?? fallback, control: !!o.control_after_generate, multiline: !!o.multiline, options },
+          widget: { default: o.default ?? fallback, control: !!control, multiline: !!o.multiline, options },
         });
       } else {
         inputs.push({ name, type, optional: group === "optional" });
