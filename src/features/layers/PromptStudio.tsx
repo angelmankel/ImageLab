@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   DndContext, PointerSensor, useSensor, useSensors,
   closestCenter, type DragEndEvent,
@@ -10,7 +10,7 @@ import { useCollapsed } from '@/hooks/useCollapsed';
 import { compileLayers } from '@/lib/prompt';
 import { cn } from '@/lib/cn';
 import {
-  CheckIcon, ChevronDownIcon, ChevronRightIcon, CloseIcon, CopyIcon, PlusIcon,
+  CheckIcon, ChevronDownIcon, ChevronRightIcon, CloseIcon, CopyIcon,
   SearchIcon, SparkleIcon,
 } from '@/components/ui/icons';
 import { useCopyToClipboard } from '@/hooks/useCopyToClipboard';
@@ -59,7 +59,12 @@ export function PromptStudio({ onOpenLibrary }: { onOpenLibrary: (kind: LayerKin
     setRemoved({ layer: latest, index });
   };
 
-  const add = (kind: LayerKind) => requestLayerFocus(addLayer(kind));
+  // No title: a prompt is its text. The store's default tag is for the library, not asked for here.
+  const add = (kind: LayerKind, text: string) => {
+    const id = addLayer(kind, { tag: '', text });
+    requestLayerFocus(id);
+    return id;
+  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -104,7 +109,7 @@ export function PromptStudio({ onOpenLibrary }: { onOpenLibrary: (kind: LayerKin
         layers={positive}
         visible={positive.filter(matches)}
         query={q}
-        onAdd={() => add('positive')}
+        onCreate={text => add('positive', text)}
         onOpenLibrary={() => onOpenLibrary('positive')}
         onDelete={onDelete}
       />
@@ -114,7 +119,7 @@ export function PromptStudio({ onOpenLibrary }: { onOpenLibrary: (kind: LayerKin
         layers={negative}
         visible={negative.filter(matches)}
         query={q}
-        onAdd={() => add('negative')}
+        onCreate={text => add('negative', text)}
         onOpenLibrary={() => onOpenLibrary('negative')}
         onDelete={onDelete}
       />
@@ -127,7 +132,7 @@ export function PromptStudio({ onOpenLibrary }: { onOpenLibrary: (kind: LayerKin
           className="sticky bottom-2 z-20 flex items-center gap-3 rounded-lg border border-border-default bg-bg-elev px-3 py-2 text-[12px] text-fg-secondary shadow-xl"
         >
           <span className="min-w-0 flex-1 truncate">
-            Deleted <span className="font-semibold">{removed.layer.tag.trim() || removed.layer.text.trim().slice(0, 24) || 'layer'}</span>
+            Deleted “<span className="font-semibold">{removed.layer.text.trim().slice(0, 32) || 'empty prompt'}</span>”
           </span>
           <button
             type="button"
@@ -145,18 +150,54 @@ export function PromptStudio({ onOpenLibrary }: { onOpenLibrary: (kind: LayerKin
 const toolBtn = 'flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-border-default bg-bg-elev px-2.5 text-[12px] font-medium text-fg-secondary transition-colors hover:border-border-strong';
 
 // ---------------------------------------------------------------------------
+// The empty box at the end of each list. Typing into it IS adding a prompt:
+// the first keystroke turns it into a real layer and the caret moves there.
+// ---------------------------------------------------------------------------
+
+function NewPrompt({ kind, onCreate }: { kind: LayerKind; onCreate: (text: string) => string }) {
+  const updateLayer = useStore(s => s.updateLayer);
+  // Keys typed before the caret has moved to the new card still belong to that one layer; without
+  // this, fast typing would make a second layer from the second keystroke.
+  const [value, setValue] = useState('');
+  const created = useRef<string | null>(null);
+  return (
+    <textarea
+      value={value}
+      rows={2}
+      spellCheck={false}
+      onChange={e => {
+        const text = e.target.value;
+        setValue(text);
+        if (!text) return;
+        if (created.current) updateLayer(created.current, { text });
+        else created.current = onCreate(text);
+      }}
+      // Focus moves to the new card: this box is empty and ready for the next one.
+      onBlur={() => { setValue(''); created.current = null; }}
+      aria-label={`New ${kind} prompt`}
+      placeholder={kind === 'positive' ? '+ Type a new prompt…' : '+ Type a new negative prompt…'}
+      className={cn(
+        'min-h-[3.25rem] w-full resize-none rounded-lg border border-dashed bg-transparent px-3 py-2 text-[13px] leading-relaxed outline-none',
+        'placeholder:text-fg-muted focus:bg-bg-input',
+        kind === 'negative' ? 'border-coral-fg/40 focus:border-coral-fg' : 'border-accent/40 focus:border-accent',
+      )}
+    />
+  );
+}
+
+// ---------------------------------------------------------------------------
 // One kind's layers: heading, sortable cards, and its own Add / Library.
 // ---------------------------------------------------------------------------
 
 function KindSection({
-  kind, label, layers, visible, query, onAdd, onOpenLibrary, onDelete,
+  kind, label, layers, visible, query, onCreate, onOpenLibrary, onDelete,
 }: {
   kind: LayerKind;
   label: string;
   layers: Layer[];
   visible: Layer[];
   query: string;
-  onAdd: () => void;
+  onCreate: (text: string) => string;
   onOpenLibrary: () => void;
   onDelete: (layer: Layer) => void;
 }) {
@@ -210,30 +251,15 @@ function KindSection({
         </DndContext>
       )}
 
-      <div className="flex items-center gap-1.5">
-        <button
-          type="button"
-          onClick={onAdd}
-          className={cn(
-            'flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg border border-dashed text-[12px] font-medium transition-colors',
-            kind === 'negative'
-              ? 'border-coral-fg/40 text-coral-fg hover:bg-coral-bg'
-              : 'border-accent/40 text-accent-fg hover:bg-accent-soft',
-          )}
-        >
-          <PlusIcon size={12} />
-          Add {kind}
-        </button>
-        <button
-          type="button"
-          onClick={onOpenLibrary}
-          title={`Add ${kind} layers from the library`}
-          className={cn(toolBtn, 'h-9')}
-        >
-          <span aria-hidden>📚</span>
-          From library
-        </button>
-      </div>
+      <NewPrompt kind={kind} onCreate={onCreate} />
+      <button
+        type="button"
+        onClick={onOpenLibrary}
+        title={`Add ${kind} prompts from the library`}
+        className="self-start rounded-md px-1.5 py-1 text-[11.5px] text-fg-muted transition-colors hover:bg-bg-elev hover:text-fg-secondary"
+      >
+        📚 Add from library
+      </button>
     </section>
   );
 }

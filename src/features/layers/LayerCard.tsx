@@ -14,16 +14,15 @@ import { tweakPromptFragment } from '@/lib/venice';
 import { useShortcut, ShortcutPriority } from '@/hooks/useShortcut';
 
 /**
- * One prompt layer, always open.
+ * One prompt layer: a text box and a thin row of controls under it.
  *
- *   ⠿  [on]  TAG ······················  [− 1.00 +]  ⋯
- *   the full prompt text, editable in place, growing with its content
+ *   ⠿ ┌ the prompt text, several lines, growing with its content ┐
+ *     └────────────────────────────────────────────────────────────┘
+ *     [on]  − 1.00 +                                      ⋯   🗑
  *
- * Built for a trackpad. The old card was a one-line preview that had to be clicked open, saved
- * only on blur, and set its weight with a slider in a popover — three precise gestures for one
- * edit. Now the text is simply there to type into, every change is saved as it is typed, the
- * weight is two buttons and a number, and delete lives in the menu (with an undo) instead of one
- * pixel away from it.
+ * The text is the whole point, so it comes first and gets the space. There is no title to fill in
+ * (a layer's `tag` still exists for the library, it is just not asked for here), every change is
+ * saved as it is typed, and delete is one click with an undo from the panel.
  */
 
 function DragDots() {
@@ -41,10 +40,7 @@ function DragDots() {
   );
 }
 
-const accentByKind = {
-  positive: { chipFg: 'text-accent-fg', borderL: 'border-l-accent' },
-  negative: { chipFg: 'text-coral-fg', borderL: 'border-l-coral-fg' },
-} as const;
+const borderByKind = { positive: 'border-l-accent', negative: 'border-l-coral-fg' } as const;
 
 /** How long typing may run ahead of the store. Short enough that nothing is ever lost. */
 const COMMIT_MS = 250;
@@ -67,21 +63,18 @@ export function LayerCard({ layer, onDelete, canMoveUp, canMoveDown }: {
     data: { kind: layer.kind },
   });
 
-  // Local drafts so typing never waits on the store, committed on a short timer and on blur.
-  const [tagDraft, setTagDraft] = useState(layer.tag);
-  const [textDraft, setTextDraft] = useState(layer.text);
+  // A local draft so typing never waits on the store, committed on a short timer and on blur.
+  const [draft, setDraft] = useState(layer.text);
   const [saved, flashSaved] = useFlash(1200);
-  const pending = useRef<{ tag?: string; text?: string }>({});
+  const pending = useRef<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const flush = () => {
     if (timer.current) { clearTimeout(timer.current); timer.current = null; }
-    const patch = pending.current;
-    pending.current = {};
-    if (patch.tag !== undefined || patch.text !== undefined) update(layer.id, patch);
+    if (pending.current !== null) { update(layer.id, { text: pending.current }); pending.current = null; }
   };
-  const queue = (patch: { tag?: string; text?: string }) => {
-    pending.current = { ...pending.current, ...patch };
+  const queue = (text: string) => {
+    pending.current = text;
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(flush, COMMIT_MS);
   };
@@ -90,19 +83,19 @@ export function LayerCard({ layer, onDelete, canMoveUp, canMoveDown }: {
   useEffect(() => () => flush(), []);
 
   // Outside changes (AI tweak, library, recall) replace the draft unless an edit is in flight.
-  useEffect(() => { if (pending.current.tag === undefined) setTagDraft(layer.tag); }, [layer.tag]);
-  useEffect(() => { if (pending.current.text === undefined) setTextDraft(layer.text); }, [layer.text]);
+  useEffect(() => { if (pending.current === null) setDraft(layer.text); }, [layer.text]);
 
-  // The textarea grows with its content, so the whole prompt is always readable.
+  // The text box grows with its content, so the whole prompt is always readable.
   const taRef = useRef<HTMLTextAreaElement>(null);
   useLayoutEffect(() => {
     const el = taRef.current;
     if (!el) return;
     el.style.height = 'auto';
     el.style.height = `${el.scrollHeight}px`;
-  }, [textDraft]);
+  }, [draft]);
 
-  // One-shot focus + scroll when a freshly inserted layer asks for it.
+  // One-shot focus when a freshly inserted layer asks for it, with the caret after its text:
+  // a layer made by typing into the "new prompt" box must carry on from the letter just typed.
   const pendingFocusLayerId = useStore(s => s.pendingFocusLayerId);
   const consumeLayerFocus = useStore(s => s.consumeLayerFocus);
   useEffect(() => {
@@ -111,13 +104,13 @@ export function LayerCard({ layer, onDelete, canMoveUp, canMoveDown }: {
       const el = taRef.current;
       if (!el) return;
       el.focus();
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.setSelectionRange(el.value.length, el.value.length);
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       consumeLayerFocus();
     });
     return () => cancelAnimationFrame(id);
   }, [pendingFocusLayerId, layer.id, consumeLayerFocus]);
 
-  const accent = accentByKind[layer.kind];
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -127,9 +120,9 @@ export function LayerCard({ layer, onDelete, canMoveUp, canMoveDown }: {
   const saveToLibrary = () => {
     flush();
     addSnippet({
-      name: tagDraft.trim() || textDraft.trim().slice(0, 28) || 'Snippet',
-      tag: tagDraft,
-      text: textDraft,
+      name: layer.tag.trim() || draft.trim().slice(0, 28) || 'Snippet',
+      tag: layer.tag,
+      text: draft,
       weight: layer.weight,
       kind: layer.kind,
       categoryId: 'uncategorized',
@@ -142,81 +135,74 @@ export function LayerCard({ layer, onDelete, canMoveUp, canMoveDown }: {
       ref={setNodeRef}
       style={style}
       className={cn(
-        'group flex flex-col gap-1 rounded-lg border border-l-[3px] border-border-default bg-bg-card px-2 pb-2 pt-1.5 transition-colors',
-        accent.borderL,
-        !layer.on && 'border-border-subtle bg-bg-card/50',
+        'group flex gap-1 rounded-lg border border-l-[3px] border-border-default bg-bg-card py-2 pl-1 pr-2',
+        borderByKind[layer.kind],
+        !layer.on && 'bg-bg-card/50',
       )}
     >
-      <div className="flex items-center gap-1.5">
-        <button
-          type="button"
-          {...attributes}
-          {...listeners}
-          aria-label="Drag to reorder"
-          title="Drag to reorder (or use ⋯ → Move up / down)"
-          className="flex h-8 w-6 shrink-0 cursor-grab touch-none items-center justify-center rounded text-handle hover:bg-bg-elev hover:text-fg-tertiary active:cursor-grabbing"
-        >
-          <DragDots />
-        </button>
+      <button
+        type="button"
+        {...attributes}
+        {...listeners}
+        aria-label="Drag to reorder"
+        title="Drag to reorder"
+        className="flex w-5 shrink-0 cursor-grab touch-none items-start justify-center pt-2.5 text-handle hover:text-fg-tertiary active:cursor-grabbing"
+      >
+        <DragDots />
+      </button>
 
-        <Switch
-          size="sm"
-          checked={layer.on}
-          onCheckedChange={on => update(layer.id, { on })}
-          ariaLabel={layer.on ? 'Layer is on' : 'Layer is off'}
-        />
-
-        <input
-          value={tagDraft}
+      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+        <textarea
+          ref={taRef}
+          value={draft}
           spellCheck={false}
-          onChange={e => { setTagDraft(e.target.value); queue({ tag: e.target.value }); }}
+          rows={3}
+          placeholder={layer.kind === 'positive' ? 'what to draw…' : 'what to avoid…'}
+          onChange={e => { setDraft(e.target.value); queue(e.target.value); }}
           onBlur={flush}
-          onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-          placeholder="label"
-          aria-label="Layer label"
+          aria-label={`${layer.kind} prompt`}
           className={cn(
-            'h-8 min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-1.5',
-            'text-[11px] font-semibold uppercase tracking-tag outline-none transition-colors',
-            'placeholder:normal-case placeholder:font-normal placeholder:text-fg-dim',
-            'hover:border-border-subtle focus:border-accent focus:bg-bg-input',
-            layer.on ? accent.chipFg : 'text-fg-muted',
+            'min-h-[4.75rem] w-full resize-none overflow-hidden rounded-md border border-border-subtle bg-bg-input px-2.5 py-2',
+            'text-[13px] leading-relaxed outline-none placeholder:text-fg-dim focus:border-accent',
+            layer.on ? 'text-fg-primary' : 'text-fg-muted line-through decoration-fg-dim/40',
           )}
         />
 
-        <WeightStepper
-          value={layer.weight}
-          onChange={v => update(layer.id, { weight: v })}
-          accent={layer.kind === 'negative' ? 'coral' : 'accent'}
-        />
-
-        <OverflowMenu
-          layer={layer}
-          venice={venice}
-          onDuplicate={() => { flush(); duplicateLayer(layer.id); }}
-          onMoveUp={canMoveUp ? () => moveLayer(layer.id, -1) : undefined}
-          onMoveDown={canMoveDown ? () => moveLayer(layer.id, 1) : undefined}
-          onSaveToLibrary={saveToLibrary}
-          saved={saved}
-          onTweakResult={(text) => update(layer.id, { text })}
-          onDelete={() => { flush(); onDelete(); }}
-        />
+        <div className="flex items-center gap-2">
+          <Switch
+            size="sm"
+            checked={layer.on}
+            onCheckedChange={on => update(layer.id, { on })}
+            ariaLabel={layer.on ? 'Turn this prompt off' : 'Turn this prompt on'}
+          />
+          <WeightStepper
+            value={layer.weight}
+            onChange={v => update(layer.id, { weight: v })}
+            accent={layer.kind === 'negative' ? 'coral' : 'accent'}
+          />
+          <div className="ml-auto flex items-center gap-0.5">
+            <OverflowMenu
+              layer={layer}
+              venice={venice}
+              onDuplicate={() => { flush(); duplicateLayer(layer.id); }}
+              onMoveUp={canMoveUp ? () => moveLayer(layer.id, -1) : undefined}
+              onMoveDown={canMoveDown ? () => moveLayer(layer.id, 1) : undefined}
+              onSaveToLibrary={saveToLibrary}
+              saved={saved}
+              onTweakResult={(text) => update(layer.id, { text })}
+            />
+            <button
+              type="button"
+              onClick={() => { flush(); onDelete(); }}
+              aria-label="Delete this prompt"
+              title="Delete (you can undo)"
+              className="flex h-8 w-8 items-center justify-center rounded-md text-fg-dim transition-colors hover:bg-status-err/15 hover:text-status-err"
+            >
+              <TrashIcon size={15} />
+            </button>
+          </div>
+        </div>
       </div>
-
-      <textarea
-        ref={taRef}
-        value={textDraft}
-        spellCheck={false}
-        rows={1}
-        placeholder={layer.kind === 'positive' ? 'what to draw…' : 'what to avoid…'}
-        onChange={e => { setTextDraft(e.target.value); queue({ text: e.target.value }); }}
-        onBlur={flush}
-        aria-label={`${layer.tag || 'Layer'} text`}
-        className={cn(
-          'w-full resize-none overflow-hidden rounded-md border border-border-subtle bg-bg-input px-2.5 py-2',
-          'text-[13px] leading-relaxed outline-none placeholder:text-fg-dim focus:border-accent',
-          layer.on ? 'text-fg-primary' : 'text-fg-muted',
-        )}
-      />
     </div>
   );
 }
@@ -298,7 +284,7 @@ function WeightStepper({ value, onChange, accent }: {
 // ---------------------------------------------------------------------------
 
 function OverflowMenu({
-  layer, venice, onDuplicate, onMoveUp, onMoveDown, onSaveToLibrary, saved, onTweakResult, onDelete,
+  layer, venice, onDuplicate, onMoveUp, onMoveDown, onSaveToLibrary, saved, onTweakResult,
 }: {
   layer: Layer;
   venice: ReturnType<typeof useStore.getState>['venice'];
@@ -309,7 +295,6 @@ function OverflowMenu({
   onSaveToLibrary: () => void;
   saved: boolean;
   onTweakResult: (text: string) => void;
-  onDelete: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [tweakOpen, setTweakOpen] = useState(false);
@@ -349,8 +334,6 @@ function OverflowMenu({
               icon: saved ? <CheckIcon size={13} /> : <StarIcon size={13} />,
               onClick: onSaveToLibrary,
             },
-            { divider: true },
-            { label: 'Delete', icon: <TrashIcon size={13} />, onClick: onDelete, danger: true },
           ]}
         />
       )}
