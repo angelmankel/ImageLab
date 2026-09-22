@@ -1,10 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   DndContext, PointerSensor, useSensor, useSensors,
   closestCenter, type DragEndEvent,
 } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import type { LayerKind } from '@/lib/types';
+import type { Layer, LayerKind } from '@/lib/types';
 import { useStore } from '@/lib/store';
 import { useCollapsed } from '@/hooks/useCollapsed';
 import { compileLayers } from '@/lib/prompt';
@@ -17,278 +17,224 @@ import { useCopyToClipboard } from '@/hooks/useCopyToClipboard';
 import { LayerCard } from './LayerCard';
 import { PromptGeneratorButton } from './PromptGeneratorButton';
 
-type FilterKind = 'all' | 'positive' | 'negative';
+/** Search only earns its space once there is a lot to search. */
+const SEARCH_AT = 8;
+/** How long "Deleted · Undo" stays up. */
+const UNDO_MS = 8000;
 
 /**
- * The unified Prompt tab. Replaces the old (FinalPromptArea +
- * positive-LayersSection + negative-LayersSection) stack with:
+ * The Prompt tab: positive layers, negative layers, and what they compile to.
  *
- *   - A collapsible read-only "Final prompt" header (positive/negative tabs).
- *   - A sticky filter bar: All / Positive / Negative + search + Add + Library.
- *   - One scrolling list of layer cards. DnD is constrained per kind via
- *     separate SortableContexts.
- *
- * The AI generator + per-layer tweak + save-to-library actions are still
- * available (generator button lives in the AI toolbar; per-layer actions live
- * in each card's ⋯ menu) — no features removed, only repositioned.
+ * Two plain sections, each ending in its own Add and Library, so adding to the negative list is
+ * never "switch a filter, then press a button at the top". Every card is open and editable in
+ * place (see LayerCard). Delete comes with an undo, because on a trackpad a stray click is cheap
+ * and a lost prompt is not.
  */
 export function PromptStudio({ onOpenLibrary }: { onOpenLibrary: (kind: LayerKind) => void }) {
   const layers = useStore(s => s.layers);
   const addLayer = useStore(s => s.addLayer);
+  const removeLayer = useStore(s => s.removeLayer);
+  const restoreLayer = useStore(s => s.restoreLayer);
   const requestLayerFocus = useStore(s => s.requestLayerFocus);
 
-  const [filter, setFilter] = useState<FilterKind>('all');
   const [query, setQuery] = useState('');
   const q = query.trim().toLowerCase();
-
-  // For DnD we want stable references per-kind. Filtering by search is a
-  // visual concern; DnD reorders the full list (cards hidden by search still
-  // exist and stay in place).
   const positive = useMemo(() => layers.filter(l => l.kind === 'positive'), [layers]);
   const negative = useMemo(() => layers.filter(l => l.kind === 'negative'), [layers]);
-
   const matches = (l: { tag: string; text: string }) =>
     !q || l.tag.toLowerCase().includes(q) || l.text.toLowerCase().includes(q);
 
-  const showPositive = filter !== 'negative';
-  const showNegative = filter !== 'positive';
-
-  const onAdd = () => {
-    // "All" view defaults adds to positive; otherwise add to the visible kind.
-    const kind: LayerKind = filter === 'negative' ? 'negative' : 'positive';
-    requestLayerFocus(addLayer(kind));
+  // The last delete, kept long enough to take back.
+  const [removed, setRemoved] = useState<{ layer: Layer; index: number } | null>(null);
+  useEffect(() => {
+    if (!removed) return;
+    const id = setTimeout(() => setRemoved(null), UNDO_MS);
+    return () => clearTimeout(id);
+  }, [removed]);
+  const onDelete = (layer: Layer) => {
+    const index = useStore.getState().layers.findIndex(l => l.id === layer.id);
+    // Read the layer from the store, not the prop: the card flushed its last keystrokes into it.
+    const latest = useStore.getState().layers[index] ?? layer;
+    removeLayer(layer.id);
+    setRemoved({ layer: latest, index });
   };
 
-  // Auto-flip the filter to the kind the user pressed "Library" on.
-  const openLibraryFor = (kind: LayerKind) => onOpenLibrary(kind);
+  const add = (kind: LayerKind) => requestLayerFocus(addLayer(kind));
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center gap-1.5">
+        <button
+          type="button"
+          onClick={() => onOpenLibrary('positive')}
+          title="Open the snippet library"
+          className={toolBtn}
+        >
+          <span aria-hidden>📚</span>
+          Library
+        </button>
+        <PromptGeneratorButton />
+        {layers.length >= SEARCH_AT && (
+          <div className="relative ml-auto min-w-0 flex-1">
+            <SearchIcon size={12} className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-fg-dim" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Filter layers"
+              aria-label="Filter layers"
+              className="h-8 w-full rounded-md border border-border-default bg-bg-input pl-7 pr-7 text-[12px] text-fg-secondary placeholder:text-fg-dim outline-none focus:border-accent"
+            />
+            {query && (
+              <button
+                type="button"
+                onClick={() => setQuery('')}
+                aria-label="Clear filter"
+                className="absolute right-1 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded text-fg-dim hover:text-fg-secondary"
+              >
+                <CloseIcon size={11} />
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      <KindSection
+        kind="positive"
+        label="Positive"
+        layers={positive}
+        visible={positive.filter(matches)}
+        query={q}
+        onAdd={() => add('positive')}
+        onOpenLibrary={() => onOpenLibrary('positive')}
+        onDelete={onDelete}
+      />
+      <KindSection
+        kind="negative"
+        label="Negative"
+        layers={negative}
+        visible={negative.filter(matches)}
+        query={q}
+        onAdd={() => add('negative')}
+        onOpenLibrary={() => onOpenLibrary('negative')}
+        onDelete={onDelete}
+      />
+
       <FinalPromptHeader />
 
-      {/* Toolbar: filter + search + add + library + AI generate */}
-      <div className="sticky top-0 z-10 -mx-3.5 flex flex-col gap-2 border-b border-border-subtle bg-bg-panel/95 px-3.5 pb-2.5 pt-1 backdrop-blur">
-        <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1.5">
-          <FilterToggle filter={filter} onChange={setFilter} positiveCount={positive.length} negativeCount={negative.length} />
-          <div className="ml-auto flex shrink-0 items-center gap-1">
-            <button
-              type="button"
-              onClick={onAdd}
-              title="Add a blank layer"
-              className="flex h-8 shrink-0 items-center gap-1 rounded-lg border border-border-default bg-bg-elev px-2.5 text-[12px] font-medium text-fg-secondary transition-colors hover:border-border-strong"
-            >
-              <PlusIcon size={12} />
-              Add
-            </button>
-            <button
-              type="button"
-              onClick={() => openLibraryFor(filter === 'negative' ? 'negative' : 'positive')}
-              title="Open the snippet library"
-              className="flex h-8 shrink-0 items-center gap-1 rounded-lg border border-border-default bg-bg-elev px-2.5 text-[12px] font-medium text-fg-secondary transition-colors hover:border-border-strong"
-            >
-              <span aria-hidden>📚</span>
-              Library
-            </button>
-            <PromptGeneratorButton />
-          </div>
-        </div>
-        <div className="relative">
-          <SearchIcon size={12} className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-fg-dim" />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search your layers…"
-            className="w-full rounded-md border border-border-default bg-bg-input pl-7 pr-7 py-1.5 text-[12px] text-fg-secondary placeholder:text-fg-dim outline-none focus:border-accent"
-          />
-          {query && (
-            <button
-              type="button"
-              onClick={() => setQuery('')}
-              aria-label="Clear search"
-              className="absolute right-1.5 top-1/2 -translate-y-1/2 flex h-5 w-5 items-center justify-center rounded text-fg-dim hover:text-fg-secondary"
-            >
-              <CloseIcon size={11} />
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Layer lists. Per-kind SortableContext so dnd-kit never sees a
-          cross-kind swap. When both groups are visible, render a subtle
-          divider/heading between them so the boundary is obvious. */}
-      <div className="flex flex-col gap-3">
-        {showPositive && (
-          <KindGroup
-            kind="positive"
-            label="Positive"
-            layers={positive}
-            visibleIds={new Set(positive.filter(matches).map(l => l.id))}
-            query={q}
-            onAdd={() => requestLayerFocus(addLayer('positive'))}
-            onOpenLibrary={() => openLibraryFor('positive')}
-            // Hide the per-group header when only one group is shown — the
-            // filter buttons already tell the user what kind they're seeing.
-            showHeader={filter === 'all'}
-          />
-        )}
-        {showNegative && (
-          <KindGroup
-            kind="negative"
-            label="Negative"
-            layers={negative}
-            visibleIds={new Set(negative.filter(matches).map(l => l.id))}
-            query={q}
-            onAdd={() => requestLayerFocus(addLayer('negative'))}
-            onOpenLibrary={() => openLibraryFor('negative')}
-            showHeader={filter === 'all'}
-          />
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Filter toggle — segmented control
-// ---------------------------------------------------------------------------
-
-function FilterToggle({
-  filter, onChange, positiveCount, negativeCount,
-}: {
-  filter: FilterKind;
-  onChange: (f: FilterKind) => void;
-  positiveCount: number;
-  negativeCount: number;
-}) {
-  const opts: { id: FilterKind; label: string; count?: number }[] = [
-    { id: 'all',      label: 'All',      count: positiveCount + negativeCount },
-    { id: 'positive', label: 'Positive', count: positiveCount },
-    { id: 'negative', label: 'Negative', count: negativeCount },
-  ];
-  return (
-    <div role="tablist" className="inline-flex rounded-lg border border-border-default bg-bg-input p-0.5">
-      {opts.map(o => {
-        const active = filter === o.id;
-        return (
+      {removed && (
+        <div
+          role="status"
+          className="sticky bottom-2 z-20 flex items-center gap-3 rounded-lg border border-border-default bg-bg-elev px-3 py-2 text-[12px] text-fg-secondary shadow-xl"
+        >
+          <span className="min-w-0 flex-1 truncate">
+            Deleted <span className="font-semibold">{removed.layer.tag.trim() || removed.layer.text.trim().slice(0, 24) || 'layer'}</span>
+          </span>
           <button
-            key={o.id}
             type="button"
-            role="tab"
-            aria-selected={active}
-            onClick={() => onChange(o.id)}
-            className={cn(
-              'flex h-7 items-center gap-1 rounded-md px-2.5 text-[11px] font-semibold transition-colors',
-              active
-                ? (o.id === 'negative' ? 'bg-coral-bg text-coral-fg' : o.id === 'positive' ? 'bg-accent text-white' : 'bg-bg-card text-fg-primary')
-                : 'text-fg-muted hover:text-fg-secondary',
-            )}
+            onClick={() => { restoreLayer(removed.layer, removed.index); setRemoved(null); }}
+            className="shrink-0 rounded-md px-2 py-1 font-semibold text-accent-fg hover:bg-accent-soft"
           >
-            {o.label}
-            {typeof o.count === 'number' && (
-              <span className={cn(
-                'rounded px-1 text-[10px] font-medium tabular-nums',
-                active ? 'bg-black/10 text-current' : 'text-fg-dim',
-              )}>
-                {o.count}
-              </span>
-            )}
+            Undo
           </button>
-        );
-      })}
+        </div>
+      )}
     </div>
   );
 }
 
+const toolBtn = 'flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-border-default bg-bg-elev px-2.5 text-[12px] font-medium text-fg-secondary transition-colors hover:border-border-strong';
+
 // ---------------------------------------------------------------------------
-// One kind's layer list — optional heading + DnD context + empty state.
+// One kind's layers: heading, sortable cards, and its own Add / Library.
 // ---------------------------------------------------------------------------
 
-function KindGroup({
-  kind, label, layers, visibleIds, query, onAdd, onOpenLibrary, showHeader,
+function KindSection({
+  kind, label, layers, visible, query, onAdd, onOpenLibrary, onDelete,
 }: {
   kind: LayerKind;
   label: string;
-  layers: { id: string; kind: LayerKind; tag: string; text: string }[];
-  visibleIds: Set<string>;
+  layers: Layer[];
+  visible: Layer[];
   query: string;
   onAdd: () => void;
   onOpenLibrary: () => void;
-  showHeader: boolean;
+  onDelete: (layer: Layer) => void;
 }) {
   const reorderLayers = useStore(s => s.reorderLayers);
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
 
   const onDragEnd = (e: DragEndEvent) => {
-    const fromId = String(e.active.id);
     const toId = e.over ? String(e.over.id) : null;
-    if (!toId) return;
-    reorderLayers(kind, fromId, toId);
+    if (toId) reorderLayers(kind, String(e.active.id), toId);
   };
 
-  const visibleCount = layers.filter(l => visibleIds.has(l.id)).length;
-  const hiddenBySearch = query && visibleCount < layers.length ? layers.length - visibleCount : 0;
+  const on = layers.filter(l => l.on).length;
+  const hidden = layers.length - visible.length;
 
   return (
     <section className="flex flex-col gap-2">
-      {showHeader && (
-        <div className="flex items-center gap-2 px-1">
-          <span className={cn(
-            'rounded-md px-1.5 py-0.5 text-[9.5px] font-semibold uppercase tracking-tag',
-            kind === 'negative' ? 'bg-coral-bg text-coral-fg' : 'bg-accent-soft text-accent-fg',
-          )}>
-            {label}
-          </span>
-          <span className="text-[10px] text-fg-dim">{layers.length}</span>
-          {hiddenBySearch > 0 && (
-            <span className="text-[10px] text-fg-dim">· {hiddenBySearch} hidden by search</span>
-          )}
-        </div>
+      <header className="flex items-baseline gap-2 px-0.5">
+        <h3 className={cn(
+          'text-[11px] font-semibold uppercase tracking-section',
+          kind === 'negative' ? 'text-coral-fg' : 'text-accent-fg',
+        )}>
+          {label}
+        </h3>
+        <span className="text-[11px] text-fg-dim tabular-nums">
+          {layers.length === 0 ? 'none' : on === layers.length ? `${on}` : `${on} of ${layers.length} on`}
+        </span>
+        {hidden > 0 && <span className="text-[11px] text-fg-dim">· {hidden} filtered out</span>}
+      </header>
+
+      {layers.length > 0 && visible.length === 0 && (
+        <p className="rounded-lg border border-dashed border-border-default px-3 py-3 text-center text-[12px] italic text-fg-muted">
+          No {kind} layers match “{query}”.
+        </p>
       )}
 
-      {layers.length === 0 ? (
-        <EmptyState kind={kind} onAdd={onAdd} onOpenLibrary={onOpenLibrary} />
-      ) : visibleCount === 0 ? (
-        <div className="rounded-lg border border-dashed border-border-default px-3 py-4 text-center text-[11px] italic text-fg-muted">
-          No {kind} layers match “{query}”.
-        </div>
-      ) : (
+      {visible.length > 0 && (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
           <SortableContext items={layers.map(l => l.id)} strategy={verticalListSortingStrategy}>
-            <div className="flex flex-col gap-1.5">
-              {layers.map(l => visibleIds.has(l.id) && <LayerCard key={l.id} layer={l as Parameters<typeof LayerCard>[0]['layer']} />)}
+            <div className="flex flex-col gap-2">
+              {visible.map(l => (
+                <LayerCard
+                  key={l.id}
+                  layer={l}
+                  onDelete={() => onDelete(l)}
+                  canMoveUp={layers[0]?.id !== l.id}
+                  canMoveDown={layers[layers.length - 1]?.id !== l.id}
+                />
+              ))}
             </div>
           </SortableContext>
         </DndContext>
       )}
-    </section>
-  );
-}
 
-function EmptyState({ kind, onAdd, onOpenLibrary }: { kind: LayerKind; onAdd: () => void; onOpenLibrary: () => void }) {
-  return (
-    <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-border-default px-4 py-5 text-center">
-      <p className="text-[12px] text-fg-muted">
-        No {kind} layers yet.
-      </p>
       <div className="flex items-center gap-1.5">
         <button
           type="button"
           onClick={onAdd}
-          className="flex h-7 items-center gap-1 rounded-md border border-border-default bg-bg-elev px-2.5 text-[11.5px] font-medium text-fg-secondary hover:border-border-strong"
+          className={cn(
+            'flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg border border-dashed text-[12px] font-medium transition-colors',
+            kind === 'negative'
+              ? 'border-coral-fg/40 text-coral-fg hover:bg-coral-bg'
+              : 'border-accent/40 text-accent-fg hover:bg-accent-soft',
+          )}
         >
-          <PlusIcon size={11} />
-          Add blank
+          <PlusIcon size={12} />
+          Add {kind}
         </button>
         <button
           type="button"
           onClick={onOpenLibrary}
-          className="flex h-7 items-center gap-1 rounded-md border border-border-default bg-bg-elev px-2.5 text-[11.5px] font-medium text-fg-secondary hover:border-border-strong"
+          title={`Add ${kind} layers from the library`}
+          className={cn(toolBtn, 'h-9')}
         >
           <span aria-hidden>📚</span>
           From library
         </button>
       </div>
-    </div>
+    </section>
   );
 }
 

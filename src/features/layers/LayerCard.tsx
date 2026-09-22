@@ -5,29 +5,30 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { Layer } from '@/lib/types';
 import { useStore } from '@/lib/store';
-import { useCollapsed } from '@/hooks/useCollapsed';
-import { Slider } from '@/components/ui/Slider';
+import { Switch } from '@/components/ui/Switch';
 import { cn } from '@/lib/cn';
 import {
-  CheckIcon, CopyIcon, MoreIcon, SparkleIcon, StarIcon, TrashIcon,
+  ArrowDownIcon, ArrowUpIcon, CheckIcon, CopyIcon, MinusIcon, MoreIcon, PlusIcon, SparkleIcon, StarIcon, TrashIcon,
 } from '@/components/ui/icons';
 import { tweakPromptFragment } from '@/lib/venice';
 import { useShortcut, ShortcutPriority } from '@/hooks/useShortcut';
 
 /**
- * A single prompt layer row. Two display modes:
+ * One prompt layer, always open.
  *
- *   - Compact (default) — single line: drag · on-dot · tag · text preview ·
- *     weight pill · ⋯ menu. Click the row body to expand.
- *   - Expanded           — tag input + auto-growing textarea + weight slider.
+ *   ⠿  [on]  TAG ······················  [− 1.00 +]  ⋯
+ *   the full prompt text, editable in place, growing with its content
  *
- * Everything except the inline editors lives behind a ⋯ overflow menu so the
- * common case shows almost no chrome.
+ * Built for a trackpad. The old card was a one-line preview that had to be clicked open, saved
+ * only on blur, and set its weight with a slider in a popover — three precise gestures for one
+ * edit. Now the text is simply there to type into, every change is saved as it is typed, the
+ * weight is two buttons and a number, and delete lives in the menu (with an undo) instead of one
+ * pixel away from it.
  */
 
 function DragDots() {
   return (
-    <svg viewBox="0 0 8 12" width="11" height="16" aria-hidden className="shrink-0 text-handle">
+    <svg viewBox="0 0 8 12" width="10" height="15" aria-hidden className="shrink-0">
       <g fill="currentColor">
         <circle cx="1.5" cy="1.5" r="1" />
         <circle cx="6.5" cy="1.5" r="1" />
@@ -41,14 +42,23 @@ function DragDots() {
 }
 
 const accentByKind = {
-  positive: { chipBg: 'bg-accent-soft', chipFg: 'text-accent-fg', borderL: 'border-l-accent', dot: 'bg-accent', dotOff: 'bg-bg-input ring-1 ring-inset ring-border-strong' },
-  negative: { chipBg: 'bg-coral-bg',    chipFg: 'text-coral-fg', borderL: 'border-l-coral-fg', dot: 'bg-coral-fg', dotOff: 'bg-bg-input ring-1 ring-inset ring-border-strong' },
+  positive: { chipFg: 'text-accent-fg', borderL: 'border-l-accent' },
+  negative: { chipFg: 'text-coral-fg', borderL: 'border-l-coral-fg' },
 } as const;
 
-export function LayerCard({ layer }: { layer: Layer }) {
+/** How long typing may run ahead of the store. Short enough that nothing is ever lost. */
+const COMMIT_MS = 250;
+
+export function LayerCard({ layer, onDelete, canMoveUp, canMoveDown }: {
+  layer: Layer;
+  /** Removes the layer. The panel owns this so it can offer an undo. */
+  onDelete: () => void;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
+}) {
   const update = useStore(s => s.updateLayer);
-  const removeLayer = useStore(s => s.removeLayer);
   const duplicateLayer = useStore(s => s.duplicateLayer);
+  const moveLayer = useStore(s => s.moveLayer);
   const addSnippet = useStore(s => s.addSnippet);
   const venice = useStore(s => s.venice);
 
@@ -57,30 +67,46 @@ export function LayerCard({ layer }: { layer: Layer }) {
     data: { kind: layer.kind },
   });
 
-  const [collapsed, , setCollapsed] = useCollapsed(`layer:${layer.id}`, true);
-
+  // Local drafts so typing never waits on the store, committed on a short timer and on blur.
   const [tagDraft, setTagDraft] = useState(layer.tag);
   const [textDraft, setTextDraft] = useState(layer.text);
   const [saved, flashSaved] = useFlash(1200);
-  useEffect(() => setTagDraft(layer.tag), [layer.tag]);
-  useEffect(() => setTextDraft(layer.text), [layer.text]);
+  const pending = useRef<{ tag?: string; text?: string }>({});
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Auto-grow the textarea when expanded.
+  const flush = () => {
+    if (timer.current) { clearTimeout(timer.current); timer.current = null; }
+    const patch = pending.current;
+    pending.current = {};
+    if (patch.tag !== undefined || patch.text !== undefined) update(layer.id, patch);
+  };
+  const queue = (patch: { tag?: string; text?: string }) => {
+    pending.current = { ...pending.current, ...patch };
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(flush, COMMIT_MS);
+  };
+  // Never drop a keystroke when the card goes away mid-edit (delete, filter, view switch).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => () => flush(), []);
+
+  // Outside changes (AI tweak, library, recall) replace the draft unless an edit is in flight.
+  useEffect(() => { if (pending.current.tag === undefined) setTagDraft(layer.tag); }, [layer.tag]);
+  useEffect(() => { if (pending.current.text === undefined) setTextDraft(layer.text); }, [layer.text]);
+
+  // The textarea grows with its content, so the whole prompt is always readable.
   const taRef = useRef<HTMLTextAreaElement>(null);
   useLayoutEffect(() => {
     const el = taRef.current;
-    if (!el || collapsed) return;
+    if (!el) return;
     el.style.height = 'auto';
     el.style.height = `${el.scrollHeight}px`;
-  }, [textDraft, collapsed]);
+  }, [textDraft]);
 
   // One-shot focus + scroll when a freshly inserted layer asks for it.
   const pendingFocusLayerId = useStore(s => s.pendingFocusLayerId);
   const consumeLayerFocus = useStore(s => s.consumeLayerFocus);
   useEffect(() => {
     if (pendingFocusLayerId !== layer.id) return;
-    setCollapsed(false);
-    // Wait one tick for the textarea to mount.
     const id = requestAnimationFrame(() => {
       const el = taRef.current;
       if (!el) return;
@@ -89,20 +115,21 @@ export function LayerCard({ layer }: { layer: Layer }) {
       consumeLayerFocus();
     });
     return () => cancelAnimationFrame(id);
-  }, [pendingFocusLayerId, layer.id, consumeLayerFocus, setCollapsed]);
+  }, [pendingFocusLayerId, layer.id, consumeLayerFocus]);
 
   const accent = accentByKind[layer.kind];
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.3 : layer.on ? 1 : 0.55,
+    opacity: isDragging ? 0.3 : 1,
   };
 
   const saveToLibrary = () => {
+    flush();
     addSnippet({
-      name: layer.tag.trim() || layer.text.trim().slice(0, 28) || 'Snippet',
-      tag: layer.tag,
-      text: layer.text,
+      name: tagDraft.trim() || textDraft.trim().slice(0, 28) || 'Snippet',
+      tag: tagDraft,
+      text: textDraft,
       weight: layer.weight,
       kind: layer.kind,
       categoryId: 'uncategorized',
@@ -110,224 +137,159 @@ export function LayerCard({ layer }: { layer: Layer }) {
     flashSaved();
   };
 
-  const previewText = layer.text.trim() || (layer.kind === 'positive' ? '(empty positive layer)' : '(empty negative layer)');
-
   return (
     <div
       ref={setNodeRef}
       style={style}
       className={cn(
-        'group flex flex-col rounded-lg border border-l-[3px] bg-bg-card transition-colors',
-        layer.on ? 'border-border-default' : 'border-border-subtle',
+        'group flex flex-col gap-1 rounded-lg border border-l-[3px] border-border-default bg-bg-card px-2 pb-2 pt-1.5 transition-colors',
         accent.borderL,
+        !layer.on && 'border-border-subtle bg-bg-card/50',
       )}
     >
-      {/* Header — compact row, always visible */}
-      <div className="flex items-center gap-1.5 px-1.5 py-1.5">
+      <div className="flex items-center gap-1.5">
         <button
           type="button"
           {...attributes}
           {...listeners}
           aria-label="Drag to reorder"
-          title="Drag to reorder"
-          className="flex h-8 w-5 shrink-0 cursor-grab touch-none items-center justify-center text-handle hover:text-fg-tertiary active:cursor-grabbing"
+          title="Drag to reorder (or use ⋯ → Move up / down)"
+          className="flex h-8 w-6 shrink-0 cursor-grab touch-none items-center justify-center rounded text-handle hover:bg-bg-elev hover:text-fg-tertiary active:cursor-grabbing"
         >
           <DragDots />
         </button>
 
-        <button
-          type="button"
-          onClick={() => update(layer.id, { on: !layer.on })}
-          aria-label={layer.on ? 'Disable layer' : 'Enable layer'}
-          title={layer.on ? 'Layer is on — click to disable' : 'Layer is off — click to enable'}
-          className="flex h-8 w-6 shrink-0 items-center justify-center"
-        >
-          <span className={cn(
-            'inline-block h-2.5 w-2.5 rounded-full transition-colors',
-            layer.on ? accent.dot : accent.dotOff,
-          )} />
-        </button>
+        <Switch
+          size="sm"
+          checked={layer.on}
+          onCheckedChange={on => update(layer.id, { on })}
+          ariaLabel={layer.on ? 'Layer is on' : 'Layer is off'}
+        />
 
-        {/* Click body to expand. Layered button so the row reads as one target. */}
-        <button
-          type="button"
-          onClick={() => setCollapsed(!collapsed)}
-          className="flex min-w-0 flex-1 items-center gap-2 rounded-md py-1 pr-1 text-left"
-        >
-          {layer.tag.trim() && (
-            <span className={cn(
-              'shrink-0 rounded-md px-1.5 py-0.5 text-[9.5px] font-semibold uppercase tracking-tag',
-              layer.on ? accent.chipBg : 'bg-bg-input',
-              layer.on ? accent.chipFg : 'text-fg-muted',
-            )}>
-              {layer.tag.trim()}
-            </span>
+        <input
+          value={tagDraft}
+          spellCheck={false}
+          onChange={e => { setTagDraft(e.target.value); queue({ tag: e.target.value }); }}
+          onBlur={flush}
+          onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+          placeholder="label"
+          aria-label="Layer label"
+          className={cn(
+            'h-8 min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-1.5',
+            'text-[11px] font-semibold uppercase tracking-tag outline-none transition-colors',
+            'placeholder:normal-case placeholder:font-normal placeholder:text-fg-dim',
+            'hover:border-border-subtle focus:border-accent focus:bg-bg-input',
+            layer.on ? accent.chipFg : 'text-fg-muted',
           )}
-          {collapsed && (
-            <span className={cn(
-              'min-w-0 flex-1 truncate text-[12px]',
-              layer.text.trim() ? 'text-fg-secondary' : 'text-fg-dim italic',
-            )}>
-              {previewText}
-            </span>
-          )}
-          {!collapsed && !layer.tag.trim() && (
-            <span className="text-[10px] font-semibold uppercase tracking-section text-fg-dim">
-              Layer
-            </span>
-          )}
-        </button>
+        />
 
-        <WeightPill
+        <WeightStepper
           value={layer.weight}
-          onChange={(v) => update(layer.id, { weight: v })}
+          onChange={v => update(layer.id, { weight: v })}
           accent={layer.kind === 'negative' ? 'coral' : 'accent'}
         />
 
         <OverflowMenu
           layer={layer}
           venice={venice}
-          onDuplicate={() => duplicateLayer(layer.id)}
+          onDuplicate={() => { flush(); duplicateLayer(layer.id); }}
+          onMoveUp={canMoveUp ? () => moveLayer(layer.id, -1) : undefined}
+          onMoveDown={canMoveDown ? () => moveLayer(layer.id, 1) : undefined}
           onSaveToLibrary={saveToLibrary}
           saved={saved}
           onTweakResult={(text) => update(layer.id, { text })}
+          onDelete={() => { flush(); onDelete(); }}
         />
-
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); removeLayer(layer.id); }}
-          aria-label="Delete layer"
-          title="Delete layer"
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-fg-dim transition-colors hover:bg-status-err/15 hover:text-status-err"
-        >
-          <TrashIcon size={13} />
-        </button>
       </div>
 
-      {/* Expanded body */}
-      {!collapsed && (
-        <div className="flex flex-col gap-2 px-3 pb-2.5 pt-0.5">
-          <input
-            value={tagDraft}
-            spellCheck={false}
-            onChange={(e) => setTagDraft(e.target.value)}
-            onBlur={() => { if (tagDraft !== layer.tag) update(layer.id, { tag: tagDraft }); }}
-            onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-            placeholder="tag (optional)"
-            className="w-full rounded-md border border-border-default bg-bg-input px-2 py-1 text-[10.5px] font-semibold uppercase tracking-tag text-fg-secondary placeholder:text-fg-dim placeholder:normal-case outline-none focus:border-accent"
-          />
-          <textarea
-            ref={taRef}
-            value={textDraft}
-            spellCheck={false}
-            rows={1}
-            placeholder="prompt fragment…"
-            onChange={(e) => setTextDraft(e.target.value)}
-            onBlur={() => { if (textDraft !== layer.text) update(layer.id, { text: textDraft }); }}
-            className="w-full resize-none overflow-hidden rounded-lg border border-border-default bg-bg-input px-3 py-2 text-[13px] leading-relaxed text-fg-secondary placeholder:text-fg-dim outline-none focus:border-accent"
-          />
-          <div className="flex items-center gap-2.5">
-            <span className="text-[10px] font-semibold uppercase tracking-section text-fg-dim">Weight</span>
-            <Slider
-              value={layer.weight}
-              onValueChange={(v) => update(layer.id, { weight: Math.round(v * 100) / 100 })}
-              min={0}
-              max={2}
-              step={0.05}
-              ariaLabel="Layer weight"
-            />
-            <span className="w-11 text-right text-[12px] font-semibold tabular-nums text-fg-secondary">
-              {layer.weight.toFixed(2)}
-            </span>
-          </div>
-        </div>
-      )}
+      <textarea
+        ref={taRef}
+        value={textDraft}
+        spellCheck={false}
+        rows={1}
+        placeholder={layer.kind === 'positive' ? 'what to draw…' : 'what to avoid…'}
+        onChange={e => { setTextDraft(e.target.value); queue({ text: e.target.value }); }}
+        onBlur={flush}
+        aria-label={`${layer.tag || 'Layer'} text`}
+        className={cn(
+          'w-full resize-none overflow-hidden rounded-md border border-border-subtle bg-bg-input px-2.5 py-2',
+          'text-[13px] leading-relaxed outline-none placeholder:text-fg-dim focus:border-accent',
+          layer.on ? 'text-fg-primary' : 'text-fg-muted',
+        )}
+      />
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Weight pill — click to open a tiny inline slider popover. Cheaper than
-// always showing the slider in compact mode but still gives one-click access.
+// Weight — two buttons and a number. Every step is one click, the number can
+// be typed, and nothing needs a steady drag.
 // ---------------------------------------------------------------------------
 
-function WeightPill({ value, onChange, accent }: {
+const WEIGHT_STEP = 0.05;
+const clampWeight = (v: number) => Math.round(Math.min(2, Math.max(0, v)) * 100) / 100;
+
+function WeightStepper({ value, onChange, accent }: {
   value: number;
   onChange: (v: number) => void;
   accent: 'accent' | 'coral';
 }) {
-  const [open, setOpen] = useState(false);
-  const btnRef = useRef<HTMLButtonElement>(null);
-
+  const [draft, setDraft] = useState<string | null>(null);
   const isOne = Math.abs(value - 1) < 0.005;
+  const commit = () => {
+    if (draft === null) return;
+    const n = Number(draft);
+    if (Number.isFinite(n)) onChange(clampWeight(n));
+    setDraft(null);
+  };
+  const btn = 'flex h-8 w-7 shrink-0 items-center justify-center text-fg-dim transition-colors hover:bg-bg-elev hover:text-fg-secondary disabled:opacity-30';
+
   return (
-    <>
+    <div
+      className="flex shrink-0 items-center overflow-hidden rounded-md border border-border-subtle"
+      title="Weight (0 to 2). Shift-click steps by 0.25."
+    >
       <button
-        ref={btnRef}
         type="button"
-        onClick={() => setOpen(o => !o)}
-        title="Adjust weight"
-        aria-label={`Layer weight ${value.toFixed(2)}`}
+        aria-label="Lower weight"
+        disabled={value <= 0}
+        onClick={e => onChange(clampWeight(value - (e.shiftKey ? 0.25 : WEIGHT_STEP)))}
+        className={btn}
+      >
+        <MinusIcon size={11} />
+      </button>
+      <input
+        value={draft ?? value.toFixed(2)}
+        inputMode="decimal"
+        aria-label="Weight"
+        onFocus={e => { setDraft(value.toFixed(2)); e.target.select(); }}
+        onChange={e => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={e => {
+          if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+          if (e.key === 'Escape') { setDraft(null); (e.target as HTMLInputElement).blur(); }
+          if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+            e.preventDefault();
+            const next = clampWeight(value + (e.key === 'ArrowUp' ? 1 : -1) * (e.shiftKey ? 0.25 : WEIGHT_STEP));
+            onChange(next);
+            setDraft(next.toFixed(2));
+          }
+        }}
         className={cn(
-          'flex h-7 shrink-0 items-center justify-center rounded-md px-1.5 text-[10.5px] font-semibold tabular-nums transition-colors',
-          'border border-transparent hover:border-border-default',
+          'h-8 w-10 bg-transparent text-center text-[12px] font-semibold tabular-nums outline-none focus:bg-bg-input',
           isOne ? 'text-fg-dim' : accent === 'coral' ? 'text-coral-fg' : 'text-accent-fg',
         )}
-      >
-        {value.toFixed(2)}
-      </button>
-      {open && btnRef.current && (
-        <WeightPopover anchor={btnRef.current} value={value} onChange={onChange} onClose={() => setOpen(false)} />
-      )}
-    </>
-  );
-}
-
-function WeightPopover({ anchor, value, onChange, onClose }: {
-  anchor: HTMLElement;
-  value: number;
-  onChange: (v: number) => void;
-  onClose: () => void;
-}) {
-  const r = anchor.getBoundingClientRect();
-  const WIDTH = 220;
-  const MARGIN = 8;
-  const vw = window.innerWidth;
-  const left = Math.min(Math.max(MARGIN, r.right - WIDTH), vw - WIDTH - MARGIN);
-  const top = r.bottom + 6;
-
-  useEffect(() => {
-    const onDocClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement | null;
-      if (target?.closest('[data-weight-popover]')) return;
-      if (target === anchor || anchor.contains(target!)) return;
-      onClose();
-    };
-    const id = setTimeout(() => document.addEventListener('mousedown', onDocClick), 0);
-    return () => { clearTimeout(id); document.removeEventListener('mousedown', onDocClick); };
-  }, [anchor, onClose]);
-
-  useShortcut('Escape', onClose, { priority: ShortcutPriority.Drawer });
-
-  return createPortal(
-    <div
-      data-weight-popover
-      style={{ left, top, width: WIDTH }}
-      className="fixed z-50 flex items-center gap-2 rounded-xl border border-border-default bg-bg-elev p-2.5 shadow-2xl"
-    >
-      <Slider
-        value={value}
-        onValueChange={(v) => onChange(Math.round(v * 100) / 100)}
-        min={0}
-        max={2}
-        step={0.05}
-        ariaLabel="Layer weight"
       />
-      <span className="w-10 text-right text-[12px] font-semibold tabular-nums text-fg-secondary">
-        {value.toFixed(2)}
-      </span>
-    </div>,
-    document.body,
+      <button
+        type="button"
+        aria-label="Raise weight"
+        disabled={value >= 2}
+        onClick={e => onChange(clampWeight(value + (e.shiftKey ? 0.25 : WEIGHT_STEP)))}
+        className={btn}
+      >
+        <PlusIcon size={11} />
+      </button>
+    </div>
   );
 }
 
@@ -336,14 +298,18 @@ function WeightPopover({ anchor, value, onChange, onClose }: {
 // ---------------------------------------------------------------------------
 
 function OverflowMenu({
-  layer, venice, onDuplicate, onSaveToLibrary, saved, onTweakResult,
+  layer, venice, onDuplicate, onMoveUp, onMoveDown, onSaveToLibrary, saved, onTweakResult, onDelete,
 }: {
   layer: Layer;
   venice: ReturnType<typeof useStore.getState>['venice'];
   onDuplicate: () => void;
+  /** Undefined when the layer is already first / last of its kind. */
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
   onSaveToLibrary: () => void;
   saved: boolean;
   onTweakResult: (text: string) => void;
+  onDelete: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [tweakOpen, setTweakOpen] = useState(false);
@@ -358,15 +324,18 @@ function OverflowMenu({
         onClick={() => setOpen(o => !o)}
         title="More…"
         aria-label="More actions"
-        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-fg-dim transition-colors hover:bg-bg-elev hover:text-fg-secondary"
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-fg-dim transition-colors hover:bg-bg-elev hover:text-fg-secondary"
       >
-        <MoreIcon size={15} />
+        <MoreIcon size={16} />
       </button>
       {open && btnRef.current && (
         <MenuPopover
           anchor={btnRef.current}
           onClose={() => setOpen(false)}
           items={[
+            { label: 'Move up', icon: <ArrowUpIcon size={13} />, onClick: () => onMoveUp?.(), disabled: !onMoveUp },
+            { label: 'Move down', icon: <ArrowDownIcon size={13} />, onClick: () => onMoveDown?.(), disabled: !onMoveDown },
+            { divider: true },
             { label: 'Duplicate', icon: <CopyIcon size={13} />, onClick: onDuplicate },
             {
               label: 'Tweak with AI…',
@@ -380,6 +349,8 @@ function OverflowMenu({
               icon: saved ? <CheckIcon size={13} /> : <StarIcon size={13} />,
               onClick: onSaveToLibrary,
             },
+            { divider: true },
+            { label: 'Delete', icon: <TrashIcon size={13} />, onClick: onDelete, danger: true },
           ]}
         />
       )}

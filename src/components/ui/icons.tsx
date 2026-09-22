@@ -10,6 +10,9 @@
 import type { Icon as PhosphorIcon, IconWeight } from '@phosphor-icons/react';
 import {
   ArrowClockwise,
+  ArrowDown,
+  ArrowUp,
+  Minus,
   ArrowCounterClockwise,
   ArrowSquareOut,
   ArrowsOut,
@@ -157,6 +160,9 @@ export const ModelBrowserIcon = adapt(Storefront);
 export const UploadIcon = adapt(UploadSimple);
 export const SearchIcon = adapt(MagnifyingGlass);
 export const PlusIcon = adapt(Plus, 'bold');
+export const MinusIcon = adapt(Minus, 'bold');
+export const ArrowUpIcon = adapt(ArrowUp);
+export const ArrowDownIcon = adapt(ArrowDown);
 /** Used on Venice AI actions. */
 export const SparkleIcon = adapt(Sparkle, 'fill');
 

@@ -360,6 +360,8 @@ type Store = {
   consumeLayerFocus: () => void;
   updateLayer: (id: string, patch: Partial<Layer>) => void;
   removeLayer: (id: string) => void;
+  /** Put a removed layer back where it was: the undo for removeLayer. */
+  restoreLayer: (layer: Layer, index: number) => void;
   duplicateLayer: (id: string) => void;
   reorderLayers: (kind: LayerKind, fromId: string, toId: string) => void;
   /** Wipe every layer of `kind` and install `items` in their place. Layers
@@ -892,6 +894,11 @@ export const useStore = create<Store>((set, get) => {
     },
     removeLayer: (id) => {
       const next = get().layers.filter(l => l.id !== id);
+      setLayersAndMirror(next);
+    },
+    restoreLayer: (layer, index) => {
+      const next = get().layers.filter(l => l.id !== layer.id);
+      next.splice(Math.min(Math.max(0, index), next.length), 0, layer);
       setLayersAndMirror(next);
     },
     duplicateLayer: (id) => {
