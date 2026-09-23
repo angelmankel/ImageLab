@@ -12,6 +12,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { comfyHttpFor, queueGraph, viewUrl } from '@/lib/comfy';
+import { playCompleteSound, playSubmitSound } from '@/lib/sounds';
 import { subscribeComfy, type ComfyEvent } from '@/lib/comfyBus';
 import type { ObjectInfo } from '@/lib/workflowGraph';
 import { buildApiGraph } from './params';
@@ -181,7 +182,7 @@ export function useStudioRun(host: string | null, info: ObjectInfo | null): Stud
           // `executed` only fires for nodes that produced an output, so a workflow ending in a
           // node that saves nothing would leave the button spinning until the watchdog. This is
           // ComfyUI saying the whole prompt is done, which is the signal to trust.
-          if (ev.promptId === waitingFor.current) finish();
+          if (ev.promptId === waitingFor.current) { playCompleteSound(); finish(); }
           return;
 
         case 'executed': {
@@ -253,6 +254,7 @@ export function useStudioRun(host: string | null, info: ObjectInfo | null): Stud
       const queued = await queueGraph(host, graph);
       if (!queued.ok) { setError(queued.error); setBusy(false); setStatus(null); return; }
       waitingFor.current = queued.promptId;
+      playSubmitSound();
 
       // Watchdog. The socket should deliver everything, but a connection that drops mid-run would
       // otherwise leave the button disabled forever. One /history check settles it.

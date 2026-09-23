@@ -1,6 +1,8 @@
-import { Modal } from '@/components/modal';
-import { Chip } from '@/features/models/primitives';
-import { ExternalLinkIcon, ResetIcon } from '@/components/ui/icons';
+import type { ReactNode } from 'react';
+import {
+  Anchor, Avatar, Badge, Box, Button, CloseButton, Group, ScrollArea, Skeleton, Stack, Text, Title,
+} from '@mantine/core';
+import { IconExternalLink, IconRefresh } from '@tabler/icons-react';
 import { civitaiModelUrl } from './civitai';
 import { useModelMetadataStore, useSelectedVersion } from './store';
 import { Section } from './Section';
@@ -13,6 +15,48 @@ import { AboutSection } from './AboutSection';
 import { FileDetails } from './FileDetails';
 import { LicenseChips } from './LicenseChips';
 import { DownloadAction } from './DownloadAction';
+
+/** v1's side panel: a fixed-width column with a left border, header / scroll body / footer. */
+function Column({ children }: { children: ReactNode }) {
+  return (
+    <Box
+      w={380}
+      className="flex min-h-0 shrink-0 flex-col"
+      style={{ borderLeft: '1px solid var(--mantine-color-dark-4)', backgroundColor: 'var(--mantine-color-dark-6)' }}
+    >
+      {children}
+    </Box>
+  );
+}
+
+function Header({ children }: { children: ReactNode }) {
+  return (
+    <Stack gap="xs" p="md" className="shrink-0" style={{ borderBottom: '1px solid var(--mantine-color-dark-4)' }}>
+      {children}
+    </Stack>
+  );
+}
+
+function Body({ children }: { children: ReactNode }) {
+  return (
+    <ScrollArea scrollbars="y" className="min-h-0 flex-1" type="auto" offsetScrollbars>
+      <Stack gap="md" p="md">{children}</Stack>
+    </ScrollArea>
+  );
+}
+
+function Footer({ children }: { children: ReactNode }) {
+  return (
+    <Group gap="xs" p="md" className="shrink-0" style={{ borderTop: '1px solid var(--mantine-color-dark-4)' }}>
+      {children}
+    </Group>
+  );
+}
+
+function Close() {
+  const close = useModelMetadataStore((s) => s.close);
+  return <CloseButton aria-label="Close" onClick={close} />;
+}
 
 /**
  * Right column of the metadata modal — header + scrollable metadata sections +
@@ -29,7 +73,7 @@ export function MetadataColumn() {
   const version = useSelectedVersion();
 
   return (
-    <Modal.Column className="w-[440px]">
+    <Column>
       {load === 'loading' || load === 'idle' ? (
         <MetadataSkeleton />
       ) : load === 'error' || !model || !version ? (
@@ -40,40 +84,25 @@ export function MetadataColumn() {
         />
       ) : (
         <>
-          <Modal.Header className="flex flex-col gap-2.5">
-            <div className="flex items-start gap-2">
-              <Chip tone="accent" className="uppercase tracking-tag">
-                {model.type}
-              </Chip>
-              {model.nsfw && (
-                <Chip tone="warn" className="uppercase tracking-tag">
-                  NSFW
-                </Chip>
-              )}
+          <Header>
+            <Group gap="xs" wrap="nowrap">
+              <Badge size="sm" variant="light">{model.type}</Badge>
+              {model.nsfw && <Badge size="sm" variant="light" color="red">NSFW</Badge>}
               <div className="flex-1" />
-              <Modal.Close />
-            </div>
-            <h2 className="text-[20px] font-semibold leading-tight text-fg-primary">{model.name}</h2>
-            <div className="flex items-center gap-2 text-[11px] text-fg-tertiary">
-              {model.creator?.image ? (
-                <img src={model.creator.image} alt="" className="h-5 w-5 rounded-full object-cover" />
-              ) : (
-                <span className="h-5 w-5 rounded-full bg-gradient-to-br from-accent to-lora" />
-              )}
-              <span>by {model.creator?.username ?? 'unknown'}</span>
-              <span className="text-fg-faint">·</span>
-              <a
-                href={civitaiModelUrl(model.id)}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1 text-accent-fg hover:underline"
-              >
-                Civitai <ExternalLinkIcon size={12} />
-              </a>
-            </div>
-          </Modal.Header>
+              <Close />
+            </Group>
+            <Title order={4} lh={1.25}>{model.name}</Title>
+            <Group gap={6}>
+              <Avatar src={model.creator?.image ?? null} size={20} radius="xl" />
+              <Text size="xs" c="dimmed">by {model.creator?.username ?? 'unknown'}</Text>
+              <Text size="xs" c="dark.3">·</Text>
+              <Anchor href={civitaiModelUrl(model.id)} target="_blank" rel="noreferrer" size="xs" className="inline-flex items-center gap-1">
+                Civitai <IconExternalLink size={12} />
+              </Anchor>
+            </Group>
+          </Header>
 
-          <Modal.Body className="flex flex-col gap-4">
+          <Body>
             <StatsStrip stats={model.stats} />
             <Section label="Version">
               <VersionSelector />
@@ -84,39 +113,36 @@ export function MetadataColumn() {
             {model.description && <AboutSection description={model.description} />}
             {(model.tags ?? []).length > 0 && (
               <Section label="Tags">
-                <div className="flex flex-wrap gap-1.5">
+                <Group gap={6}>
                   {model.tags.map((t) => (
-                    <Chip key={t}>{t}</Chip>
+                    <Badge key={t} size="sm" variant="default" tt="none">{t}</Badge>
                   ))}
-                </div>
+                </Group>
               </Section>
             )}
             <FileDetails version={version} />
             <LicenseChips model={model} />
-          </Modal.Body>
+          </Body>
 
-          <Modal.Footer className="flex items-center gap-2">
-            <a
+          <Footer>
+            <Button
+              component="a"
               href={civitaiModelUrl(model.id)}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-border-default px-3.5 py-2 text-[12.5px] font-medium text-fg-tertiary transition-colors hover:border-border-strong hover:text-fg-secondary"
+              size="xs"
+              variant="default"
+              rightSection={<IconExternalLink size={13} />}
             >
-              Open on Civitai <ExternalLinkIcon size={13} />
-            </a>
+              Civitai
+            </Button>
             <div className="flex-1" />
             <DownloadAction version={version} />
-            <button
-              type="button"
-              onClick={close}
-              className="rounded-lg bg-accent px-4 py-2 text-[12.5px] font-semibold text-white transition-colors hover:bg-accent-hover"
-            >
-              Done
-            </button>
-          </Modal.Footer>
+            <Button size="xs" onClick={close}>Done</Button>
+          </Footer>
         </>
       )}
-    </Modal.Column>
+    </Column>
   );
 }
 
@@ -129,51 +155,49 @@ export function MetadataColumn() {
 function MetadataSkeleton() {
   return (
     <>
-      <Modal.Header className="flex flex-col gap-2.5">
-        <div className="flex items-start gap-2">
-          <div className="h-5 w-16 animate-pulse rounded bg-bg-elev" />
+      <Header>
+        <Group gap="xs" wrap="nowrap">
+          <Skeleton h={18} w={64} radius="sm" />
           <div className="flex-1" />
-          <Modal.Close />
-        </div>
-        <div className="h-6 w-3/4 animate-pulse rounded bg-bg-elev" />
-        <div className="flex items-center gap-2">
-          <div className="h-5 w-5 animate-pulse rounded-full bg-bg-elev" />
-          <div className="h-3 w-32 animate-pulse rounded bg-bg-elev" />
-        </div>
-      </Modal.Header>
-      <Modal.Body className="flex flex-col gap-4">
+          <Close />
+        </Group>
+        <Skeleton h={22} w="75%" />
+        <Group gap={6}>
+          <Skeleton h={20} w={20} circle />
+          <Skeleton h={10} w={128} />
+        </Group>
+      </Header>
+      <Body>
         {/* Stats strip */}
-        <div className="grid grid-cols-3 gap-2">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="h-12 animate-pulse rounded-md bg-bg-elev" />
-          ))}
+        <div className="grid grid-cols-4 gap-2">
+          {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} h={46} />)}
         </div>
         {/* Version selector */}
-        <div className="flex flex-col gap-1.5">
-          <div className="h-3 w-16 animate-pulse rounded bg-bg-elev" />
-          <div className="h-9 w-full animate-pulse rounded-md bg-bg-elev" />
-        </div>
+        <Stack gap={6}>
+          <Skeleton h={10} w={64} />
+          <Skeleton h={30} />
+        </Stack>
         {/* Two text-section placeholders */}
         {Array.from({ length: 2 }).map((_, i) => (
-          <div key={i} className="flex flex-col gap-1.5">
-            <div className="h-3 w-24 animate-pulse rounded bg-bg-elev" />
-            <div className="h-3 w-full animate-pulse rounded bg-bg-elev" />
-            <div className="h-3 w-5/6 animate-pulse rounded bg-bg-elev" />
-            <div className="h-3 w-2/3 animate-pulse rounded bg-bg-elev" />
-          </div>
+          <Stack key={i} gap={6}>
+            <Skeleton h={10} w={96} />
+            <Skeleton h={10} />
+            <Skeleton h={10} w="83%" />
+            <Skeleton h={10} w="66%" />
+          </Stack>
         ))}
         {/* File details */}
-        <div className="flex flex-col gap-1.5">
-          <div className="h-3 w-20 animate-pulse rounded bg-bg-elev" />
-          <div className="h-16 w-full animate-pulse rounded-md bg-bg-elev" />
-        </div>
-      </Modal.Body>
-      <Modal.Footer className="flex items-center gap-2">
-        <div className="h-9 w-36 animate-pulse rounded-lg bg-bg-elev" />
+        <Stack gap={6}>
+          <Skeleton h={10} w={80} />
+          <Skeleton h={64} />
+        </Stack>
+      </Body>
+      <Footer>
+        <Skeleton h={30} w={90} />
         <div className="flex-1" />
-        <div className="h-9 w-28 animate-pulse rounded-lg bg-bg-elev" />
-        <div className="h-9 w-16 animate-pulse rounded-lg bg-bg-elev" />
-      </Modal.Footer>
+        <Skeleton h={30} w={110} />
+        <Skeleton h={30} w={56} />
+      </Footer>
     </>
   );
 }
@@ -190,43 +214,38 @@ function MetadataErrorState({
 }: { error: string; modelId: number | null; onRetry: () => void }) {
   return (
     <>
-      <Modal.Header className="flex flex-col gap-2.5">
-        <div className="flex items-start gap-2">
-          <Chip tone="warn" className="uppercase tracking-tag">Error</Chip>
+      <Header>
+        <Group gap="xs" wrap="nowrap">
+          <Badge size="sm" variant="light" color="red">Error</Badge>
           <div className="flex-1" />
-          <Modal.Close />
-        </div>
-        <h2 className="text-[20px] font-semibold leading-tight text-fg-primary">
-          Couldn’t load metadata
-        </h2>
-        <div className="text-[12px] text-fg-tertiary">
-          {error}
-        </div>
-      </Modal.Header>
-      <Modal.Body className="flex flex-col items-start gap-3">
-        <div className="text-[12px] text-fg-muted">
+          <Close />
+        </Group>
+        <Title order={4} lh={1.25}>Couldn’t load metadata</Title>
+        <Text size="xs" c="dimmed">{error}</Text>
+      </Header>
+      <Body>
+        <Text size="xs" c="dimmed">
           The CivitAI request didn’t come back in time. You can retry, or open the model directly on CivitAI to download a version yourself.
-        </div>
-      </Modal.Body>
-      <Modal.Footer className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={onRetry}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-border-default px-3.5 py-2 text-[12.5px] font-medium text-fg-secondary transition-colors hover:border-border-strong hover:text-fg-primary"
-        >
-          <ResetIcon size={13} /> Retry
-        </button>
+        </Text>
+      </Body>
+      <Footer>
+        <Button size="xs" variant="default" leftSection={<IconRefresh size={13} />} onClick={onRetry}>
+          Retry
+        </Button>
         {modelId != null && (
-          <a
+          <Button
+            component="a"
             href={civitaiModelUrl(modelId)}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex items-center gap-1.5 rounded-lg border border-border-default px-3.5 py-2 text-[12.5px] font-medium text-fg-tertiary transition-colors hover:border-border-strong hover:text-fg-secondary"
+            size="xs"
+            variant="default"
+            rightSection={<IconExternalLink size={13} />}
           >
-            Open on Civitai <ExternalLinkIcon size={13} />
-          </a>
+            Open on Civitai
+          </Button>
         )}
-      </Modal.Footer>
+      </Footer>
     </>
   );
 }

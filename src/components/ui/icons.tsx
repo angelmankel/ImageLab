@@ -54,6 +54,13 @@ import {
   Plus,
   Selection,
   SlidersHorizontal,
+  SpeakerHigh,
+  ChatCircle,
+  CaretDoubleDown,
+  CaretDoubleUp,
+  Rows,
+  Package,
+  Path,
   Sparkle,
   Stack,
   Storefront,
@@ -172,3 +179,10 @@ export const EyeSlashIcon = adapt(EyeSlash);
 export const EraserIcon = adapt(Eraser);
 export const LockIcon = adapt(Lock);
 export const LockOpenIcon = adapt(LockOpen);
+export const SpeakerIcon = adapt(SpeakerHigh);
+export const PromptsIcon = adapt(ChatCircle);
+export const ModelsIcon = adapt(Package);
+export const PassesIcon = adapt(Path);
+export const ExpandAllIcon = adapt(CaretDoubleDown, 'bold');
+export const CollapseAllIcon = adapt(CaretDoubleUp, 'bold');
+export const SingleOpenIcon = adapt(Rows);

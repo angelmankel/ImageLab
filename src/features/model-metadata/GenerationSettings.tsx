@@ -3,7 +3,8 @@ import type { CivitaiImage } from './civitai';
 import { useStore } from '@/lib/store';
 import { CIVITAI_CATEGORY_ID } from '@/lib/storage';
 import { cn } from '@/lib/cn';
-import { CopyIcon, StarIcon, CheckIcon } from '@/components/ui/icons';
+import { ActionIcon, Button, Group, Paper, ScrollArea, Stack, Text, Tooltip, UnstyledButton } from '@mantine/core';
+import { IconCheck, IconChevronRight, IconCopy, IconDeviceFloppy } from '@tabler/icons-react';
 
 /**
  * The selected gallery image's generation parameters — Civitai's `image.meta`
@@ -61,67 +62,54 @@ export function GenerationSettings({
   };
 
   return (
-    <div className="flex h-full flex-col gap-3 rounded-lg border border-border-default bg-bg-card p-3.5">
-      <div className="flex shrink-0 items-center gap-2">
-        <span className="text-[11px] font-semibold uppercase tracking-section text-fg-dim">
-          Generation settings
-        </span>
+    <Stack gap="sm" h="100%">
+      <Group gap="xs" wrap="nowrap" className="shrink-0">
+        <Text size="xs" fw={600} c="dimmed">Generation settings</Text>
         <div className="flex-1" />
         {meta && (
-          <button
-            type="button"
-            onClick={copyAll}
-            className="flex items-center gap-1 rounded border border-border-default bg-bg-elev px-2 py-1 text-[11px] font-medium text-fg-tertiary transition-colors hover:text-fg-secondary"
-          >
-            <CopyIcon size={12} /> Copy
-          </button>
+          <Button size="compact-xs" variant="subtle" color="gray" leftSection={<IconCopy size={12} />} onClick={copyAll}>
+            Copy
+          </Button>
         )}
         {onCollapse && (
-          <button
-            type="button"
-            onClick={onCollapse}
-            aria-label="Hide generation settings"
-            title="Hide generation settings"
-            className="flex h-[24px] w-[24px] items-center justify-center rounded border border-border-default bg-bg-elev text-[13px] leading-none text-fg-tertiary transition-colors hover:border-border-strong hover:text-fg-secondary"
-          >
-            ›
-          </button>
+          <Tooltip label="Hide generation settings" withArrow>
+            <ActionIcon size="sm" variant="subtle" color="gray" onClick={onCollapse} aria-label="Hide generation settings">
+              <IconChevronRight size={14} />
+            </ActionIcon>
+          </Tooltip>
         )}
-      </div>
+      </Group>
 
       {meta ? (
         <>
-          {/* Prompt — taller, bigger font, "save as snippet" action. */}
-          <div className="flex min-h-0 flex-1 flex-col gap-1.5">
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-medium uppercase tracking-section text-fg-dim">Prompt</span>
-              <div className="flex-1" />
+          {/* Prompt — takes the slack, with a "save as snippet" action. */}
+          <Stack gap={6} className="min-h-0 flex-1">
+            <Group justify="space-between" wrap="nowrap">
+              <Text size="xs" fw={600} c="dimmed">Prompt</Text>
               {meta.prompt && (
-                <button
-                  type="button"
-                  onClick={saveAsSnippet}
-                  title="Save prompt to library under Civit.ai"
-                  className="flex items-center gap-1 rounded border border-border-default bg-bg-elev px-2 py-1 text-[10px] font-medium text-fg-tertiary transition-colors hover:border-accent-hover hover:text-accent-fg"
-                >
-                  <StarIcon size={11} /> Save snippet
-                </button>
+                <Tooltip label="Save prompt to library under Civit.ai" withArrow>
+                  <ActionIcon size="xs" variant="subtle" color="green" onClick={saveAsSnippet} aria-label="Save snippet">
+                    <IconDeviceFloppy size={14} />
+                  </ActionIcon>
+                </Tooltip>
               )}
-            </div>
-            {meta.prompt ? (
-              <p className="scroll-y min-h-[120px] flex-1 whitespace-pre-wrap rounded-md border border-border-default bg-bg-input px-3 py-2.5 text-[13px] leading-relaxed text-fg-tertiary">
-                {meta.prompt}
-              </p>
-            ) : (
-              <div className="flex min-h-[120px] flex-1 items-center justify-center rounded-md border border-border-default bg-bg-input text-[12px] text-fg-dim">
-                No prompt recorded
-              </div>
-            )}
-          </div>
+            </Group>
+            <Paper withBorder radius="sm" className="min-h-[120px] flex-1 overflow-hidden" bg="dark.7">
+              {meta.prompt ? (
+                <ScrollArea scrollbars="y" h="100%" type="auto">
+                  <Text size="xs" p="xs" className="whitespace-pre-wrap leading-relaxed">{meta.prompt}</Text>
+                </ScrollArea>
+              ) : (
+                <Text size="xs" c="dimmed" ta="center" className="flex h-full items-center justify-center">
+                  No prompt recorded
+                </Text>
+              )}
+            </Paper>
+          </Stack>
 
           {/* Vertical, single-column param list. Each row is clickable and
-              applies its value to the workflow. Sampler is display-only since
-              Civitai's names don't always match ComfyUI's options. */}
-          <div className="flex shrink-0 flex-col gap-1.5">
+              applies its value to the workflow. */}
+          <Stack gap={4} className="shrink-0">
             <ParamRow
               label="Sampler"
               value={meta.sampler ?? '—'}
@@ -147,14 +135,14 @@ export function GenerationSettings({
               mono
               onClick={meta.seed != null ? () => applyPatch({ seed: Number(meta.seed), randomizeSeed: false }, `seed ${meta.seed}`) : undefined}
             />
-          </div>
+          </Stack>
         </>
       ) : (
-        <div className="flex min-h-0 flex-1 items-center justify-center rounded-md border border-border-default bg-bg-input text-[12px] text-fg-dim">
-          No generation data for this image.
-        </div>
+        <Paper withBorder radius="sm" className="flex min-h-0 flex-1 items-center justify-center" bg="dark.7">
+          <Text size="xs" c="dimmed">No generation data for this image.</Text>
+        </Paper>
       )}
-    </div>
+    </Stack>
   );
 }
 
@@ -176,26 +164,24 @@ function ParamRow({
   };
   const disabled = !onClick;
   return (
-    <button
-      type="button"
+    <UnstyledButton
       onClick={handleClick}
       disabled={disabled}
       title={disabled ? undefined : hint}
       className={cn(
-        'group flex w-full items-center justify-between gap-3 rounded-md border px-3 py-2 text-left transition-colors',
-        disabled
-          ? 'border-border-default bg-bg-input cursor-default'
-          : 'border-border-default bg-bg-input hover:border-accent-hover hover:bg-accent-soft/30',
-        pulse && 'border-accent bg-accent-soft',
+        'flex w-full items-center justify-between gap-3 rounded-sm border px-2.5 py-1.5 text-left transition-colors',
+        'border-[var(--mantine-color-dark-4)] bg-[var(--mantine-color-dark-7)]',
+        disabled ? 'cursor-default' : 'hover:border-[var(--mantine-primary-color-filled)]',
+        pulse && '!border-[var(--mantine-primary-color-filled)] !bg-[var(--mantine-primary-color-light)]',
       )}
     >
-      <span className="text-[12px] font-medium uppercase tracking-section text-fg-dim">{label}</span>
-      <span className="flex items-center gap-1.5">
-        {pulse && <CheckIcon size={12} className="text-accent-fg" />}
-        <span className={cn('truncate text-[14px] font-semibold', pulse ? 'text-accent-fg' : 'text-fg-secondary', mono && 'font-mono')}>
+      <Text size="xs" c="dimmed">{label}</Text>
+      <Group gap={6} wrap="nowrap" className="min-w-0">
+        {pulse && <IconCheck size={12} color="var(--mantine-primary-color-filled)" />}
+        <Text size="sm" fw={600} truncate ff={mono ? 'monospace' : undefined} c={pulse ? 'var(--mantine-primary-color-filled)' : undefined}>
           {value}
-        </span>
-      </span>
-    </button>
+        </Text>
+      </Group>
+    </UnstyledButton>
   );
 }

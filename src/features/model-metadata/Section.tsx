@@ -1,11 +1,12 @@
 import type { ReactNode } from 'react';
+import { Stack, Text } from '@mantine/core';
 
-/** Shared labeled section wrapper used throughout the metadata column. */
+/** Shared labeled section wrapper used throughout the metadata column — v1's dimmed xs label. */
 export function Section({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <section className="flex flex-col gap-2">
-      <span className="text-[10px] font-semibold uppercase tracking-section text-fg-dim">{label}</span>
+    <Stack gap={6} component="section">
+      <Text size="xs" fw={600} c="dimmed">{label}</Text>
       {children}
-    </section>
+    </Stack>
   );
 }

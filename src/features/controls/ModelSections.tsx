@@ -1,7 +1,8 @@
+import { IconBox, IconPhotoUp } from '@tabler/icons-react';
+import { ModelFields } from '@/components/models/ModelFields';
 /** Collapsible model and source-image controls for the generation workspace. */
 import { useStore } from '@/lib/store';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
-import { ModelStack } from '@/features/models';
 import { InputImageSection } from '@/features/inputImage';
 import { ControlSection } from './ControlSection';
 
@@ -20,8 +21,8 @@ export function ModelsSection() {
   ].filter(Boolean);
 
   return (
-    <ControlSection id="models" title="Models" defaultCollapsed summary={parts.join(' · ')}>
-      <ErrorBoundary label="Models"><ModelStack /></ErrorBoundary>
+    <ControlSection id="models" title="Models" icon={IconBox} defaultCollapsed summary={parts.join(' · ')}>
+      <ErrorBoundary label="Models"><ModelFields /></ErrorBoundary>
     </ControlSection>
   );
 }
@@ -34,6 +35,7 @@ export function InputImageControlSection() {
     <ControlSection
       id="inputimage"
       title="Input image"
+      icon={IconPhotoUp}
       summary={img ? `${img.width} × ${img.height} · img2img on` : 'none · txt2img'}
       // Nothing is set and nothing is being searched for: this is the one section that is usually
       // irrelevant, so it starts folded. The summary still says so, and one tap opens it.

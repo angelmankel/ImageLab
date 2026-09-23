@@ -1,16 +1,15 @@
 import { useEffect } from 'react';
-import { useStore } from '@/lib/store';
-import { applyTheme, resolveTheme } from '@/lib/themes';
 
 /**
- * Writes CSS custom properties on :root and lazy-loads the theme's Google
- * Font. Re-runs when the user picks a different theme or edits the custom
- * theme they're using.
+ * The palette now comes from the v1 Mantine theme (`modules/theme`), and every colour token in
+ * `styles/index.css` reads from it. The older theme system wrote its colours inline on :root,
+ * which would win over that mapping, so this clears anything it left behind.
  */
 export function useThemeEffect() {
-  const themeId = useStore(s => s.themeId);
-  const customThemes = useStore(s => s.customThemes);
   useEffect(() => {
-    applyTheme(resolveTheme(themeId, customThemes));
-  }, [themeId, customThemes]);
+    const root = document.documentElement.style;
+    for (const name of Array.from(root)) {
+      if (name.startsWith('--color-') || name === '--font-sans') root.removeProperty(name);
+    }
+  }, []);
 }

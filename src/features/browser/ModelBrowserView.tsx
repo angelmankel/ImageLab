@@ -3,7 +3,8 @@ import { useBrowserStore } from './store';
 import { BrowserFiltersRail } from './BrowserFiltersRail';
 import { BrowserGrid } from './BrowserGrid';
 import { OpenByIdInput } from './OpenByIdInput';
-import { CollectionsIcon } from '@/components/ui/icons';
+import { Badge, Text } from '@mantine/core';
+import { IconBoxModel } from '@tabler/icons-react';
 import { useModelMetadataStore } from '@/features/model-metadata/store';
 
 /**
@@ -74,11 +75,11 @@ export function ModelBrowserView() {
   return (
     <div className="flex h-full w-full flex-col bg-bg-base">
       <header className="flex shrink-0 items-center gap-2 border-b border-border-subtle bg-bg-panel px-3 py-2">
-        <CollectionsIcon size={15} className="text-fg-tertiary" />
-        <span className="text-[12.5px] font-semibold text-fg-primary">Browse models</span>
-        <span className="rounded bg-bg-elev px-1.5 py-0.5 text-[10px] font-medium text-fg-muted">
+        <IconBoxModel size={16} className="text-[var(--mantine-color-dimmed)]" />
+        <Text size="sm" fw={600}>Browse models</Text>
+        <Badge size="sm" variant="light" color="gray" tt="none" className="shrink-0">
           {headerCount}
-        </span>
+        </Badge>
         <div className="ml-auto"><OpenByIdInput /></div>
       </header>
 

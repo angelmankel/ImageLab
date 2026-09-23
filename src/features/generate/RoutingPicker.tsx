@@ -1,8 +1,8 @@
-import * as RPopover from '@radix-ui/react-popover';
+import * as RPopover from '@/components/ui/popover';
 import { useStore } from '@/lib/store';
 import { ROUND_ROBIN } from '@/lib/storage';
 import { cn } from '@/lib/cn';
-import { ChevronDownIcon, CheckIcon } from '@/components/ui/icons';
+import { ChevronDownIcon, CheckIcon, ComfyIcon } from '@/components/ui/icons';
 
 /**
  * Routing-target picker — chevron button + popover listing every routing
@@ -11,7 +11,7 @@ import { ChevronDownIcon, CheckIcon } from '@/components/ui/icons';
  * one). The `variant` prop controls the trigger's sizing so each call site
  * gets a button that visually matches its siblings.
  */
-type Variant = 'lg' | 'sm';
+type Variant = 'lg' | 'sm' | 'nav';
 type Align = 'start' | 'end';
 
 export function RoutingPicker({ variant, align }: { variant: Variant; align: Align }) {
@@ -26,10 +26,12 @@ export function RoutingPicker({ variant, align }: { variant: Variant; align: Ali
 
   // Trigger sizing differs between the two call sites; the popover body is
   // identical so it lives here once.
-  const triggerCls = variant === 'lg'
-    ? 'px-2.5'
-    : 'min-h-[36px] px-2';
-  const labelMax = variant === 'lg' ? 'max-w-[78px]' : 'max-w-[64px]';
+  const triggerCls = variant === 'nav'
+    ? 'h-[30px] rounded-md border !border-border-default !bg-bg-elev px-2.5 !text-fg-secondary hover:!border-border-strong'
+    : variant === 'lg'
+      ? 'px-2.5'
+      : 'min-h-[36px] px-2';
+  const labelMax = variant === 'nav' ? '' : variant === 'lg' ? 'max-w-[78px]' : 'max-w-[64px]';
   const chevron = variant === 'lg' ? 12 : 10;
 
   return (
@@ -44,7 +46,8 @@ export function RoutingPicker({ variant, align }: { variant: Variant; align: Ali
             triggerCls,
           )}
         >
-          <span className={cn('truncate text-[10px] font-medium', labelMax)}>{routingLabel}</span>
+          {variant === 'nav' && <ComfyIcon size={13} />}
+          <span className={cn('truncate font-medium', variant === 'nav' ? 'max-w-[110px] text-[11px]' : 'text-[10px]', labelMax)}>{routingLabel}</span>
           <ChevronDownIcon size={chevron} />
         </button>
       </RPopover.Trigger>

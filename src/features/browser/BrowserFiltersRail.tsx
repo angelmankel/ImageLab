@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useBrowserStore, type BrowserFilters, BROWSING_LEVEL_BITS } from './store';
-import { cn } from '@/lib/cn';
+import { Chip as MChip, Group as MGroup, Paper, SegmentedControl, Select, Stack, Text, TextInput } from '@mantine/core';
+import { IconSearch } from '@tabler/icons-react';
 import type { CivitaiSearchType, CivitaiSearchSort, CivitaiSearchPeriod } from '@/lib/civitai';
 import { Switch } from '@/components/ui/Switch';
 
@@ -69,31 +70,26 @@ export function BrowserFiltersRail({ filters }: { filters: BrowserFilters }) {
   return (
     <aside className="flex w-[220px] shrink-0 flex-col gap-4 overflow-y-auto border-r border-border-subtle bg-bg-panel/60 px-3 py-4">
       <Group label="Catalog">
-        <div className="flex rounded-md border border-border-default bg-bg-input p-0.5">
-          <CatalogTab
-            active={filters.catalog === 'civitai'}
-            onClick={() => setFilters({ catalog: 'civitai' })}
-          >
-            Civitai
-          </CatalogTab>
-          <CatalogTab
-            active={filters.catalog === 'red'}
-            onClick={() => setFilters({ catalog: 'red' })}
-            title="civitai.red — full adult catalog"
-          >
-            Civitai Red
-          </CatalogTab>
-        </div>
+        <SegmentedControl
+          size="xs"
+          fullWidth
+          value={filters.catalog}
+          onChange={(v) => setFilters({ catalog: v as BrowserFilters['catalog'] })}
+          data={[
+            { value: 'civitai', label: 'Civitai' },
+            { value: 'red', label: <span title="civitai.red — full adult catalog">Civitai Red</span> },
+          ]}
+        />
       </Group>
 
       <Group label="Search">
-        <input
-          type="text"
+        <TextInput
+          size="xs"
           value={searchDraft}
-          onChange={(e) => setSearchDraft(e.target.value)}
+          onChange={(e) => setSearchDraft(e.currentTarget.value)}
           placeholder="Name, tag, creator…"
           spellCheck={false}
-          className="min-h-[34px] w-full rounded-md border border-border-default bg-bg-input px-2.5 text-[12px] text-fg-secondary placeholder:text-fg-dim outline-none hover:border-border-strong focus:border-accent"
+          leftSection={<IconSearch size={14} />}
         />
       </Group>
 
@@ -128,38 +124,44 @@ export function BrowserFiltersRail({ filters }: { filters: BrowserFilters }) {
       </Group>
 
       <Group label="Sort">
-        <select
+        <Select
+          size="xs"
+          aria-label="Sort"
           value={filters.sort}
-          onChange={(e) => setFilters({ sort: e.target.value as CivitaiSearchSort })}
-          className="min-h-[34px] w-full rounded-md border border-border-default bg-bg-input px-2.5 text-[12px] text-fg-secondary outline-none hover:border-border-strong focus:border-accent"
-        >
-          {SORT_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
-        </select>
+          onChange={(v) => { if (v) setFilters({ sort: v as CivitaiSearchSort }); }}
+          data={SORT_OPTIONS}
+          allowDeselect={false}
+          comboboxProps={{ withinPortal: true, shadow: 'md' }}
+        />
       </Group>
 
       <Group label="Period">
-        <select
+        <Select
+          size="xs"
+          aria-label="Period"
           value={filters.period}
-          onChange={(e) => setFilters({ period: e.target.value as CivitaiSearchPeriod })}
-          className="min-h-[34px] w-full rounded-md border border-border-default bg-bg-input px-2.5 text-[12px] text-fg-secondary outline-none hover:border-border-strong focus:border-accent"
-        >
-          {PERIOD_OPTIONS.map((p) => <option key={p} value={p}>{p}</option>)}
-        </select>
+          onChange={(v) => { if (v) setFilters({ period: v as CivitaiSearchPeriod }); }}
+          data={PERIOD_OPTIONS}
+          allowDeselect={false}
+          comboboxProps={{ withinPortal: true, shadow: 'md' }}
+        />
       </Group>
 
       {/* On the Red catalog NSFW is implied — the store forces nsfw=true on
           the request so per-model preview galleries return their adult
           samples. Hiding the toggle keeps the UI honest. */}
       {filters.catalog !== 'red' && (
-        <div className="flex items-center gap-2 rounded-md border border-border-subtle bg-bg-elev/40 px-2.5 py-2">
-          <Switch
-            size="sm"
-            checked={filters.showNsfw}
-            onCheckedChange={(on) => setFilters({ showNsfw: on })}
-            ariaLabel="Show NSFW results"
-          />
-          <span className="text-[12px] text-fg-tertiary">Show NSFW</span>
-        </div>
+        <Paper withBorder radius="sm" px="xs" py={8}>
+          <MGroup gap="xs" wrap="nowrap">
+            <Switch
+              size="sm"
+              checked={filters.showNsfw}
+              onCheckedChange={(on) => setFilters({ showNsfw: on })}
+              ariaLabel="Show NSFW results"
+            />
+            <Text size="xs">Show NSFW</Text>
+          </MGroup>
+        </Paper>
       )}
     </aside>
   );
@@ -167,54 +169,24 @@ export function BrowserFiltersRail({ filters }: { filters: BrowserFilters }) {
 
 function Group({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex flex-col gap-1.5">
-      <div className="px-0.5 text-[10px] font-semibold uppercase tracking-section text-fg-dim">{label}</div>
+    <Stack gap={6}>
+      <Text size="xs" fw={600} c="dimmed">{label}</Text>
       {children}
-    </div>
+    </Stack>
   );
 }
 
 function ChipRow({ children }: { children: React.ReactNode }) {
-  return <div className="flex flex-wrap gap-1.5">{children}</div>;
+  return <MGroup gap={6}>{children}</MGroup>;
 }
 
-function CatalogTab({
-  active, onClick, title, children,
-}: { active: boolean; onClick: () => void; title?: string; children: React.ReactNode }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      title={title}
-      aria-pressed={active}
-      className={cn(
-        'flex-1 rounded px-2 py-1 text-[11px] font-medium transition-colors',
-        active
-          ? 'bg-accent-soft text-accent-fg'
-          : 'text-fg-tertiary hover:text-fg-secondary',
-      )}
-    >
-      {children}
-    </button>
-  );
-}
-
+/** A filter toggle: v1's Mantine Chip (outline, check icon when on). */
 function Chip({
   active, onClick, children,
 }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={cn(
-        'rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors',
-        active
-          ? 'border-accent bg-accent-soft text-accent-fg'
-          : 'border-border-default bg-bg-elev/50 text-fg-tertiary hover:border-border-strong hover:text-fg-secondary',
-      )}
-    >
+    <MChip size="xs" variant="outline" checked={active} onChange={onClick}>
       {children}
-    </button>
+    </MChip>
   );
 }

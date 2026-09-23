@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactElement } from 'react';
-import * as Popover from '@radix-ui/react-popover';
+import * as Popover from '@/components/ui/popover';
 import { cn } from '@/lib/cn';
 import { useStore } from '@/lib/store';
 import { availabilityHint } from '@/hooks/useResourceAvailability';

@@ -1,9 +1,8 @@
 /**
- * App-wide theme system: font, icon weight, and the full color palette.
+ * App-wide theme system: icon weight and the full color palette. The font is always Inter.
  *
  * Themes drive the existing CSS custom properties declared in `styles/index.css`.
- * `applyTheme()` writes each value to `document.documentElement.style` and lazily
- * injects a Google Fonts `<link>` for the active theme's font. Icon weight is
+ * `applyTheme()` writes each value to `document.documentElement.style`. Icon weight is
  * read by `components/ui/icons.tsx` via the store so all icons re-render in the
  * new weight on theme change.
  */
@@ -268,7 +267,7 @@ export const BUILT_IN_THEMES: Theme[] = [
     name: 'Ocean Deep',
     blurb: 'Teal abyss, soft cyan glow. Reads like a dive console.',
     builtIn: true,
-    font: 'Lexend',
+    font: 'Inter',
     fontWeights: [400, 500, 600, 700],
     fontGeneric: 'sans-serif',
     iconStyle: 'regular',
@@ -295,7 +294,7 @@ export const BUILT_IN_THEMES: Theme[] = [
     name: 'Aurora',
     blurb: 'Muted violet on near-black, soft lavender highlights.',
     builtIn: true,
-    font: 'Space Grotesk',
+    font: 'Inter',
     fontWeights: [400, 500, 600, 700],
     fontGeneric: 'sans-serif',
     iconStyle: 'regular',
@@ -311,7 +310,7 @@ export const BUILT_IN_THEMES: Theme[] = [
     name: 'Sage',
     blurb: 'Forest greens on slate. Calm, low-saturation.',
     builtIn: true,
-    font: 'Outfit',
+    font: 'Inter',
     fontWeights: [400, 500, 600, 700],
     fontGeneric: 'sans-serif',
     iconStyle: 'regular',
@@ -327,7 +326,7 @@ export const BUILT_IN_THEMES: Theme[] = [
     name: 'Amber',
     blurb: 'Warm dark workshop. Brass accent on coffee.',
     builtIn: true,
-    font: 'Outfit',
+    font: 'Inter',
     fontWeights: [400, 500, 600, 700],
     fontGeneric: 'sans-serif',
     iconStyle: 'bold',
@@ -359,9 +358,9 @@ export const BUILT_IN_THEMES: Theme[] = [
     name: 'Terminal',
     blurb: 'Phosphor green on jet, but legible — soft accent, cream text.',
     builtIn: true,
-    font: 'JetBrains Mono',
+    font: 'Inter',
     fontWeights: [400, 500, 600, 700],
-    fontGeneric: 'monospace',
+    fontGeneric: 'sans-serif',
     iconStyle: 'regular',
     colors: derivePalette({
       background: '#0B0F0B',
@@ -375,7 +374,7 @@ export const BUILT_IN_THEMES: Theme[] = [
     name: 'Linen',
     blurb: 'Light theme. Off-white surfaces, dusky rose accent.',
     builtIn: true,
-    font: 'DM Sans',
+    font: 'Inter',
     fontWeights: [400, 500, 600, 700],
     fontGeneric: 'sans-serif',
     iconStyle: 'regular',
@@ -391,9 +390,9 @@ export const BUILT_IN_THEMES: Theme[] = [
     name: 'Parchment',
     blurb: 'Aged paper, deep sepia ink. Editorial feel.',
     builtIn: true,
-    font: 'IBM Plex Serif',
+    font: 'Inter',
     fontWeights: [400, 500, 600, 700],
-    fontGeneric: 'serif',
+    fontGeneric: 'sans-serif',
     iconStyle: 'regular',
     colors: derivePalette({
       background: '#F1E8D2',
@@ -461,42 +460,15 @@ export const COLOR_FIELDS: { key: keyof ThemeColors; label: string; group: strin
   { key: 'handle',        label: 'Drag handle',       group: 'Accent' },
 ];
 
-function fontStack(theme: Theme): string {
-  const fallbacks =
-    theme.fontGeneric === 'serif'
-      ? `Georgia, "Times New Roman", serif`
-      : theme.fontGeneric === 'monospace'
-      ? `ui-monospace, SFMono-Regular, Menlo, monospace`
-      : `ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif`;
-  return `"${theme.font}", ${fallbacks}`;
-}
-
-function ensureFontLoaded(theme: Theme) {
-  if (typeof document === 'undefined') return;
-  const id = 'app-theme-font';
-  const family = encodeURIComponent(theme.font).replace(/%20/g, '+');
-  const weights = theme.fontWeights.join(';');
-  const href = `https://fonts.googleapis.com/css2?family=${family}:wght@${weights}&display=swap`;
-
-  let link = document.getElementById(id) as HTMLLinkElement | null;
-  if (link && link.href === href) return;
-  if (!link) {
-    link = document.createElement('link');
-    link.id = id;
-    link.rel = 'stylesheet';
-    document.head.appendChild(link);
-  }
-  link.href = href;
-}
-
 export function applyTheme(theme: Theme) {
   if (typeof document === 'undefined') return;
   const root = document.documentElement.style;
   for (const key of Object.keys(theme.colors) as (keyof ThemeColors)[]) {
     root.setProperty(COLOR_VAR[key], theme.colors[key]);
   }
-  root.setProperty('--font-sans', fontStack(theme));
-  ensureFontLoaded(theme);
+  // The app is Inter throughout (bundled, see main.tsx). Themes used to carry their own font;
+  // the field stays on the type so saved custom themes still load, but it no longer applies.
+  root.removeProperty('--font-sans');
 }
 
 export function resolveTheme(id: string, customThemes: Theme[]): Theme {

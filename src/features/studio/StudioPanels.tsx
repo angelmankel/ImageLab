@@ -9,8 +9,11 @@ import { useCanvasStore } from '@/lib/canvasStore';
 import { useShortcut, ShortcutPriority } from '@/hooks/useShortcut';
 import { FullscreenImage } from '@/components/FullscreenImage';
 import { cn } from '@/lib/cn';
-import { IconButton } from '@/components/ui/IconButton';
-import { ResetIcon } from '@/components/ui/icons';
+import {
+  ActionIcon, Badge, Button, Checkbox, Group, NavLink, Paper, Progress, Select, Stack, Text, Textarea,
+  Tooltip, UnstyledButton,
+} from '@mantine/core';
+import { IconRefresh, IconStar, IconStarFilled, IconArrowBackUp } from '@tabler/icons-react';
 import { ParamField } from './ParamField';
 import { ImageInput, isImageParam } from './ImageInput';
 import { paramLabel, type WorkflowParam } from './params';
@@ -39,38 +42,34 @@ export function WorkflowPicker({
 
   if (!workflows.length) {
     return (
-      <div className="flex flex-col gap-2 rounded-lg border border-dashed border-border-subtle p-4 text-center">
-        <p className="text-[13px] font-medium text-fg-secondary">No saved workflows yet</p>
-        <p className="text-[12px] text-fg-muted">
+      <Paper withBorder radius="md" p="md" className="flex flex-col items-center gap-2 !border-dashed text-center">
+        <Text size="sm" fw={500}>No saved workflows yet</Text>
+        <Text size="xs" c="dimmed">
           Build one in ComfyUI and save it. It shows up here on its own, a moment later.
-        </p>
-        <button type="button" onClick={onRefresh} className="mt-1 text-[12px] text-accent">
+        </Text>
+        <Button size="compact-xs" variant="subtle" leftSection={<IconRefresh size={12} />} onClick={onRefresh}>
           Look again
-        </button>
-      </div>
+        </Button>
+      </Paper>
     );
   }
 
   return (
-    <div className="flex flex-col gap-1">
+    <Stack gap={2}>
       {workflows.map(w => (
-        <button
+        <NavLink
           key={w.path}
+          component="button"
           type="button"
           onClick={() => onOpen(w.path)}
-          className={cn(
-            'flex items-center justify-between gap-2 rounded-lg px-3 text-left transition-colors',
-            large ? 'min-h-[48px] text-[14px]' : 'min-h-[40px] text-[13px]',
-            w.path === path
-              ? 'bg-accent/15 text-fg-primary ring-1 ring-accent/40'
-              : 'text-fg-secondary hover:bg-bg-hover',
-          )}
-        >
-          <span className="truncate">{w.name}</span>
-          {w.path === path && <span className="shrink-0 text-[11px] text-accent">open</span>}
-        </button>
+          active={w.path === path}
+          label={w.name}
+          rightSection={w.path === path ? <Badge size="xs" variant="light">open</Badge> : null}
+          className={cn('rounded-sm', large ? 'min-h-[48px]' : 'min-h-[40px]')}
+          classNames={{ label: cn('truncate', large ? 'text-[14px]' : 'text-[13px]') }}
+        />
       ))}
-    </div>
+    </Stack>
   );
 }
 
@@ -147,27 +146,26 @@ export function ParamList({ large, host }: { large?: boolean; host: string | nul
     <div className="flex flex-col gap-4">
       {groups.map(g => (
         <section key={g.nodeId} className="flex flex-col gap-1">
-          <h3 className="flex items-baseline gap-2 text-[11px] font-semibold uppercase tracking-wide text-fg-muted">
-            <span className="truncate">{g.label}</span>
-            <span className="shrink-0 font-normal normal-case tracking-normal opacity-60">#{g.nodeId}</span>
-          </h3>
+          <Group gap={6} wrap="nowrap" component="h3" className="!m-0">
+            <Text size="xs" fw={600} c="dimmed" truncate>{g.label}</Text>
+            <Text size="xs" c="dark.3" className="shrink-0">#{g.nodeId}</Text>
+          </Group>
           {g.items.map(p => (
             <div key={p.id} className="flex items-start gap-2">
               <div className="min-w-0 flex-1">{render(p)}</div>
-              <button
-                type="button"
-                onClick={() => toggleExposed(p.id)}
-                aria-pressed={exposedIds.includes(p.id)}
-                title={exposedIds.includes(p.id) ? 'Remove from the simple view' : 'Show this in the simple view'}
-                className={cn(
-                  'mt-6 h-9 w-9 shrink-0 rounded-lg border text-[15px] leading-none transition-colors',
-                  exposedIds.includes(p.id)
-                    ? 'border-accent bg-accent/15 text-accent'
-                    : 'border-border-subtle text-fg-muted hover:text-fg-secondary',
-                )}
-              >
-                {exposedIds.includes(p.id) ? '★' : '☆'}
-              </button>
+              <Tooltip label={exposedIds.includes(p.id) ? 'Remove from the simple view' : 'Show this in the simple view'} withArrow>
+                <ActionIcon
+                  size="lg"
+                  variant={exposedIds.includes(p.id) ? 'light' : 'default'}
+                  onClick={() => toggleExposed(p.id)}
+                  aria-pressed={exposedIds.includes(p.id)}
+                  aria-label={exposedIds.includes(p.id) ? 'Remove from the simple view' : 'Show this in the simple view'}
+                  mt={24}
+                  className="shrink-0"
+                >
+                  {exposedIds.includes(p.id) ? <IconStarFilled size={15} /> : <IconStar size={15} />}
+                </ActionIcon>
+              </Tooltip>
             </div>
           ))}
         </section>
@@ -200,70 +198,65 @@ export function PromptPanel({ large }: { large?: boolean }) {
 
   if (!path || !targetId) return null;
   const candidates = promptCandidates(params);
-  const box = cn(
-    'scroll-y w-full resize-y rounded-lg border border-border-subtle bg-bg-base px-3 py-2.5',
-    'text-fg-primary outline-none placeholder:text-fg-muted focus:border-accent',
-    large ? 'text-[15px]' : 'text-[13px]',
-  );
-  const label = 'text-[11px] font-semibold uppercase tracking-wide text-fg-muted';
+  const size = large ? 'md' : 'sm';
   const sent = composePrompt(keywords, prompt);
 
   return (
-    <section className="flex flex-col gap-2 border-b border-border-subtle pb-4">
-      <div className="flex flex-col gap-1">
-        <span className={label}>Keywords · this workflow</span>
-        <textarea
-          value={keywords}
-          onChange={e => setKeywords(e.target.value)}
-          rows={2}
-          aria-label="Keywords for this workflow"
-          placeholder="Tags only this model needs, e.g. score_9, score_8_up"
-          className={box}
-        />
-      </div>
+    <Stack gap="xs" component="section" className="border-b border-border-subtle pb-4">
+      <Textarea
+        label="Keywords · this workflow"
+        value={keywords}
+        onChange={e => setKeywords(e.currentTarget.value)}
+        rows={2}
+        size={size}
+        autosize={false}
+        aria-label="Keywords for this workflow"
+        placeholder="Tags only this model needs, e.g. score_9, score_8_up"
+        classNames={{ input: 'scroll-y !resize-y' }}
+      />
 
-      <div className="flex flex-col gap-1">
-        <div className="flex items-center justify-between gap-2">
-          <span className={label}>Prompt</span>
-          <label className="flex items-center gap-1.5 text-[11.5px] text-fg-secondary">
-            <input
-              type="checkbox"
-              checked={shared}
-              onChange={e => setUseShared(e.target.checked)}
-              className="h-3.5 w-3.5 accent-[var(--accent,#4F8AFF)]"
-            />
-            Shared with other workflows
-          </label>
-        </div>
-        <textarea
+      <Stack gap={4}>
+        <Group justify="space-between" gap="xs" wrap="nowrap">
+          <Text size="sm" fw={500}>Prompt</Text>
+          <Checkbox
+            size="xs"
+            label="Shared with other workflows"
+            checked={shared}
+            onChange={e => setUseShared(e.currentTarget.checked)}
+          />
+        </Group>
+        <Textarea
           value={prompt}
-          onChange={e => setPrompt(e.target.value)}
+          onChange={e => setPrompt(e.currentTarget.value)}
           rows={large ? 6 : 5}
+          size={size}
           aria-label="Prompt"
           placeholder="What to draw"
-          className={box}
+          classNames={{ input: 'scroll-y !resize-y' }}
         />
-      </div>
+      </Stack>
 
-      <div className="flex items-center gap-2 text-[11px] text-fg-muted">
-        <span className="shrink-0">Sent to</span>
+      <Group gap="xs" wrap="nowrap">
+        <Text size="xs" c="dimmed" className="shrink-0">Sent to</Text>
         {candidates.length > 1 ? (
-          <select
+          <Select
+            size="xs"
             value={targetId}
-            onChange={e => setPromptTarget(e.target.value)}
+            onChange={v => { if (v) setPromptTarget(v); }}
+            allowDeselect={false}
             aria-label="Which text box receives the prompt"
-            className="min-w-0 flex-1 truncate rounded border border-border-subtle bg-bg-base px-1.5 py-0.5 text-fg-secondary"
-          >
-            {candidates.map(c => <option key={c.id} value={c.id}>{c.nodeLabel} #{c.nodeId}</option>)}
-          </select>
+            data={candidates.map(c => ({ value: c.id, label: `${c.nodeLabel} #${c.nodeId}` }))}
+            comboboxProps={{ withinPortal: true, shadow: 'md' }}
+            className="min-w-0 flex-1"
+          />
         ) : (
-          <span className="truncate text-fg-secondary">
+          <Text size="xs" truncate className="min-w-0 flex-1">
             {candidates[0]?.nodeLabel} #{candidates[0]?.nodeId}
-          </span>
+          </Text>
         )}
-        <span className="shrink-0 tabular-nums" title={sent}>{sent.length} chars</span>
-      </div>
-    </section>
+        <Text size="xs" c="dimmed" className="shrink-0 tabular-nums" title={sent}>{sent.length} chars</Text>
+      </Group>
+    </Stack>
   );
 }
 
@@ -321,7 +314,7 @@ export function ResultView({
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3">
-      <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-lg bg-bg-base">
+      <Paper withBorder radius="md" className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden" bg="dark.8">
         {shown ? (
           <img
             src={shown}
@@ -332,15 +325,15 @@ export function ResultView({
             className={cn('h-full w-full object-contain', !livePreview && 'cursor-zoom-in')}
           />
         ) : (
-          <p className="px-6 text-center text-[13px] italic text-fg-muted">
+          <Text size="sm" c="dimmed" fs="italic" ta="center" px="lg">
             {busy ? (status ?? 'Working…') : 'No image yet — press Generate.'}
-          </p>
+          </Text>
         )}
 
         {!busy && results.length > 1 && (
-          <span className="pointer-events-none absolute right-2 top-2 rounded bg-black/55 px-1.5 py-0.5 text-[11px] tabular-nums text-white/85">
+          <Badge variant="filled" color="dark" radius="sm" className="pointer-events-none !absolute right-2 top-2 tabular-nums" style={{ opacity: 0.85 }}>
             {index + 1} / {results.length}
-          </span>
+          </Badge>
         )}
 
         {busy && (
@@ -355,10 +348,7 @@ export function ResultView({
             <div className="h-1 overflow-hidden rounded-full bg-white/15">
               {progress != null ? (
                 // A real bar once a sampler reports steps.
-                <div
-                  className="h-full rounded-full bg-accent transition-[width] duration-150"
-                  style={{ width: `${Math.max(2, progress * 100)}%` }}
-                />
+                <Progress value={Math.max(2, progress * 100)} size={4} radius="xl" bg="transparent" transitionDuration={150} />
               ) : (
                 // Between nodes there are no steps to count, so sweep rather than sit at zero.
                 <div className="animate-view-loading h-full w-1/3 bg-gradient-to-r from-transparent via-accent to-transparent" />
@@ -366,25 +356,27 @@ export function ResultView({
             </div>
           </div>
         )}
-      </div>
+      </Paper>
 
       {results.length > 0 && (
         <div ref={stripRef} className="scroll-x-thin flex shrink-0 gap-2 pb-1">
           {results.map((r, i) => (
-            <button
+            // v1 thumbnail strip: a 2px primary border on the current one, the rest dimmed.
+            <UnstyledButton
               key={r.url}
-              type="button"
               data-index={i}
               onClick={() => setPicked(r.url)}
               onDoubleClick={() => setFullscreen(i)}
               aria-label={`Show ${r.filename}`}
               className={cn(
-                'h-16 w-16 shrink-0 overflow-hidden rounded-md ring-1 transition-shadow',
-                i === index && !livePreview ? 'ring-2 ring-accent' : 'ring-border-subtle hover:ring-fg-muted',
+                'h-16 w-16 shrink-0 overflow-hidden rounded-sm border-2 transition-all duration-150',
+                i === index && !livePreview
+                  ? 'border-[var(--mantine-primary-color-filled)]'
+                  : 'border-transparent opacity-70 hover:opacity-100',
               )}
             >
               <img src={r.url} alt="" loading="lazy" className="h-full w-full object-cover" />
-            </button>
+            </UnstyledButton>
           ))}
         </div>
       )}
@@ -409,18 +401,21 @@ export function ResetAllButton() {
   const resetValue = useStudio(s => s.resetValue);
   if (!path || !params.length) return null;
   return (
-    <IconButton
-      aria-label="Reset every control"
-      title="Back to the values saved in ComfyUI"
-      onClick={() => params.forEach(p => resetValue(p.id))}
-    >
-      <ResetIcon size={15} />
-    </IconButton>
+    <Tooltip label="Back to the values saved in ComfyUI" withArrow>
+      <ActionIcon
+        variant="default"
+        size="lg"
+        aria-label="Reset every control"
+        onClick={() => params.forEach(p => resetValue(p.id))}
+      >
+        <IconArrowBackUp size={16} />
+      </ActionIcon>
+    </Tooltip>
   );
 }
 
 function Hint({ children }: { children: React.ReactNode }) {
-  return <p className="px-1 py-6 text-center text-[13px] text-fg-muted">{children}</p>;
+  return <Text size="sm" c="dimmed" ta="center" px={4} py="lg">{children}</Text>;
 }
 
 export { paramLabel };

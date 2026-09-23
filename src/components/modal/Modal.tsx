@@ -1,13 +1,12 @@
 import { createContext, useContext, type ReactNode } from 'react';
-import { createPortal } from 'react-dom';
+import { Modal as MModal } from '@mantine/core';
 import { cn } from '@/lib/cn';
 import { CloseIcon } from '@/components/ui/icons';
-import { useShortcut, ShortcutPriority } from '@/hooks/useShortcut';
 
 /**
  * Generic, controlled modal base.
  *
- * Renders a portal + dimmed backdrop + centered panel. Escape and backdrop
+ * A Mantine modal: portal, dimmed overlay, centred panel. Escape and overlay
  * clicks both call `onClose`. The panel is otherwise an empty shell — compose
  * its contents with the `Modal.*` slot components below, or pass arbitrary
  * children. Concrete modals (e.g. the model-metadata modal) live in their own
@@ -34,43 +33,27 @@ type ModalProps = {
 };
 
 function ModalRoot({ open, onClose, children, panelClassName, labelledBy }: ModalProps) {
-  // Top overlay priority — when a confirm dialog opens on top of a modal,
-  // Esc dismisses the confirm first (its priority is also TopOverlay but
-  // mounted later — last-in-first-out for equal priorities is fine here
-  // because we call `break` after the first handler).
-  useShortcut('Escape', () => { if (open) onClose(); }, {
-    priority: ShortcutPriority.TopOverlay,
-    when: () => open,
-  });
-
-  if (!open) return null;
-
-  return createPortal(
+  // The v1 Mantine modal: portalled above every panel and rail, focus-trapped, closed by Escape
+  // or a click on the overlay. The panel's own layout (columns, header/body/footer) is the slots below.
+  return (
     <ModalContext.Provider value={{ onClose }}>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
-        {/* Backdrop covers the whole viewport (including the padding gutter), so
-            a mousedown anywhere outside the panel closes. mousedown — not click —
-            so a drag that starts inside the panel and releases here doesn't. */}
-        <div
-          className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-          aria-hidden
-          onMouseDown={onClose}
-        />
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby={labelledBy}
-          className={cn(
-            'relative z-10 flex max-h-[90vh] overflow-hidden rounded-2xl',
-            'border border-border-default bg-bg-panel shadow-[0_30px_90px_rgba(0,0,0,0.7)]',
-            panelClassName,
-          )}
-        >
-          {children}
-        </div>
-      </div>
-    </ModalContext.Provider>,
-    document.body,
+      <MModal
+        opened={open}
+        onClose={onClose}
+        withCloseButton={false}
+        centered
+        size="auto"
+        padding={0}
+        overlayProps={{ backgroundOpacity: 0.7, blur: 3 }}
+        aria-labelledby={labelledBy}
+        classNames={{
+          content: cn('flex max-h-[90vh] !overflow-hidden', panelClassName),
+          body: 'flex min-h-0 w-full flex-1 !p-0',
+        }}
+      >
+        {children}
+      </MModal>
+    </ModalContext.Provider>
   );
 }
 

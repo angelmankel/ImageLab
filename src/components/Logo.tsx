@@ -1,10 +1,7 @@
 /**
- * ImageLab brand mark — a GPU die with a camera lens at its core.
- *
- * Self-contained multi-colour SVG (no `currentColor`); the palette is baked in
- * so it reads the same on any surface. This is the simplified small-size cut of
- * the logo — fewer lens rings, thicker traces, no corner mounting holes — tuned
- * to stay legible down to ~24px. Drawn on a 48-unit viewBox.
+ * ImageLab brand mark — the same art as the favicon and app icon (public/icons/icon.svg): a
+ * rounded tile in the theme's teal with two squares. The icon's full-bleed dark background is
+ * left out here so the mark sits on whatever surface it is drawn on.
  */
 type LogoProps = {
   /** Rendered width/height in px. Default 28 (the side-rail size). */
@@ -16,40 +13,11 @@ type LogoProps = {
 
 export function Logo({ size = 28, className, title = 'ImageLab' }: LogoProps) {
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 48 48"
-      fill="none"
-      className={className}
-      role="img"
-      aria-label={title}
-    >
+    <svg width={size} height={size} viewBox="96 96 320 320" className={className} role="img" aria-label={title}>
       <title>{title}</title>
-
-      {/* Chip die */}
-      <rect x="3" y="3" width="42" height="42" rx="11" fill="#2E6B62" stroke="#16302C" strokeWidth="1.5" />
-
-      {/* Copper edge traces */}
-      <g fill="#C8825C">
-        <rect x="17" y="4.5" width="14" height="3" rx="1.5" />
-        <rect x="17" y="40.5" width="14" height="3" rx="1.5" />
-        <rect x="4.5" y="17" width="3" height="14" rx="1.5" />
-        <rect x="40.5" y="17" width="3" height="14" rx="1.5" />
-      </g>
-
-      {/* Brushed-metal lens bezel */}
-      <rect x="13" y="13" width="22" height="22" rx="7" fill="#9C9D96" stroke="#54544E" strokeWidth="1" />
-
-      {/* Concentric camera lens */}
-      <circle cx="24" cy="24" r="9" fill="#0C1413" />
-      <circle cx="24" cy="24" r="7.5" fill="#2F6B66" stroke="#7FD8CC" strokeWidth="0.6" />
-      <circle cx="24" cy="24" r="4.5" fill="#4FA39A" />
-      <circle cx="24" cy="24" r="2.4" fill="#69C5B9" />
-      <circle cx="24" cy="24" r="1" fill="#0A1716" />
-
-      {/* Specular glint */}
-      <circle cx="21.6" cy="21.6" r="0.9" fill="#D7F5EE" />
+      <rect x="96" y="96" width="320" height="320" rx="72" fill="#24A6A9" />
+      <rect x="148" y="148" width="100" height="100" rx="22" fill="#ffffff" />
+      <rect x="264" y="264" width="100" height="100" rx="22" fill="#ffffff" fillOpacity="0.5" />
     </svg>
   );
 }

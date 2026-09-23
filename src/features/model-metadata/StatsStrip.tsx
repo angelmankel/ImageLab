@@ -1,3 +1,4 @@
+import { Paper, SimpleGrid, Text } from '@mantine/core';
 import { type CivitaiStats, formatCount } from './civitai';
 
 /**
@@ -23,13 +24,13 @@ export function StatsStrip({ stats }: { stats: CivitaiStats }) {
     { label: 'Rating', value: formatRating(stats) },
   ];
   return (
-    <div className="grid grid-cols-4 gap-2">
+    <SimpleGrid cols={4} spacing="xs">
       {cells.map((c) => (
-        <div key={c.label} className="rounded-lg border border-border-default bg-bg-card px-2.5 py-2">
-          <div className="text-[13px] font-semibold text-fg-primary">{c.value}</div>
-          <div className="text-[9px] font-medium text-fg-dim">{c.label}</div>
-        </div>
+        <Paper key={c.label} withBorder p={8} radius="sm">
+          <Text size="sm" fw={600}>{c.value}</Text>
+          <Text size="10px" c="dimmed">{c.label}</Text>
+        </Paper>
       ))}
-    </div>
+    </SimpleGrid>
   );
 }

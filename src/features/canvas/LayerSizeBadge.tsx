@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Badge } from '@mantine/core';
 import { useCanvasStore } from '@/lib/canvasStore';
 import { useCanvas } from '@/lib/canvasContext';
 
@@ -57,9 +58,11 @@ export function LayerSizeBadge() {
         transform: 'translate(0, 6px)',
         pointerEvents: 'none',
       }}
-      className="rounded bg-bg-elev/85 px-1.5 py-0.5 font-mono text-[10px] font-medium tabular-nums text-fg-secondary shadow-sm ring-1 ring-border-default backdrop-blur-sm"
     >
-      {w}×{h}
+      {/* v1's dimensions badge: a small filled dark chip. */}
+      <Badge size="sm" variant="filled" color="dark" radius="sm" ff="monospace" tt="none" className="tabular-nums shadow-sm">
+        {w}×{h}
+      </Badge>
     </div>
   );
 }

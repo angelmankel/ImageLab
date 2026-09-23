@@ -1,7 +1,7 @@
 import { useStore } from '@/lib/store';
 import { viewUrl } from '@/lib/comfy';
-import { DownloadIcon } from '@/components/ui/icons';
-import { IconButton } from '@/components/ui/IconButton';
+import { IconDownload } from '@tabler/icons-react';
+import { ToolbarButton } from '@/features/generate/ToolbarButton';
 
 /**
  * Top-nav action: download the currently-selected image to disk. Disabled
@@ -39,14 +39,12 @@ export function DownloadSelectedButton() {
   };
 
   return (
-    <IconButton
-      aria-label="Download image"
-      title={disabled ? 'Select an image to download' : 'Download this image'}
-      onClick={onClick}
+    <ToolbarButton
+      icon={<IconDownload size={16} />}
+      label="Download image"
+      tooltip={disabled ? 'Select an image to download' : 'Download this image'}
+      onClick={() => { void onClick(); }}
       disabled={disabled}
-      className="disabled:cursor-not-allowed disabled:opacity-40"
-    >
-      <DownloadIcon size={16} />
-    </IconButton>
+    />
   );
 }

@@ -28,12 +28,38 @@ npm run build
   top bar uses flow layout, not absolute tracks — absolute tracks cannot see each other and stack
   on a narrow screen.
 
+- **The UI is v1's (Mantine 8 + Tabler icons).** `modules/theme` + `stores/theme-store.ts` build the
+  Mantine theme; every Tailwind colour token in `styles/index.css` reads a Mantine CSS var, so
+  Tailwind and Mantine parts always match. Font is Inter, always.
+- **One popover base.** `components/ui/popover.tsx` (Radix-shaped parts on Mantine Popover: portal,
+  flip, shift). Never hand-roll a positioned dropdown — the nav rail is z-70 and ate every z-50 one.
+  Layers: rail 70, modals 200, fullscreen viewer 250, popovers 300, confirm 400.
+- **Parameter UI comes from `components/fields`** (v1 SliderField, SelectField, SeedField,
+  DimensionsField, LoopbackField…). `ParamRow` and `ui/Field` wrap them.
+- **Phones get `layout/MobileShell`** for the Generate view: Parameters / Image / Gallery tabs and a
+  floating Generate button that switches to Image only once a job is really queued.
+- **It installs as a PWA** (`public/manifest.json`, `public/sw.js`). Install needs HTTPS — the
+  Traefik domain, not the bare pod ip:port. The service worker fetches index.html network-first,
+  so a push to the pod shows up on the next launch.
+
 ## The two views
 
 - **Generate** uses one left workspace with collapsible Prompts, Models, Base image, Input image,
   and Passes sections. Generation controls stay at the bottom with a live sampler progress bar,
   a seed field, Auto toggle, and a separate New seed action. Status follows tracked jobs, never
   a leftover status string. Completion must not depend on a mounted canvas controller.
+- **The left panel follows v1.** Flat accordion sections with icons (`ControlSection`), whose
+  open state lives in `controls/sectionGroup.ts` so the toolbar (`PanelToolbar`) can expand all,
+  collapse all, and run single-open mode. Its five preset slots (`paramPresets.ts`) hold the
+  workflow and prompt parts, never the input image.
+- **Desktop side panels are docked and resizable.** Widths live in `layout/panelLayout.ts`
+  (persisted); `PanelResizeHandle` drags, folds past the minimum, and resets on double-click.
+- **Sounds** (`lib/sounds.ts`): a blip on queue, a chime on the live completion path only — the
+  reconcile path would chime for every job that finished while the page was away.
+- **The font is Inter everywhere**, bundled via `@fontsource-variable/inter`. Themes still carry
+  a `font` field for old saved themes, but it no longer applies.
+- **Loopback** (v1's hires fix, `workflow.loopback`) expands into refine passes that run before
+  the Passes list (`loopbackPasses` in `lib/pipeline.ts`).
 - **Passes** (`lib/pipeline.ts`) run in the displayed order: refine, upscale, resize, or remove
   background. Each can be duplicated, moved, bypassed, or removed. Old finishing flags are read
   as steps until the list is edited; existing workflows keep their settings. Same-size refinement

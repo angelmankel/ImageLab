@@ -1,37 +1,44 @@
+/* Mantine (the v1 component library) sits between Tailwind's base and its utilities, so its
+   components override the preflight reset and a utility class can still override a component. */
+@layer theme, base, mantine, components, utilities;
 @import "tailwindcss";
+@import "@mantine/core/styles.layer.css";
+@import "@mantine/notifications/styles.layer.css";
 
 @theme {
+  /* Every surface, border, text and accent token reads from the Mantine theme, so the Tailwind
+     parts of the app wear the same v1 palette as the Mantine parts and follow a theme change. */
   /* Surfaces */
-  --color-bg-base: #070A10;
-  --color-bg-panel: #0C1119;
-  --color-bg-elev: #11192A;
-  --color-bg-input: #0B1018;
-  --color-bg-card: #0F1623;
-  --color-bg-card-on: #131C2D;
+  --color-bg-base: var(--mantine-color-dark-8);
+  --color-bg-panel: var(--mantine-color-dark-7);
+  --color-bg-elev: var(--mantine-color-dark-6);
+  --color-bg-input: var(--mantine-color-dark-6);
+  --color-bg-card: var(--mantine-color-dark-6);
+  --color-bg-card-on: var(--mantine-color-dark-5);
 
   /* Borders */
-  --color-border-subtle: #161D29;
-  --color-border-default: #1B2333;
-  --color-border-strong: #2A3543;
-  --color-border-bright: #3A4759;
+  --color-border-subtle: var(--mantine-color-dark-5);
+  --color-border-default: var(--mantine-color-dark-4);
+  --color-border-strong: var(--mantine-color-dark-3);
+  --color-border-bright: var(--mantine-color-dark-2);
 
   /* Text scale */
-  --color-fg-primary: #E8EDF5;
-  --color-fg-secondary: #D5DBE5;
-  --color-fg-tertiary: #9CA8BD;
-  --color-fg-muted: #7B8699;
-  --color-fg-dim: #5A6477;
-  --color-fg-faint: #4A5364;
+  --color-fg-primary: #e9eaec;
+  --color-fg-secondary: var(--mantine-color-dark-0);
+  --color-fg-tertiary: var(--mantine-color-dark-1);
+  --color-fg-muted: var(--mantine-color-dark-2);
+  --color-fg-dim: var(--mantine-color-dark-3);
+  --color-fg-faint: var(--mantine-color-dark-4);
 
   /* Accents */
-  --color-accent: #3B6FE0;
-  --color-accent-hover: #4F8AFF;
-  --color-accent-soft: #1A2D52;
-  --color-accent-fg: #9CB4EA;
-  --color-coral-bg: #3D1F26;
-  --color-coral-fg: #E89BA1;
-  --color-status-ok: #3DD68C;
-  --color-status-err: #FF8080;
+  --color-accent: var(--mantine-primary-color-filled);
+  --color-accent-hover: var(--mantine-primary-color-filled-hover);
+  --color-accent-soft: var(--mantine-primary-color-light);
+  --color-accent-fg: var(--mantine-primary-color-light-color);
+  --color-coral-bg: var(--mantine-color-red-light);
+  --color-coral-fg: var(--mantine-color-red-light-color);
+  --color-status-ok: var(--mantine-color-green-5);
+  --color-status-err: var(--mantine-color-red-4);
 
   /* Model-kind accents — checkpoint reuses --color-accent */
   --color-lora: #8B5CF6;
@@ -45,10 +52,12 @@
   --color-cn-fg: #E8B871;
 
   /* Drag handle dots */
-  --color-handle: #3D4A5E;
+  --color-handle: var(--mantine-color-dark-3);
 
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* Inter everywhere, including the few places that asked for mono — digits line up through
+     tabular-nums instead of a second face. */
+  --font-sans: "Inter Variable", Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: var(--font-sans);
 }
 
 html, body, #root {
@@ -58,15 +67,33 @@ html, body, #root {
 body {
   background: var(--color-bg-base);
   color: var(--color-fg-secondary);
-  font: 12px var(--font-sans);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-feature-settings: "cv11", "ss01";
+  -webkit-font-smoothing: antialiased;
   overflow: hidden;
 }
 * { box-sizing: border-box; }
+/* Form controls do not inherit the page font by default. */
+button, input, select, textarea { font-family: inherit; }
+.font-mono { font-variant-numeric: tabular-nums; }
+/* A Mantine ScrollArea that only scrolls vertically must not grow wider than itself: its content
+   wrapper is `display: table` with a min-content width, so one long line (a prompt, a file name)
+   pushed every row past the edge and no ellipsis ever showed. */
+.mantine-ScrollArea-viewport[data-scrollbars='y'] > div {
+  display: block !important;
+  min-width: 0 !important;
+  width: 100%;
+}
+/* No native stepper arrows on plain number inputs either. */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 
 /* Custom scrollbars to match dark surfaces */
-.scroll-y { overflow-y: auto; scrollbar-width: thin; scrollbar-color: #2A3344 transparent; }
+.scroll-y { overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--mantine-color-dark-3) transparent; }
 .scroll-y::-webkit-scrollbar { width: 6px; }
-.scroll-y::-webkit-scrollbar-thumb { background: #2A3344; border-radius: 3px; }
+.scroll-y::-webkit-scrollbar-thumb { background: var(--mantine-color-dark-3); border-radius: 3px; }
 .scroll-y::-webkit-scrollbar-track { background: transparent; }
 
 /* Horizontal companion to .scroll-y, for strips of controls that must stay
@@ -85,7 +112,7 @@ body {
 
 /* Glow under primary CTA */
 .btn-glow {
-  box-shadow: 0 6px 18px -4px rgba(79, 138, 255, 0.45);
+  box-shadow: 0 6px 18px -4px color-mix(in srgb, var(--mantine-primary-color-filled) 45%, transparent);
 }
 .dot-glow {
   box-shadow: 0 0 6px 0 currentColor;

@@ -1,25 +1,25 @@
 import { useRef, useState } from 'react';
+import {
+  ActionIcon, Badge, Box, Group, Image, LoadingOverlay, Select, Stack, Text, Tooltip,
+} from '@mantine/core';
+import { IconBrush, IconLink, IconPhoto, IconUnlink, IconUpload, IconX } from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
-import { SectionHeader } from '@/components/ui/SectionHeader';
-import { Field } from '@/components/ui/Field';
-import { Slider } from '@/components/ui/Slider';
-import { Select } from '@/components/ui/Select';
-import { Switch } from '@/components/ui/Switch';
-import { cn } from '@/lib/cn';
-import { CloseIcon, SettingsIcon, LinkIcon, LinkBreakIcon } from '@/components/ui/icons';
+import { FieldWrapper } from '@/components/fields/FieldWrapper';
+import { DenoiseField } from '@/features/controls/DenoiseField';
 import { fileToImageState, urlToImageState } from './imageOps';
 import { EditImageModal } from './EditImageModal';
+import { InputImageBrowserModal } from './InputImageBrowserModal';
 
 const SIZE_OPTIONS = ['256', '384', '512', '640', '768', '896', '1024', '1280', '1536', '1792', '2048'];
 
 /**
- * "Input Image" parameter section — drop a file, paste from clipboard, or
- * click to browse. Shows a thumbnail of the current image once set, with
- * Edit / Clear / Replace controls and the img2img Denoise + Max size knobs.
+ * "Input image" section, after v1's InputImageField — drop a file, paste from
+ * the clipboard, click to browse files, or pick a past generation. Once set,
+ * the drop zone becomes the preview, with Edit / Replace / Clear over it and
+ * the img2img Denoise + size range knobs below.
  */
 export function InputImageSection() {
   const inputImage = useStore(s => s.workflow.inputImage);
-  const inputDenoise = useStore(s => s.workflow.inputDenoise);
   const inputMaxSize = useStore(s => s.workflow.inputMaxSize);
   const inputMinSize = useStore(s => s.workflow.inputMinSize);
   const setWorkflow = useStore(s => s.setWorkflow);
@@ -27,8 +27,23 @@ export function InputImageSection() {
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [dragging, setDragging] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [editorOpen, setEditorOpen] = useState(false);
+  const [browserOpen, setBrowserOpen] = useState(false);
   const [sizeLocked, setSizeLocked] = useState(false);
+
+  const load = async (read: () => Promise<{ dataUrl: string; name: string; width: number; height: number }>, verb: string) => {
+    setLoading(true);
+    try {
+      const state = await read();
+      setWorkflow({ inputImage: state });
+      setStatus(`Loaded ${state.width}×${state.height} input image`, 'ok');
+    } catch (err) {
+      setStatus(`Failed to ${verb} image: ${err instanceof Error ? err.message : String(err)}`, 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const ingest = async (file: File | null | undefined) => {
     if (!file) return;
@@ -36,13 +51,7 @@ export function InputImageSection() {
       setStatus(`${file.name} is not an image`, 'error');
       return;
     }
-    try {
-      const state = await fileToImageState(file);
-      setWorkflow({ inputImage: state });
-      setStatus(`Loaded ${state.width}×${state.height} input image`, 'ok');
-    } catch (err) {
-      setStatus(`Failed to read image: ${err instanceof Error ? err.message : String(err)}`, 'error');
-    }
+    await load(() => fileToImageState(file), 'read');
   };
 
   /**
@@ -70,174 +79,152 @@ export function InputImageSection() {
       url = fromList?.trim() || dt.getData('text/plain').trim();
     }
     if (!url || !/^https?:|^blob:|^data:/.test(url)) return;
-    try {
-      const state = await urlToImageState(url, name);
-      setWorkflow({ inputImage: state });
-      setStatus(`Loaded ${state.width}×${state.height} input image`, 'ok');
-    } catch (err) {
-      setStatus(`Failed to load image: ${err instanceof Error ? err.message : String(err)}`, 'error');
-    }
+    await load(() => urlToImageState(url, name), 'load');
   };
 
-  const dropHandlers = {
-    onDragOver: (e: React.DragEvent) => { e.preventDefault(); setDragging(true); },
-    onDragLeave: () => setDragging(false),
-    onDrop: async (e: React.DragEvent) => {
-      e.preventDefault();
-      setDragging(false);
-      await handleDataTransfer(e.dataTransfer);
-    },
-  };
-
+  const openFilePicker = () => fileInputRef.current?.click();
   const enabled = inputImage != null;
 
   return (
-    <section className="flex flex-col gap-2">
-      <SectionHeader
-        label="INPUT IMAGE"
-        right={
-          enabled ? (
-            <Switch
-              checked={enabled}
-              onCheckedChange={(on) => { if (!on) setWorkflow({ inputImage: null }); }}
-              ariaLabel="Disable input image"
-            />
-          ) : undefined
-        }
-      />
+    // The section header already says "Input image", so the v1 label row is folded into the
+    // action row: dimensions on the left, the actions on the right.
+    <Stack gap="xs" pb="xs">
+      <Group gap={4} justify="flex-end">
+        {enabled && (
+          <Badge size="xs" variant="light" color="blue" mr="auto">{inputImage.width} × {inputImage.height}</Badge>
+        )}
+        <Tooltip label="Browse generated images">
+          <ActionIcon variant="subtle" size="sm" onClick={() => setBrowserOpen(true)} aria-label="Browse generated images">
+            <IconPhoto size={16} />
+          </ActionIcon>
+        </Tooltip>
+        <Tooltip label={enabled ? 'Replace with a different image' : 'Upload an image'}>
+          <ActionIcon variant="subtle" size="sm" onClick={openFilePicker} aria-label={enabled ? 'Replace input image' : 'Upload input image'}>
+            <IconUpload size={16} />
+          </ActionIcon>
+        </Tooltip>
+        {enabled && (
+          <>
+            <Tooltip label="Edit image">
+              <ActionIcon variant="subtle" size="sm" onClick={() => setEditorOpen(true)} aria-label="Edit input image">
+                <IconBrush size={16} />
+              </ActionIcon>
+            </Tooltip>
+            <Tooltip label="Clear image">
+              <ActionIcon variant="subtle" size="sm" color="red" onClick={() => setWorkflow({ inputImage: null })} aria-label="Clear input image">
+                <IconX size={16} />
+              </ActionIcon>
+            </Tooltip>
+          </>
+        )}
+      </Group>
 
-      {!enabled ? (
-        <button
-          type="button"
-          onClick={() => fileInputRef.current?.click()}
-          {...dropHandlers}
-          onPaste={async (e) => {
-            const item = Array.from(e.clipboardData?.items ?? []).find(i => i.type.startsWith('image/'));
-            const f = item?.getAsFile();
-            if (f) await ingest(f);
-          }}
-          className={cn(
-            'flex h-32 flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed px-3 py-2 text-center transition-colors',
-            dragging
-              ? 'border-accent bg-accent-soft/40 text-accent-fg'
-              : 'border-border-default bg-bg-input text-fg-muted hover:border-border-strong hover:text-fg-tertiary',
-          )}
-        >
-          <span className="text-[13px] font-medium">Drop image, click, or paste</span>
-          <span className="text-[10px] text-fg-dim">img2img enabled when set · drag a history thumbnail here</span>
-        </button>
-      ) : (
-        <div
-          {...dropHandlers}
-          className={cn(
-            'flex flex-col gap-2 rounded-lg border-2 border-dashed transition-colors',
-            dragging ? 'border-accent bg-accent-soft/40 p-2' : 'border-transparent',
-          )}
-        >
-          <div className="flex gap-2.5">
-            <div className="relative aspect-square w-[88px] shrink-0 overflow-hidden rounded-lg border border-border-default bg-bg-input">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={inputImage.dataUrl}
-                alt={inputImage.name}
-                className="h-full w-full object-cover"
-              />
-              <button
-                type="button"
-                onClick={() => setWorkflow({ inputImage: null })}
-                aria-label="Clear input image"
-                title="Clear input image"
-                className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/55 text-white/90 backdrop-blur-md hover:bg-red-500/80"
-              >
-                <CloseIcon size={11} />
-              </button>
-            </div>
-            <div className="flex min-w-0 flex-1 flex-col justify-between gap-1.5">
-              <div className="flex min-w-0 flex-col">
-                <div className="truncate text-[12px] font-medium text-fg-secondary" title={inputImage.name}>
-                  {inputImage.name}
-                </div>
-                <div className="font-mono text-[10px] text-fg-dim">
-                  {inputImage.width}×{inputImage.height}
-                </div>
-              </div>
-              <div className="flex gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => setEditorOpen(true)}
-                  className="flex h-8 flex-1 items-center justify-center gap-1 rounded-md border border-border-default bg-bg-elev px-2 text-[11px] font-medium text-fg-tertiary hover:border-accent-hover hover:text-accent-fg"
-                >
-                  <SettingsIcon size={11} /> Edit
-                </button>
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="flex h-8 items-center justify-center rounded-md border border-border-default bg-bg-elev px-2.5 text-[11px] font-medium text-fg-tertiary hover:border-border-strong hover:text-fg-secondary"
-                  title="Replace with a different image"
-                >
-                  Replace
-                </button>
-              </div>
-            </div>
-          </div>
+      {/* Drop zone / preview. Empty, a click uploads; with an image, a click opens the editor. */}
+      <Box
+        role="button"
+        tabIndex={0}
+        aria-label={enabled ? 'Edit input image' : 'Drop image, click, or paste'}
+        onClick={enabled ? () => setEditorOpen(true) : openFilePicker}
+        onKeyDown={(e) => {
+          if (e.key !== 'Enter' && e.key !== ' ') return;
+          e.preventDefault();
+          if (enabled) setEditorOpen(true); else openFilePicker();
+        }}
+        onDragEnter={(e) => { e.preventDefault(); setDragging(true); }}
+        onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={async (e) => {
+          e.preventDefault();
+          setDragging(false);
+          await handleDataTransfer(e.dataTransfer);
+        }}
+        onPaste={async (e) => {
+          const item = Array.from(e.clipboardData?.items ?? []).find(i => i.type.startsWith('image/'));
+          const f = item?.getAsFile();
+          if (f) await ingest(f);
+        }}
+        style={{
+          position: 'relative',
+          width: '100%',
+          aspectRatio: '1',
+          maxHeight: 200,
+          borderRadius: 'var(--mantine-radius-md)',
+          border: `2px dashed ${dragging ? 'var(--mantine-primary-color-5)' : 'var(--mantine-color-dark-4)'}`,
+          backgroundColor: dragging ? 'var(--mantine-primary-color-9)' : 'var(--mantine-color-dark-6)',
+          cursor: 'pointer',
+          overflow: 'hidden',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          transition: 'all 0.2s ease',
+        }}
+      >
+        <LoadingOverlay visible={loading} />
+        {enabled ? (
+          <>
+            <Image src={inputImage.dataUrl} alt={inputImage.name} fit="contain" h="100%" w="100%" />
+            <Box style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '4px 6px', background: 'linear-gradient(transparent, rgba(0,0,0,0.8))' }}>
+              <Text size="xs" c="white" truncate title={inputImage.name}>{inputImage.name}</Text>
+            </Box>
+          </>
+        ) : (
+          <Stack align="center" gap="xs" px="sm">
+            <IconUpload size={32} style={{ opacity: 0.5 }} color={dragging ? 'var(--mantine-primary-color-5)' : undefined} />
+            <Text size="xs" c="dimmed" ta="center">Drop image here or click to upload</Text>
+            <Text size="xs" c="dimmed" ta="center">Paste from clipboard (Ctrl+V) · drag a history thumbnail here</Text>
+          </Stack>
+        )}
+      </Box>
 
-          <Field label="Denoise">
-            <Slider
-              value={inputDenoise}
-              onValueChange={(v) => setWorkflow({ inputDenoise: v })}
-              min={0}
-              max={1}
-              step={0.01}
-              ariaLabel="Input image denoise"
-            />
-            <span className="w-12 shrink-0 text-right text-[12px] font-medium tabular-nums text-fg-secondary">
-              {inputDenoise.toFixed(2)}
-            </span>
-          </Field>
-          <Field label="Size range">
-            <div className="flex flex-1 items-center gap-1.5">
+      {enabled && (
+        <>
+          <DenoiseField />
+          <FieldWrapper label="Size range" description="Longest edge the image is scaled into">
+            <Group gap={6} wrap="nowrap">
               <Select
+                data={SIZE_OPTIONS}
                 value={String(inputMinSize)}
-                onValueChange={(v) => {
+                onChange={(v) => {
                   const min = Number(v) || 0;
                   if (sizeLocked) setWorkflow({ inputMinSize: min, inputMaxSize: min });
                   else setWorkflow({ inputMinSize: min, inputMaxSize: Math.max(min, inputMaxSize) });
                 }}
-                options={SIZE_OPTIONS}
-                ariaLabel="Input image min size"
+                allowDeselect={false}
+                comboboxProps={{ withinPortal: true }}
+                aria-label="Input image min size"
+                style={{ flex: 1 }}
               />
-              <button
-                type="button"
-                onClick={() => {
-                  const next = !sizeLocked;
-                  setSizeLocked(next);
-                  if (next) setWorkflow({ inputMaxSize: inputMinSize });
-                }}
-                aria-pressed={sizeLocked}
-                title={sizeLocked ? 'Unlink min/max' : 'Link min/max to the same value'}
-                className={cn(
-                  'flex h-6 w-6 shrink-0 items-center justify-center rounded-md border transition-colors',
-                  sizeLocked
-                    ? 'border-accent/60 bg-accent/15 text-accent'
-                    : 'border-border-default bg-bg-elev text-fg-muted hover:border-border-strong hover:text-fg-secondary',
-                )}
-              >
-                {sizeLocked ? <LinkIcon size={12} /> : <LinkBreakIcon size={12} />}
-              </button>
+              <Tooltip label={sizeLocked ? 'Unlink min/max' : 'Link min/max to the same value'}>
+                <ActionIcon
+                  variant={sizeLocked ? 'light' : 'subtle'}
+                  color={sizeLocked ? undefined : 'gray'}
+                  onClick={() => {
+                    const next = !sizeLocked;
+                    setSizeLocked(next);
+                    if (next) setWorkflow({ inputMaxSize: inputMinSize });
+                  }}
+                  aria-pressed={sizeLocked}
+                  aria-label={sizeLocked ? 'Unlink min/max' : 'Link min/max'}
+                >
+                  {sizeLocked ? <IconLink size={16} /> : <IconUnlink size={16} />}
+                </ActionIcon>
+              </Tooltip>
               <Select
+                data={SIZE_OPTIONS}
                 value={String(inputMaxSize)}
-                onValueChange={(v) => {
+                onChange={(v) => {
                   const max = Number(v) || 1024;
                   if (sizeLocked) setWorkflow({ inputMinSize: max, inputMaxSize: max });
                   else setWorkflow({ inputMaxSize: max, inputMinSize: Math.min(inputMinSize, max) });
                 }}
-                options={SIZE_OPTIONS}
-                ariaLabel="Input image max size"
+                allowDeselect={false}
+                comboboxProps={{ withinPortal: true }}
+                aria-label="Input image max size"
+                style={{ flex: 1 }}
               />
-            </div>
-            <span className="shrink-0 text-[10px] text-fg-dim">longest edge</span>
-          </Field>
-        </div>
+            </Group>
+          </FieldWrapper>
+        </>
       )}
 
       <input
@@ -247,17 +234,20 @@ export function InputImageSection() {
         className="hidden"
         onChange={async (e) => {
           const f = e.target.files?.[0];
-          await ingest(f);
           e.target.value = '';
+          await ingest(f);
         }}
       />
 
+      <InputImageBrowserModal
+        opened={browserOpen}
+        onClose={() => setBrowserOpen(false)}
+        onSelect={(url, name) => { setBrowserOpen(false); void load(() => urlToImageState(url, name), 'load'); }}
+      />
+
       {editorOpen && inputImage && (
-        <EditImageModal
-          image={inputImage}
-          onClose={() => setEditorOpen(false)}
-        />
+        <EditImageModal image={inputImage} onClose={() => setEditorOpen(false)} />
       )}
-    </section>
+    </Stack>
   );
 }

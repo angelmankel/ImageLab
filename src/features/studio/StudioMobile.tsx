@@ -16,7 +16,7 @@
  * The selected knob is highlighted and scrolled to, so the stick alone can drive the whole view.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { cn } from '@/lib/cn';
+import { Group, SegmentedControl, Tabs, Text } from '@mantine/core';
 import { ParamList, PromptPanel, ResetAllButton, ResultView, WorkflowPicker } from './StudioPanels';
 import { GenerateBar } from './StudioView';
 import { exposedParams, useStudio } from './studioStore';
@@ -138,53 +138,35 @@ export function StudioMobile({ library, run, host }: { library: Library; run: Ru
   return (
     <div className="flex h-full min-h-0 flex-col">
       {/* Pane tabs — the swipe is the fast way, these are the discoverable way. */}
-      <div role="tablist" className="flex shrink-0 border-b border-border-subtle bg-bg-panel">
-        {PANES.map(p => (
-          <button
-            key={p}
-            type="button"
-            role="tab"
-            aria-selected={pane === p}
-            onClick={() => setPane(p)}
-            className={cn(
-              'relative min-h-[44px] flex-1 text-[13px] font-medium transition-colors',
-              pane === p ? 'text-fg-primary' : 'text-fg-muted',
-            )}
-          >
-            {PANE_LABEL[p]}
-            {pane === p && <span className="absolute inset-x-4 bottom-0 h-0.5 rounded-t-full bg-accent" />}
-          </button>
-        ))}
-      </div>
+      <Tabs value={pane} onChange={v => v && setPane(v as Pane)} className="shrink-0 bg-bg-panel">
+        <Tabs.List grow>
+          {PANES.map(p => (
+            <Tabs.Tab key={p} value={p} className="min-h-[44px]">{PANE_LABEL[p]}</Tabs.Tab>
+          ))}
+        </Tabs.List>
+      </Tabs>
 
       <div className="scroll-y min-h-0 flex-1 px-3 py-3">
         {pane === 'workflows' && (
           <div className="flex flex-col gap-3">
             <WorkflowPicker workflows={library.workflows} onOpen={p => { void library.open(p); setPane('controls'); }} onRefresh={library.refresh} large />
-            {library.error && <p className="text-[12px] text-red-400">{library.error}</p>}
+            {library.error && <Text size="xs" c="red.4">{library.error}</Text>}
           </div>
         )}
 
         {pane === 'controls' && (
           <div className="flex flex-col gap-3">
-            <div className="flex items-center gap-2">
-              <div className="flex flex-1 overflow-hidden rounded-lg border border-border-subtle">
-                {(['simple', 'advanced'] as const).map(m => (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={() => setMode(m)}
-                    className={cn(
-                      'min-h-[40px] flex-1 text-[13px] capitalize transition-colors',
-                      mode === m ? 'bg-accent text-white' : 'text-fg-muted',
-                    )}
-                  >
-                    {m}
-                  </button>
-                ))}
-              </div>
+            <Group gap="xs" wrap="nowrap">
+              <SegmentedControl
+                size="md"
+                fullWidth
+                className="flex-1"
+                value={mode}
+                onChange={v => setMode(v as typeof mode)}
+                data={[{ value: 'simple', label: 'Simple' }, { value: 'advanced', label: 'Advanced' }]}
+              />
               <ResetAllButton />
-            </div>
+            </Group>
             <PromptPanel large />
             {/* The controller's selection is drawn here rather than inside ParamList so the list
                 stays the same component the desktop uses. */}
@@ -192,7 +174,7 @@ export function StudioMobile({ library, run, host }: { library: Library; run: Ru
               {padConnected && selected && (
                 <div
                   ref={selectedRef}
-                  className="pointer-events-none absolute -inset-x-2 rounded-lg ring-2 ring-accent/60"
+                  className="pointer-events-none absolute -inset-x-2 rounded-md ring-2 ring-[var(--mantine-primary-color-filled)]"
                   style={{ top: 0, height: 0 }}
                   aria-hidden
                 />
@@ -218,13 +200,13 @@ export function StudioMobile({ library, run, host }: { library: Library; run: Ru
         )}
       </div>
 
-      {run.error && <p className="shrink-0 px-3 pb-1 text-[12px] text-red-400">{run.error}</p>}
+      {run.error && <Text size="xs" c="red.4" px="sm" pb={4} className="shrink-0">{run.error}</Text>}
 
       <div className="shrink-0 border-t border-border-subtle bg-bg-panel px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-3">
         {padConnected && (
-          <p className="pb-2 text-center text-[11px] text-fg-muted">
+          <Text size="xs" c="dimmed" ta="center" pb={8}>
             {selected ? `▲▼ ${paramLabel(selected)} · ◀▶ adjust · ` : ''}A generate · X reseed · LB/RB pane
-          </p>
+          </Text>
         )}
         <GenerateBar run={run} large />
       </div>

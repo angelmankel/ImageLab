@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { parseCivitaiRef, fetchCivitaiModelIdForVersion } from '@/lib/civitai';
 import { useModelMetadataStore } from '@/features/model-metadata/store';
-import { cn } from '@/lib/cn';
+import { Button, Group, Text, TextInput } from '@mantine/core';
 
 /**
  * Header input for opening any CivitAI model by id, version id, AIR urn, or
@@ -53,38 +53,37 @@ export function OpenByIdInput() {
   };
 
   return (
-    <form onSubmit={onSubmit} className="flex items-stretch gap-1.5">
-      <input
-        type="text"
-        value={raw}
-        onChange={(e) => { setRaw(e.target.value); if (error) setError(null); }}
-        placeholder="Open by id / AIR urn / URL…"
-        spellCheck={false}
-        autoCapitalize="off"
-        autoComplete="off"
-        title="Paste a CivitAI model id, version id, AIR urn, or model URL"
-        className={cn(
-          'h-7 w-[260px] min-w-0 rounded-md border bg-bg-input px-2.5 text-[11.5px] text-fg-secondary outline-none placeholder:text-fg-dim hover:border-border-strong focus:border-accent',
-          error ? 'border-status-err' : 'border-border-default',
-        )}
-      />
-      <button
-        type="submit"
-        disabled={busy || raw.trim().length === 0}
-        title="Open this model in the metadata modal"
-        className="rounded-md border border-border-default bg-bg-elev px-2.5 text-[11px] font-medium text-fg-tertiary transition-colors hover:border-border-strong hover:text-fg-secondary disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        {busy ? 'Opening…' : 'Open'}
-      </button>
-      {error && (
-        <span
-          role="alert"
-          title={error}
-          className="self-center text-[10.5px] text-status-err"
+    <form onSubmit={onSubmit}>
+      <Group gap={6} wrap="nowrap">
+        <TextInput
+          size="xs"
+          w={260}
+          value={raw}
+          onChange={(e) => { setRaw(e.currentTarget.value); if (error) setError(null); }}
+          placeholder="Open by id / AIR urn / URL…"
+          spellCheck={false}
+          autoCapitalize="off"
+          autoComplete="off"
+          title="Paste a CivitAI model id, version id, AIR urn, or model URL"
+          error={!!error}
+          className="min-w-0"
+        />
+        <Button
+          type="submit"
+          size="xs"
+          variant="default"
+          disabled={busy || raw.trim().length === 0}
+          loading={busy}
+          title="Open this model in the metadata modal"
         >
-          {error}
-        </span>
-      )}
+          Open
+        </Button>
+        {error && (
+          <Text role="alert" title={error} size="xs" c="red.5">
+            {error}
+          </Text>
+        )}
+      </Group>
     </form>
   );
 }

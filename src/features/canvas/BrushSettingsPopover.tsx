@@ -1,3 +1,4 @@
+import { Badge, Group, Paper, Text } from '@mantine/core';
 import { useCanvasStore } from '@/lib/canvasStore';
 import { Field } from '@/components/ui/Field';
 import { Slider } from '@/components/ui/Slider';
@@ -18,20 +19,22 @@ export function BrushSettingsPanel() {
   const isErase = activeTool === 'erase';
 
   return (
-    <div
+    <Paper
       data-brush-cursor-surface="panel"
-      // Anchored to the toolbar wrapper in CanvasToolbar (`relative`). 44px
+      withBorder
+      shadow="xl"
+      radius="md"
+      p="sm"
+      // Anchored to the toolbar wrapper in CanvasToolbar (`relative`). 42px
       // = toolbar button width + gap, so the panel hugs the right edge.
-      className="pointer-events-auto absolute left-[44px] top-0 w-[260px] rounded-xl border border-border-default bg-bg-elev/95 p-3 shadow-2xl backdrop-blur-md"
+      className="pointer-events-auto !absolute left-[42px] top-0 w-[260px]"
     >
-      <div className="mb-2 flex items-center justify-between">
-        <div className="text-[10px] font-semibold uppercase tracking-section text-fg-dim">
-          {isErase ? 'Erase' : 'Brush'}
-        </div>
-        <div className="text-[10.5px] font-mono text-fg-muted">
+      <Group justify="space-between" mb="xs">
+        <Text size="sm" fw={600}>{isErase ? 'Erase' : 'Brush'}</Text>
+        <Badge size="sm" variant="light" color="gray" ff="monospace" tt="none">
           {Math.round(brush.size)}px
-        </div>
-      </div>
+        </Badge>
+      </Group>
 
       <div className="flex flex-col gap-2">
         <Field label="Size">
@@ -92,6 +95,6 @@ export function BrushSettingsPanel() {
             color globally accessible regardless of which brush mode is
             active. */}
       </div>
-    </div>
+    </Paper>
   );
 }

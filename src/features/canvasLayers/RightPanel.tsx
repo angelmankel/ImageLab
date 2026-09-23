@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { HistoryPanel } from '@/features/history/HistoryPanel';
 import { CanvasLayersPanel } from './CanvasLayersPanel';
 import { useCanvasStore } from '@/lib/canvasStore';
-import { cn } from '@/lib/cn';
+import { Tabs } from '@mantine/core';
 
 const RIGHT_PANEL_TAB_KEY = 'imagelab.rightPanelTab.v1';
 
@@ -26,8 +26,7 @@ function saveTab(t: RightTab) {
 
 /**
  * Tabbed right-panel shell: Layers (canvas-compositor list) / History
- * (existing per-server history). Mirrors `LeftPanel`'s segmented-control
- * visual language so both side panels feel like the same family.
+ * (existing per-server history), on v1's Mantine tab strip.
  */
 export function RightPanel() {
   const mainView = useCanvasStore(s => s.mainView);
@@ -49,28 +48,18 @@ export function RightPanel() {
 
   return (
     <div className="flex h-full flex-col">
+      {/* v1 tab strip: Mantine Tabs used for the list only — the panels render below so the
+          inactive one unmounts, as before. */}
       {showTablist && (
-      <div role="tablist" className="flex shrink-0 items-stretch border-b border-border-subtle bg-bg-panel">
-        {visibleTabs.map(t => (
-          <button
-            key={t.id}
-            type="button"
-            role="tab"
-            aria-selected={activeTab === t.id}
-            onClick={() => setTab(t.id)}
-            className={cn(
-              'relative flex-1 px-3 py-3 text-[12px] font-medium transition-colors',
-              'min-h-[44px]', // touch target
-              activeTab === t.id ? 'text-fg-primary' : 'text-fg-muted hover:text-fg-secondary',
-            )}
-          >
-            {t.label}
-            {activeTab === t.id && (
-              <span className="absolute inset-x-3 bottom-0 h-0.5 rounded-t-full bg-accent" />
-            )}
-          </button>
-        ))}
-      </div>
+        <Tabs value={activeTab} onChange={(v) => v && setTab(v as RightTab)} className="shrink-0">
+          <Tabs.List grow>
+            {visibleTabs.map(t => (
+              <Tabs.Tab key={t.id} value={t.id} className="min-h-[44px]">
+                {t.label}
+              </Tabs.Tab>
+            ))}
+          </Tabs.List>
+        </Tabs>
       )}
       <div className="min-h-0 flex-1">
         {activeTab === 'layers'  && <CanvasLayersPanel />}

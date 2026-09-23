@@ -7,8 +7,9 @@ import { TooltipProvider } from '@/components/ui/Tooltip';
 import { ConfirmProvider } from '@/components/ui/ConfirmDialog';
 import { CanvasContext } from '@/lib/canvasContext';
 import { MainView } from '@/features/layout/MainView';
+import { MobileShell } from '@/features/layout/MobileShell';
 import { ComfyLayer } from '@/features/comfy/ComfyLayer';
-import { LEFT_W, RIGHT_W } from '@/features/layout/constants';
+import { usePanelLayout } from '@/features/layout/panelLayout';
 import { useStore } from '@/lib/store';
 import { useIsDesktop } from '@/hooks/useIsDesktop';
 import { useMobilePanels } from '@/hooks/useMobilePanels';
@@ -40,17 +41,20 @@ export default function App() {
   const { mainView, viewKey, isSwitching } = useViewSwitching();
 
   // Insets for the TopNav so it always sits in the visible area between the
-  // two floating side panels, never beneath an open overlay. The +8 accounts
-  // for the panel's 8px outer gutter (matches the TopNav's own p-2) so the
-  // bar lines up with the panel's outer edge rather than sliding under it.
-  const desktopLeftInset = isDesktop && leftOpen ? LEFT_W + 8 : 0;
-  const desktopRightInset = isDesktop && rightOpen ? RIGHT_W + 8 : 0;
+  // two docked side panels, never beneath one. The TopNav's own p-2 gives the gap.
+  const leftW = usePanelLayout(s => s.left);
+  const rightW = usePanelLayout(s => s.right);
+  const desktopLeftInset = isDesktop && leftOpen ? leftW : 0;
+  const desktopRightInset = isDesktop && rightOpen ? rightW : 0;
+
+  // Phones get v1's tabbed layout for Generate: no drawers to juggle to start a run or see it.
+  const mobileShell = !isDesktop && mainView === 'generate';
 
   return (
     <CanvasContext.Provider value={canvas.value}>
       <ConfirmProvider>
       <TooltipProvider>
-        <div
+        {mobileShell ? <MobileShell onOpenSettings={() => setSettingsOpen(true)} /> : <div
           className="relative flex h-[100dvh] w-screen overflow-hidden bg-bg-base text-fg-secondary touch-pan-y"
           style={{ overscrollBehavior: 'none' }}
         >
@@ -92,7 +96,7 @@ export default function App() {
               z-20 sibling of <main> paints above the whole subtree. The backdrop covered the
               open drawer, and every tap on a control closed the drawer instead. It now lives
               in AppSidePanels, next to the panels it belongs to, where the z-order is real. */}
-        </div>
+        </div>}
         <SettingsModal open={settingsOpen} onOpenChange={setSettingsOpen} />
         <ErrorBoundary label="Model metadata">
           <ModelMetadataModal />

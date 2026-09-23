@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useStore } from '@/lib/store';
-import { CloseIcon, EditIcon, HeartIcon, PlusIcon, StarIcon, UploadIcon } from '@/components/ui/icons';
+import { ActionIcon, Button, Divider, Group, NavLink, Text, TextInput, Tooltip } from '@mantine/core';
+import { IconHeart, IconPencil, IconPhoto, IconPlus, IconUpload, IconX } from '@tabler/icons-react';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
-import { cn } from '@/lib/cn';
 import type { RailBucket } from './useCollectionTiles';
 
 /**
@@ -53,30 +53,28 @@ export function CollectionsRail({
       <RailRow
         active={bucket === 'all'}
         onClick={() => onChange('all')}
-        icon={<StarIcon size={13} />}
+        icon={<IconPhoto size={15} />}
         label="All"
         count={totalCount}
       />
       <RailRow
         active={bucket === 'imports'}
         onClick={() => onChange('imports')}
-        icon={<UploadIcon size={13} />}
+        icon={<IconUpload size={15} />}
         label="Imports"
         count={importedImages.length}
       />
       <RailRow
         active={bucket === 'favorites'}
         onClick={() => onChange('favorites')}
-        icon={<HeartIcon size={13} filled />}
+        icon={<IconHeart size={15} />}
         label="Favorites"
         count={favCount}
       />
 
-      <div className="mx-1 my-2 border-t border-border-subtle" />
+      <Divider my="xs" />
 
-      <div className="px-1 text-[9px] font-semibold uppercase tracking-section text-fg-dim">
-        Collections
-      </div>
+      <Text size="xs" fw={600} c="dimmed" px={4}>Collections</Text>
 
       {collections.map((c) => {
         const isActive = bucket === c.id;
@@ -84,90 +82,102 @@ export function CollectionsRail({
         if (isRenaming) {
           return (
             <div key={c.id} className="flex items-center gap-1 px-1">
-              <input
+              <TextInput
+                size="xs"
                 value={renameDraft}
                 autoFocus
-                onChange={(e) => setRenameDraft(e.target.value)}
+                aria-label="Collection name"
+                onChange={(e) => setRenameDraft(e.currentTarget.value)}
                 onBlur={() => submitRename(c.id)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') submitRename(c.id);
                   else if (e.key === 'Escape') { setRenamingId(null); setRenameDraft(''); }
                 }}
-                className="min-w-0 flex-1 rounded border border-accent bg-bg-input px-2 py-1 text-[12px] text-fg-secondary outline-none"
+                className="min-w-0 flex-1"
               />
             </div>
           );
         }
         return (
-          <div key={c.id} className={cn('group flex items-center gap-1 rounded-md', isActive && 'bg-accent-soft')}>
-            <button
+          <div key={c.id} className="group relative">
+            <NavLink
+              component="button"
               type="button"
               onClick={() => onChange(c.id)}
-              className={cn(
-                'flex min-w-0 flex-1 items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-[12px] transition-colors',
-                isActive ? 'text-accent-fg' : 'text-fg-secondary hover:bg-bg-elev',
-              )}
-            >
-              <span aria-hidden className="text-[11px]">{c.icon ?? '📁'}</span>
-              <span className="min-w-0 flex-1 truncate">{c.name}</span>
-              <span className="text-[10px] tabular-nums text-fg-dim">{c.itemIds.length}</span>
-            </button>
-            <div className="flex items-center pr-1 opacity-0 group-hover:opacity-100">
-              <button
-                type="button"
-                onClick={() => { setRenamingId(c.id); setRenameDraft(c.name); }}
-                aria-label="Rename collection"
-                title="Rename"
-                className="flex h-6 w-6 items-center justify-center rounded text-fg-dim hover:bg-bg-elev hover:text-fg-secondary"
-              >
-                <EditIcon size={11} />
-              </button>
-              <button
-                type="button"
-                onClick={async () => {
-                  if (!await confirm(`Delete the "${c.name}" collection? The images themselves are kept.`)) return;
-                  deleteCollection(c.id);
-                  if (bucket === c.id) onChange('all');
-                }}
-                aria-label="Delete collection"
-                title="Delete"
-                className="flex h-6 w-6 items-center justify-center rounded text-fg-dim hover:bg-bg-elev hover:text-status-err"
-              >
-                <CloseIcon size={11} />
-              </button>
-            </div>
+              active={isActive}
+              variant="light"
+              leftSection={<span aria-hidden className="text-[12px]">{c.icon ?? '📁'}</span>}
+              label={c.name}
+              rightSection={<Text size="10px" c="dimmed" className="tabular-nums group-hover:invisible">{c.itemIds.length}</Text>}
+              className="rounded-sm"
+              classNames={{ label: 'truncate' }}
+            />
+            {/* Hover actions sit over the count, so the row keeps its full width for the name. */}
+            <Group gap={0} wrap="nowrap" className="!absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100">
+              <Tooltip label="Rename" withArrow>
+                <ActionIcon
+                  size="sm"
+                  variant="subtle"
+                  color="gray"
+                  onClick={() => { setRenamingId(c.id); setRenameDraft(c.name); }}
+                  aria-label="Rename collection"
+                >
+                  <IconPencil size={12} />
+                </ActionIcon>
+              </Tooltip>
+              <Tooltip label="Delete" withArrow>
+                <ActionIcon
+                  size="sm"
+                  variant="subtle"
+                  color="red"
+                  onClick={async () => {
+                    if (!await confirm(`Delete the "${c.name}" collection? The images themselves are kept.`)) return;
+                    deleteCollection(c.id);
+                    if (bucket === c.id) onChange('all');
+                  }}
+                  aria-label="Delete collection"
+                >
+                  <IconX size={12} />
+                </ActionIcon>
+              </Tooltip>
+            </Group>
           </div>
         );
       })}
 
       {collections.length === 0 && !adding && (
-        <p className="px-1 py-1 text-[10.5px] italic text-fg-dim">No collections yet.</p>
+        <Text size="xs" c="dimmed" fs="italic" px={4} py={4}>No collections yet.</Text>
       )}
 
       {adding ? (
         <div className="flex items-center gap-1 px-1">
-          <input
+          <TextInput
+            size="xs"
             value={draft}
             autoFocus
             placeholder="Collection name…"
-            onChange={(e) => setDraft(e.target.value)}
+            aria-label="New collection name"
+            onChange={(e) => setDraft(e.currentTarget.value)}
             onBlur={submitNew}
             onKeyDown={(e) => {
               if (e.key === 'Enter') submitNew();
               else if (e.key === 'Escape') { setAdding(false); setDraft(''); }
             }}
-            className="min-w-0 flex-1 rounded border border-accent bg-bg-input px-2 py-1 text-[12px] text-fg-secondary outline-none"
+            className="min-w-0 flex-1"
           />
         </div>
       ) : (
-        <button
-          type="button"
+        <Button
+          size="xs"
+          variant="subtle"
+          color="gray"
+          justify="flex-start"
+          leftSection={<IconPlus size={13} />}
           onClick={() => setAdding(true)}
-          className="mt-1 flex items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-[11.5px] text-fg-tertiary transition-colors hover:bg-bg-elev hover:text-accent-fg"
+          mt={4}
         >
-          <PlusIcon size={12} />
           New collection
-        </button>
+        </Button>
       )}
     </aside>
   );
@@ -187,19 +197,16 @@ function RailRow({
   count: number;
 }) {
   return (
-    <button
+    <NavLink
+      component="button"
       type="button"
       onClick={onClick}
-      className={cn(
-        'flex items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-[12px] transition-colors',
-        active
-          ? 'bg-accent-soft text-accent-fg'
-          : 'text-fg-secondary hover:bg-bg-elev',
-      )}
-    >
-      <span className={cn('shrink-0', active ? 'text-accent-fg' : 'text-fg-dim')}>{icon}</span>
-      <span className="min-w-0 flex-1 truncate">{label}</span>
-      <span className="text-[10px] tabular-nums text-fg-dim">{count}</span>
-    </button>
+      active={active}
+      variant="light"
+      leftSection={icon}
+      label={label}
+      rightSection={<Text size="10px" c="dimmed" className="tabular-nums">{count}</Text>}
+      className="rounded-sm"
+    />
   );
 }

@@ -154,6 +154,8 @@ export type Job = {
   progress?: { value: number; max: number };
   /** Label of the node currently executing. */
   node?: string;
+  /** 1-based stage (base image, then each Loopback round and pass) the job has reached. */
+  stage?: number;
   /** Total node count in the queued graph — captured at queue time so we can
    *  show "node 4 / 12" progress while the graph runs. */
   totalNodes?: number;
@@ -201,6 +203,19 @@ export type InputImageState = {
 };
 
 /** One ordered refinement or finishing step. Missing kind means a saved sampling pass. */
+export type LoopbackSettings = {
+  enabled: boolean;
+  iterations: number;
+  upscale: number;
+  denoise: number;
+  steps: number;
+  cfg: number;
+  /** Step denoise evenly from `denoiseStart` (first round) to `denoiseEnd` (last) instead of using `denoise`. */
+  autoDenoise?: boolean;
+  denoiseStart?: number;
+  denoiseEnd?: number;
+};
+
 export type Pass = {
   id: string;
   kind?: 'sample' | 'upscale' | 'resize' | 'remove-bg';
@@ -307,10 +322,19 @@ export type WorkflowState = {
   cfg: number;
   sampler: string;
   scheduler: string;
+  /** ComfyUI's `stop_at_clip_layer`: -1 = the CLIP's last layer (no skip), -2 = "clip skip 2".
+   *  Optional so workflows saved before it existed load with the default. */
+  clipSkip?: number;
   denoise: number;
   width: number;
   height: number;
   batch: number;
+  /**
+   * v1's Loopback (hires fix): after the base image, run `iterations` more img2img passes, each
+   * scaling the latent by `upscale` and resampling at `denoise`. Runs before the Passes list.
+   * Optional so workflows saved before it existed load unchanged.
+   */
+  loopback?: LoopbackSettings;
   /** Checkpoints — [0] is the base; entries 2+ are merged in via ModelMergeSimple. */
   checkpoints: WorkflowCheckpoint[];
   /** Explicit VAE file. '' = use the checkpoint's built-in VAE. */

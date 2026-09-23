@@ -11,7 +11,7 @@ function load(name) {
   vm.runInNewContext(code, { exports });
   return exports;
 }
-const { createPass, pipelinePasses, withPipeline, appendPasses, prepareSeeds } = load('pipeline');
+const { createPass, pipelinePasses, withPipeline, appendPasses, prepareSeeds, loopbackSizes, loopbackDenoises, loopbackPasses, jobStages, applyClipSkip } = load('pipeline');
 const { applyPromptPreset } = load('promptPresets');
 const { jobActivity } = load('jobActivity');
 const base = { passes: [], sampler: 'euler', scheduler: 'normal', steps: 20, cfg: 7, seed: 42, randomizeSeed: false, width: 512, height: 512, upscaleModel: '4x-AnimeSharp.pth' };
@@ -31,6 +31,24 @@ test('steps execute in order, including refinement at unchanged size', () => {
   assert.equal(graph.pass1sample.inputs.seed, 42);
   assert.deepEqual(plain(graph.pass2.inputs.image), ['pass1decode', 0]);
   assert.deepEqual(plain(result.image), ['pass2', 0]);
+});
+
+test('background removal followed by a refine keeps the cut-out and ends transparent', () => {
+  const { graph, result } = graphFor([createPass(base, 'remove-bg', 'b'), createPass(base, 'sample', 's')]);
+  // The refine sees the subject on flat grey, not the original background under an alpha channel.
+  assert.equal(graph.pass0.inputs.background, 'Color');
+  assert.deepEqual(plain(graph.pass1encode.inputs.pixels), ['pass0', 0]);
+  // The removal's mask makes the refined image transparent again.
+  assert.deepEqual(plain(graph.cutoutInvert.inputs.mask), ['pass0', 1]);
+  assert.deepEqual(plain(graph.cutoutJoin.inputs.image), ['pass1decode', 0]);
+  assert.deepEqual(plain(result.image), ['cutoutJoin', 0]);
+});
+
+test('background removal as the last step stays a plain transparent output', () => {
+  const { graph, result } = graphFor([createPass(base, 'sample', 's'), createPass(base, 'remove-bg', 'b')]);
+  assert.equal(graph.pass1.inputs.background, 'Alpha');
+  assert.ok(!graph.cutoutJoin);
+  assert.deepEqual(plain(result.image), ['pass1', 0]);
 });
 
 test('duplicate finishing steps get separate nodes and disabled passes are bypassed', () => {
@@ -85,4 +103,71 @@ test('progress is numeric only during sampling and clears on terminal jobs', () 
   assert.equal(jobActivity([], false, true).label, 'Ready');
   assert.equal(jobActivity([], false, false).label, 'Offline');
   assert.equal(jobActivity([{ status: 'queued' }], false, true).queued, 1);
+});
+
+test('loopback sizes grow per round, snap to 8px, and stop at the 4096px cap', () => {
+  const lb = { enabled: true, iterations: 3, upscale: 1.25, denoise: 0.5, steps: 10, cfg: 7 };
+  assert.deepEqual(plain(loopbackSizes(lb, 1024, 1024)), [[1280, 1280], [1600, 1600], [2000, 2000]]);
+  assert.deepEqual(plain(loopbackSizes({ ...lb, iterations: 2, upscale: 2 }, 2048, 1024)).at(-1), [4096, 2048]);
+});
+
+test('loopback auto-scale denoise steps evenly from start to end, and is off by default', () => {
+  const lb = { enabled: true, iterations: 4, upscale: 1.25, denoise: 0.5, steps: 10, cfg: 7 };
+  assert.deepEqual(plain(loopbackDenoises(lb)), [0.5, 0.5, 0.5, 0.5]);
+  const auto = { ...lb, autoDenoise: true, denoiseStart: 0.6, denoiseEnd: 0.3 };
+  assert.deepEqual(plain(loopbackDenoises(auto)), [0.6, 0.5, 0.4, 0.3]);
+  assert.deepEqual(plain(loopbackDenoises({ ...auto, iterations: 1 })), [0.6]);
+  assert.deepEqual(plain(loopbackPasses({ ...base, loopback: auto }).map(p => p.denoise)), [0.6, 0.5, 0.4, 0.3]);
+});
+
+test('job stages count the base image, loopback rounds and live passes, and map pass nodes to them', () => {
+  const passes = [createPass(base, 'sample', 'r'), { ...createPass(base, 'upscale', 'u'), on: false }, createPass(base, 'remove-bg', 'b')];
+  const plan = jobStages({ ...base, passes, loopback: { enabled: true, iterations: 2, upscale: 1.25, denoise: 0.5, steps: 10, cfg: 7 } });
+  assert.deepEqual(plain(plan.names), ['Base image', 'Loopback 1', 'Loopback 2', 'Refine', 'Remove background']);
+  assert.equal(plan.total, 5);
+  assert.equal(plan.stageOf('3'), null);
+  assert.equal(plan.stageOf('pass1sample'), 3);
+  assert.equal(plan.stageOf('pass2decode'), 4);
+  assert.equal(plan.stageOf('pass4'), 5);
+  assert.equal(plan.stageOf('cutoutJoin'), null);
+  // Inpainting skips refines, so they are not counted.
+  assert.equal(jobStages({ ...base, passes }, true).total, 2);
+});
+
+test('clip skip defaults to -2 and -1 leaves the checkpoint CLIP untouched', () => {
+  const graph = {};
+  assert.deepEqual(plain(applyClipSkip(graph, {}, ['4', 1])), ['clipskip', 0]);
+  assert.equal(graph.clipskip.class_type, 'CLIPSetLastLayer');
+  assert.equal(graph.clipskip.inputs.stop_at_clip_layer, -2);
+  assert.deepEqual(plain(graph.clipskip.inputs.clip), ['4', 1]);
+  const off = {};
+  assert.deepEqual(plain(applyClipSkip(off, { clipSkip: -1 }, ['4', 1])), ['4', 1]);
+  assert.ok(!off.clipskip);
+  const three = {};
+  applyClipSkip(three, { clipSkip: -3 }, ['4', 1]);
+  assert.equal(three.clipskip.inputs.stop_at_clip_layer, -3);
+});
+
+test('prompt presets put the model family quality tags first and guess the family from the checkpoint', () => {
+  const { presetPrompt, familyForCheckpoint, PROMPT_PRESETS, PRESET_CATEGORIES } = load('promptLibrary');
+  assert.equal(familyForCheckpoint('ponyRealism_V22.safetensors'), 'pony');
+  assert.equal(familyForCheckpoint('matureCitronIL_Unstable30.safetensors'), 'illustrious');
+  assert.equal(familyForCheckpoint('wai-illustrious-sdxl.safetensors'), 'illustrious');
+  assert.equal(familyForCheckpoint('hexus_etnix.safetensors'), 'plain');
+  const p = PROMPT_PRESETS[0];
+  assert.ok(presetPrompt(p, 'pony').positive.startsWith('score_9, score_8_up, score_7_up, '));
+  assert.ok(presetPrompt(p, 'pony').positive.endsWith(p.positive));
+  assert.ok(presetPrompt(p, 'illustrious').negative.startsWith('worst quality'));
+  assert.equal(new Set(PROMPT_PRESETS.map(x => x.id)).size, PROMPT_PRESETS.length);
+  for (const x of PROMPT_PRESETS) assert.ok(PRESET_CATEGORIES.includes(x.category), x.id);
+});
+
+test('snippet library ids are unique and every snippet sits in a known category', () => {
+  const { librarySnippets, LIBRARY_CATEGORIES } = load('snippetLibrary');
+  const all = librarySnippets();
+  assert.equal(new Set(all.map(s => s.id)).size, all.length);
+  const cats = new Set(LIBRARY_CATEGORIES.map(c => c.id));
+  for (const s of all) assert.ok(cats.has(s.categoryId), s.id);
+  assert.ok(all.some(s => s.id === 'pony-score') && all.some(s => s.id === 'ill-quality'));
+  assert.ok(all.filter(s => s.categoryId.startsWith('neg-')).every(s => s.kind === 'negative'));
 });

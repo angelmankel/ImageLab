@@ -1,15 +1,20 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import {
+  ActionIcon, Box, Button, Code, Collapse, Group, Image, SegmentedControl, Select, SimpleGrid, Stack,
+  Switch, Text, Tooltip, UnstyledButton,
+} from '@mantine/core';
+import { IconBrush, IconChevronDown, IconChevronRight, IconMask, IconUpload, IconX } from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
 import { useCanvasStore } from '@/lib/canvasStore';
+import { canvasStorage } from '@/lib/canvasStorageInstance';
+import { uid } from '@/lib/storage';
 import { useCollapsed } from '@/hooks/useCollapsed';
-import { MaskPainter } from './MaskPainter';
-import { SectionHeader } from '@/components/ui/SectionHeader';
-import { Field } from '@/components/ui/Field';
-import { Slider } from '@/components/ui/Slider';
-import { Select } from '@/components/ui/Select';
+import { FieldWrapper } from '@/components/fields/FieldWrapper';
+import { SliderField } from '@/components/fields/SliderField';
+import { SelectField } from '@/components/fields/SelectField';
 import { DenoiseField } from '@/features/controls/DenoiseField';
-import { ChevronDownIcon, ChevronRightIcon } from '@/components/ui/icons';
-import { cn } from '@/lib/cn';
+import { MaskPainter } from './MaskPainter';
+import { loadHtmlImage } from './imageOps';
 
 const VARIANTS: Array<{
   value: 'auto' | 'destructive' | 'denoising';
@@ -123,26 +128,72 @@ function presetMatches(p: InpaintPreset, current: {
   );
 }
 
+/** Object URL for a stored mask blob, for the preview. Revoked when the id changes. */
+function useMaskPreview(blobId: string | undefined) {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!blobId) { setUrl(null); return; }
+    let objectUrl: string | null = null;
+    let cancelled = false;
+    void canvasStorage.getBlob(blobId).then(blob => {
+      if (cancelled || !blob) return;
+      objectUrl = URL.createObjectURL(blob);
+      setUrl(objectUrl);
+    });
+    return () => { cancelled = true; if (objectUrl) URL.revokeObjectURL(objectUrl); };
+  }, [blobId]);
+  return url;
+}
+
+/**
+ * Turn any dropped image into a mask in the painter's format: white = inpaint, black = keep,
+ * at the layer's bounds size. Transparent pixels count as keep.
+ */
+async function imageFileToMask(file: File, w: number, h: number): Promise<Blob> {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await loadHtmlImage(url);
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    const ctx = c.getContext('2d');
+    if (!ctx) throw new Error('No 2D context');
+    ctx.drawImage(img, 0, 0, w, h);
+    const data = ctx.getImageData(0, 0, w, h);
+    for (let i = 0; i < data.data.length; i += 4) {
+      const d = data.data;
+      const lum = (d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114) * (d[i + 3] / 255);
+      const v = lum > 128 ? 255 : 0;
+      d[i] = v; d[i + 1] = v; d[i + 2] = v; d[i + 3] = 255;
+    }
+    ctx.putImageData(data, 0, 0);
+    const blob = await new Promise<Blob | null>(r => c.toBlob(b => r(b), 'image/png'));
+    if (!blob) throw new Error('Could not encode the mask');
+    return blob;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
 /**
  * Inpaint controls for any active canvas layer (#38 collapsed the per-type
  * gating). All layer-targeted gens run through the inpaint pipeline now,
  * so this section is visible whenever a layer is active.
  *
- * The inpaint pipeline uses InpaintCropImproved → KSampler →
- * InpaintStitchImproved on the server. The controls map directly to crop
- * node params:
+ * The mask block follows v1's MaskField: a black-and-white preview that doubles as a drop zone,
+ * with Paint / Clear beside it. The inpaint pipeline uses InpaintCropImproved → KSampler →
+ * InpaintStitchImproved on the server. The controls map directly to crop node params:
  *   - Variant     → which KSampler-priming node we use inside the crop
  *   - Context     → context_from_mask_extend_factor (crop padding around mask)
  *   - Resolution  → output_resize_to_target_size + output_target_w/h
  *   - Edge blend  → mask_blend_pixels (stitch seam softness)
  */
 export function InpaintSection() {
-  const hasActiveLayer = useCanvasStore(s => s.activeLayerId !== null);
   const activeLayerId = useCanvasStore(s => s.activeLayerId);
   const activeLayer = useCanvasStore(s =>
     s.activeLayerId ? s.canvasLayers.find(l => l.id === s.activeLayerId) ?? null : null);
   const updateCanvasLayer = useCanvasStore(s => s.updateCanvasLayer);
   const [maskOpen, setMaskOpen] = useState(false);
+  const [dragging, setDragging] = useState(false);
   const inpaintFeather = useStore(s => s.workflow.inpaintFeather);
   const inpaintMaskExpand = useStore(s => s.workflow.inpaintMaskExpand);
   const inpaintVariant = useStore(s => s.workflow.inpaintVariant);
@@ -155,13 +206,16 @@ export function InpaintSection() {
   const inpaintControlnetStrength = useStore(s => s.workflow.inpaintControlnetStrength);
   const controlnets = useStore(s => s.server.controlnets);
   const setWorkflow = useStore(s => s.setWorkflow);
+  const setStatus = useStore(s => s.setStatus);
   // Persist the Advanced disclosure across reloads — without this users who
   // tweak knobs every session have to re-open it every time.
   const [advancedCollapsed, , setAdvancedCollapsed] = useCollapsed('inpaint.advanced', true);
   const advancedOpen = !advancedCollapsed;
   const setAdvancedOpen = (v: boolean) => setAdvancedCollapsed(!v);
+  const maskBlobId = activeLayer?.paintedMaskBlobId;
+  const maskUrl = useMaskPreview(maskBlobId);
 
-  if (!hasActiveLayer) return null;
+  if (!activeLayerId || !activeLayer) return null;
 
   const targetSelectValue = inpaintTargetSize === 'auto' ? 'Auto' : String(inpaintTargetSize);
   // Destructive variant forces denoise to 1.0 inside the graph (see
@@ -175,246 +229,253 @@ export function InpaintSection() {
     setWorkflow(p.patch);
   };
 
+  const clearMask = () => updateCanvasLayer(activeLayerId, { paintedMaskBlobId: undefined });
+  const importMask = async (file: File | null | undefined) => {
+    if (!file || !file.type.startsWith('image/')) return;
+    try {
+      const w = Math.max(1, Math.round(activeLayer.bounds.w));
+      const h = Math.max(1, Math.round(activeLayer.bounds.h));
+      const blob = await imageFileToMask(file, w, h);
+      const blobId = uid();
+      await canvasStorage.putBlob(blobId, blob);
+      updateCanvasLayer(activeLayerId, { paintedMaskBlobId: blobId });
+      setStatus(`Mask loaded at ${w}×${h}`, 'ok');
+    } catch (err) {
+      setStatus(`Failed to load mask: ${err instanceof Error ? err.message : String(err)}`, 'error');
+    }
+  };
+
   return (
-    <section className="flex flex-col gap-2">
-      <SectionHeader label="INPAINT" />
+    <Stack gap="sm">
+      <Group gap={8}>
+        <IconMask size={16} stroke={1.6} />
+        <Text size="sm" fw={600}>Inpaint</Text>
+      </Group>
 
-      {/* Mask painter trigger — opens the brush-paint mask editor for the
-          active layer. When a painted mask is set, the inpaint queue path
-          uses it in place of the default full-bounds mask. */}
-      <div className="flex items-center gap-2 rounded-md border border-border-default bg-bg-input px-2 py-1.5">
-        <span className="flex-1 text-[11px] text-fg-tertiary">
-          {activeLayer?.paintedMaskBlobId
-            ? 'Custom mask active'
-            : 'Mask: full bounds'}
-        </span>
-        {activeLayer?.paintedMaskBlobId && (
-          <button
-            type="button"
-            onClick={() => activeLayerId && updateCanvasLayer(activeLayerId, { paintedMaskBlobId: undefined })}
-            className="rounded border border-border-subtle px-2 py-1 text-[10.5px] text-fg-muted transition-colors hover:border-border-strong hover:text-fg-secondary"
-          >
-            Clear
-          </button>
+      {/* Mask — a painted mask replaces the default full-bounds mask at queue time. */}
+      <FieldWrapper
+        label="Inpainting mask"
+        rightSection={maskBlobId && (
+          <Tooltip label="Clear mask">
+            <ActionIcon variant="subtle" size="xs" color="red" onClick={clearMask} aria-label="Clear mask">
+              <IconX size={14} />
+            </ActionIcon>
+          </Tooltip>
         )}
-        <button
-          type="button"
-          onClick={() => setMaskOpen(true)}
-          className="rounded border border-accent bg-accent px-2 py-1 text-[10.5px] font-semibold text-white transition-colors hover:bg-accent-hover"
-        >
-          {activeLayer?.paintedMaskBlobId ? 'Edit mask' : 'Paint mask'}
-        </button>
-      </div>
-      {activeLayerId && (
-        <MaskPainter open={maskOpen} onClose={() => setMaskOpen(false)} layerId={activeLayerId} />
-      )}
+      >
+        <Stack gap="xs">
+          <Box
+            role="button"
+            tabIndex={0}
+            aria-label={maskBlobId ? 'Edit mask' : 'Paint mask'}
+            onClick={() => setMaskOpen(true)}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setMaskOpen(true); } }}
+            onDragEnter={(e) => { e.preventDefault(); setDragging(true); }}
+            onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={(e) => { e.preventDefault(); setDragging(false); void importMask(e.dataTransfer.files?.[0]); }}
+            onPaste={(e) => {
+              const item = Array.from(e.clipboardData?.items ?? []).find(i => i.type.startsWith('image/'));
+              void importMask(item?.getAsFile());
+            }}
+            style={{
+              position: 'relative',
+              width: '100%',
+              aspectRatio: '2',
+              maxHeight: 120,
+              borderRadius: 'var(--mantine-radius-md)',
+              border: `2px dashed ${dragging ? 'var(--mantine-primary-color-5)' : 'var(--mantine-color-dark-4)'}`,
+              backgroundColor: dragging ? 'var(--mantine-primary-color-9)' : 'var(--mantine-color-dark-6)',
+              cursor: 'pointer',
+              overflow: 'hidden',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'all 0.2s ease',
+            }}
+          >
+            {maskBlobId && maskUrl ? (
+              <Image src={maskUrl} alt="Mask" fit="contain" h="100%" w="100%" style={{ filter: 'grayscale(100%)' }} />
+            ) : (
+              <Stack align="center" gap={4}>
+                {dragging ? <IconUpload size={24} style={{ opacity: 0.5 }} /> : <IconBrush size={24} style={{ opacity: 0.5 }} />}
+                <Text size="xs" c="dimmed" ta="center">Click to paint a mask, or drop one here</Text>
+              </Stack>
+            )}
+          </Box>
+          <Group justify="space-between" wrap="nowrap" gap="xs">
+            <Text size="xs" c="dimmed" style={{ minWidth: 0 }}>
+              {maskBlobId ? 'Custom mask · white = regenerate' : 'Mask: full bounds'}
+            </Text>
+            <Button size="compact-xs" variant="light" className="shrink-0" leftSection={<IconBrush size={12} />} onClick={() => setMaskOpen(true)}>
+              {maskBlobId ? 'Edit mask' : 'Paint mask'}
+            </Button>
+          </Group>
+        </Stack>
+      </FieldWrapper>
+      <MaskPainter open={maskOpen} onClose={() => setMaskOpen(false)} layerId={activeLayerId} />
 
-      {/* Mask shape + expand + feather sit next to the Paint mask button so
-          the whole "mask" toolkit reads as one cluster. They drive both the
-          inpaint pipeline and the live preview overlay on the canvas. */}
-      <Field label="Mask shape">
-        <button
-          type="button"
-          onClick={() => setWorkflow({ inpaintInvertMask: !inpaintInvertMask })}
-          aria-pressed={inpaintInvertMask}
-          title={inpaintInvertMask
-            ? 'Mask covers only the parts of the layer that aren\'t covered by another visible layer. Useful for extending past existing content.'
-            : 'Mask covers the entire layer bounds (default). Click to invert — preserve overlapping layer content and inpaint only the new empty area.'}
-          className={cn(
-            'flex flex-1 items-center justify-between rounded-md border px-2 py-1.5 text-[11px] font-medium transition-colors',
-            inpaintInvertMask
-              ? 'border-accent bg-accent text-white'
-              : 'border-border-default bg-bg-input text-fg-muted hover:text-fg-secondary',
-          )}
-        >
-          <span>{inpaintInvertMask ? 'Non-overlap only' : 'Full bounds'}</span>
-          <span className="text-[9px] uppercase tracking-section opacity-70">
-            {inpaintInvertMask ? 'invert' : 'default'}
-          </span>
-        </button>
-      </Field>
-
-      <Field label="Mask expand">
-        <Slider
-          value={inpaintMaskExpand}
-          onValueChange={(v) => setWorkflow({ inpaintMaskExpand: Math.round(v) })}
-          min={0}
-          max={256}
-          step={1}
-          ariaLabel="Dilate the mask outward by N pixels before inpainting"
+      {/* Mask shape + expand + feather sit next to the mask so the whole "mask" toolkit reads as
+          one cluster. They drive both the inpaint pipeline and the live preview overlay on the canvas. */}
+      <FieldWrapper
+        label="Mask shape"
+        description={inpaintInvertMask
+          ? 'Only the parts of the layer not covered by another visible layer — for extending past existing content.'
+          : 'The entire layer bounds (default).'}
+      >
+        <SegmentedControl
+          fullWidth
+          size="xs"
+          value={inpaintInvertMask ? 'invert' : 'full'}
+          onChange={(v) => setWorkflow({ inpaintInvertMask: v === 'invert' })}
+          aria-label="Mask shape"
+          data={[{ value: 'full', label: 'Full bounds' }, { value: 'invert', label: 'Non-overlap only' }]}
         />
-        <span className="w-12 shrink-0 text-right text-[12px] font-medium tabular-nums text-fg-secondary">
-          {inpaintMaskExpand}px
-        </span>
-      </Field>
+      </FieldWrapper>
 
-      <Field label="Mask feather">
-        <Slider
-          value={inpaintFeather}
-          onValueChange={(v) => setWorkflow({ inpaintFeather: Math.round(v) })}
-          min={0}
-          max={31}
-          step={1}
-          ariaLabel="Mask edge feather in pixels"
-        />
-        <span className="w-12 shrink-0 text-right text-[12px] font-medium tabular-nums text-fg-secondary">
-          {inpaintFeather}px
-        </span>
-      </Field>
+      <SliderField
+        label="Mask expand"
+        description="Dilate the mask outward by N pixels before inpainting"
+        value={inpaintMaskExpand}
+        onChange={(v) => setWorkflow({ inpaintMaskExpand: Math.round(v) })}
+        min={0}
+        max={256}
+        step={1}
+        defaultValue={0}
+      />
+
+      <SliderField
+        label="Mask feather"
+        description="Soften the mask edge, in pixels"
+        value={inpaintFeather}
+        onChange={(v) => setWorkflow({ inpaintFeather: Math.round(v) })}
+        min={0}
+        max={31}
+        step={1}
+        defaultValue={8}
+      />
 
       {/* ControlNet inpaint bias — alternate mode. Adds a ControlNet
           conditioning step around the sampler so edits tend to seam better
           and outpainting matches surrounding style. Requires the
           `controlnet_aux` custom node (for InpaintPreprocessor) and an
-          SDXL-class inpaint CN in `ComfyUI/models/controlnet/`. */}
-      {/* Always render so the user can see whether ControlNet wiring is
+          SDXL-class inpaint CN in `ComfyUI/models/controlnet/`.
+          Always rendered so the user can see whether ControlNet wiring is
           available, and what to install if it isn't. */}
-      <div className="flex items-center gap-2 rounded-md border border-border-default bg-bg-input px-2 py-1.5">
-        <span className="flex-1 text-[11px] text-fg-tertiary">
-          ControlNet inpaint
-        </span>
-        <button
-          type="button"
-          onClick={() => setWorkflow({ inpaintUseControlnet: !inpaintUseControlnet })}
-          aria-pressed={inpaintUseControlnet}
-          disabled={controlnets.length === 0}
-          title={controlnets.length === 0
-            ? 'No ControlNet models found. Drop one into ComfyUI/models/controlnet/ and restart the server.'
-            : ''}
-          className={cn(
-            'rounded border px-2 py-1 text-[10.5px] font-semibold transition-colors',
-            controlnets.length === 0
-              ? 'cursor-not-allowed border-border-subtle text-fg-dim opacity-50'
-              : inpaintUseControlnet
-                ? 'border-accent bg-accent text-white'
-                : 'border-border-subtle text-fg-muted hover:border-border-strong hover:text-fg-secondary',
-          )}
-        >
-          {inpaintUseControlnet ? 'On' : 'Off'}
-        </button>
-      </div>
-      {controlnets.length === 0 && (
-        <div className="rounded-md border border-border-subtle bg-bg-base/40 px-2 py-1.5 text-[10.5px] leading-snug text-fg-dim">
-          No ControlNet models detected on the active server(s). Drop an SDXL inpaint CN
-          into <code className="text-fg-tertiary">ComfyUI/models/controlnet/</code> and
-          restart ComfyUI.
+      <Group justify="space-between" wrap="nowrap">
+        <div>
+          <Text size="sm" fw={500}>ControlNet inpaint</Text>
+          <Text size="xs" c="dimmed">Seams and outpainting follow the surrounding style</Text>
         </div>
+        <Tooltip label="No ControlNet models found. Drop one into ComfyUI/models/controlnet/ and restart the server." disabled={controlnets.length > 0}>
+          <Switch
+            checked={inpaintUseControlnet}
+            onChange={(e) => setWorkflow({ inpaintUseControlnet: e.currentTarget.checked })}
+            disabled={controlnets.length === 0}
+            aria-label="ControlNet inpaint"
+          />
+        </Tooltip>
+      </Group>
+      {controlnets.length === 0 && (
+        <Text size="xs" c="dimmed">
+          No ControlNet models detected on the active server(s). Drop an SDXL inpaint CN
+          into <Code>ComfyUI/models/controlnet/</Code> and restart ComfyUI.
+        </Text>
       )}
       {inpaintUseControlnet && controlnets.length > 0 && (
         <>
-          <Field label="CN model">
-            <Select
-              value={inpaintControlnet || ''}
-              onValueChange={(v) => setWorkflow({ inpaintControlnet: v })}
-              options={['', ...controlnets]}
-              placeholder="Pick an inpaint CN"
-              ariaLabel="ControlNet model"
-            />
-          </Field>
-          <Field label="CN strength">
-            <Slider
-              value={inpaintControlnetStrength}
-              onValueChange={(v) => setWorkflow({ inpaintControlnetStrength: Math.round(v * 100) / 100 })}
-              min={0}
-              max={2}
-              step={0.05}
-              ariaLabel="ControlNet strength"
-            />
-            <span className="w-12 shrink-0 text-right text-[12px] font-medium tabular-nums text-fg-secondary">
-              {inpaintControlnetStrength.toFixed(2)}
-            </span>
-          </Field>
+          <SelectField
+            label="ControlNet model"
+            value={inpaintControlnet || null}
+            onChange={(v) => setWorkflow({ inpaintControlnet: v })}
+            data={controlnets}
+            placeholder="Pick an inpaint CN"
+            clearable
+          />
+          <SliderField
+            label="ControlNet strength"
+            value={inpaintControlnetStrength}
+            onChange={(v) => setWorkflow({ inpaintControlnetStrength: Math.round(v * 100) / 100 })}
+            min={0}
+            max={2}
+            step={0.05}
+            defaultValue={1}
+          />
         </>
       )}
 
       {/* Top-level preset picker — picks a sensible bundle for the most
           common flavours of inpainting. The advanced knobs below fine-tune. */}
-      <div className="grid grid-cols-2 gap-1.5">
+      <SimpleGrid cols={2} spacing={6}>
         {PRESETS.map(p => {
           const isActive = activePreset === p.id;
           return (
-            <button
+            <UnstyledButton
               key={p.id}
-              type="button"
               onClick={() => applyPreset(p)}
               title={p.blurb}
               aria-pressed={isActive}
-              className={cn(
-                'flex flex-col gap-0.5 rounded-md border px-2 py-1.5 text-left transition-colors',
-                isActive
-                  ? 'border-accent bg-accent-soft/40 text-fg-secondary'
-                  : 'border-border-default bg-bg-input text-fg-muted hover:border-border-strong hover:text-fg-secondary',
-              )}
+              className={isActive
+                ? 'rounded-md border border-accent bg-accent-soft px-2 py-1.5 text-left'
+                : 'rounded-md border border-border-default bg-bg-input px-2 py-1.5 text-left transition-colors hover:border-border-strong'}
             >
-              <span className="text-[11.5px] font-medium">{p.label}</span>
-              <span className="text-[10px] leading-tight text-fg-tertiary">{p.blurb}</span>
-            </button>
+              <Text size="xs" fw={600} c={isActive ? 'var(--mantine-primary-color-light-color)' : undefined}>{p.label}</Text>
+              <Text size="10px" c="dimmed" lh={1.3}>{p.blurb}</Text>
+            </UnstyledButton>
           );
         })}
-      </div>
+      </SimpleGrid>
 
-      <button
-        type="button"
-        onClick={() => setAdvancedOpen(!advancedOpen)}
-        className="mt-1 flex items-center gap-1 self-start rounded px-1 py-0.5 text-[10.5px] font-medium uppercase tracking-section text-fg-dim transition-colors hover:text-fg-secondary"
-      >
-        {advancedOpen ? <ChevronDownIcon size={10} /> : <ChevronRightIcon size={10} />}
-        <span>Advanced {activePreset ? '' : '· custom'}</span>
-      </button>
+      {/* v1 collapsible sub-group header: chevron, name, and a hint of state. */}
+      <UnstyledButton onClick={() => setAdvancedOpen(!advancedOpen)} aria-expanded={advancedOpen}>
+        <Group gap={6} py={4}>
+          {advancedOpen ? <IconChevronDown size={14} style={{ opacity: 0.5 }} /> : <IconChevronRight size={14} style={{ opacity: 0.5 }} />}
+          <Text size="sm" fw={500}>Advanced</Text>
+          {!activePreset && <Text size="sm" c="dimmed">custom</Text>}
+        </Group>
+      </UnstyledButton>
 
-      {advancedOpen && <>
+      <Collapse in={advancedOpen}>
+        <Stack gap="sm">
+          {denoiseApplies && <DenoiseField />}
 
-      {denoiseApplies && <DenoiseField />}
+          <FieldWrapper label="Variant" description={VARIANTS.find(v => v.value === inpaintVariant)?.hint}>
+            <SegmentedControl
+              fullWidth
+              size="xs"
+              value={inpaintVariant}
+              onChange={(v) => setWorkflow({ inpaintVariant: v as typeof inpaintVariant })}
+              aria-label="Inpaint variant"
+              data={VARIANTS.map(v => ({ value: v.value, label: v.label }))}
+            />
+          </FieldWrapper>
 
-      <Field label="Variant">
-        <div className="flex flex-1 rounded-md border border-border-default bg-bg-input p-0.5">
-          {VARIANTS.map(v => (
-            <button
-              key={v.value}
-              type="button"
-              onClick={() => setWorkflow({ inpaintVariant: v.value })}
-              title={v.hint}
-              aria-pressed={inpaintVariant === v.value}
-              className={cn(
-                'flex-1 rounded px-2 py-1.5 text-[11px] font-medium transition-colors',
-                inpaintVariant === v.value
-                  ? 'bg-accent text-white shadow-sm'
-                  : 'text-fg-muted hover:text-fg-secondary',
-              )}
-            >
-              {v.label}
-            </button>
-          ))}
-        </div>
-      </Field>
+          <FieldWrapper
+            label="Resolution"
+            rightSection={<Text size="xs" c="dimmed">{inpaintTargetSize === 'auto' ? 'from crop' : `${inpaintTargetSize}²`}</Text>}
+          >
+            <Select
+              data={RESOLUTION_OPTIONS}
+              value={targetSelectValue}
+              onChange={(v) => { if (v) setWorkflow({ inpaintTargetSize: v === 'Auto' ? 'auto' : Number(v) }); }}
+              allowDeselect={false}
+              comboboxProps={{ withinPortal: true }}
+              aria-label="Inpaint sampling resolution"
+            />
+          </FieldWrapper>
 
-      <Field label="Resolution">
-        <Select
-          value={targetSelectValue}
-          onValueChange={(v) => setWorkflow({ inpaintTargetSize: v === 'Auto' ? 'auto' : Number(v) })}
-          options={RESOLUTION_OPTIONS}
-          ariaLabel="Inpaint sampling resolution"
-        />
-        <span className="shrink-0 text-[10px] text-fg-dim">
-          {inpaintTargetSize === 'auto' ? 'from crop' : `${inpaintTargetSize}²`}
-        </span>
-      </Field>
-
-      <Field label="Context">
-        <Slider
-          value={inpaintContextExtend}
-          onValueChange={(v) => setWorkflow({ inpaintContextExtend: Math.round(v * 10) / 10 })}
-          min={1.0}
-          max={3.0}
-          step={0.1}
-          ariaLabel="Context expansion factor around the mask"
-        />
-        <span className="w-12 shrink-0 text-right text-[12px] font-medium tabular-nums text-fg-secondary">
-          {inpaintContextExtend.toFixed(1)}×
-        </span>
-      </Field>
-
-      </>}
-    </section>
+          <SliderField
+            label="Context"
+            description="How far the crop reaches around the mask, as a multiple of its size"
+            value={inpaintContextExtend}
+            onChange={(v) => setWorkflow({ inpaintContextExtend: Math.round(v * 10) / 10 })}
+            min={1}
+            max={3}
+            step={0.1}
+            defaultValue={1.5}
+          />
+        </Stack>
+      </Collapse>
+    </Stack>
   );
 }

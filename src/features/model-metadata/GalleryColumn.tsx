@@ -4,7 +4,12 @@ import { useStore } from '@/lib/store';
 import { useShortcut, ShortcutPriority } from '@/hooks/useShortcut';
 import { PreviewThumb } from '@/features/models/primitives';
 import { FullscreenImage, type FullscreenItem } from '@/components/FullscreenImage';
-import { HeartIcon, PauseIcon, PlayIcon, TrashIcon } from '@/components/ui/icons';
+import {
+  ActionIcon, Box, Button, Group, SegmentedControl, Skeleton, Text, Tooltip, UnstyledButton,
+} from '@mantine/core';
+import {
+  IconChevronLeft, IconHeart, IconHeartFilled, IconPhoto, IconPlayerPause, IconPlayerPlay, IconTrash,
+} from '@tabler/icons-react';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { urlToImageState } from '@/features/inputImage/imageOps';
 import type { CivitaiImage, NsfwFilter } from './civitai';
@@ -163,99 +168,104 @@ export function GalleryColumn() {
   };
 
   return (
-    <div className="flex min-w-0 flex-1 flex-col overflow-hidden bg-bg-base/40">
+    <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
       {/* Header — source toggle, slideshow play/pause, NSFW filter (civitai only). */}
-      <div className="flex shrink-0 items-center gap-2 border-b border-border-subtle px-3 py-2">
-        <span className="text-[10px] font-semibold uppercase tracking-section text-fg-dim">
-          Gallery
-        </span>
+      <Group
+        gap="xs"
+        px="sm"
+        py={8}
+        wrap="nowrap"
+        className="shrink-0"
+        style={{ borderBottom: '1px solid var(--mantine-color-dark-4)' }}
+      >
+        <Text size="xs" fw={600} c="dimmed">Gallery</Text>
         <SegmentedControl
-          options={SOURCE_OPTIONS}
+          size="xs"
+          data={SOURCE_OPTIONS}
           value={gallerySource}
-          onChange={setGallerySource}
-          ariaLabel="Gallery source"
+          onChange={(v) => setGallerySource(v as GallerySource)}
+          aria-label="Gallery source"
         />
-        <div className="ml-auto flex items-center gap-2">
-          <button
-            type="button"
+        <div className="flex-1" />
+        <Tooltip label={slideshowPlaying ? 'Pause slideshow' : 'Play slideshow'} withArrow>
+          <ActionIcon
+            variant={slideshowPlaying ? 'filled' : 'default'}
             onClick={() => setSlideshowPlaying(!slideshowPlaying)}
-            title={slideshowPlaying ? 'Pause slideshow' : 'Play slideshow'}
             aria-label={slideshowPlaying ? 'Pause slideshow' : 'Play slideshow'}
             aria-pressed={slideshowPlaying}
-            className={cn(
-              'flex h-[26px] items-center gap-1.5 rounded-md border px-2 text-[10px] font-semibold transition-colors',
-              slideshowPlaying
-                ? 'border-accent bg-accent-soft text-accent-fg'
-                : 'border-border-default bg-bg-input text-fg-dim hover:text-fg-tertiary',
-            )}
           >
-            {slideshowPlaying ? <PauseIcon size={11} /> : <PlayIcon size={11} />}
-            <span>{slideshowPlaying ? 'Pause' : 'Play'}</span>
-          </button>
-          {hero && (
-            <>
-              <button
-                type="button"
-                onClick={() => setAsInputImage(false)}
-                disabled={settingInput === 'busy'}
-                title="Use this image as the input image (img2img)"
-                className="flex h-[26px] items-center gap-1.5 rounded-md border border-border-default bg-bg-input px-2 text-[10px] font-semibold text-fg-tertiary transition-colors hover:border-accent-hover hover:text-accent-fg disabled:opacity-50"
-              >
-                {settingInput === 'busy' ? '…' : 'Use as input'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setAsInputImage(true)}
-                disabled={settingInput === 'busy'}
-                title="Use this image as the input image and close this modal"
-                className="flex h-[26px] items-center gap-1.5 rounded-md bg-accent px-2 text-[10px] font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
-              >
-                Use & close
-              </button>
-            </>
-          )}
-          {gallerySource === 'civitai' && (
-            <SegmentedControl
-              options={NSFW_OPTIONS}
-              value={nsfwFilter}
-              onChange={setNsfwFilter}
-              ariaLabel="NSFW filter"
-            />
-          )}
-        </div>
-      </div>
+            {slideshowPlaying ? <IconPlayerPause size={14} /> : <IconPlayerPlay size={14} />}
+          </ActionIcon>
+        </Tooltip>
+        {hero && (
+          <>
+            <Button
+              size="xs"
+              variant="default"
+              leftSection={<IconPhoto size={14} />}
+              onClick={() => setAsInputImage(false)}
+              loading={settingInput === 'busy'}
+              title="Use this image as the input image (img2img)"
+            >
+              Use as input
+            </Button>
+            <Button
+              size="xs"
+              onClick={() => setAsInputImage(true)}
+              disabled={settingInput === 'busy'}
+              title="Use this image as the input image and close this modal"
+            >
+              Use & close
+            </Button>
+          </>
+        )}
+        {gallerySource === 'civitai' && (
+          <SegmentedControl
+            size="xs"
+            data={NSFW_OPTIONS}
+            value={nsfwFilter}
+            onChange={(v) => setNsfwFilter(v as NsfwFilter)}
+            aria-label="NSFW filter"
+          />
+        )}
+      </Group>
 
       <div className="flex min-h-0 flex-1">
         {load === 'loading' || load === 'idle' ? (
           <GallerySkeleton />
         ) : emptyCivitai ? (
-          <div className="flex flex-1 items-center justify-center p-8 text-center text-[12px] text-fg-dim">
+          <Text size="sm" c="dimmed" ta="center" className="flex flex-1 items-center justify-center p-8">
             No {nsfwFilter === 'sfw' ? 'SFW' : nsfwFilter === 'nsfw' ? 'NSFW' : ''} images in this gallery.
-          </div>
+          </Text>
         ) : emptyImageLab ? (
-          <div className="flex flex-1 flex-col items-center justify-center gap-1 p-8 text-center text-[12px] text-fg-dim">
-            <span>No local history with this model yet.</span>
-            <span className="text-[11px] text-fg-faint">Generate something to start building one.</span>
+          <div className="flex flex-1 flex-col items-center justify-center gap-1 p-8 text-center">
+            <Text size="sm" c="dimmed">No local history with this model yet.</Text>
+            <Text size="xs" c="dark.3">Generate something to start building one.</Text>
           </div>
         ) : (
           <>
             {/* Vertical, single-column, scrollable thumbnail rail. */}
             {items.length > 1 && (
-              <div className="scroll-y flex min-h-0 w-[160px] shrink-0 flex-col gap-2 border-r border-border-subtle p-2">
+              <div
+                className="scroll-y flex min-h-0 w-[112px] shrink-0 flex-col gap-1.5 p-1.5"
+                style={{ borderRight: '1px solid var(--mantine-color-dark-4)' }}
+              >
+                {/* v1 thumbnails: 2px primary ring on the selected one, the rest dimmed. */}
                 {items.map((it, i) => (
-                  <button
+                  <UnstyledButton
                     key={`${it.url}-${i}`}
-                    type="button"
                     onClick={() => selectImage(i)}
+                    aria-label={`Image ${i + 1}`}
+                    aria-current={i === selectedIndex || undefined}
                     className={cn(
-                      'aspect-square w-full shrink-0 overflow-hidden rounded-md border transition-colors',
+                      'aspect-square w-full shrink-0 overflow-hidden rounded-sm border-2 transition-all duration-150',
                       i === selectedIndex
-                        ? 'border-accent-hover'
-                        : 'border-border-default hover:border-border-strong',
+                        ? 'border-[var(--mantine-primary-color-filled)] opacity-100'
+                        : 'border-transparent opacity-70 hover:opacity-100',
                     )}
                   >
                     <PreviewThumb src={it.url} className="h-full w-full" />
-                  </button>
+                  </UnstyledButton>
                 ))}
                 {hasMore && (
                   <>
@@ -264,11 +274,7 @@ export function GalleryColumn() {
                         click to load the next page. A small pulsing bar gives
                         feedback while the request is in flight. */}
                     <LoadMoreSentinel onIntersect={loadMore} disabled={loadingMore} />
-                    {loadingMore && (
-                      <div className="shrink-0 rounded-md bg-bg-elev py-2 text-center text-[10px] text-fg-muted">
-                        Loading…
-                      </div>
-                    )}
+                    {loadingMore && <Skeleton h={28} className="shrink-0" />}
                   </>
                 )}
               </div>
@@ -284,7 +290,7 @@ export function GalleryColumn() {
                 disabled={!hero}
                 aria-label="Open image fullscreen"
                 title="Open fullscreen (space)"
-                className="group relative aspect-square h-full max-w-full overflow-hidden rounded-md outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:cursor-default"
+                className="group relative aspect-square h-full max-w-full cursor-pointer overflow-hidden rounded-md outline-none focus-visible:ring-2 focus-visible:ring-[var(--mantine-primary-color-filled)] disabled:cursor-default"
               >
                 <PreviewThumb
                   src={hero?.url}
@@ -314,21 +320,26 @@ export function GalleryColumn() {
                 expose it via this panel today, so the strip stays hidden. */}
             {gallerySource === 'civitai' && (
               genParamsOpen ? (
-                <div className="flex w-[340px] shrink-0 flex-col border-l border-border-subtle p-3.5">
+                <Box
+                  w={300}
+                  p="sm"
+                  className="flex shrink-0 flex-col"
+                  style={{ borderLeft: '1px solid var(--mantine-color-dark-4)' }}
+                >
                   <GenerationSettings image={civitaiHero} onCollapse={() => setGenParamsOpen(false)} />
-                </div>
+                </Box>
               ) : (
-                <button
-                  type="button"
+                <UnstyledButton
                   onClick={() => setGenParamsOpen(true)}
                   title="Show generation settings"
-                  className="flex w-[36px] shrink-0 flex-col items-center justify-center gap-2 border-l border-border-subtle py-3 text-fg-dim transition-colors hover:bg-bg-card-on hover:text-fg-tertiary"
+                  className="flex w-[34px] shrink-0 flex-col items-center justify-center gap-2 py-3 text-[var(--mantine-color-dimmed)] transition-colors hover:bg-[var(--mantine-color-dark-6)] hover:text-[var(--mantine-color-text)]"
+                  style={{ borderLeft: '1px solid var(--mantine-color-dark-4)' }}
                 >
-                  <span className="text-[12px] leading-none">‹</span>
-                  <span className="text-[9px] font-semibold uppercase tracking-section [writing-mode:vertical-rl]">
+                  <IconChevronLeft size={14} />
+                  <span className="text-[10px] font-semibold [writing-mode:vertical-rl]">
                     Generation settings
                   </span>
-                </button>
+                </UnstyledButton>
               )
             )}
           </>
@@ -359,13 +370,16 @@ export function GalleryColumn() {
 function GallerySkeleton() {
   return (
     <>
-      <div className="flex min-h-0 w-[160px] shrink-0 flex-col gap-2 border-r border-border-subtle p-2">
+      <div
+        className="flex min-h-0 w-[112px] shrink-0 flex-col gap-1.5 p-1.5"
+        style={{ borderRight: '1px solid var(--mantine-color-dark-4)' }}
+      >
         {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="aspect-square w-full shrink-0 animate-pulse rounded-md bg-bg-elev" />
+          <Skeleton key={i} className="aspect-square w-full shrink-0" h="auto" radius="sm" />
         ))}
       </div>
       <div className="relative flex min-h-0 min-w-0 flex-1 items-center justify-center p-3">
-        <div className="aspect-square h-full max-w-full animate-pulse rounded-md bg-bg-elev" />
+        <Skeleton className="aspect-square h-full max-w-full" w="auto" radius="md" />
       </div>
     </>
   );
@@ -382,69 +396,37 @@ function HeroActions({
   const ask = async () => {
     if (await confirm('Delete this image from your history? This cannot be undone.')) onDelete();
   };
+  // v1 viewer actions: filled ActionIcons at 0.8 opacity over the image.
   return (
-    <div className="pointer-events-none absolute right-4 top-4 flex gap-1.5">
-      <button
-        type="button"
-        onClick={onToggleLike}
-        title={liked ? 'Remove from favorites' : 'Mark as favorite'}
-        aria-label={liked ? 'Remove from favorites' : 'Mark as favorite'}
-        aria-pressed={liked}
-        className={cn(
-          'pointer-events-auto flex h-9 w-9 items-center justify-center rounded-full border backdrop-blur-md transition-colors',
-          liked
-            ? 'border-coral-fg/60 bg-coral-bg/85 text-coral-fg shadow-lg'
-            : 'border-border-default bg-bg-elev/80 text-fg-tertiary hover:border-border-strong hover:text-coral-fg',
-        )}
-      >
-        <HeartIcon size={15} filled={liked} />
-      </button>
-      <button
-        type="button"
-        onClick={ask}
-        title="Delete from history"
-        aria-label="Delete from history"
-        className="pointer-events-auto flex h-9 w-9 items-center justify-center rounded-full border border-border-default bg-bg-elev/80 text-fg-tertiary backdrop-blur-md transition-colors hover:border-status-err hover:text-status-err"
-      >
-        <TrashIcon size={14} />
-      </button>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Generic segmented control — extracted so the source toggle and the NSFW
-// filter share one stylistic identity. Stateless; the caller owns selection.
-// ---------------------------------------------------------------------------
-
-function SegmentedControl<T extends string>({
-  options, value, onChange, ariaLabel,
-}: {
-  options: { value: T; label: string }[];
-  value: T;
-  onChange: (next: T) => void;
-  ariaLabel?: string;
-}) {
-  return (
-    <div role="radiogroup" aria-label={ariaLabel} className="flex gap-0.5 rounded-md border border-border-default bg-bg-input p-0.5">
-      {options.map((o) => (
-        <button
-          key={o.value}
-          type="button"
-          role="radio"
-          aria-checked={value === o.value}
-          onClick={() => onChange(o.value)}
-          className={cn(
-            'rounded-[5px] px-2.5 py-1 text-[10px] font-semibold transition-colors',
-            value === o.value
-              ? 'bg-border-default text-fg-primary'
-              : 'text-fg-dim hover:text-fg-tertiary',
-          )}
+    <Group gap="xs" className="pointer-events-none !absolute right-4 top-4">
+      <Tooltip label={liked ? 'Remove from favorites' : 'Mark as favorite'} withArrow>
+        <ActionIcon
+          variant="filled"
+          color={liked ? 'yellow' : 'dark'}
+          size="lg"
+          onClick={onToggleLike}
+          aria-label={liked ? 'Remove from favorites' : 'Mark as favorite'}
+          aria-pressed={liked}
+          className="pointer-events-auto"
+          style={{ opacity: 0.8 }}
         >
-          {o.label}
-        </button>
-      ))}
-    </div>
+          {liked ? <IconHeartFilled size="1.2rem" /> : <IconHeart size="1.2rem" />}
+        </ActionIcon>
+      </Tooltip>
+      <Tooltip label="Delete from history" withArrow>
+        <ActionIcon
+          variant="filled"
+          color="red"
+          size="lg"
+          onClick={ask}
+          aria-label="Delete from history"
+          className="pointer-events-auto"
+          style={{ opacity: 0.8 }}
+        >
+          <IconTrash size="1.2rem" />
+        </ActionIcon>
+      </Tooltip>
+    </Group>
   );
 }
 

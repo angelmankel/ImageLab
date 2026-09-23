@@ -1,11 +1,12 @@
-import * as RPopover from '@radix-ui/react-popover';
+import { ActionIcon, Badge, Box, Button, Group, Loader, Paper, Progress, ScrollArea, Stack, Text, Tooltip } from '@mantine/core';
+import { IconStack2, IconX } from '@tabler/icons-react';
+import * as RPopover from '@/components/ui/popover';
 import { useStore } from '@/lib/store';
-import { cn } from '@/lib/cn';
-import { CloseIcon } from '@/components/ui/icons';
+import { JobStatusBadge, jobPercent } from '@/features/history/JobStatusBadge';
 import type { Job } from '@/lib/types';
 
 /**
- * The generation queue: a toolbar badge that opens a popover listing jobs
+ * The generation queue: a compact nav button that opens a popover listing jobs
  * across every server, with live status + progress. Jobs persist in IndexedDB,
  * so this survives a refresh; completed jobs drop off on their own, errored
  * ones stay until dismissed. The ✕ cancels the job on its ComfyUI server
@@ -25,58 +26,55 @@ export function QueueButton() {
   return (
     <RPopover.Root>
       <RPopover.Trigger asChild>
-        <button
-          type="button"
+        <Button
+          variant="default"
+          size="compact-sm"
+          h={30}
+          px={8}
+          radius="sm"
           title="Show the generation queue"
-          className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border-default bg-bg-elev/80 px-2.5 backdrop-blur transition-colors hover:border-border-strong focus:outline-none focus:ring-1 focus:ring-accent"
+          leftSection={<IconStack2 size={14} />}
+          rightSection={
+            <Badge
+              size="sm"
+              circle={count < 10}
+              variant={count > 0 || hasError ? 'filled' : 'light'}
+              color={hasError ? 'red' : count > 0 ? undefined : 'gray'}
+            >
+              {count}
+            </Badge>
+          }
+          styles={{ label: { fontSize: 11, fontWeight: 500 } }}
         >
-          <span className="text-[8px] font-semibold uppercase tracking-section text-fg-dim">
-            Queue
-          </span>
-          <span
-            className={cn(
-              'flex h-4 min-w-4 items-center justify-center rounded px-1 text-[10px] font-semibold',
-              hasError ? 'bg-status-err text-white'
-                : count > 0 ? 'bg-accent text-white'
-                : 'bg-bg-base text-fg-secondary',
-            )}
-          >
-            {count}
-          </span>
-        </button>
+          Queue
+        </Button>
       </RPopover.Trigger>
 
       <RPopover.Portal>
-        <RPopover.Content
-          align="center"
-          sideOffset={6}
-          className="z-50 w-[320px] overflow-hidden rounded-lg border border-border-default bg-bg-elev shadow-xl"
-        >
-          <div className="flex items-center justify-between border-b border-border-subtle px-3 py-2">
-            <span className="text-[11px] font-semibold uppercase tracking-section text-fg-tertiary">
-              Queue
-            </span>
-            <span className="text-[11px] text-fg-muted">
-              {count} job{count === 1 ? '' : 's'}
-            </span>
-          </div>
+        <RPopover.Content align="center" sideOffset={6}>
+          <Paper withBorder shadow="md" radius="md" w={340} style={{ overflow: 'hidden' }}>
+            <Group justify="space-between" px="sm" py={8} style={{ borderBottom: '1px solid var(--mantine-color-default-border)' }}>
+              <Text size="xs" fw={600} tt="uppercase" c="dimmed">Queue</Text>
+              <Text size="xs" c="dimmed">{count} job{count === 1 ? '' : 's'}</Text>
+            </Group>
 
-          {count === 0 ? (
-            <div className="px-3 py-6 text-center text-[12px] italic text-fg-muted">
-              No active jobs
-            </div>
-          ) : (
-            <ul className="max-h-[320px] overflow-y-auto p-1.5">
-              {sorted.map(job => (
-                <JobRow
-                  key={job.id}
-                  job={job}
-                  serverName={serverName(job.serverId)}
-                  onCancel={() => cancelJob(job.id)}
-                />
-              ))}
-            </ul>
-          )}
+            {count === 0 ? (
+              <Text size="xs" c="dimmed" ta="center" fs="italic" py="lg">No active jobs</Text>
+            ) : (
+              <ScrollArea.Autosize scrollbars="y" mah={340} type="auto">
+                <Stack gap={2} p={6}>
+                  {sorted.map(job => (
+                    <JobRow
+                      key={job.id}
+                      job={job}
+                      serverName={serverName(job.serverId)}
+                      onCancel={() => cancelJob(job.id)}
+                    />
+                  ))}
+                </Stack>
+              </ScrollArea.Autosize>
+            )}
+          </Paper>
         </RPopover.Content>
       </RPopover.Portal>
     </RPopover.Root>
@@ -90,9 +88,7 @@ function JobRow({
   serverName: string;
   onCancel: () => void;
 }) {
-  const pct = job.progress && job.progress.max > 0
-    ? Math.round((job.progress.value / job.progress.max) * 100)
-    : null;
+  const pct = jobPercent(job);
 
   const nodeCounter = job.totalNodes
     ? `${Math.min(job.executedNodes ?? 0, job.totalNodes)}/${job.totalNodes}`
@@ -106,47 +102,43 @@ function JobRow({
     : job.status === 'running' ? runningLabel
     : 'Queued';
 
-  const dotClass =
-    job.status === 'error' ? 'bg-status-err'
-    : job.status === 'running' ? 'bg-yellow-400'
-    : 'bg-fg-dim';
-
   const cancelLabel =
     job.status === 'running' ? 'Interrupt job'
     : job.status === 'queued' ? 'Remove from queue'
     : 'Dismiss job';
 
   return (
-    <li className="rounded-md px-2 py-2 hover:bg-bg-base/60">
-      <div className="flex items-center gap-2">
-        <span className={cn('h-2 w-2 shrink-0 rounded-full', dotClass)} />
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-[12px] text-fg-secondary">
-            {job.positive || '(no prompt)'}
-          </div>
-          <div
-            className={cn('text-[10px] text-fg-muted', job.status === 'error' ? 'whitespace-pre-wrap break-words' : 'truncate')}
+    <Box
+      px={8}
+      py={6}
+      style={{ borderRadius: 'var(--mantine-radius-sm)', backgroundColor: 'var(--mantine-color-dark-6)' }}
+    >
+      <Group gap={8} wrap="nowrap" align="flex-start">
+        {job.status === 'running' && <Loader size={12} mt={3} color="blue" />}
+        <Box style={{ flex: 1, minWidth: 0 }}>
+          <Text size="xs" truncate>{job.positive || '(no prompt)'}</Text>
+          <Text
+            fz={10}
+            c={job.status === 'error' ? 'red.4' : 'dimmed'}
+            truncate={job.status !== 'error'}
+            style={job.status === 'error' ? { whiteSpace: 'pre-wrap', wordBreak: 'break-word' } : undefined}
             title={job.status === 'error' ? statusLabel : undefined}
           >
             {serverName} · #{job.id.slice(0, 6)} · {statusLabel}
-            {pct !== null ? ` · ${pct}%` : ''}
-          </div>
-        </div>
-        <button
-          type="button"
-          aria-label={cancelLabel}
-          title={cancelLabel}
-          onClick={onCancel}
-          className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-fg-muted transition-colors hover:bg-status-err/15 hover:text-status-err"
-        >
-          <CloseIcon size={12} />
-        </button>
-      </div>
-      {job.status === 'running' && pct !== null && (
-        <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-bg-base">
-          <div className="h-full rounded-full bg-accent transition-all" style={{ width: `${pct}%` }} />
-        </div>
+          </Text>
+        </Box>
+        <JobStatusBadge job={job} />
+        <Tooltip label={cancelLabel} withinPortal fz="xs">
+          <ActionIcon size="sm" variant="subtle" color="gray" aria-label={cancelLabel} onClick={onCancel}>
+            <IconX size={12} />
+          </ActionIcon>
+        </Tooltip>
+      </Group>
+      {job.status === 'running' && (
+        pct !== null
+          ? <Progress value={pct} size="xs" color="blue" animated mt={6} />
+          : <Progress value={100} size="xs" color="blue" striped animated mt={6} opacity={0.4} />
       )}
-    </li>
+    </Box>
   );
 }

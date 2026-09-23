@@ -1,4 +1,4 @@
-import { appendPasses } from './pipeline';
+import { appendPasses, applyClipSkip } from './pipeline';
 import type { Layer, WorkflowState, ServerInfo, HistoryEntry } from './types';
 import { compileLayers } from './prompt';
 import { subscribeComfy } from './comfyBus';
@@ -285,7 +285,7 @@ export function buildGraph(
   // Checkpoint merge — checkpoints beyond the base (node "4") blend their UNet
   // into the base via ModelMergeSimple. CLIP + VAE always come from the base.
   let modelRef: [string, number] = ["4", 0];
-  let clipRef: [string, number] = ["4", 1];
+  let clipRef: [string, number] = applyClipSkip(graph, workflow, ["4", 1]);
   workflow.checkpoints.slice(1).forEach((ckpt, i) => {
     if (!ckpt.name) return;
     graph[`m${i}`] = { class_type: "CheckpointLoaderSimple", inputs: { ckpt_name: ckpt.name }};

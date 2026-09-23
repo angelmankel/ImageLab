@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { forwardRef, useState, useEffect, useMemo, useRef } from 'react';
 import { useCollapsed } from '@/hooks/useCollapsed';
 import { canvasStorage } from '@/lib/canvasStorageInstance';
 import { getCanvasController } from '@/lib/canvasContext';
@@ -12,16 +12,19 @@ import {
   SortableContext, verticalListSortingStrategy, useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import * as RPopover from '@radix-ui/react-popover';
+import {
+  ActionIcon, Badge, Box, Button, Group, Menu, Paper, SegmentedControl, Select, Text, TextInput,
+  Tooltip, UnstyledButton,
+} from '@mantine/core';
+import {
+  IconCamera, IconChevronDown, IconChevronRight, IconCopy, IconEraser, IconEye, IconEyeOff,
+  IconFolder, IconFolderOpen, IconFolderPlus, IconGripVertical, IconLock, IconLockOpen, IconPhoto,
+  IconPlus, IconX,
+} from '@tabler/icons-react';
 import type { CanvasLayer } from '@/lib/types';
 import { useCanvasStore } from '@/lib/canvasStore';
 import { RESOLUTION_PRESETS } from '@/lib/storage';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
-import {
-  PlusIcon, EyeIcon, EyeSlashIcon, EraserIcon, LockIcon, LockOpenIcon, CloseIcon,
-  ImagePlaceholderIcon, CopyIcon, CameraIcon, ChevronDownIcon, ChevronRightIcon,
-  FolderIcon, FolderOpenIcon,
-} from '@/components/ui/icons';
 import { InpaintSection } from '@/features/inputImage';
 import { cn } from '@/lib/cn';
 import { useLayerSelectedThumb } from '@/hooks/useLayerSelectedThumb';
@@ -133,27 +136,28 @@ export function CanvasLayersPanel() {
   return (
     <div className="flex h-full flex-col">
       {/* Sticky header */}
-      <div className="flex shrink-0 items-center gap-2 border-b border-border-subtle bg-bg-panel px-3.5 py-3">
-        <span className="text-[10px] font-semibold uppercase tracking-section text-fg-dim">
-          Layers
-        </span>
-        <span className="rounded bg-bg-elev px-1.5 py-0.5 text-[10px] font-medium text-fg-muted">
+      {/* Wraps onto a second row when the docked panel is too narrow for one. */}
+      <Group
+        gap="xs"
+        style={{ rowGap: 6 }}
+        px="sm"
+        py={10}
+        className="shrink-0 border-b border-border-subtle bg-bg-panel"
+      >
+        <Text size="sm" fw={600}>Layers</Text>
+        <Badge size="sm" variant="light" color="gray" className="shrink-0">
           {layers.length}
-        </span>
-        <div className="ml-auto flex items-center gap-1.5">
+        </Badge>
+        <Group gap={6} ml="auto" wrap="nowrap">
           <DefaultSizePicker />
-          <button
-            type="button"
-            onClick={() => addCanvasFolder()}
-            title="Add a group/folder"
-            aria-label="Add a group"
-            className="flex h-9 items-center gap-1 rounded-lg border border-border-default bg-bg-elev px-2 text-[12px] font-medium text-fg-tertiary transition-colors hover:border-border-strong hover:text-fg-secondary"
-          >
-            <FolderIcon size={13} />
-          </button>
+          <Tooltip label="Add a group/folder" withArrow>
+            <ActionIcon variant="default" size={30} onClick={() => addCanvasFolder()} aria-label="Add a group">
+              <IconFolderPlus size={15} />
+            </ActionIcon>
+          </Tooltip>
           <AddLayerButton onAdd={handleAdd} />
-        </div>
-      </div>
+        </Group>
+      </Group>
 
       {/* Scrollable body — SelectedLayerSection is inside the scroll container
           (not above it) so its inpaint knobs don't squeeze the layer list off
@@ -162,14 +166,14 @@ export function CanvasLayersPanel() {
         <SelectedLayerSection />
         <div className="px-2 py-2">
         {!hydrated ? (
-          <div className="px-3 py-8 text-center text-[11.5px] italic text-fg-muted">
+          <Text size="xs" c="dimmed" fs="italic" ta="center" px="sm" py="xl">
             Loading layers…
-          </div>
+          </Text>
         ) : layers.length === 0 ? (
-          <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-border-default px-3 py-8 text-center">
-            <div className="text-[12px] text-fg-muted">No canvas layers yet</div>
+          <Paper withBorder radius="md" px="sm" py="xl" className="flex flex-col items-center gap-3 !border-dashed text-center">
+            <Text size="sm" c="dimmed">No canvas layers yet</Text>
             <AddLayerButton onAdd={handleAdd} prominent />
-          </div>
+          </Paper>
         ) : (
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
             <SortableContext items={flatIds} strategy={verticalListSortingStrategy}>
@@ -205,14 +209,12 @@ function SelectedLayerSection() {
 
   if (!activeId || !layer) {
     return (
-      <div className="shrink-0 border-b border-border-subtle bg-bg-panel px-3.5 py-3">
-        <div className="text-[10px] font-semibold uppercase tracking-section text-fg-dim">
-          Selected layer
-        </div>
-        <div className="mt-1.5 text-[11.5px] italic text-fg-muted">
+      <Box px="sm" py="sm" className="shrink-0 border-b border-border-subtle bg-bg-panel">
+        <Text size="xs" fw={600} c="dimmed">Selected layer</Text>
+        <Text size="xs" c="dimmed" fs="italic" mt={6}>
           Select a layer to edit its mode and actions.
-        </div>
-      </div>
+        </Text>
+      </Box>
     );
   }
 
@@ -228,48 +230,35 @@ function SelectedLayerSection() {
   ];
 
   return (
-    <div className="shrink-0 border-b border-border-subtle bg-bg-panel px-3.5 py-3">
-      <div className="flex items-baseline justify-between gap-2">
-        <div className="text-[10px] font-semibold uppercase tracking-section text-fg-dim">
-          Selected layer
-        </div>
-        <div className="min-w-0 truncate text-[11px] text-fg-muted" title={layer.name}>
-          {layer.name}
-        </div>
-      </div>
+    <Box px="sm" py="sm" className="shrink-0 border-b border-border-subtle bg-bg-panel">
+      <Group justify="space-between" gap="xs" wrap="nowrap">
+        <Text size="xs" fw={600} c="dimmed" className="shrink-0">Selected layer</Text>
+        <Text size="xs" c="dimmed" truncate title={layer.name}>{layer.name}</Text>
+      </Group>
 
-      <div className="mt-2 flex items-center gap-2">
-        <span className="shrink-0 text-[11px] text-fg-tertiary">Fill mode</span>
-        <div className="flex flex-1 rounded-md border border-border-default bg-bg-input p-0.5">
-          {modes.map(m => (
-            <button
-              key={m.value}
-              type="button"
-              onClick={() => !m.disabled && updateCanvasLayer(layer.id, { fillMode: m.value })}
-              disabled={m.disabled}
-              title={m.hint}
-              aria-pressed={fillMode === m.value}
-              className={cn(
-                'flex-1 rounded px-2 py-1.5 text-[11px] font-medium transition-colors',
-                m.disabled
-                  ? 'cursor-not-allowed text-fg-dim'
-                  : fillMode === m.value
-                    ? 'bg-accent text-white shadow-sm'
-                    : 'text-fg-muted hover:text-fg-secondary',
-              )}
-            >
-              {m.label}
-            </button>
-          ))}
-        </div>
-      </div>
+      <Group gap="xs" mt="xs" wrap="nowrap">
+        <Text size="xs" className="shrink-0">Fill mode</Text>
+        <SegmentedControl
+          size="xs"
+          fullWidth
+          className="flex-1"
+          aria-label="Fill mode"
+          value={fillMode}
+          onChange={(v) => updateCanvasLayer(layer.id, { fillMode: v as typeof fillMode })}
+          data={modes.map(m => ({
+            value: m.value,
+            disabled: m.disabled,
+            label: <span title={m.hint} aria-pressed={fillMode === m.value}>{m.label}</span>,
+          }))}
+        />
+      </Group>
 
       {fillMode === 'inpaint' && (
         <div className="mt-3 border-t border-border-subtle pt-3">
           <InpaintSection />
         </div>
       )}
-    </div>
+    </Box>
   );
 }
 
@@ -311,91 +300,71 @@ function AddLayerButton({
     .map(id => allLayers.find(l => l.id === id))
     .filter((l): l is CanvasLayer => !!l);
 
-  const primaryCls = prominent
-    ? 'flex h-9 items-center gap-1.5 rounded-l-lg border-y border-l border-accent bg-accent px-3 text-[12px] font-semibold text-white transition-colors hover:bg-accent-hover'
-    : 'flex h-9 items-center gap-1 rounded-l-lg border-y border-l border-border-default bg-bg-elev px-2.5 text-[12px] font-medium text-fg-tertiary transition-colors hover:border-border-strong hover:text-fg-secondary';
-  const chevronCls = prominent
-    ? 'flex h-9 items-center justify-center rounded-r-lg border border-accent bg-accent px-1.5 text-white transition-colors hover:bg-accent-hover'
-    : 'flex h-9 items-center justify-center rounded-r-lg border border-border-default bg-bg-elev px-1.5 text-fg-tertiary transition-colors hover:border-border-strong hover:text-fg-secondary';
+  const variant = prominent ? 'filled' : 'default';
 
   return (
-    <div className="flex items-stretch">
-      <button
-        type="button"
-        className={primaryCls}
+    <Button.Group>
+      <Button
+        size="xs"
+        variant={variant}
+        leftSection={<IconPlus size={14} />}
         onClick={() => onAdd()}
         title="Add a fresh canvas layer (inherits last layer's params)"
       >
-        <PlusIcon size={13} />
-        <span>Add layer</span>
-      </button>
+        Add layer
+      </Button>
       {sorted.length > 0 && (
-        <RPopover.Root open={open} onOpenChange={setOpen}>
-          <RPopover.Trigger asChild>
-            <button
-              type="button"
-              className={chevronCls}
+        <Menu opened={open} onChange={setOpen} position="bottom-end" width={240} shadow="md" withinPortal>
+          <Menu.Target>
+            <Button
+              size="xs"
+              px={6}
+              variant={variant}
               title="Copy params from an existing layer"
               aria-label="Copy params from an existing layer"
             >
-              <ChevronDownIcon size={10} />
-            </button>
-          </RPopover.Trigger>
-          <RPopover.Portal>
-            <RPopover.Content
-              align="end"
-              sideOffset={6}
-              className="z-50 w-[240px] overflow-hidden rounded-lg border border-border-default bg-bg-elev shadow-xl"
-            >
-              <div className="border-b border-border-subtle px-3 py-2 text-[10px] font-semibold uppercase tracking-section text-fg-tertiary">
-                New layer from…
-              </div>
-              <div className="scroll-y max-h-[320px] py-1.5">
-                <button
-                  type="button"
-                  onClick={() => { onAdd(); setOpen(false); }}
-                  className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-[12px] text-fg-secondary transition-colors hover:bg-bg-base/60"
-                >
-                  <PlusIcon size={11} />
-                  <span className="flex-1">Blank layer</span>
-                  <span className="text-[9px] text-fg-dim">last active</span>
-                </button>
-                {recents.length > 0 && (
-                  <>
-                    <div className="mt-1 px-3 pb-1 pt-2 text-[9px] font-semibold uppercase tracking-section text-fg-dim">
-                      Recents
-                    </div>
-                    {recents.map(l => (
-                      <SourceRow key={`r-${l.id}`} layer={l} onPick={(id) => { onAdd(id); setOpen(false); }} />
-                    ))}
-                    <div className="my-1 h-px bg-border-subtle" />
-                  </>
-                )}
-                <div className="px-3 pb-1 pt-2 text-[9px] font-semibold uppercase tracking-section text-fg-dim">
-                  All layers
-                </div>
-                {sorted.map(l => (
-                  <SourceRow key={l.id} layer={l} onPick={(id) => { onAdd(id); setOpen(false); }} />
-                ))}
-              </div>
-            </RPopover.Content>
-          </RPopover.Portal>
-        </RPopover.Root>
+              <IconChevronDown size={12} />
+            </Button>
+          </Menu.Target>
+          <Menu.Dropdown>
+            <Menu.Label>New layer from…</Menu.Label>
+            <div className="scroll-y max-h-[320px]">
+              <Menu.Item
+                leftSection={<IconPlus size={12} />}
+                rightSection={<Text size="10px" c="dimmed">last active</Text>}
+                onClick={() => onAdd()}
+              >
+                Blank layer
+              </Menu.Item>
+              {recents.length > 0 && (
+                <>
+                  <Menu.Label>Recents</Menu.Label>
+                  {recents.map(l => (
+                    <SourceRow key={`r-${l.id}`} layer={l} onPick={(id) => onAdd(id)} />
+                  ))}
+                  <Menu.Divider />
+                </>
+              )}
+              <Menu.Label>All layers</Menu.Label>
+              {sorted.map(l => (
+                <SourceRow key={l.id} layer={l} onPick={(id) => onAdd(id)} />
+              ))}
+            </div>
+          </Menu.Dropdown>
+        </Menu>
       )}
-    </div>
+    </Button.Group>
   );
 }
 
 function SourceRow({ layer, onPick }: { layer: CanvasLayer; onPick: (id: string) => void }) {
   return (
-    <button
-      type="button"
+    <Menu.Item
       onClick={() => onPick(layer.id)}
-      className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-[12px] text-fg-secondary transition-colors hover:bg-bg-base/60"
+      leftSection={<Text size="10px" c="dimmed" ff="monospace">z{layer.zIndex}</Text>}
     >
-      <span className="font-mono text-[9px] text-fg-dim">z{layer.zIndex}</span>
-      <span className="min-w-0 flex-1 truncate">{layer.name}</span>
-    </button>
+      <Text size="sm" truncate>{layer.name}</Text>
+    </Menu.Item>
   );
 }
 
@@ -446,108 +415,90 @@ function LayerRow({ layer, active }: { layer: CanvasLayer; active: boolean }) {
 
   return (
     <div ref={setNodeRef} style={style} className="flex flex-col">
-    <div
-      className={cn(
-        'flex flex-col gap-2 rounded-lg border bg-bg-card px-2 py-2 transition-colors',
-        active
-          ? 'border-accent border-l-[3px] bg-accent-soft/30'
-          : 'border-border-default border-l-[3px] border-l-transparent hover:border-border-strong',
-      )}
+    <Paper
+      withBorder
+      radius="md"
+      px={8}
+      py={8}
+      className="flex flex-col gap-2 border-l-[3px] transition-colors"
+      style={active
+        ? { borderColor: 'var(--mantine-primary-color-filled)', backgroundColor: 'var(--mantine-primary-color-light)' }
+        : { borderLeftColor: 'transparent' }}
     >
       {/* Row 1: identity — disclosure, drag, thumbnail, name (full width), z-chip. */}
-      <div className="flex items-center gap-2">
-        {/* Disclosure */}
-        <button
-          type="button"
+      <Group gap={6} wrap="nowrap">
+        <ActionIcon
+          variant="subtle"
+          color="gray"
+          size="sm"
           onClick={(e) => { e.stopPropagation(); toggleHistory(); }}
           title={historyOpen ? 'Collapse history' : 'Expand history'}
           aria-label={historyOpen ? 'Collapse history' : 'Expand history'}
           aria-expanded={historyOpen}
-          className="flex h-8 w-5 shrink-0 items-center justify-center text-fg-dim transition-colors hover:text-fg-secondary"
         >
-          {historyOpen ? <ChevronDownIcon size={12} /> : <ChevronRightIcon size={12} />}
-        </button>
-        {/* Drag handle */}
-        <button
-          type="button"
-          {...attributes}
-          {...listeners}
-          aria-label="Drag to reorder"
-          title="Drag to reorder"
-          className="flex h-8 w-4 shrink-0 cursor-grab touch-none items-center justify-center text-handle hover:text-fg-tertiary active:cursor-grabbing"
-        >
-          <DragDots />
-        </button>
+          {historyOpen ? <IconChevronDown size={14} /> : <IconChevronRight size={14} />}
+        </ActionIcon>
+        <DragHandle label="Drag to reorder" attributes={attributes} listeners={listeners} />
 
         <LayerThumb layer={layer} onClick={() => setActiveLayer(layer.id)} />
 
-
-        {/* Name field — takes all remaining row space, never truncates while
-            editing. Activates the layer on plain click. */}
-        <input
+        {/* Name field — takes all remaining row space. Activates the layer on plain click. */}
+        <NameInput
           ref={inputRef}
           value={nameDraft}
-          spellCheck={false}
-          onChange={(e) => setNameDraft(e.target.value)}
+          onChange={setNameDraft}
           onBlur={commitName}
           onFocus={() => setActiveLayer(layer.id)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              (e.target as HTMLInputElement).blur();
-            } else if (e.key === 'Escape') {
-              setNameDraft(layer.name);
-              (e.target as HTMLInputElement).blur();
-            }
-          }}
+          onEnter={(el) => el.blur()}
+          onEscape={(el) => { setNameDraft(layer.name); el.blur(); }}
           onClick={(e) => { e.stopPropagation(); setActiveLayer(layer.id); }}
-          onPointerDown={(e) => e.stopPropagation()}
-          className="min-w-0 flex-1 truncate rounded-sm border border-transparent bg-transparent px-1 py-0.5 text-[12px] text-fg-secondary outline-none hover:border-border-subtle focus:border-border-strong focus:bg-bg-input"
         />
 
-        <span
-          className="shrink-0 rounded bg-bg-elev px-1.5 py-0.5 font-mono text-[9px] text-fg-dim"
-          title="z-index (higher renders on top)"
-        >
-          z{layer.zIndex}
-        </span>
-      </div>
+        <Tooltip label="z-index (higher renders on top)" withArrow>
+          <Badge size="xs" variant="default" radius="sm" ff="monospace" tt="none" className="shrink-0">
+            z{layer.zIndex}
+          </Badge>
+        </Tooltip>
+      </Group>
 
       {/* Row 2: action buttons — compact, evenly distributed across the row. */}
-      <div className="flex items-center gap-0.5 pl-7">
+      <Group gap={4} wrap="nowrap" pl={28}>
         <CopyParamsButton targetLayerId={layer.id} />
         <RowBtn
           title="Capture the visible canvas at this layer's bounds as a new history entry"
           onClick={() => { void snapshotLayerComposite(layer.id); }}
         >
-          <CameraIcon size={14} />
+          <IconCamera size={14} />
         </RowBtn>
         <RowBtn
           title={layer.visible ? 'Hide layer' : 'Show layer'}
           onClick={() => updateCanvasLayer(layer.id, { visible: !layer.visible })}
+          dim={!layer.visible}
         >
-          {layer.visible ? <EyeIcon size={14} /> : <EyeSlashIcon size={14} className="text-fg-dim" />}
+          {layer.visible ? <IconEye size={14} /> : <IconEyeOff size={14} />}
         </RowBtn>
         <RowBtn
           title={layer.locked ? 'Unlock layer' : 'Lock layer'}
           onClick={() => updateCanvasLayer(layer.id, { locked: !layer.locked })}
+          on={!!layer.locked}
+          dim={!layer.locked}
         >
-          {layer.locked
-            ? <LockIcon size={14} className="text-accent" filled />
-            : <LockOpenIcon size={14} className="text-fg-dim" />}
+          {layer.locked ? <IconLock size={14} /> : <IconLockOpen size={14} />}
         </RowBtn>
         {layer.selectedHistoryId && (
           <RowBtn
             title="Clear stamp (unselects the current image, layer + its history are kept)"
             onClick={() => updateCanvasLayer(layer.id, { selectedHistoryId: undefined })}
+            dim
           >
-            <EraserIcon size={14} className="text-fg-dim" />
+            <IconEraser size={14} />
           </RowBtn>
         )}
         <RowBtn title="Delete layer" danger onClick={handleDelete}>
-          <CloseIcon size={14} />
+          <IconX size={14} />
         </RowBtn>
-      </div>
-    </div>
+      </Group>
+    </Paper>
 
     {historyOpen && <LayerHistoryList layer={layer} />}
     </div>
@@ -596,69 +547,62 @@ function FolderRow({
 
   return (
     <div ref={setNodeRef} style={style} className="flex flex-col">
-      <div className={cn(
-        'flex items-center gap-2 rounded-t-lg border border-b-0 px-2 py-1.5 transition-colors',
-        isOver ? 'border-accent bg-accent-soft/30' : 'border-border-default bg-bg-elev',
-        !open && 'rounded-b-lg border-b',
-      )}>
-        <button
-          type="button"
+      <Group
+        gap={6}
+        wrap="nowrap"
+        px={8}
+        py={6}
+        className={cn(
+          'rounded-t-md border border-b-0 transition-colors',
+          !open && 'rounded-b-md border-b',
+        )}
+        style={isOver
+          ? { borderColor: 'var(--mantine-primary-color-filled)', backgroundColor: 'var(--mantine-primary-color-light)' }
+          : { borderColor: 'var(--mantine-color-dark-4)', backgroundColor: 'var(--mantine-color-dark-5)' }}
+      >
+        <ActionIcon
+          variant="subtle"
+          color="gray"
+          size="sm"
           onClick={() => toggleFolderCollapsed(layer.id)}
-          className="flex h-7 w-5 shrink-0 items-center justify-center text-fg-dim hover:text-fg-secondary"
           title={open ? 'Collapse group' : 'Expand group'}
+          aria-label={open ? 'Collapse group' : 'Expand group'}
         >
-          {open ? <ChevronDownIcon size={11} /> : <ChevronRightIcon size={11} />}
-        </button>
-        <button
-          type="button"
-          {...attributes}
-          {...listeners}
-          aria-label="Drag to reorder group"
-          title="Drag to reorder group"
-          className="flex h-7 w-4 shrink-0 cursor-grab touch-none items-center justify-center text-handle hover:text-fg-tertiary active:cursor-grabbing"
-        >
-          <DragDots />
-        </button>
-        <span className="flex h-6 w-6 shrink-0 items-center justify-center text-fg-tertiary">
-          {open ? <FolderOpenIcon size={14} /> : <FolderIcon size={14} />}
+          {open ? <IconChevronDown size={13} /> : <IconChevronRight size={13} />}
+        </ActionIcon>
+        <DragHandle label="Drag to reorder group" attributes={attributes} listeners={listeners} />
+        <span className="flex h-6 w-6 shrink-0 items-center justify-center text-[var(--mantine-color-dimmed)]">
+          {open ? <IconFolderOpen size={16} /> : <IconFolder size={16} />}
         </span>
-        <input
+        <NameInput
           value={nameDraft}
-          spellCheck={false}
-          onChange={(e) => setNameDraft(e.target.value)}
+          onChange={setNameDraft}
           onBlur={commitName}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-            else if (e.key === 'Escape') { setNameDraft(layer.name); (e.target as HTMLInputElement).blur(); }
-          }}
-          onPointerDown={(e) => e.stopPropagation()}
-          className="min-w-0 flex-1 truncate rounded-sm border border-transparent bg-transparent px-1 py-0.5 text-[12px] font-medium text-fg-secondary outline-none hover:border-border-subtle focus:border-border-strong focus:bg-bg-input"
+          onEnter={(el) => el.blur()}
+          onEscape={(el) => { setNameDraft(layer.name); el.blur(); }}
+          bold
         />
-        <span className="shrink-0 rounded bg-bg-base/40 px-1.5 py-0.5 font-mono text-[9px] text-fg-dim">
+        <Badge size="xs" variant="default" radius="sm" ff="monospace" className="shrink-0">
           {children.length}
-        </span>
-        <button
-          type="button"
-          onClick={handleDelete}
-          title="Delete group"
-          aria-label="Delete group"
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-fg-dim transition-colors hover:bg-status-err/10 hover:text-status-err"
-        >
-          <CloseIcon size={12} />
-        </button>
-      </div>
+        </Badge>
+        <Tooltip label="Delete group" withArrow>
+          <ActionIcon variant="subtle" color="red" size="sm" onClick={handleDelete} aria-label="Delete group">
+            <IconX size={13} />
+          </ActionIcon>
+        </Tooltip>
+      </Group>
       {open && (
         <div
           ref={setZoneRef}
-          className={cn(
-            'flex flex-col gap-1.5 rounded-b-lg border border-t-0 border-border-default bg-bg-base/30 px-2 pb-2 pt-1.5',
-            isOver && 'border-accent bg-accent-soft/20',
-          )}
+          className="flex flex-col gap-1.5 rounded-b-md border border-t-0 px-2 pb-2 pt-1.5"
+          style={isOver
+            ? { borderColor: 'var(--mantine-primary-color-filled)', backgroundColor: 'var(--mantine-primary-color-light)' }
+            : { borderColor: 'var(--mantine-color-dark-4)', backgroundColor: 'var(--mantine-color-dark-7)' }}
         >
           {children.length === 0 ? (
-            <div className="px-2 py-2 text-center text-[10.5px] italic text-fg-dim">
+            <Text size="xs" c="dimmed" fs="italic" ta="center" py={8}>
               Drop layers here
-            </div>
+            </Text>
           ) : (
             children.map(c => (
               <LayerRow key={c.id} layer={c} active={c.id === activeId} />
@@ -675,12 +619,10 @@ function RootDropZone() {
   return (
     <div
       ref={setNodeRef}
-      className={cn(
-        'mt-1 h-6 rounded border border-dashed text-center text-[10px] leading-6 transition-colors',
-        isOver
-          ? 'border-accent bg-accent-soft/20 text-fg-secondary'
-          : 'border-transparent text-fg-dim',
-      )}
+      className="mt-1 h-6 rounded-sm border border-dashed text-center text-[10px] leading-6 transition-colors"
+      style={isOver
+        ? { borderColor: 'var(--mantine-primary-color-filled)', backgroundColor: 'var(--mantine-primary-color-light)' }
+        : { borderColor: 'transparent', color: 'var(--mantine-color-dimmed)' }}
     >
       {isOver ? 'Drop to ungroup' : ''}
     </div>
@@ -690,16 +632,15 @@ function RootDropZone() {
 function LayerThumb({ layer, onClick }: { layer: CanvasLayer; onClick: () => void }) {
   const url = useLayerSelectedThumb(layer.id, layer.selectedHistoryId);
   return (
-    <button
-      type="button"
+    <UnstyledButton
       onClick={onClick}
       aria-label={`Select ${layer.name}`}
-      className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border-default bg-[repeating-conic-gradient(theme(colors.zinc.700)_0%_25%,transparent_0%_50%)] bg-[length:8px_8px] text-fg-dim"
+      className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-sm border border-border-default bg-[repeating-conic-gradient(theme(colors.zinc.700)_0%_25%,transparent_0%_50%)] bg-[length:8px_8px] text-[var(--mantine-color-dimmed)]"
     >
       {url
         ? <img src={url} alt="" className="h-full w-full object-cover" />
-        : <ImagePlaceholderIcon size={18} />}
-    </button>
+        : <IconPhoto size={18} />}
+    </UnstyledButton>
   );
 }
 
@@ -810,16 +751,16 @@ function LayerHistoryList({ layer }: { layer: CanvasLayer }) {
 
   if (entries === null) {
     return (
-      <div className="ml-7 mt-1 px-2 py-1.5 text-[10.5px] italic text-fg-dim">
+      <Text size="xs" c="dimmed" fs="italic" ml={28} mt={4} px={8} py={6}>
         Loading…
-      </div>
+      </Text>
     );
   }
   if (entries.length === 0) {
     return (
-      <div className="ml-7 mt-1 px-2 py-1.5 text-[10.5px] italic text-fg-muted">
+      <Text size="xs" c="dimmed" fs="italic" ml={28} mt={4} px={8} py={6}>
         No history yet — generate to stamp something.
-      </div>
+      </Text>
     );
   }
 
@@ -831,11 +772,12 @@ function LayerHistoryList({ layer }: { layer: CanvasLayer }) {
         return (
           <div
             key={e.id}
+            // v1 thumbnail: a 2px primary ring when selected, dimmed otherwise.
             className={cn(
-              'group relative h-16 w-16 shrink-0 overflow-hidden rounded border bg-bg-elev transition-colors',
+              'group relative h-16 w-16 shrink-0 overflow-hidden rounded-sm border-2 bg-bg-elev transition-all duration-150',
               selected
-                ? 'border-accent ring-1 ring-accent'
-                : 'border-border-default hover:border-border-strong',
+                ? 'border-[var(--mantine-primary-color-filled)]'
+                : 'border-transparent opacity-70 hover:opacity-100',
             )}
           >
             <button
@@ -848,15 +790,18 @@ function LayerHistoryList({ layer }: { layer: CanvasLayer }) {
                 ? <img src={url} alt="" className="h-full w-full object-cover" />
                 : <span className="block h-full w-full" />}
             </button>
-            <button
-              type="button"
+            <ActionIcon
+              variant="filled"
+              color="red"
+              size={16}
+              radius="xl"
               onClick={(ev) => { void onDelete(e, ev); }}
               title="Delete this history entry"
               aria-label="Delete this history entry"
-              className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-bg-elev/85 text-fg-tertiary opacity-0 shadow ring-1 ring-border-default transition-opacity hover:bg-status-err/90 hover:text-white hover:ring-status-err group-hover:opacity-100 focus-visible:opacity-100"
+              className="!absolute right-1 top-1 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
             >
-              <CloseIcon size={9} />
-            </button>
+              <IconX size={10} />
+            </ActionIcon>
           </div>
         );
       })}
@@ -889,91 +834,130 @@ function CopyParamsButton({ targetLayerId }: { targetLayerId: string }) {
   if (sorted.length === 0) return null;
 
   return (
-    <RPopover.Root open={open} onOpenChange={setOpen}>
-      <RPopover.Trigger asChild>
-        <button
-          type="button"
+    <Menu opened={open} onChange={setOpen} position="bottom-end" width={220} shadow="md" withinPortal>
+      <Menu.Target>
+        <ActionIcon
+          variant="default"
+          size={28}
+          className="!w-auto min-w-7 flex-1"
+          // The menu toggles itself; this only keeps the click from reaching the row.
           onClick={(e) => e.stopPropagation()}
           title="Copy params from another layer"
           aria-label="Copy params from another layer"
-          className="flex h-7 min-w-7 flex-1 shrink-0 items-center justify-center rounded-md border border-border-subtle text-fg-tertiary transition-colors hover:border-border-strong hover:bg-bg-elev hover:text-fg-secondary"
         >
-          <CopyIcon size={14} />
-        </button>
-      </RPopover.Trigger>
-      <RPopover.Portal>
-        <RPopover.Content
-          align="end"
-          sideOffset={6}
-          className="z-50 w-[220px] overflow-hidden rounded-lg border border-border-default bg-bg-elev shadow-xl"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="border-b border-border-subtle px-3 py-2 text-[10px] font-semibold uppercase tracking-section text-fg-tertiary">
-            Copy params from…
-          </div>
-          <div className="scroll-y max-h-[280px] p-1.5">
-            {sorted.map(l => (
-              <button
-                key={l.id}
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  duplicateLayerParams(l.id, targetLayerId);
-                  setOpen(false);
-                }}
-                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[12px] text-fg-secondary transition-colors hover:bg-bg-base/60"
-              >
-                <span className="font-mono text-[9px] text-fg-dim">z{l.zIndex}</span>
-                <span className="min-w-0 flex-1 truncate">{l.name}</span>
-              </button>
-            ))}
-          </div>
-        </RPopover.Content>
-      </RPopover.Portal>
-    </RPopover.Root>
+          <IconCopy size={14} />
+        </ActionIcon>
+      </Menu.Target>
+      <Menu.Dropdown onClick={(e) => e.stopPropagation()}>
+        <Menu.Label>Copy params from…</Menu.Label>
+        <div className="scroll-y max-h-[280px]">
+          {sorted.map(l => (
+            <Menu.Item
+              key={l.id}
+              onClick={(e) => {
+                e.stopPropagation();
+                duplicateLayerParams(l.id, targetLayerId);
+              }}
+              leftSection={<Text size="10px" c="dimmed" ff="monospace">z{l.zIndex}</Text>}
+            >
+              <Text size="sm" truncate>{l.name}</Text>
+            </Menu.Item>
+          ))}
+        </div>
+      </Menu.Dropdown>
+    </Menu>
   );
 }
 
+/** A layer-row action: v1's default ActionIcon, stretched so the row's actions share its width. */
 function RowBtn({
-  onClick, title, danger, children,
+  onClick, title, danger, on, dim, children,
 }: {
   onClick: () => void;
   title: string;
   danger?: boolean;
+  /** Toggled on (e.g. locked) — drawn in the primary colour. */
+  on?: boolean;
+  /** Toggled off (e.g. hidden) — drawn dimmed. */
+  dim?: boolean;
   children: React.ReactNode;
 }) {
   return (
-    <button
-      type="button"
-      onClick={(e) => { e.stopPropagation(); onClick(); }}
-      title={title}
-      aria-label={title}
-      className={cn(
-        'flex h-7 min-w-7 flex-1 shrink-0 items-center justify-center rounded-md border border-border-subtle text-fg-tertiary transition-colors',
-        danger
-          ? 'hover:border-status-err/40 hover:bg-status-err/10 hover:text-status-err'
-          : 'hover:border-border-strong hover:bg-bg-elev hover:text-fg-secondary',
-      )}
-    >
-      {children}
-    </button>
+    <Tooltip label={title} withArrow openDelay={400} multiline maw={240}>
+      <ActionIcon
+        variant={on ? 'light' : 'default'}
+        color={danger ? 'red' : undefined}
+        size={28}
+        onClick={(e) => { e.stopPropagation(); onClick(); }}
+        aria-label={title}
+        className={cn('!w-auto min-w-7 flex-1', danger && 'hover:!text-[var(--mantine-color-red-5)]')}
+        c={dim ? 'dimmed' : undefined}
+      >
+        {children}
+      </ActionIcon>
+    </Tooltip>
   );
 }
 
-function DragDots() {
+/** dnd-kit drag handle for layer and group rows. */
+function DragHandle({
+  label, attributes, listeners,
+}: {
+  label: string;
+  attributes: ReturnType<typeof useSortable>['attributes'];
+  listeners: ReturnType<typeof useSortable>['listeners'];
+}) {
   return (
-    <svg viewBox="0 0 8 12" width="11" height="16" aria-hidden className="shrink-0">
-      <g fill="currentColor">
-        <circle cx="1.5" cy="1.5" r="1" />
-        <circle cx="6.5" cy="1.5" r="1" />
-        <circle cx="1.5" cy="6" r="1" />
-        <circle cx="6.5" cy="6" r="1" />
-        <circle cx="1.5" cy="10.5" r="1" />
-        <circle cx="6.5" cy="10.5" r="1" />
-      </g>
-    </svg>
+    <UnstyledButton
+      {...attributes}
+      {...listeners}
+      aria-label={label}
+      title={label}
+      className="flex h-8 w-4 shrink-0 cursor-grab touch-none items-center justify-center text-[var(--mantine-color-dark-3)] hover:text-[var(--mantine-color-dimmed)] active:cursor-grabbing"
+    >
+      <IconGripVertical size={14} />
+    </UnstyledButton>
   );
 }
+
+/** Inline rename field: looks like text until hovered or focused. Enter commits, Escape reverts. */
+const NameInput = forwardRef<HTMLInputElement, {
+  value: string;
+  onChange: (v: string) => void;
+  onBlur: () => void;
+  onFocus?: () => void;
+  onEnter: (el: HTMLInputElement) => void;
+  onEscape: (el: HTMLInputElement) => void;
+  onClick?: (e: React.MouseEvent) => void;
+  bold?: boolean;
+}>(function NameInput({ value, onChange, onBlur, onFocus, onEnter, onEscape, onClick, bold }, ref) {
+  return (
+    <TextInput
+      ref={ref}
+      value={value}
+      spellCheck={false}
+      variant="unstyled"
+      size="xs"
+      className="min-w-0 flex-1"
+      classNames={{
+        input: cn(
+          '!h-7 !min-h-0 truncate rounded-sm border border-transparent !px-1 hover:border-[var(--mantine-color-dark-4)]',
+          'focus:border-[var(--mantine-primary-color-filled)] focus:bg-[var(--mantine-color-dark-7)]',
+          bold && 'font-medium',
+        ),
+      }}
+      onChange={(e) => onChange(e.currentTarget.value)}
+      onBlur={onBlur}
+      onFocus={onFocus}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') onEnter(e.currentTarget);
+        else if (e.key === 'Escape') onEscape(e.currentTarget);
+      }}
+      onClick={onClick}
+      onPointerDown={(e) => e.stopPropagation()}
+    />
+  );
+});
 
 // ── Default new-layer size picker ────────────────────────────────────────────
 // Replaces the top-toolbar canvas-size dropdown. Sets the default bounds size
@@ -988,17 +972,22 @@ function DefaultSizePicker() {
   const presetStrs = RESOLUTION_PRESETS.map(([w, h]) => `${w}×${h}`);
   const opts = presetStrs.includes(label) ? presetStrs : [label, ...presetStrs];
   return (
-    <select
-      aria-label="Default size for new layers"
-      title="Default bounds size for newly-added layers"
-      value={label}
-      onChange={(e) => {
-        const [w, h] = e.target.value.split('×').map(n => Number(n));
-        if (Number.isFinite(w) && Number.isFinite(h)) setSize({ w, h });
-      }}
-      className="h-9 rounded-md border border-border-subtle bg-bg-elev px-2 font-mono text-[10.5px] text-fg-tertiary hover:border-border-strong focus:outline-none focus:ring-1 focus:ring-accent"
-    >
-      {opts.map(o => <option key={o} value={o}>{o}</option>)}
-    </select>
+    <Tooltip label="Default bounds size for newly-added layers" withArrow>
+      <Select
+        aria-label="Default size for new layers"
+        size="xs"
+        w={112}
+        data={opts}
+        value={label}
+        allowDeselect={false}
+        comboboxProps={{ withinPortal: true, shadow: 'md' }}
+        classNames={{ input: 'font-mono !pr-6', section: '!w-6' }}
+        onChange={(v) => {
+          if (!v) return;
+          const [w, h] = v.split('×').map(n => Number(n));
+          if (Number.isFinite(w) && Number.isFinite(h)) setSize({ w, h });
+        }}
+      />
+    </Tooltip>
   );
 }

@@ -5,7 +5,8 @@ import { useShortcut, ShortcutPriority } from '@/hooks/useShortcut';
 import { useCanvasStore } from '@/lib/canvasStore';
 import { useStore } from '@/lib/store';
 import { defaultWorkflow, defaultLayers } from '@/lib/storage';
-import { cn } from '@/lib/cn';
+import { ActionIcon, Badge, Button } from '@mantine/core';
+import { IconX } from '@tabler/icons-react';
 
 /**
  * Top-nav chip showing the current Select-tool rect — size + a clear button.
@@ -17,21 +18,31 @@ export function SelectionInfo() {
   const clear = useCanvasStore(s => s.clearActiveSelection);
   if (!selection) return null;
   return (
-    <div className="flex h-8 items-center gap-2 rounded-lg border border-[#ffb020]/60 bg-[#ffb020]/15 px-2 text-[11px] font-medium text-[#ffb020] shadow-sm backdrop-blur-md">
+    <Badge
+      size="lg"
+      variant="light"
+      color="yellow"
+      radius="sm"
+      tt="none"
+      className="shadow-sm"
+      rightSection={
+        <ActionIcon
+          size="xs"
+          variant="subtle"
+          color="yellow"
+          onClick={() => clear()}
+          title="Clear selection (Esc)"
+          aria-label="Clear selection"
+        >
+          <IconX size={12} />
+        </ActionIcon>
+      }
+    >
       <span className="font-mono tabular-nums">
         {Math.round(selection.w)}×{Math.round(selection.h)}
       </span>
-      <span className="text-[10px] opacity-80">selected</span>
-      <button
-        type="button"
-        onClick={() => clear()}
-        title="Clear selection (Esc)"
-        aria-label="Clear selection"
-        className="-mr-0.5 flex h-5 w-5 items-center justify-center rounded text-[#ffb020] transition-colors hover:bg-[#ffb020]/20"
-      >
-        ×
-      </button>
-    </div>
+      <span className="ml-1.5 text-[10px] opacity-80">selected</span>
+    </Badge>
   );
 }
 
@@ -177,8 +188,11 @@ export function GridSnapToggle() {
   const snapEnabled = useCanvasStore(s => s.snapEnabled);
   const setSnapEnabled = useCanvasStore(s => s.setSnapEnabled);
   return (
-    <button
-      type="button"
+    <Button
+      size="compact-md"
+      h={34}
+      variant={snapEnabled ? 'filled' : 'default'}
+      leftSection={<GridIcon size={14} filled={snapEnabled} />}
       role="switch"
       aria-checked={snapEnabled}
       aria-label={snapEnabled ? `Snap to grid: on (${gridStep}px)` : `Snap to grid: off (${gridStep}px)`}
@@ -187,15 +201,10 @@ export function GridSnapToggle() {
         : `Snap is OFF — bounds drag freely. Click to enable. Grid: ${gridStep}px.\n[ / ] adjust grid step.`}
       onClick={() => setSnapEnabled(!snapEnabled)}
       data-state={snapEnabled ? 'on' : 'off'}
-      className={cn(
-        'inline-flex h-9 items-center gap-1.5 rounded-md border px-2 text-[11px] font-mono transition-colors',
-        'bg-bg-elev border-border-subtle hover:border-border-strong',
-        'data-[state=on]:bg-accent data-[state=on]:border-accent data-[state=on]:text-white',
-        'data-[state=off]:text-fg-muted',
-      )}
+      ff="monospace"
+      fz={11}
     >
-      <GridIcon size={14} filled={snapEnabled} />
       <span className="tabular-nums">{gridStep}</span>
-    </button>
+    </Button>
   );
 }

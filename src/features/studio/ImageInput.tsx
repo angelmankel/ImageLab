@@ -14,6 +14,8 @@ import { useRef, useState } from 'react';
 import { comfyHttpFor, loadImageRef, uploadImage } from '@/lib/comfy';
 import { Select } from '@/components/ui/Select';
 import { cn } from '@/lib/cn';
+import { Button, Group, LoadingOverlay, Text } from '@mantine/core';
+import { IconCamera, IconUpload } from '@tabler/icons-react';
 import { paramLabel, type WorkflowParam } from './params';
 
 /** A COMBO named `image` on an image-loading node is a picture, not a dropdown. */
@@ -66,44 +68,35 @@ export function ImageInput({
 
   return (
     <div className={cn('flex flex-col gap-2', large ? 'py-2' : 'py-1')}>
-      <span className={cn('font-medium text-fg-secondary', large ? 'text-[14px]' : 'text-[12px]')}>
-        {paramLabel(param)}
-      </span>
+      <Text size={large ? 'sm' : 'xs'} fw={500}>{paramLabel(param)}</Text>
 
       <div
         onClick={() => file.current?.click()}
         className={cn(
-          'relative flex cursor-pointer items-center justify-center overflow-hidden rounded-lg',
-          'border border-dashed border-border-subtle bg-bg-base',
+          'relative flex cursor-pointer items-center justify-center overflow-hidden rounded-md',
+          'border border-dashed border-[var(--mantine-color-dark-4)] bg-[var(--mantine-color-dark-7)]',
+          'transition-colors hover:border-[var(--mantine-primary-color-filled)]',
           large ? 'h-44' : 'h-32',
         )}
       >
         {preview ? (
           <img src={preview} alt={current} className="h-full w-full object-contain" />
         ) : (
-          <span className="px-4 text-center text-[12.5px] text-fg-muted">
+          <Text size="xs" c="dimmed" ta="center" px="md">
             {busy ? 'Uploading…' : 'Tap to choose an image'}
-          </span>
+          </Text>
         )}
-        {busy && <div className="absolute inset-0 bg-black/40" />}
+        <LoadingOverlay visible={busy} overlayProps={{ backgroundOpacity: 0.4 }} loaderProps={{ size: 'sm' }} />
       </div>
 
-      <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={() => file.current?.click()}
-          className="h-11 flex-1 rounded-lg border border-border-subtle text-[13px] text-fg-secondary"
-        >
+      <Group gap="xs" grow>
+        <Button variant="default" size={large ? 'lg' : 'sm'} leftSection={<IconUpload size={15} />} onClick={() => file.current?.click()}>
           Choose
-        </button>
-        <button
-          type="button"
-          onClick={() => camera.current?.click()}
-          className="h-11 flex-1 rounded-lg border border-border-subtle text-[13px] text-fg-secondary"
-        >
+        </Button>
+        <Button variant="default" size={large ? 'lg' : 'sm'} leftSection={<IconCamera size={15} />} onClick={() => camera.current?.click()}>
           Camera
-        </button>
-      </div>
+        </Button>
+      </Group>
 
       {options.length > 0 && (
         <Select
@@ -116,7 +109,7 @@ export function ImageInput({
         />
       )}
 
-      {error && <p className="text-[12px] text-red-400">{error}</p>}
+      {error && <Text size="xs" c="red.4">{error}</Text>}
 
       <input
         ref={file}

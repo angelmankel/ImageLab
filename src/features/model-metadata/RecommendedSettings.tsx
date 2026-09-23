@@ -1,3 +1,4 @@
+import { Paper, SimpleGrid, Text } from '@mantine/core';
 import { Section } from './Section';
 import { useVersionImages } from './store';
 
@@ -21,14 +22,14 @@ export function RecommendedSettings() {
 
   return (
     <Section label="Typical settings">
-      <div className="grid grid-cols-3 gap-2">
+      <SimpleGrid cols={3} spacing="xs">
         {cells.map((c) => (
-          <div key={c.label} className="rounded-lg border border-border-default bg-bg-card px-2.5 py-1.5">
-            <div className="truncate text-[12px] font-semibold text-fg-secondary">{c.value}</div>
-            <div className="text-[9px] font-medium text-fg-dim">{c.label}</div>
-          </div>
+          <Paper key={c.label} withBorder p={8} radius="sm">
+            <Text size="xs" fw={600} truncate>{c.value}</Text>
+            <Text size="10px" c="dimmed">{c.label}</Text>
+          </Paper>
         ))}
-      </div>
+      </SimpleGrid>
     </Section>
   );
 }

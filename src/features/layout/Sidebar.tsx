@@ -1,30 +1,28 @@
-import { Logo } from '@/components/Logo';
-import { IconButton } from '@/components/ui/IconButton';
-import { Tip } from '@/components/ui/Tooltip';
+import { ActionIcon, Divider, Indicator, Stack, Tooltip } from '@mantine/core';
 import {
-  CollectionsIcon,
-  ComfyIcon,
-  GenerateIcon,
-  InfiniteViewIcon,
-  ModelBrowserIcon,
-  SettingsIcon,
-  SparkleIcon,
-} from '@/components/ui/icons';
+  IconBoxModel,
+  IconFolders,
+  IconInfinity,
+  IconPalette,
+  IconSettings,
+  IconWand,
+} from '@tabler/icons-react';
+import { Logo } from '@/components/Logo';
+import { ComfyIcon } from '@/components/ui/icons';
 import { useCanvasStore } from '@/lib/canvasStore';
 import { useFocusMode } from '@/features/studio/StudioView';
 import type { MainView } from '@/lib/canvasStore';
 import type { Server } from '@/lib/storage';
 
 /**
- * Slim left rail — the app's primary navigation. Buttons are typed:
+ * Slim left rail — the app's primary navigation, drawn like v1's AppShell navbar: 56px wide,
+ * one `lg` ActionIcon per entry, filled when current, subtle otherwise. Buttons are typed:
  *
- *   - `view`  — switches `mainView` in canvasStore. Shows an active treatment
- *               when its view is current.
- *   - `modal` — opens a focused overlay (Settings, ComfyUI iframe) without
- *               leaving the current view.
+ *   - `view`  — switches `mainView` in canvasStore.
+ *   - `modal` — opens a focused overlay (Settings) without leaving the current view.
  *
- * The rail is always visible and rendered above overlays so users can switch
- * back without exiting first.
+ * The rail sits at z-[70] so in-page layers never cover it; overlays (Mantine portals, z>=200)
+ * still go above it.
  */
 export function Sidebar({
   servers,
@@ -47,93 +45,62 @@ export function Sidebar({
   const focusMode = useFocusMode();
 
   return (
-    <nav className="relative z-[70] flex h-full w-[52px] shrink-0 flex-col items-center gap-3 border-r border-border-subtle bg-bg-panel py-3">
-      {/* App logo */}
-      <Tip label="ImageLab" side="right">
-        <button
-          type="button"
-          aria-label="ImageLab"
-          className="inline-flex h-9 w-9 items-center justify-center rounded-lg outline-none"
-        >
-          <Logo size={28} className="shrink-0 drop-shadow-[0_0_8px_rgba(47,107,98,0.5)]" />
-        </button>
-      </Tip>
+    <nav
+      className="relative z-[70] flex h-full w-[56px] shrink-0 flex-col items-center"
+      style={{
+        background: 'var(--mantine-color-dark-6)',
+        borderRight: '1px solid var(--mantine-color-dark-4)',
+      }}
+    >
+      <Stack gap="xs" p="xs" align="center" className="h-full w-full">
+        <Tooltip label="ImageLab" position="right" withArrow>
+          <ActionIcon size="lg" variant="transparent" aria-label="ImageLab">
+            <Logo size={28} className="shrink-0" />
+          </ActionIcon>
+        </Tooltip>
 
-      {/* Primary views */}
-      <div className="mt-1 flex w-full flex-col items-center gap-1.5 border-t border-border-subtle pt-3">
-        <ViewButton
-          view="generate"
-          current={mainView}
-          onSelect={setMainView}
-          label="Generate"
-          icon={<GenerateIcon size={16} />}
-        />
-        <ViewButton
-          view="canvas"
-          current={mainView}
-          onSelect={setMainView}
-          label="Infinite canvas"
-          icon={<InfiniteViewIcon size={16} />}
-        />
-        <ViewButton
-          view="collections"
-          current={mainView}
-          onSelect={setMainView}
-          label="Collections"
-          icon={<CollectionsIcon size={16} />}
-        />
-        <ViewButton
-          view="browser"
-          current={mainView}
-          onSelect={setMainView}
-          label="Browse models"
-          icon={<ModelBrowserIcon size={16} />}
-        />
-        <ViewButton
-          view="studio"
-          current={mainView}
-          onSelect={setMainView}
-          label="Studio"
-          icon={<SparkleIcon size={16} />}
-        />
-      </div>
+        <Divider w="100%" />
 
-      {/* One ComfyUI button per server — each is a view switcher
-          (mainView='comfy' + the server's id). Active treatment when this
-          server's ComfyUI is the current view. */}
-      {servers.length > 0 && !focusMode && (
-        <div className="mt-1 flex w-full flex-col items-center gap-1.5 border-t border-border-subtle pt-3">
-          {servers.map((s, i) => {
-            const active = mainView === 'comfy' && comfyServerId === s.id;
-            return (
-              <ActiveRail key={s.id} active={active}>
-                <Tip label={`ComfyUI — ${s.name} (${s.host})`} side="right">
-                  <IconButton
-                    aria-label={`Open ComfyUI for ${s.name}`}
-                    aria-current={active ? 'page' : undefined}
-                    state={active ? 'on' : 'off'}
-                    onClick={() => openComfyServer(s.id)}
-                    className="relative"
-                  >
-                    <ComfyIcon size={15} />
-                    <span className="pointer-events-none absolute -bottom-0.5 -right-0.5 flex h-3.5 min-w-[14px] items-center justify-center rounded-full bg-accent px-0.5 text-[8px] font-bold leading-none text-white">
-                      {i + 1}
-                    </span>
-                  </IconButton>
-                </Tip>
-              </ActiveRail>
-            );
-          })}
-        </div>
-      )}
+        <ViewButton view="generate" current={mainView} onSelect={setMainView} label="Generate" icon={<IconPalette size="1.2rem" />} />
+        <ViewButton view="canvas" current={mainView} onSelect={setMainView} label="Infinite canvas" icon={<IconInfinity size="1.2rem" />} />
+        <ViewButton view="collections" current={mainView} onSelect={setMainView} label="Collections" icon={<IconFolders size="1.2rem" />} />
+        <ViewButton view="browser" current={mainView} onSelect={setMainView} label="Browse models" icon={<IconBoxModel size="1.2rem" />} />
+        <ViewButton view="studio" current={mainView} onSelect={setMainView} label="Studio" icon={<IconWand size="1.2rem" />} />
 
-      <div className="flex-1" />
+        {/* One ComfyUI button per server — each is a view switcher (mainView='comfy' + the
+            server's id), numbered so two servers can be told apart. */}
+        {servers.length > 0 && !focusMode && (
+          <>
+            <Divider w="100%" />
+            {servers.map((s, i) => {
+              const active = mainView === 'comfy' && comfyServerId === s.id;
+              return (
+                <Tooltip key={s.id} label={`ComfyUI — ${s.name} (${s.host})`} position="right" withArrow>
+                  <Indicator label={i + 1} size={14} offset={4} position="bottom-end" fz={8} fw={700}>
+                    <ActionIcon
+                      size="lg"
+                      variant={active ? 'filled' : 'subtle'}
+                      aria-label={`Open ComfyUI for ${s.name}`}
+                      aria-current={active ? 'page' : undefined}
+                      onClick={() => openComfyServer(s.id)}
+                    >
+                      <ComfyIcon size={16} />
+                    </ActionIcon>
+                  </Indicator>
+                </Tooltip>
+              );
+            })}
+          </>
+        )}
 
-      <Tip label="Settings" side="right">
-        <IconButton aria-label="Settings" onClick={onOpenSettings}>
-          <SettingsIcon size={15} />
-        </IconButton>
-      </Tip>
+        <div className="flex-1" />
+
+        <Tooltip label="Settings" position="right" withArrow>
+          <ActionIcon size="lg" variant="subtle" aria-label="Settings" onClick={onOpenSettings}>
+            <IconSettings size="1.2rem" />
+          </ActionIcon>
+        </Tooltip>
+      </Stack>
     </nav>
   );
 }
@@ -153,32 +120,16 @@ function ViewButton({
 }) {
   const active = current === view;
   return (
-    <ActiveRail active={active}>
-      <Tip label={label} side="right">
-        <IconButton
-          aria-label={label}
-          aria-current={active ? 'page' : undefined}
-          state={active ? 'on' : 'off'}
-          onClick={() => onSelect(view)}
-        >
-          {icon}
-        </IconButton>
-      </Tip>
-    </ActiveRail>
-  );
-}
-
-/** Adds a 3px accent bar pinned to the rail's left edge for the active
- *  button — same idea as VS Code's activity bar. Pairs with the IconButton's
- *  on-state fill so the active item reads at a glance. */
-function ActiveRail({ active, children }: { active: boolean; children: React.ReactNode }) {
-  return (
-    <div className="relative flex w-full items-center justify-center">
-      <span
-        aria-hidden
-        className={`pointer-events-none absolute left-0 h-7 w-[3px] rounded-r-full bg-accent transition-opacity duration-150 ${active ? 'opacity-100' : 'opacity-0'}`}
-      />
-      {children}
-    </div>
+    <Tooltip label={label} position="right" withArrow>
+      <ActionIcon
+        size="lg"
+        variant={active ? 'filled' : 'subtle'}
+        aria-label={label}
+        aria-current={active ? 'page' : undefined}
+        onClick={() => onSelect(view)}
+      >
+        {icon}
+      </ActionIcon>
+    </Tooltip>
   );
 }

@@ -4,7 +4,8 @@ import { serversWithModel } from '@/lib/routing';
 import { type CivitaiModelVersion, formatFileSize, primaryFile } from './civitai';
 import { Section } from './Section';
 import { useModelMetadataStore } from './store';
-import { CheckIcon, FileIcon } from '@/components/ui/icons';
+import { Badge, Group, Paper, Stack, Text } from '@mantine/core';
+import { IconCheck, IconFile } from '@tabler/icons-react';
 
 /**
  * Primary file: name, size / format / precision, AutoV2 hash, scan status, and
@@ -35,50 +36,40 @@ export function FileDetails({ version }: { version: CivitaiModelVersion }) {
 
   return (
     <Section label="File">
-      <div className="flex flex-col gap-2 rounded-lg border border-border-default bg-bg-card p-3">
-        <div className="flex items-center gap-2">
-          <span className="text-fg-muted"><FileIcon size={14} /></span>
-          <span className="truncate text-[12px] font-medium text-fg-secondary">{file.name}</span>
-        </div>
-        <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-fg-muted">
-          {bits.map((b, i) => (
-            <span key={b} className="flex items-center gap-1.5">
-              {i > 0 && <span className="text-fg-faint">·</span>}
-              {b}
-            </span>
-          ))}
-        </div>
-        {hash && (
-          <div className="flex items-center gap-2">
-            <span className="text-[9px] font-semibold uppercase tracking-tag text-fg-dim">AutoV2</span>
-            <span className="text-[11px] text-fg-tertiary">{hash}</span>
-            {scanned && (
-              <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-vae-soft px-2 py-0.5 text-[10px] font-medium text-vae-fg">
-                <CheckIcon size={11} /> Scanned
-              </span>
-            )}
-          </div>
-        )}
-        {fileName && (
-          <div className="flex items-center gap-2 border-t border-border-subtle pt-2">
-            <span className="text-[9px] font-semibold uppercase tracking-tag text-fg-dim">Servers</span>
-            {hostNames.length > 0 ? (
-              <span className="flex flex-wrap gap-1">
-                {hostNames.map((n) => (
-                  <span
-                    key={n}
-                    className="rounded bg-bg-elev px-1.5 py-0.5 text-[10px] font-medium text-fg-tertiary"
-                  >
-                    {n}
-                  </span>
-                ))}
-              </span>
-            ) : (
-              <span className="text-[11px] text-fg-muted">Not on any connected server</span>
-            )}
-          </div>
-        )}
-      </div>
+      <Paper withBorder p="sm" radius="sm">
+        <Stack gap={8}>
+          <Group gap="xs" wrap="nowrap">
+            <IconFile size={14} className="shrink-0 text-[var(--mantine-color-dimmed)]" />
+            <Text size="xs" fw={500} truncate>{file.name}</Text>
+          </Group>
+          <Text size="xs" c="dimmed">{bits.join(' · ')}</Text>
+          {hash && (
+            <Group gap="xs" wrap="nowrap">
+              <Text size="10px" fw={600} c="dimmed" tt="uppercase">AutoV2</Text>
+              <Text size="xs" ff="monospace">{hash}</Text>
+              {scanned && (
+                <Badge size="xs" variant="light" color="green" ml="auto" leftSection={<IconCheck size={10} />}>
+                  Scanned
+                </Badge>
+              )}
+            </Group>
+          )}
+          {fileName && (
+            <Group gap="xs" pt={8} style={{ borderTop: '1px solid var(--mantine-color-dark-4)' }}>
+              <Text size="10px" fw={600} c="dimmed" tt="uppercase">Servers</Text>
+              {hostNames.length > 0 ? (
+                <Group gap={4}>
+                  {hostNames.map((n) => (
+                    <Badge key={n} size="xs" variant="default" tt="none">{n}</Badge>
+                  ))}
+                </Group>
+              ) : (
+                <Text size="xs" c="dimmed">Not on any connected server</Text>
+              )}
+            </Group>
+          )}
+        </Stack>
+      </Paper>
     </Section>
   );
 }

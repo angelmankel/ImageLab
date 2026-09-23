@@ -1,4 +1,5 @@
 import { type CivitaiModelVersion, stripHtml } from './civitai';
+import { Text } from '@mantine/core';
 import { Section } from './Section';
 
 /**
@@ -10,9 +11,9 @@ export function VersionNotes({ version }: { version: CivitaiModelVersion }) {
   if (!notes) return null;
   return (
     <Section label="Version notes">
-      <p className="line-clamp-6 whitespace-pre-line text-[12px] leading-relaxed text-fg-tertiary">
+      <Text size="xs" c="dimmed" lineClamp={6} className="whitespace-pre-line leading-relaxed">
         {notes}
-      </p>
+      </Text>
     </Section>
   );
 }

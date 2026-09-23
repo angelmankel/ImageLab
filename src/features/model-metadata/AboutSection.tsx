@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, useState } from 'react';
+import { Anchor } from '@mantine/core';
 import { Section } from './Section';
 import { stripHtml } from './civitai';
 
@@ -37,20 +38,16 @@ export function AboutSection({ description }: { description: string }) {
     <Section label="About">
       <p
         ref={ref}
-        className={`whitespace-pre-line text-[12px] leading-relaxed text-fg-tertiary ${
+        className={`whitespace-pre-line text-[12px] leading-relaxed text-[var(--mantine-color-dimmed)] ${
           expanded ? '' : 'line-clamp-6'
         }`}
       >
         {text}
       </p>
       {overflows && (
-        <button
-          type="button"
-          onClick={() => setExpanded((v) => !v)}
-          className="self-start text-[11px] font-medium text-accent-fg hover:underline"
-        >
+        <Anchor component="button" type="button" size="xs" onClick={() => setExpanded((v) => !v)} className="self-start">
           {expanded ? 'Hide' : 'Show more'}
-        </button>
+        </Anchor>
       )}
     </Section>
   );

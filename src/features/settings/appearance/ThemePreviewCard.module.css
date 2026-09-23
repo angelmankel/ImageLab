@@ -1,0 +1,105 @@
+.previewCard {
+  padding: var(--mantine-spacing-sm);
+  border-radius: var(--mantine-radius-md);
+  border: 2px solid var(--mantine-color-dark-4);
+  background-color: var(--mantine-color-dark-6);
+  transition: all 150ms ease;
+  cursor: pointer;
+}
+
+.previewCard:hover {
+  border-color: var(--mantine-color-dark-3);
+  background-color: var(--mantine-color-dark-5);
+  transform: translateY(-2px);
+}
+
+.previewCard[data-selected="true"] {
+  border-color: var(--mantine-primary-color-filled);
+  background-color: color-mix(
+    in srgb,
+    var(--mantine-primary-color-filled) 10%,
+    var(--mantine-color-dark-6)
+  );
+}
+
+.previewCard[data-selected="true"]:hover {
+  border-color: var(--mantine-primary-color-filled);
+  background-color: color-mix(
+    in srgb,
+    var(--mantine-primary-color-filled) 15%,
+    var(--mantine-color-dark-5)
+  );
+}
+
+.mockup {
+  height: 120px;
+  border-radius: var(--mantine-radius-sm);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.mockupHeader {
+  height: 14px;
+  display: flex;
+  align-items: center;
+  padding: 0 6px;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.mockupHeaderDot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  opacity: 0.5;
+}
+
+.mockupBody {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+.mockupSidebar {
+  width: 22px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 6px;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.mockupSidebarDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  opacity: 0.4;
+}
+
+.mockupContent {
+  flex: 1;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mockupCard {
+  height: 22px;
+  border-radius: 2px;
+  opacity: 0.6;
+}
+
+.mockupButton {
+  width: 40px;
+  height: 12px;
+  border-radius: 2px;
+  margin-top: auto;
+}
+
+.mockupFooter {
+  height: 10px;
+  flex-shrink: 0;
+}

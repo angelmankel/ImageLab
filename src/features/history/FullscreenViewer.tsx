@@ -1,4 +1,8 @@
 import { useMemo } from 'react';
+import { ActionIcon, Tooltip } from '@mantine/core';
+import { IconBroadcast, IconBroadcastOff } from '@tabler/icons-react';
+import { useCanvasStore } from '@/lib/canvasStore';
+import { useViewerPrefs } from './viewerPrefs';
 import { viewUrl } from '@/lib/comfy';
 import { useStore } from '@/lib/store';
 import { FullscreenImage, type FullscreenItem } from '@/components/FullscreenImage';
@@ -19,6 +23,9 @@ type Props = {
  */
 export function FullscreenViewer({ list, index, onIndexChange, onClose }: Props) {
   const servers = useStore(s => s.servers);
+  const liveUrl = useLiveFrame();
+  const livePreview = useViewerPrefs(s => s.livePreview);
+  const setLivePreview = useViewerPrefs(s => s.setLivePreview);
   const viewerInfoOpen = useStore(s => s.viewerInfoOpen);
   const playing = useStore(s => s.slideshowPlaying);
   const setPlaying = useStore(s => s.setSlideshowPlaying);
@@ -31,7 +38,9 @@ export function FullscreenViewer({ list, index, onIndexChange, onClose }: Props)
   [list, servers]);
 
   const entry = list[index];
-  if (!entry) return null;
+  const showLive = livePreview && !!liveUrl;
+  // Nothing finished yet and no frame to show: nothing to open.
+  if (!entry && !showLive) return null;
 
   return (
     <FullscreenImage
@@ -42,7 +51,29 @@ export function FullscreenViewer({ list, index, onIndexChange, onClose }: Props)
       playing={playing}
       onPlayingChange={setPlaying}
       initialInfoOpen={viewerInfoOpen}
-      infoSlot={<EntryInfo entry={entry} serverName={servers.find(s => s.id === entry.serverId)?.name || '—'} />}
+      infoSlot={entry && !showLive ? <EntryInfo entry={entry} serverName={servers.find(s => s.id === entry.serverId)?.name || '—'} /> : undefined}
+      liveUrl={showLive ? liveUrl : null}
+      toolbarExtra={
+        <Tooltip label={livePreview ? 'Live preview on — showing frames while a job runs' : 'Live preview off'} withArrow>
+          <ActionIcon
+            variant="filled"
+            color={livePreview ? undefined : 'dark'}
+            size="lg"
+            radius="md"
+            style={{ opacity: 0.8 }}
+            aria-label="Live preview"
+            aria-pressed={livePreview}
+            onClick={(e) => {
+              e.stopPropagation();
+              setLivePreview(!livePreview);
+              // Opened on a frame with nothing finished yet: turning live off leaves nothing to show.
+              if (livePreview && !entry) onClose();
+            }}
+          >
+            {livePreview ? <IconBroadcast size="1.2rem" /> : <IconBroadcastOff size="1.2rem" />}
+          </ActionIcon>
+        </Tooltip>
+      }
     />
   );
 }
@@ -75,4 +106,14 @@ function Meta({ label, value, mono, block }: { label: string; value: string; mon
       </dd>
     </div>
   );
+}
+
+/**
+ * The newest live preview frame, if a job is streaming one: the running job's server first, else
+ * any server with a frame (several can run at once; the viewer shows one).
+ */
+export function useLiveFrame(): string | null {
+  const livePreviews = useCanvasStore(s => s.livePreviews);
+  const runningServer = useStore(s => s.jobs.find(j => j.status === 'running')?.serverId);
+  return (runningServer && livePreviews[runningServer]) || Object.values(livePreviews).find(Boolean) || null;
 }

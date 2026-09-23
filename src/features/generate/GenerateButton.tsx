@@ -9,7 +9,6 @@ import type { InpaintSource } from '@/lib/comfy';
 import type { CanvasLayer } from '@/lib/types';
 import { missingResources } from '@/lib/routing';
 import type { Job, WorkflowState } from '@/lib/types';
-import { cn } from '@/lib/cn';
 
 /** Denoise threshold at which `'auto'` variant flips to destructive (uses
  *  `VAEEncodeForInpaint` and forces denoise to 1.0). Below it, auto picks
@@ -33,10 +32,9 @@ async function resolveLayerSourceBlob(layer: CanvasLayer): Promise<Blob | null> 
   }
 }
 
-import {
-  GenerateIcon, KeyboardCommandIcon, KeyboardEnterIcon, DiceIcon,
-} from '@/components/ui/icons';
-import { RoutingPicker } from './RoutingPicker';
+import { ActionIcon, Button, Group, Tooltip } from '@mantine/core';
+import { IconDice, IconPlayerPlay } from '@tabler/icons-react';
+import { playSubmitSound } from '@/lib/sounds';
 
 /**
  * Queue a job. Resolves the routing target, blocks if any model the workflow
@@ -352,6 +350,7 @@ async function queueFromStore(newSeed: boolean) {
     createdAt: Date.now(),
   };
   useStore.getState().addJob(job);
+  playSubmitSound();
   const targetLabel = liveLayer ? `Layer "${liveLayer.name}"` : target.name;
   const clampSuffix = res.clampNotes.length ? ` · ${res.clampNotes.join(' · ')}` : '';
   setStatus(`Queued on ${target.name} → ${targetLabel} (#${res.promptId.slice(0, 6)})${clampSuffix}`, 'busy');
@@ -380,45 +379,32 @@ export function GenerateButton() {
   const submitting = useStore(s => s.isSubmitting);
   const disabled = submitting || mainView === 'canvas' && !activeLayer;
 
+  const title = disabled && !submitting ? 'Select a canvas layer to generate'
+    : activeLayer ? `Generate into "${activeLayer.name}" (⌘/Ctrl + Enter)` : 'Generate (⌘/Ctrl + Enter)';
+
+  // v1's footer pair: a full-width Generate button, and a dice button that rolls a fresh seed
+  // and generates in one go. Which server runs it is picked in the bar above the canvas.
   return (
-    <div className="btn-glow flex w-full overflow-hidden rounded-xl">
-      <button
-        type="button"
-        onClick={() => { void fireFromStore(); }}
-        disabled={disabled}
-        title={disabled ? 'Select a canvas layer to generate' : undefined}
-        className={cn(
-          'flex min-w-0 flex-1 items-center justify-between gap-2 px-4 py-3.5 font-semibold text-white transition-colors',
-          disabled
-            ? 'cursor-not-allowed bg-bg-elev text-fg-dim'
-            : 'bg-accent hover:bg-accent-hover',
-        )}
-      >
-        <span className="flex items-center gap-2">
-          <GenerateIcon size={15} />
-          <span className="text-[13px]">Generate</span>
-          {activeLayer && !disabled && (
-            <span
-              className="rounded bg-white/15 px-1.5 py-0.5 text-[10px] font-medium"
-              title={`Generation will stamp into "${activeLayer.name}" — its bounds drive the output size.`}
-            >
-              → {activeLayer.name}
-            </span>
-          )}
-        </span>
-        {!disabled && (
-          <span className="hidden items-center gap-1 rounded bg-white/15 xl:flex px-1.5 py-0.5">
-            <KeyboardCommandIcon size={12} />
-            <KeyboardEnterIcon size={12} />
-          </span>
-        )}
-      </button>
-      <button type="button" onClick={() => { void fireFromStore(true); }} disabled={disabled}
-        title="Generate with fresh seeds for this run" aria-label="Generate with new seed"
-        className="flex shrink-0 flex-col items-center justify-center gap-1 border-l border-white/20 bg-accent px-3 text-white hover:bg-accent-hover disabled:opacity-40">
-        <DiceIcon size={17} /><span className="text-[10px] font-semibold">New seed</span>
-      </button>
-      <RoutingPicker variant="lg" align="end" />
-    </div>
+    <Group gap="xs" wrap="nowrap" w="100%">
+      <Tooltip label={title} position="top" openDelay={600}>
+        <Button
+          leftSection={<IconPlayerPlay size="1rem" />}
+          variant="filled"
+          size="sm"
+          fullWidth
+          loading={submitting}
+          disabled={disabled && !submitting}
+          onClick={() => { void fireFromStore(); }}
+          styles={{ label: { overflow: 'hidden', textOverflow: 'ellipsis' } }}
+        >
+          {activeLayer && mainView === 'canvas' ? `Generate → ${activeLayer.name}` : 'Generate'}
+        </Button>
+      </Tooltip>
+      <Tooltip label="Randomize seed & generate" position="top">
+        <ActionIcon variant="filled" size="lg" onClick={() => { void fireFromStore(true); }} disabled={disabled} aria-label="Randomize seed and generate">
+          <IconDice size="1.1rem" />
+        </ActionIcon>
+      </Tooltip>
+    </Group>
   );
 }

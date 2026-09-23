@@ -1,7 +1,7 @@
-import { cn } from '@/lib/cn';
+import { Badge, Group } from '@mantine/core';
+import { IconCheck, IconX } from '@tabler/icons-react';
 import type { CivitaiModel } from './civitai';
 import { Section } from './Section';
-import { CheckIcon, CloseIcon } from '@/components/ui/icons';
 
 /** Civitai license flags rendered as allowed/denied chips. */
 export function LicenseChips({ model }: { model: CivitaiModel }) {
@@ -17,19 +17,20 @@ export function LicenseChips({ model }: { model: CivitaiModel }) {
   ];
   return (
     <Section label="License">
-      <div className="flex flex-wrap gap-1.5">
+      <Group gap={6}>
         {perms.map((p) => (
-          <span
+          <Badge
             key={p.label}
-            className={cn(
-              'flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium',
-              p.allowed ? 'bg-vae-soft text-vae-fg' : 'bg-coral-bg text-coral-fg',
-            )}
+            size="sm"
+            variant="light"
+            color={p.allowed ? 'green' : 'red'}
+            tt="none"
+            leftSection={p.allowed ? <IconCheck size={12} /> : <IconX size={12} />}
           >
-            {p.allowed ? <CheckIcon size={12} /> : <CloseIcon size={12} />} {p.label}
-          </span>
+            {p.label}
+          </Badge>
         ))}
-      </div>
+      </Group>
     </Section>
   );
 }

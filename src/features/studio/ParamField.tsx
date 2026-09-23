@@ -10,8 +10,8 @@
 import { Select } from '@/components/ui/Select';
 import { Slider } from '@/components/ui/Slider';
 import { Switch } from '@/components/ui/Switch';
-import { IconButton } from '@/components/ui/IconButton';
-import { ResetIcon } from '@/components/ui/icons';
+import { ActionIcon, Button, Group, Text, Textarea, TextInput, Tooltip } from '@mantine/core';
+import { IconArrowBackUp, IconDice5 } from '@tabler/icons-react';
 import { cn } from '@/lib/cn';
 import { paramLabel, randomSeed, type WorkflowParam } from './params';
 
@@ -33,23 +33,23 @@ export function ParamField({ param, value, onChange, onReset, large }: Props) {
 
   return (
     <div className={cn('flex flex-col gap-1.5', large ? 'py-2' : 'py-1')}>
-      <div className="flex items-baseline justify-between gap-2">
-        <span className={cn('truncate font-medium text-fg-secondary', large ? 'text-[14px]' : 'text-[12px]')}>
-          {label}
-        </span>
-        <div className="flex shrink-0 items-center gap-1">
+      <Group justify="space-between" gap="xs" wrap="nowrap" mih={22}>
+        <Text size={large ? 'sm' : 'xs'} fw={500} truncate>{label}</Text>
+        <Group gap={4} wrap="nowrap" className="shrink-0">
           {(param.type === 'INT' || param.type === 'FLOAT') && (
-            <span className={cn('tabular-nums text-fg-primary', large ? 'text-[14px]' : 'text-[12px]')}>
+            <Text size={large ? 'sm' : 'xs'} className="tabular-nums">
               {formatNumber(value, param)}
-            </span>
+            </Text>
           )}
           {changed && onReset && (
-            <IconButton aria-label={`Reset ${label}`} title="Back to the value saved in ComfyUI" onClick={onReset}>
-              <ResetIcon size={13} />
-            </IconButton>
+            <Tooltip label="Back to the value saved in ComfyUI" withArrow>
+              <ActionIcon size="sm" variant="subtle" color="gray" aria-label={`Reset ${label}`} onClick={onReset}>
+                <IconArrowBackUp size={14} />
+              </ActionIcon>
+            </Tooltip>
           )}
-        </div>
-      </div>
+        </Group>
+      </Group>
       <Control param={param} value={value} onChange={onChange} large={large} />
     </div>
   );
@@ -69,7 +69,7 @@ function Control({ param, value, onChange, large }: Omit<Props, 'onReset'>) {
       if (!options.length) {
         // A combo whose list is empty means the server has nothing to offer — no checkpoints
         // installed, say. Saying so beats an empty dropdown that looks broken.
-        return <p className="text-[12px] text-fg-muted">Nothing installed for this input.</p>;
+        return <Text size="xs" c="dimmed">Nothing installed for this input.</Text>;
       }
       return (
         <Select
@@ -84,27 +84,20 @@ function Control({ param, value, onChange, large }: Omit<Props, 'onReset'>) {
 
     case 'STRING':
       return param.multiline ? (
-        <textarea
+        <Textarea
           value={String(value ?? '')}
-          onChange={e => onChange(e.target.value)}
+          onChange={e => onChange(e.currentTarget.value)}
           rows={large ? 4 : 3}
+          size={large ? 'md' : 'sm'}
           aria-label={paramLabel(param)}
-          className={cn(
-            'scroll-y w-full resize-y rounded-lg border border-border-subtle bg-bg-base px-3 py-2.5',
-            'text-fg-primary outline-none placeholder:text-fg-muted focus:border-accent',
-            large ? 'text-[15px]' : 'text-[13px]',
-          )}
+          classNames={{ input: 'scroll-y !resize-y' }}
         />
       ) : (
-        <input
+        <TextInput
           value={String(value ?? '')}
-          onChange={e => onChange(e.target.value)}
+          onChange={e => onChange(e.currentTarget.value)}
+          size={large ? 'lg' : 'sm'}
           aria-label={paramLabel(param)}
-          className={cn(
-            'h-11 w-full rounded-lg border border-border-subtle bg-bg-base px-3',
-            'text-fg-primary outline-none focus:border-accent',
-            large ? 'text-[15px]' : 'text-[13px]',
-          )}
         />
       );
 
@@ -114,22 +107,26 @@ function Control({ param, value, onChange, large }: Omit<Props, 'onReset'>) {
       // number box and a dice instead.
       if (param.seedLike) {
         return (
-          <div className="flex items-center gap-2">
-            <input
+          <Group gap="xs" wrap="nowrap">
+            <TextInput
               inputMode="numeric"
               value={String(value ?? 0)}
-              onChange={e => onChange(Number(e.target.value.replace(/[^0-9]/g, '')) || 0)}
+              onChange={e => onChange(Number(e.currentTarget.value.replace(/[^0-9]/g, '')) || 0)}
               aria-label={paramLabel(param)}
-              className="h-11 min-w-0 flex-1 rounded-lg border border-border-subtle bg-bg-base px-3 font-mono text-[13px] text-fg-primary outline-none focus:border-accent"
+              size={large ? 'lg' : 'sm'}
+              ff="monospace"
+              className="min-w-0 flex-1"
             />
-            <button
-              type="button"
+            <Button
+              variant="default"
+              size={large ? 'lg' : 'sm'}
+              leftSection={<IconDice5 size={16} />}
               onClick={() => onChange(randomSeed())}
-              className="h-11 shrink-0 rounded-lg border border-border-subtle bg-bg-panel px-3 text-[13px] text-fg-secondary"
+              className="shrink-0"
             >
               Roll
-            </button>
-          </div>
+            </Button>
+          </Group>
         );
       }
       const { min, max, step } = sliderRange(param);
@@ -149,7 +146,7 @@ function Control({ param, value, onChange, large }: Omit<Props, 'onReset'>) {
     }
 
     default:
-      return <p className="text-[12px] text-fg-muted">{String(value ?? '')}</p>;
+      return <Text size="xs" c="dimmed">{String(value ?? '')}</Text>;
   }
 }
 

@@ -1,4 +1,6 @@
 import type { Layer, Snippet, SnippetCategory, HistoryEntry, WorkflowState, Collection, ImportedImage } from './types';
+import { DEFAULT_CLIP_SKIP } from './pipeline';
+import { LIBRARY_CATEGORIES, SNIPPET_LIBRARY_VERSION, librarySnippets } from './snippetLibrary';
 
 // ---------------------------------------------------------------------------
 // Storage keys
@@ -335,6 +337,7 @@ export function defaultWorkflow(): WorkflowState {
     cfg: 8.6,
     sampler: 'euler_ancestral',
     scheduler: 'normal',
+    clipSkip: DEFAULT_CLIP_SKIP,
     denoise: 1.0,
     width: 1024,
     height: 1024,
@@ -377,89 +380,28 @@ export const DEFAULT_CATEGORY_ID = 'uncategorized';
 export const CIVITAI_CATEGORY_ID = 'civitai';
 
 export function defaultSnippetCategories(): SnippetCategory[] {
-  return [
-    { id: 'subject',      name: 'Subject',      icon: '🧍' },
-    { id: 'lighting',     name: 'Lighting',     icon: '💡' },
-    { id: 'color',        name: 'Color',        icon: '🎨' },
-    { id: 'style',        name: 'Style',        icon: '✨' },
-    { id: 'camera',       name: 'Camera',       icon: '📷' },
-    { id: 'composition',  name: 'Composition',  icon: '🖼️' },
-    { id: 'mood',         name: 'Mood',         icon: '🌙' },
-    { id: 'quality',      name: 'Quality',      icon: '⭐' },
-    { id: 'neg-common',   name: 'Negative · Common',  icon: '🚫' },
-    { id: 'neg-anatomy',  name: 'Negative · Anatomy', icon: '🦴' },
-    { id: 'neg-style',    name: 'Negative · Style',   icon: '⛔' },
-    { id: DEFAULT_CATEGORY_ID, name: 'Uncategorized', icon: '📁' },
-  ];
+  return LIBRARY_CATEGORIES.map(c => ({ ...c }));
 }
 
-/** Solid starter library — keep small but covers the common iteration loops. */
 export function defaultSnippets(): Snippet[] {
-  type Seed = Omit<Snippet, 'id'>;
-  const seeds: Seed[] = [
-    // — Lighting (positive)
-    { name: 'Cinematic light',  tag: 'Light', text: 'cinematic lighting, dramatic shadows, volumetric light', weight: 0.95, kind: 'positive', categoryId: 'lighting' },
-    { name: 'Golden hour',      tag: 'Light', text: 'golden hour, warm sunlight, long shadows',               weight: 0.9,  kind: 'positive', categoryId: 'lighting' },
-    { name: 'Soft studio',      tag: 'Light', text: 'soft diffused studio lighting, softbox, even fill',      weight: 0.85, kind: 'positive', categoryId: 'lighting' },
-    { name: 'Rim light',        tag: 'Light', text: 'rim lighting, back-lit, glowing edges',                  weight: 0.9,  kind: 'positive', categoryId: 'lighting' },
-    { name: 'Neon noir',        tag: 'Light', text: 'neon lights, cyberpunk glow, magenta and cyan rim light',weight: 0.95, kind: 'positive', categoryId: 'lighting' },
-    { name: 'Moonlit',          tag: 'Light', text: 'moonlight, cool blue tones, soft ambient',               weight: 0.85, kind: 'positive', categoryId: 'lighting' },
+  return librarySnippets();
+}
 
-    // — Color
-    { name: 'Vibrant palette',  tag: 'Color', text: 'vibrant saturated colors, bold contrast',                weight: 0.9,  kind: 'positive', categoryId: 'color' },
-    { name: 'Muted earth',      tag: 'Color', text: 'muted earth tones, ochre, sepia, desaturated',           weight: 0.9,  kind: 'positive', categoryId: 'color' },
-    { name: 'Monochrome',       tag: 'Color', text: 'black and white, monochrome, high contrast',             weight: 1.0,  kind: 'positive', categoryId: 'color' },
-    { name: 'Teal & orange',    tag: 'Color', text: 'teal and orange color grade, complementary palette',     weight: 0.9,  kind: 'positive', categoryId: 'color' },
-    { name: 'Pastel',           tag: 'Color', text: 'pastel palette, soft hues, low saturation',              weight: 0.85, kind: 'positive', categoryId: 'color' },
-
-    // — Style
-    { name: 'Photorealistic',   tag: 'Style', text: 'photorealistic, hyper detailed, sharp focus',            weight: 1.0,  kind: 'positive', categoryId: 'style' },
-    { name: 'Anime',            tag: 'Style', text: 'anime style, cel shaded, line art, vibrant',             weight: 1.0,  kind: 'positive', categoryId: 'style' },
-    { name: 'Watercolor',       tag: 'Style', text: 'watercolor painting, soft edges, paper texture',         weight: 0.95, kind: 'positive', categoryId: 'style' },
-    { name: 'Oil painting',     tag: 'Style', text: 'oil painting, thick brush strokes, painterly',           weight: 0.95, kind: 'positive', categoryId: 'style' },
-    { name: 'Concept art',      tag: 'Style', text: 'digital concept art, matte painting, trending on artstation', weight: 0.9, kind: 'positive', categoryId: 'style' },
-    { name: '3D render',        tag: 'Style', text: 'octane render, unreal engine, ray traced, 3d render',    weight: 0.95, kind: 'positive', categoryId: 'style' },
-    { name: 'Pixel art',        tag: 'Style', text: 'pixel art, 16-bit, retro game sprite, dithering',        weight: 1.0,  kind: 'positive', categoryId: 'style' },
-
-    // — Camera
-    { name: 'Kodak Portra 400', tag: 'Cam',   text: 'kodak portra 400, 35mm, shallow depth of field, film grain', weight: 0.9, kind: 'positive', categoryId: 'camera' },
-    { name: '85mm portrait',    tag: 'Cam',   text: '85mm lens, portrait, bokeh, shallow depth of field',     weight: 0.85, kind: 'positive', categoryId: 'camera' },
-    { name: 'Wide angle',       tag: 'Cam',   text: '24mm wide angle, deep depth of field, expansive view',   weight: 0.85, kind: 'positive', categoryId: 'camera' },
-    { name: 'Macro',            tag: 'Cam',   text: 'macro photography, extreme close-up, high detail',       weight: 0.9,  kind: 'positive', categoryId: 'camera' },
-    { name: 'Drone shot',       tag: 'Cam',   text: 'aerial drone shot, top-down view',                       weight: 0.9,  kind: 'positive', categoryId: 'camera' },
-
-    // — Composition
-    { name: 'Rule of thirds',   tag: 'Comp',  text: 'rule of thirds composition, dynamic framing',            weight: 0.8,  kind: 'positive', categoryId: 'composition' },
-    { name: 'Symmetry',         tag: 'Comp',  text: 'symmetrical composition, centered, balanced',            weight: 0.85, kind: 'positive', categoryId: 'composition' },
-    { name: 'Low angle',        tag: 'Comp',  text: 'low angle shot, looking up, heroic perspective',         weight: 0.9,  kind: 'positive', categoryId: 'composition' },
-    { name: 'Negative space',   tag: 'Comp',  text: 'lots of negative space, minimalist, isolated subject',   weight: 0.85, kind: 'positive', categoryId: 'composition' },
-
-    // — Mood
-    { name: 'Moody / dramatic', tag: 'Mood',  text: 'moody, dramatic, brooding atmosphere',                   weight: 0.9,  kind: 'positive', categoryId: 'mood' },
-    { name: 'Dreamy',           tag: 'Mood',  text: 'dreamy, ethereal, soft focus, hazy',                     weight: 0.85, kind: 'positive', categoryId: 'mood' },
-    { name: 'Surreal',          tag: 'Mood',  text: 'surreal, dreamlike, impossible geometry',                weight: 0.9,  kind: 'positive', categoryId: 'mood' },
-    { name: 'Cozy',             tag: 'Mood',  text: 'cozy, warm, inviting, comfortable',                      weight: 0.85, kind: 'positive', categoryId: 'mood' },
-
-    // — Quality boosters
-    { name: 'Masterpiece',      tag: 'Q',     text: 'masterpiece, best quality, highly detailed',             weight: 1.1,  kind: 'positive', categoryId: 'quality' },
-    { name: 'Ultra sharp',      tag: 'Q',     text: 'ultra sharp, intricate detail, 8k, crisp',               weight: 1.0,  kind: 'positive', categoryId: 'quality' },
-    { name: 'Award-winning',    tag: 'Q',     text: 'award-winning photograph, professional',                 weight: 0.9,  kind: 'positive', categoryId: 'quality' },
-
-    // — Negative · Common
-    { name: 'Common bad',       tag: 'Bad',   text: 'blurry, low quality, jpeg artifacts, watermark, text',   weight: 1.0,  kind: 'negative', categoryId: 'neg-common' },
-    { name: 'Low-res',          tag: 'Bad',   text: 'low resolution, pixelated, compression artifacts',       weight: 1.0,  kind: 'negative', categoryId: 'neg-common' },
-    { name: 'Oversaturated',    tag: 'Bad',   text: 'oversaturated, blown out colors, over-processed',        weight: 0.9,  kind: 'negative', categoryId: 'neg-common' },
-
-    // — Negative · Anatomy
-    { name: 'Bad anatomy',      tag: 'Body',  text: 'bad anatomy, deformed, disfigured, mutated',             weight: 1.1,  kind: 'negative', categoryId: 'neg-anatomy' },
-    { name: 'Bad hands',        tag: 'Body',  text: 'bad hands, extra fingers, missing fingers, fused fingers', weight: 1.2, kind: 'negative', categoryId: 'neg-anatomy' },
-    { name: 'Bad face',         tag: 'Face',  text: 'bad face, asymmetric eyes, distorted features',          weight: 1.0,  kind: 'negative', categoryId: 'neg-anatomy' },
-
-    // — Negative · Style
-    { name: 'No cartoon',       tag: 'Style', text: 'cartoon, anime, illustration, 3d render',                weight: 0.9,  kind: 'negative', categoryId: 'neg-style' },
-    { name: 'No painting',      tag: 'Style', text: 'painting, drawing, sketch',                              weight: 0.9,  kind: 'negative', categoryId: 'neg-style' },
-  ];
-  return seeds.map(s => ({ ...s, id: uid() }));
+/**
+ * A saved library older than SNIPPET_LIBRARY_VERSION is replaced by the built-in one, once. The old
+ * list is kept under a backup key, so nothing the user saved is lost for good.
+ */
+const LIBRARY_VERSION_KEY = 'imagelab.snippetLibrary.version';
+function libraryReset<T>(list: T[], fresh: () => T[], part: 'snippets' | 'categories', key: string): T[] {
+  try {
+    const seen: Record<string, number> = JSON.parse(localStorage.getItem(LIBRARY_VERSION_KEY) || '{}');
+    if ((seen[part] ?? 0) >= SNIPPET_LIBRARY_VERSION) return list;
+    localStorage.setItem(`${key}.backup`, JSON.stringify(list));
+    const next = fresh();
+    localStorage.setItem(key, JSON.stringify(next));
+    localStorage.setItem(LIBRARY_VERSION_KEY, JSON.stringify({ ...seen, [part]: SNIPPET_LIBRARY_VERSION }));
+    return next;
+  } catch { return list; }
 }
 
 function normalizeCategory(c: Partial<SnippetCategory>): SnippetCategory {
@@ -473,7 +415,7 @@ function normalizeCategory(c: Partial<SnippetCategory>): SnippetCategory {
 export function loadSnippetCategories(): SnippetCategory[] {
   try {
     const arr = JSON.parse(localStorage.getItem(SNIPPET_CATEGORIES_KEY) || 'null');
-    if (Array.isArray(arr) && arr.length) return arr.map(normalizeCategory);
+    if (Array.isArray(arr) && arr.length) return libraryReset(arr.map(normalizeCategory), defaultSnippetCategories, 'categories', SNIPPET_CATEGORIES_KEY);
   } catch { /* fall through */ }
   return defaultSnippetCategories();
 }
@@ -699,7 +641,7 @@ export function loadSnippets(): Snippet[] {
   // New (v3) key first.
   try {
     const arr = JSON.parse(localStorage.getItem(SNIPPETS_KEY) || 'null');
-    if (Array.isArray(arr)) return arr.map(normalizeSnippet);
+    if (Array.isArray(arr)) return libraryReset(arr.map(normalizeSnippet), defaultSnippets, 'snippets', SNIPPETS_KEY);
   } catch { /* fall through */ }
 
   // Migrate a v2 list once (drop into Uncategorized so nothing is lost).

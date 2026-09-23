@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CollectionsIcon } from '@/components/ui/icons';
+import { Badge, Text } from '@mantine/core';
+import { IconFolders } from '@tabler/icons-react';
 import { CollectionsRail } from './CollectionsRail';
 import { CollectionsGrid } from './CollectionsGrid';
 import { CollectionDetail } from './CollectionDetail';
@@ -101,11 +102,11 @@ export function CollectionsView() {
   return (
     <div className="flex h-full w-full flex-col bg-bg-base">
       <header className="flex shrink-0 items-center gap-2 border-b border-border-subtle bg-bg-panel px-3 py-2">
-        <CollectionsIcon size={15} className="text-fg-tertiary" />
-        <span className="text-[12.5px] font-semibold text-fg-primary">Collections</span>
-        <span className="rounded bg-bg-elev px-1.5 py-0.5 text-[10px] font-medium text-fg-muted">
+        <IconFolders size={16} className="text-[var(--mantine-color-dimmed)]" />
+        <Text size="sm" fw={600}>Collections</Text>
+        <Badge size="sm" variant="light" color="gray" className="shrink-0">
           {total}
-        </span>
+        </Badge>
       </header>
 
       <div className="flex min-h-0 flex-1">

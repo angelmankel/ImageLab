@@ -5,6 +5,7 @@ import { FitViewIcon } from '@/components/ui/icons';
 import { GenerateWidget } from '@/features/generate/GenerateWidget';
 import { CanvasToolsMenu } from '@/features/canvasLayers/CanvasToolsMenu';
 import { TopNav } from './TopNav';
+import { JobStatusCluster } from './JobStatusCluster';
 import { SidePanelTrigger, BothPanelsTrigger } from './SidePanel';
 import {
   AutoFrameToggle,
@@ -15,6 +16,7 @@ import {
   SelectionInfo,
 } from '@/features/canvas/CanvasTopNavControls';
 import { NAV_HEIGHT, TOOLBAR_TRANSITION } from './constants';
+import { usePanelLayout } from './panelLayout';
 
 interface Props {
   isDesktop: boolean;
@@ -27,18 +29,20 @@ interface Props {
 }
 
 export function CanvasTopNav({ isDesktop, leftOpen, rightOpen, setLeftOpen, setRightOpen, leftInset, rightInset }: Props) {
+  const dragging = usePanelLayout(s => s.dragging);
   const { controller } = useCanvas();
   return (
     <TopNav
       leftInset={leftInset}
       rightInset={rightInset}
-      insetTransition={TOOLBAR_TRANSITION}
+      insetTransition={dragging ? 'none' : TOOLBAR_TRANSITION}
       left={
         <>
           <CanvasDeleteShortcut />
           {!leftOpen && (
             <SidePanelTrigger side="left" open={leftOpen} onClick={() => setLeftOpen(true)} />
           )}
+          <JobStatusCluster />
           {isDesktop && !leftOpen && <GenerateWidget />}
           <IconButton
             aria-label="Fit to view"

@@ -5,7 +5,8 @@
  * server selection, blob fetch, queue, polling, and per-layer history stamp.
  */
 import { useState, type ComponentType } from 'react';
-import * as RPopover from '@radix-ui/react-popover';
+import { Button, Loader, Menu, Text, ThemeIcon } from '@mantine/core';
+import { IconAdjustments, IconBlur, IconEraser, IconSparkles, IconTriangleInverted } from '@tabler/icons-react';
 import { useCanvasStore } from '@/lib/canvasStore';
 import {
   blurGraph,
@@ -15,16 +16,12 @@ import {
   type ToolGraphBuilder,
 } from '@/lib/imageJobs';
 import { runActiveLayerTool } from './runLayerTool';
-import {
-  EraserIcon, SparkleIcon, TuneIcon, type IconProps,
-} from '@/components/ui/icons';
-import { cn } from '@/lib/cn';
 
 type ToolEntry = {
   id: string;
   label: string;
   blurb: string;
-  Icon: ComponentType<IconProps>;
+  Icon: ComponentType<{ size?: number | string }>;
   graph: ToolGraphBuilder;
 };
 
@@ -33,28 +30,28 @@ const TOOLS: ToolEntry[] = [
     id: 'remove-bg',
     label: 'Remove background',
     blurb: 'BRIA RMBG — cleanly cut out the subject.',
-    Icon: EraserIcon,
+    Icon: IconEraser,
     graph: removeBackgroundGraph,
   },
   {
     id: 'blur',
     label: 'Blur',
     blurb: 'Gaussian blur — soften the whole image.',
-    Icon: SparkleIcon,
+    Icon: IconBlur,
     graph: blurGraph,
   },
   {
     id: 'sharpen',
     label: 'Sharpen',
     blurb: 'Unsharp mask — pull out fine detail.',
-    Icon: TuneIcon,
+    Icon: IconSparkles,
     graph: sharpenGraph,
   },
   {
     id: 'invert',
     label: 'Invert colors',
     blurb: 'Photographic negative.',
-    Icon: SparkleIcon,
+    Icon: IconTriangleInverted,
     graph: invertGraph,
   },
 ];
@@ -81,76 +78,47 @@ export function CanvasToolsMenu() {
   const disabled = !hasLayer || !hasSource;
 
   return (
-    <RPopover.Root open={open} onOpenChange={setOpen}>
-      <RPopover.Trigger asChild>
-        <button
-          type="button"
+    // Stays open while a tool runs so its spinner is visible; closes when the run settles.
+    <Menu opened={open} onChange={setOpen} closeOnItemClick={false} position="bottom" width={260} shadow="md" withinPortal>
+      <Menu.Target>
+        <Button
+          size="xs"
+          variant="default"
+          leftSection={<IconAdjustments size={14} />}
           title={disabled
             ? 'Select a layer with an image to run image tools.'
             : 'ComfyUI image tools (Remove BG, Blur, …)'}
           aria-label="Image tools"
-          className={cn(
-            'flex h-8 items-center gap-1 rounded-lg border bg-bg-elev/85 px-2 text-[12px] font-medium text-fg-tertiary shadow-sm backdrop-blur-md transition-colors',
-            disabled
-              ? 'cursor-not-allowed border-border-subtle opacity-50'
-              : 'border-border-default hover:border-border-strong hover:text-fg-secondary',
-          )}
           disabled={disabled}
         >
-          <TuneIcon size={14} />
-          <span>Tools</span>
-        </button>
-      </RPopover.Trigger>
-      <RPopover.Portal>
-        <RPopover.Content
-          align="center"
-          sideOffset={8}
-          className="z-50 w-[260px] overflow-hidden rounded-lg border border-border-default bg-bg-elev shadow-xl"
-        >
-          <div className="border-b border-border-subtle px-3 py-2 text-[10px] font-semibold uppercase tracking-section text-fg-tertiary">
-            Image tools
-          </div>
-          <div className="p-1.5">
-            {TOOLS.map(t => {
-              const isRunning = running === t.id;
-              return (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => { void onRun(t); }}
-                  disabled={!!running}
-                  className={cn(
-                    'flex w-full items-start gap-2.5 rounded-md px-2.5 py-2 text-left transition-colors',
-                    running && !isRunning && 'opacity-50',
-                    !running && 'hover:bg-bg-base/60',
-                  )}
-                >
-                  <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-bg-base/60 text-fg-tertiary">
-                    {isRunning ? <Spinner /> : <t.Icon size={14} />}
-                  </span>
-                  <span className="flex min-w-0 flex-1 flex-col">
-                    <span className="text-[12px] font-medium text-fg-secondary">
-                      {t.label}{isRunning ? '…' : ''}
-                    </span>
-                    <span className="text-[10.5px] leading-tight text-fg-tertiary">{t.blurb}</span>
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-          <div className="border-t border-border-subtle bg-bg-base/40 px-3 py-1.5 text-[10px] text-fg-dim">
-            Runs on the next round-robin server. Result stamps a new history entry.
-          </div>
-        </RPopover.Content>
-      </RPopover.Portal>
-    </RPopover.Root>
-  );
-}
-
-function Spinner() {
-  return (
-    <svg viewBox="0 0 16 16" width="14" height="14" className="animate-spin" aria-hidden>
-      <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="2" fill="none" strokeDasharray="9 27" />
-    </svg>
+          Tools
+        </Button>
+      </Menu.Target>
+      <Menu.Dropdown>
+        <Menu.Label>Image tools</Menu.Label>
+        {TOOLS.map(t => {
+          const isRunning = running === t.id;
+          return (
+            <Menu.Item
+              key={t.id}
+              onClick={() => { void onRun(t); }}
+              disabled={!!running && !isRunning}
+              leftSection={
+                <ThemeIcon variant="light" color="gray" size="md">
+                  {isRunning ? <Loader size={12} /> : <t.Icon size={14} />}
+                </ThemeIcon>
+              }
+            >
+              <Text size="sm" fw={500}>{t.label}{isRunning ? '…' : ''}</Text>
+              <Text size="xs" c="dimmed" lh={1.3}>{t.blurb}</Text>
+            </Menu.Item>
+          );
+        })}
+        <Menu.Divider />
+        <Text size="10px" c="dimmed" px="sm" py={4}>
+          Runs on the next round-robin server. Result stamps a new history entry.
+        </Text>
+      </Menu.Dropdown>
+    </Menu>
   );
 }

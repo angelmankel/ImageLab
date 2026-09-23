@@ -31,6 +31,8 @@ import { putImportedBlob, deleteImportedBlob } from './importedDb';
 import type { Theme } from './themes';
 import { resolveTheme } from './themes';
 import { putJob, deleteJob as deleteJobDb, deleteJobsForServer } from './jobsDb';
+import { playCompleteSound } from './sounds';
+import { jobStages } from './pipeline';
 
 /** Which server's preview the canvas shows: every server (`all`, a 2×2/3×3
  *  grid), whichever job streamed most recently (`last`), or one server id. */
@@ -159,6 +161,34 @@ async function cropImageUrl(
  *  more than once for the same prompt. Module-level since the store is a
  *  singleton and the set is purely process-lifetime state, not persisted. */
 const _completingPromptIds = new Set<string>();
+
+/**
+ * Prompt ids whose result is already in history. Two paths finish a job — the websocket and the
+ * reconcile poll — and the poll works from a job list read before an await. When the websocket
+ * finished a job during that await, the poll still held it, found it neither running nor pending,
+ * and pushed its image a second time. Each path now claims a prompt here before pushing.
+ */
+const _finishedPromptIds = new Set<string>();
+
+/** Collapse doubles already saved by that bug, keeping a like or a favourite from either copy. */
+function dedupeHistory(list: HistoryEntry[]): HistoryEntry[] {
+  const kept = new Map<string, HistoryEntry>();
+  const out: HistoryEntry[] = [];
+  for (const e of list) {
+    const key = `${e.serverId}|${e.promptId}|${e.filename}`;
+    const first = kept.get(key);
+    if (!first) { kept.set(key, e); out.push(e); continue; }
+    if (e.liked) first.liked = true;
+    if (!first.favoriteId && e.favoriteId) first.favoriteId = e.favoriteId;
+  }
+  return out;
+}
+function claimFinished(promptId: string): boolean {
+  if (_finishedPromptIds.has(promptId)) return false;
+  _finishedPromptIds.add(promptId);
+  if (_finishedPromptIds.size > 500) _finishedPromptIds.delete(_finishedPromptIds.values().next().value as string);
+  return true;
+}
 
 /** Per-server in-flight `refreshServerInfo` promises — lets the three callers
  *  (initial boot, WS onOpen, post-download capability refresh) dedupe without
@@ -475,7 +505,7 @@ export const useStore = create<Store>((set, get) => {
     serverPickerFilters: loadServerPickerFilters(),
     autoFrameOnComplete: loadAutoFrameOnComplete(),
     collectionsTileSize: loadCollectionsTileSize(),
-    history: loadHistory(),
+    history: dedupeHistory(loadHistory()),
     selectedEntry: null,
     server: EMPTY_INFO,
     serverInfo: {},
@@ -561,6 +591,8 @@ export const useStore = create<Store>((set, get) => {
       let queue: { running: string[]; pending: string[] };
       try { queue = await fetchQueue(server.host); } catch { return; }
       for (const job of mine) {
+        // `mine` was read before the awaits above; the websocket may have finished this job since.
+        if (_finishedPromptIds.has(job.id) || !get().jobs.some(j => j.id === job.id)) continue;
         if (_completingPromptIds.has(job.id) || job.status === 'error') continue;
         if (queue.running.includes(job.id)) {
           const before = get().jobs.find(j => j.id === job.id);
@@ -588,6 +620,8 @@ export const useStore = create<Store>((set, get) => {
           get().updateJob(job.id, { status: 'error', error: res.error, progress: undefined });
           get().setStatus(res.error, 'error');
           useCanvasStore.getState().setLivePreview(serverId, null);
+        } else if (!claimFinished(job.id)) {
+          get().removeJob(job.id);
         } else {
           const stamped = get().pushHistory({
             ...res.entry,
@@ -680,9 +714,12 @@ export const useStore = create<Store>((set, get) => {
           // counting each one would push the displayed count well past the
           // graph's real node count.
           const advance = job.node !== ev.node;
+          // Stage only moves forward: nodes outside any pass (the base graph, the final save) keep it.
+          const reached = jobStages(job.workflow, !!job.resultCrop).stageOf(ev.node);
           get().updateJob(job.id, {
             status: 'running',
             node: ev.node,
+            stage: Math.max(job.stage ?? 1, reached ?? 1),
             ...(advance ? { progress: undefined } : {}),
             ...(advance ? { executedNodes: (job.executedNodes ?? 0) + 1 } : {}),
           });
@@ -708,6 +745,7 @@ export const useStore = create<Store>((set, get) => {
         get().updateJob(job.id, { status: 'error', error: res.error, progress: undefined });
         return;
       }
+      if (!claimFinished(job.id)) { get().removeJob(job.id); return; }
 
       // Tag the global history entry with the originating canvas layer (if any)
       // so downstream tools (filters, drag-from-history-to-canvas, etc.) can
@@ -718,6 +756,9 @@ export const useStore = create<Store>((set, get) => {
         ...(job.targetLayerId ? { layerId: job.targetLayerId } : {}),
       });
       get().removeJob(job.id);
+      // Only the live path chimes. The reconcile path also finishes jobs, but those finished while
+      // the page was away, and a burst of chimes on reload says nothing useful.
+      playCompleteSound();
 
       if (job.targetLayerId) {
         // Layer-targeted: stamp into the layer's sprite + write a separate
@@ -1065,6 +1106,9 @@ export const useStore = create<Store>((set, get) => {
 
     pushHistory: (entry) => {
       // The caller stamps `entry.serverId` (it knows which server ran the job).
+      // Last line of defence against a double push: the same file from the same run is one entry.
+      const existing = get().history.find(e => e.serverId === entry.serverId && e.promptId === entry.promptId && e.filename === entry.filename);
+      if (existing) return existing;
       const next = [entry, ...get().history];
       if (next.length > HISTORY_MAX) next.length = HISTORY_MAX;
       set({ history: next });

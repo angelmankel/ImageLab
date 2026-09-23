@@ -1,4 +1,42 @@
-import type { Pass, WorkflowState } from './types';
+import type { LoopbackSettings, Pass, WorkflowState } from './types';
+
+const LOOPBACK_ID = 'loopback';
+
+export const DEFAULT_LOOPBACK: LoopbackSettings = {
+  enabled: false, iterations: 1, upscale: 1.25, denoise: 0.5, steps: 10, cfg: 7,
+  autoDenoise: false, denoiseStart: 0.6, denoiseEnd: 0.3,
+};
+
+/**
+ * The denoise for each Loopback round. With auto-scale on it moves in even steps from the start
+ * value to the end value (either direction); a single round uses the start value.
+ */
+export function loopbackDenoises(lb: LoopbackSettings): number[] {
+  const count = Math.max(1, Math.min(10, Math.trunc(lb.iterations) || 1));
+  if (!lb.autoDenoise) return Array(count).fill(lb.denoise);
+  const start = lb.denoiseStart ?? DEFAULT_LOOPBACK.denoiseStart!;
+  const end = lb.denoiseEnd ?? DEFAULT_LOOPBACK.denoiseEnd!;
+  return Array.from({ length: count }, (_, i) =>
+    Math.round((count === 1 ? start : start + (end - start) * i / (count - 1)) * 1000) / 1000);
+}
+
+/** Clip skip 2 — what SD1.5 anime and SDXL Pony/Illustrious checkpoints expect. */
+export const DEFAULT_CLIP_SKIP = -2;
+
+/**
+ * Put a CLIPSetLastLayer after the checkpoint's CLIP when clip skip is on, so the LoRA chain and
+ * the text encoders read the trimmed CLIP. -1 (no skip) adds nothing. Returns the CLIP to use.
+ */
+export function applyClipSkip(
+  graph: Record<string, { class_type: string; inputs: Record<string, unknown> }>,
+  workflow: Pick<WorkflowState, 'clipSkip'>,
+  clip: [string, number],
+): [string, number] {
+  const layer = Math.min(-1, Math.trunc(workflow.clipSkip ?? DEFAULT_CLIP_SKIP) || -1);
+  if (layer === -1) return clip;
+  graph.clipskip = { class_type: 'CLIPSetLastLayer', inputs: { stop_at_clip_layer: layer, clip } };
+  return ['clipskip', 0];
+}
 
 export type PassKind = NonNullable<Pass['kind']>;
 export const PASS_LABELS: Record<PassKind, string> = {
@@ -16,8 +54,19 @@ export function createPass(workflow: WorkflowState, kind: PassKind, id: string):
 }
 
 /** Read old finishing switches as steps until the user edits the list. */
+/**
+ * Everything the graph runs after the base image: Loopback's rounds, then the listed passes.
+ * The Passes panel edits `listedPasses` only — handing it this list made every edit save the
+ * Loopback rounds as real passes, so a delete appeared to add one.
+ */
 export function pipelinePasses(workflow: WorkflowState): Pass[] {
-  const passes = [...workflow.passes];
+  return [...loopbackPasses(workflow), ...listedPasses(workflow)];
+}
+
+/** The passes shown in the Passes panel, including old finishing flags read as steps. */
+export function listedPasses(workflow: WorkflowState): Pass[] {
+  // Rounds saved by that bug are dropped here, so they clear on the next edit and never run twice.
+  const passes = workflow.passes.filter(p => !p.id.startsWith(LOOPBACK_ID));
   if (workflow.upscaleEnabled) passes.push({
     ...createPass(workflow, 'upscale', 'finish-upscale'),
     upscaleModel: workflow.upscaleModel, scale: 4, maxEdge: 32768,
@@ -29,6 +78,67 @@ export function pipelinePasses(workflow: WorkflowState): Pass[] {
   });
   if (workflow.removeBg) passes.push(createPass(workflow, 'remove-bg', 'finish-background'));
   return passes;
+}
+
+/**
+ * The size after each Loopback round, starting from the base size — the same rounding and 4096px
+ * cap the graph applies, so the numbers shown are the numbers rendered.
+ */
+export function loopbackSizes(lb: LoopbackSettings, width: number, height: number, maxEdge = 4096): Array<[number, number]> {
+  const out: Array<[number, number]> = [];
+  let w = width, h = height;
+  const count = Math.max(1, Math.min(10, Math.trunc(lb.iterations) || 1));
+  for (let i = 0; i < count; i++) {
+    const scale = Math.min(Math.max(1, lb.upscale), maxEdge / Math.max(w, h));
+    w = Math.max(8, Math.round(w * scale / 8) * 8);
+    h = Math.max(8, Math.round(h * scale / 8) * 8);
+    out.push([w, h]);
+  }
+  return out;
+}
+
+/**
+ * The stages a job runs, in order: the base image, then each Loopback round and pass that will
+ * actually execute (bypassed ones skip; refines skip while inpainting). `stageOf` reads a graph
+ * node id — passes are built as `pass<index>…` — and says which stage it belongs to, or null for a
+ * node that is not in a pass (the caller keeps the stage it already had: base nodes come first,
+ * and the save and alpha nodes that follow the last pass must not send the count back to 1).
+ */
+export function jobStages(workflow: WorkflowState, inpaint = false): {
+  total: number;
+  names: string[];
+  stageOf: (node: string) => number | null;
+} {
+  const passes = pipelinePasses(workflow);
+  const names = ['Base image'];
+  const stageByIndex = new Map<number, number>();
+  let loop = 0;
+  passes.forEach((p, i) => {
+    const kind = p.kind ?? 'sample';
+    if (p.on === false || (kind === 'sample' && inpaint)) return;
+    stageByIndex.set(i, names.length + 1);
+    names.push(p.id.startsWith(LOOPBACK_ID) ? `Loopback ${++loop}` : PASS_LABELS[kind]);
+  });
+  return {
+    total: names.length,
+    names,
+    stageOf: (node) => {
+      const m = /^pass(\d+)/.exec(node);
+      return m ? stageByIndex.get(Number(m[1])) ?? null : null;
+    },
+  };
+}
+
+/** Loopback expands into plain refine passes, one per iteration, each with its own seed. */
+export function loopbackPasses(workflow: WorkflowState): Pass[] {
+  const lb = workflow.loopback;
+  if (!lb?.enabled) return [];
+  const denoises = loopbackDenoises(lb);
+  return denoises.map((denoise, i) => ({
+    ...createPass(workflow, 'sample', `${LOOPBACK_ID}${i}`),
+    scale: Math.max(1, lb.upscale), denoise, steps: Math.max(1, Math.trunc(lb.steps)), cfg: lb.cfg,
+    seed: (workflow.seed + i + 1) % 0x100000000,
+  }));
 }
 
 export function withPipeline(passes: Pass[]): Partial<WorkflowState> {
@@ -59,21 +169,29 @@ export function appendPasses(
 ): { image: Ref; clampNotes: string[] } {
   let image = initialImage;
   let samples = initialSamples;
+  // The cut-out from the last background removal, while later passes still work on the image.
+  let cutout: Ref | null = null;
   let w = width, h = height;
   const clampNotes: string[] = [];
   const node = (id: string, class_type: string, inputs: Record<string, unknown>): Ref => {
     graph[id] = { class_type, inputs };
     return [id, 0];
   };
-  pipelinePasses(workflow).forEach((pass, index) => {
+  const passes = pipelinePasses(workflow);
+  passes.forEach((pass, index) => {
     if (pass.on === false) return;
     const kind = pass.kind ?? 'sample';
     const id = `pass${index}`;
     if (kind === 'remove-bg') {
-      // This node reads its optional widgets directly, so include their defaults.
+      // Last step: a transparent image, as it always was. With steps after it, those steps only see
+      // RGB — VAEEncode drops alpha, and the removed background is still there under it, so a refine
+      // brought the background straight back. So the subject goes onto flat grey for them, and the
+      // mask is kept to make the final image transparent again.
+      const more = passes.slice(index + 1).some(p => p.on !== false);
       image = node(id, 'BiRefNetRMBG', { image, model: 'BiRefNet_toonout', sensitivity: 1,
         mask_blur: 0, mask_offset: 0, invert_output: false, refine_foreground: false,
-        background: 'Alpha', background_color: '#222222' });
+        background: more ? 'Color' : 'Alpha', background_color: more ? '#808080' : '#222222' });
+      cutout = more ? [id, 1] : null;
       samples = null;
       return;
     }
@@ -116,5 +234,11 @@ export function appendPasses(
     });
     image = node(`${id}decode`, 'VAEDecode', { samples, vae });
   });
+  if (cutout) {
+    // JoinImageWithAlpha treats its mask as "how transparent" and resizes it to the image, so the
+    // cut-out survives any upscale or resize after it; BiRefNet's mask is "how opaque", hence the invert.
+    const alpha = node('cutoutInvert', 'InvertMask', { mask: cutout });
+    image = node('cutoutJoin', 'JoinImageWithAlpha', { image, alpha });
+  }
   return { image, clampNotes };
 }

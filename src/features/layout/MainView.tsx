@@ -9,7 +9,8 @@ import { StudioView } from '@/features/studio/StudioView';
 import { AppSidePanels } from './AppSidePanels';
 import { CanvasTopNav } from './CanvasTopNav';
 import { GenerateTopNav } from './GenerateTopNav';
-import { LEFT_W, NAV_HEIGHT, RIGHT_W, TOOLBAR_TRANSITION } from './constants';
+import { NAV_HEIGHT, TOOLBAR_TRANSITION } from './constants';
+import { usePanelLayout } from './panelLayout';
 
 interface Props {
   mainView: string;
@@ -32,6 +33,9 @@ export function MainView({
   desktopLeftInset,
   desktopRightInset,
 }: Props) {
+  const leftW = usePanelLayout(s => s.left);
+  const rightW = usePanelLayout(s => s.right);
+  const dragging = usePanelLayout(s => s.dragging);
   if (mainView === 'collections') {
     return (
       <ErrorBoundary label="Collections panel">
@@ -61,8 +65,8 @@ export function MainView({
     return null;
   }
 
-  const leftInset = isDesktop && leftOpen ? LEFT_W : 0;
-  const rightInset = isDesktop && rightOpen ? RIGHT_W : 0;
+  const leftInset = isDesktop && leftOpen ? leftW : 0;
+  const rightInset = isDesktop && rightOpen ? rightW : 0;
   const panelProps = { isDesktop, leftOpen, rightOpen, setLeftOpen, setRightOpen };
 
   return (
@@ -94,7 +98,7 @@ export function MainView({
         style={{
           top: NAV_HEIGHT,
           left: desktopLeftInset + 12,
-          transition: TOOLBAR_TRANSITION,
+          transition: dragging ? 'none' : TOOLBAR_TRANSITION,
         }}
       >
         <CanvasToolbar />

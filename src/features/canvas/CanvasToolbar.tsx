@@ -5,7 +5,7 @@ import {
   MoveToolIcon, BrushIcon, EraserIcon, EyedropperIcon, FitViewIcon, type IconProps,
 } from '@/components/ui/icons';
 import { BrushSettingsPanel } from './BrushSettingsPopover';
-import { cn } from '@/lib/cn';
+import { ActionIcon, Divider, Tooltip } from '@mantine/core';
 
 /**
  * Color-swatch button — circular, shows current brush color. Click opens
@@ -17,14 +17,16 @@ function ColorSwatch({ color, onChange }: { color: string; onChange: (c: string)
   const inputRef = useRef<HTMLInputElement>(null);
   return (
     <div className="relative">
-      <button
-        type="button"
-        onClick={() => inputRef.current?.click()}
-        title={`Brush color (${color})`}
-        aria-label="Brush color"
-        className="pointer-events-auto h-9 w-9 rounded-full border-2 border-border-strong shadow-lg transition-colors hover:border-fg-secondary"
-        style={{ backgroundColor: color }}
-      />
+      <Tooltip label={`Brush color (${color})`} position="right" withArrow>
+        <ActionIcon
+          size="lg"
+          radius="xl"
+          onClick={() => inputRef.current?.click()}
+          aria-label="Brush color"
+          className="pointer-events-auto border-2 !border-[var(--mantine-color-dark-2)] shadow-lg hover:!border-[var(--mantine-color-gray-4)]"
+          style={{ backgroundColor: color }}
+        />
+      </Tooltip>
       <input
         ref={inputRef}
         type="color"
@@ -33,7 +35,7 @@ function ColorSwatch({ color, onChange }: { color: string; onChange: (c: string)
         onChange={(e) => onChange((e.target as HTMLInputElement).value)}
         // Visually hidden but kept in flow so click() works in every
         // browser (some require a non-display:none input).
-        className="pointer-events-none absolute left-0 top-0 h-9 w-9 cursor-pointer opacity-0"
+        className="pointer-events-none absolute left-0 top-0 h-[34px] w-[34px] cursor-pointer opacity-0"
         aria-hidden
       />
     </div>
@@ -91,28 +93,25 @@ export function CanvasToolbar() {
 
       <ColorSwatch color={brushColor} onChange={(c) => setBrush({ color: c })} />
       {/* Thin separator between color and tools */}
-      <div className="my-0.5 h-px self-stretch bg-border-subtle/50" />
+      <Divider my={2} />
 
       {CANVAS_TOOLS.map(tool => {
         const active = tool.id === activeTool;
         const Icon = TOOL_ICONS[tool.id];
         return (
-          <button
-            key={tool.id}
-            type="button"
-            onClick={() => handleToolClick(tool.id)}
-            title={`${tool.label} (${tool.shortcutKey.toUpperCase()})`}
-            aria-label={tool.label}
-            aria-pressed={active}
-            className={cn(
-              'pointer-events-auto flex h-9 w-9 items-center justify-center rounded-lg border backdrop-blur-md shadow-lg transition-colors',
-              active
-                ? 'border-accent bg-accent text-white'
-                : 'border-border-default bg-bg-elev/85 text-fg-tertiary hover:border-border-strong hover:text-fg-secondary',
-            )}
-          >
-            <Icon size={16} />
-          </button>
+          // v1 tool buttons: filled when current, the default grey otherwise.
+          <Tooltip key={tool.id} label={`${tool.label} (${tool.shortcutKey.toUpperCase()})`} position="right" withArrow>
+            <ActionIcon
+              size="lg"
+              variant={active ? 'filled' : 'default'}
+              onClick={() => handleToolClick(tool.id)}
+              aria-label={tool.label}
+              aria-pressed={active}
+              className="pointer-events-auto shadow-lg"
+            >
+              <Icon size={16} />
+            </ActionIcon>
+          </Tooltip>
         );
       })}
     </div>

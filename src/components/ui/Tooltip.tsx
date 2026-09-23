@@ -1,34 +1,23 @@
-import * as RTooltip from '@radix-ui/react-tooltip';
-import { cn } from '@/lib/cn';
-import type { ReactNode } from 'react';
+import { Tooltip } from '@mantine/core';
+import type { ReactElement, ReactNode } from 'react';
 
+/** Kept for the call sites that wrap the app in it; Mantine tooltips need no provider. */
 export function TooltipProvider({ children }: { children: ReactNode }) {
-  return <RTooltip.Provider delayDuration={400}>{children}</RTooltip.Provider>;
+  return <>{children}</>;
 }
 
 type TipProps = {
   label: string;
-  children: ReactNode;
+  children: ReactElement;
   side?: 'top' | 'right' | 'bottom' | 'left';
   className?: string;
 };
 
+/** The v1 tooltip (Mantine): portalled and collision-aware, with the same open delay as before. */
 export function Tip({ label, children, side = 'top', className }: TipProps) {
   return (
-    <RTooltip.Root>
-      <RTooltip.Trigger asChild>{children}</RTooltip.Trigger>
-      <RTooltip.Portal>
-        <RTooltip.Content
-          side={side}
-          sideOffset={6}
-          className={cn(
-            'z-50 rounded-md border border-border-default bg-bg-elev px-2 py-1 text-[10px] text-fg-secondary shadow-lg',
-            className,
-          )}
-        >
-          {label}
-        </RTooltip.Content>
-      </RTooltip.Portal>
-    </RTooltip.Root>
+    <Tooltip label={label} position={side} openDelay={400} withinPortal className={className} fz="xs">
+      {children}
+    </Tooltip>
   );
 }

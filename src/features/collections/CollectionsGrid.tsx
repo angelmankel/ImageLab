@@ -2,13 +2,12 @@ import { useRef, useState } from 'react';
 import { useStore } from '@/lib/store';
 import { Slider } from '@/components/ui/Slider';
 import { COLLECTIONS_TILE_MAX, COLLECTIONS_TILE_MIN } from '@/lib/storage';
-import {
-  DownloadIcon, ImagePlaceholderIcon, SearchIcon, UploadIcon,
-} from '@/components/ui/icons';
+import { UploadIcon } from '@/components/ui/icons';
 import type { RailBucket, Sort, Source, Tile } from './useCollectionTiles';
 import { PixiCollectionsGrid } from './PixiCollectionsGrid';
 import { PixiCollectionsFan } from './PixiCollectionsFan';
-import { cn } from '@/lib/cn';
+import { Button, Select, SegmentedControl, Stack, Text, TextInput, Group } from '@mantine/core';
+import { IconLayoutGrid, IconCards, IconSearch, IconUpload, IconPhoto } from '@tabler/icons-react';
 
 export type ViewMode = 'grid' | 'fan';
 
@@ -166,36 +165,44 @@ function Toolbar({
   importing: boolean; onImportClick: () => void;
 }) {
   return (
-    <div className="flex shrink-0 items-center gap-2 border-b border-border-subtle bg-bg-panel/60 px-4 py-2">
-      <div className="relative flex min-w-0 max-w-[260px] flex-1 items-center">
-        <SearchIcon size={12} className="absolute left-2 text-fg-dim" />
-        <input
-          value={search}
-          onChange={(e) => onSearchChange(e.target.value)}
-          placeholder='Search · prefix "#" for tags only'
-          className="w-full rounded-md border border-border-default bg-bg-input pl-7 pr-2 py-1.5 text-[12px] text-fg-secondary placeholder:text-fg-dim outline-none focus:border-accent"
-        />
-      </div>
-      <select
+    <Group gap="xs" wrap="nowrap" px="md" py={8} className="shrink-0 border-b border-border-subtle bg-bg-panel/60">
+      <TextInput
+        size="xs"
+        value={search}
+        onChange={(e) => onSearchChange(e.currentTarget.value)}
+        placeholder='Search · prefix "#" for tags only'
+        aria-label="Search"
+        leftSection={<IconSearch size={13} />}
+        className="min-w-[180px] max-w-[260px] flex-1"
+      />
+      <Select
+        size="xs"
+        w={130}
         aria-label="Sort"
         value={sort}
-        onChange={(e) => onSortChange(e.target.value as Sort)}
-        className="rounded-md border border-border-default bg-bg-elev px-2 py-1.5 text-[11px] text-fg-secondary outline-none focus:border-accent"
-      >
-        <option value="newest">Newest first</option>
-        <option value="oldest">Oldest first</option>
-        <option value="name">By name</option>
-      </select>
-      <select
+        onChange={(v) => { if (v) onSortChange(v as Sort); }}
+        allowDeselect={false}
+        comboboxProps={{ withinPortal: true, shadow: 'md' }}
+        data={[
+          { value: 'newest', label: 'Newest first' },
+          { value: 'oldest', label: 'Oldest first' },
+          { value: 'name', label: 'By name' },
+        ]}
+      />
+      <Select
+        size="xs"
+        w={130}
         aria-label="Source"
         value={source}
-        onChange={(e) => onSourceChange(e.target.value as Source)}
-        className="rounded-md border border-border-default bg-bg-elev px-2 py-1.5 text-[11px] text-fg-secondary outline-none focus:border-accent"
-      >
-        <option value="all">All sources</option>
-        <option value="history">Generated</option>
-        <option value="imports">Imported</option>
-      </select>
+        onChange={(v) => { if (v) onSourceChange(v as Source); }}
+        allowDeselect={false}
+        comboboxProps={{ withinPortal: true, shadow: 'md' }}
+        data={[
+          { value: 'all', label: 'All sources' },
+          { value: 'history', label: 'Generated' },
+          { value: 'imports', label: 'Imported' },
+        ]}
+      />
 
       {/* Tile-size slider — grid mode only. */}
       {viewMode === 'grid' && (
@@ -215,68 +222,35 @@ function Toolbar({
 
       <div className="flex-1" />
 
-      <ViewModeSwitcher value={viewMode} onChange={onViewModeChange} />
+      <SegmentedControl
+        size="xs"
+        aria-label="View mode"
+        value={viewMode}
+        onChange={(v) => onViewModeChange(v as ViewMode)}
+        data={[
+          { value: 'grid', label: <ViewLabel icon={<IconLayoutGrid size={13} />} label="Grid" /> },
+          { value: 'fan', label: <ViewLabel icon={<IconCards size={13} />} label="Fan" /> },
+        ]}
+      />
 
-      <button
-        type="button"
+      <Button
+        size="xs"
+        leftSection={<IconUpload size={13} />}
         onClick={onImportClick}
-        disabled={importing}
-        className="flex items-center gap-1.5 rounded-md border border-accent bg-accent px-3 py-1.5 text-[11px] font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-60"
+        loading={importing}
       >
-        <UploadIcon size={12} />
-        {importing ? 'Importing…' : 'Import'}
-      </button>
-    </div>
+        Import
+      </Button>
+    </Group>
   );
 }
 
-// ─── View-mode switcher ─────────────────────────────────────────────────────
-
-function ViewModeSwitcher({ value, onChange }: { value: ViewMode; onChange: (m: ViewMode) => void }) {
-  const opt = (mode: ViewMode, label: string) => (
-    <button
-      key={mode}
-      type="button"
-      onClick={() => onChange(mode)}
-      aria-pressed={value === mode}
-      title={`${label} view`}
-      className={cn(
-        'flex h-7 items-center gap-1.5 rounded px-2.5 text-[11px] font-semibold transition-colors',
-        value === mode
-          ? 'bg-bg-base text-fg-primary shadow-sm'
-          : 'text-fg-muted hover:text-fg-secondary',
-      )}
-    >
-      <ViewIcon mode={mode} />
+function ViewLabel({ icon, label }: { icon: React.ReactNode; label: string }) {
+  return (
+    <span className="flex items-center gap-1.5" title={`${label} view`}>
+      {icon}
       <span>{label}</span>
-    </button>
-  );
-  return (
-    <div className="flex h-8 items-center gap-0.5 rounded-md border border-border-default bg-bg-elev p-0.5">
-      {opt('grid', 'Grid')}
-      {opt('fan', 'Fan')}
-    </div>
-  );
-}
-
-function ViewIcon({ mode }: { mode: ViewMode }) {
-  if (mode === 'grid') {
-    return (
-      <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden>
-        <rect x="1" y="1" width="6" height="6" rx="1" fill="currentColor" />
-        <rect x="9" y="1" width="6" height="6" rx="1" fill="currentColor" />
-        <rect x="1" y="9" width="6" height="6" rx="1" fill="currentColor" />
-        <rect x="9" y="9" width="6" height="6" rx="1" fill="currentColor" />
-      </svg>
-    );
-  }
-  // fan
-  return (
-    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden>
-      <rect x="6" y="3" width="4" height="10" rx="1" fill="currentColor" />
-      <rect x="2" y="4" width="3" height="8" rx="1" fill="currentColor" opacity="0.55" transform="rotate(-10 3.5 8)" />
-      <rect x="11" y="4" width="3" height="8" rx="1" fill="currentColor" opacity="0.55" transform="rotate(10 12.5 8)" />
-    </svg>
+    </span>
   );
 }
 
@@ -291,20 +265,16 @@ function EmptyState({ bucket, search, onImportClick }: { bucket: RailBucket; sea
   else body = 'Drop image files to import, or generate something to start populating history.';
 
   return (
-    <div className="flex h-full min-h-[300px] flex-col items-center justify-center gap-3 text-center text-fg-dim">
-      <ImagePlaceholderIcon size={48} className="opacity-50" />
-      <p className="text-[14px] font-semibold text-fg-secondary">{title}</p>
-      <p className="max-w-[280px] text-[11.5px]">{body}</p>
+    <Stack align="center" justify="center" gap="xs" ta="center" className="h-full min-h-[300px]">
+      <IconPhoto size={48} className="text-[var(--mantine-color-dimmed)] opacity-50" />
+      <Text size="sm" fw={600}>{title}</Text>
+      <Text size="xs" c="dimmed" maw={280}>{body}</Text>
       {bucket !== 'favorites' && (
-        <button
-          type="button"
-          onClick={onImportClick}
-          className="mt-1 flex items-center gap-1.5 rounded-md border border-border-default bg-bg-elev px-3 py-1.5 text-[11px] font-semibold text-fg-secondary hover:border-border-strong"
-        >
-          <DownloadIcon size={12} className="rotate-180" /> Import images
-        </button>
+        <Button size="xs" variant="default" leftSection={<IconUpload size={13} />} onClick={onImportClick} mt={4}>
+          Import images
+        </Button>
       )}
-    </div>
+    </Stack>
   );
 }
 

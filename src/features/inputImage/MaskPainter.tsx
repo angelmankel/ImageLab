@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { Modal } from '@/components/modal/Modal';
-import { Slider } from '@/components/ui/Slider';
-import { Field } from '@/components/ui/Field';
+import { Button, Group, Modal, SegmentedControl, Stack, Text } from '@mantine/core';
+import { useMediaQuery } from '@mantine/hooks';
+import { IconBrush, IconEraser, IconTrash } from '@tabler/icons-react';
+import { SliderField } from '@/components/fields/SliderField';
 import { useCanvasStore } from '@/lib/canvasStore';
 import { canvasStorage } from '@/lib/canvasStorageInstance';
 import { useLayerSelectedThumb } from '@/hooks/useLayerSelectedThumb';
 import { uid } from '@/lib/storage';
-import { cn } from '@/lib/cn';
 
 const MASK_BRUSH_SIZE_KEY = 'imagelab.maskBrushSize.v1';
 
@@ -44,9 +44,14 @@ export function MaskPainter({
   const updateCanvasLayer = useCanvasStore(s => s.updateCanvasLayer);
 
   const backdropUrl = useLayerSelectedThumb(layerId, layer?.selectedHistoryId);
+  const narrow = useMediaQuery('(max-width: 48em)') ?? false;
 
   const imageCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const maskCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  // The Mantine modal mounts its content a frame or two after `open` flips (it transitions in),
+  // so the hydration effects also wait on the surface actually being in the DOM.
+  const [surface, setSurface] = useState<HTMLCanvasElement | null>(null);
+  const attachMask = (el: HTMLCanvasElement | null) => { maskCanvasRef.current = el; setSurface(el); };
   const drawingRef = useRef(false);
   const lastRef = useRef<{ x: number; y: number } | null>(null);
   const [brushSize, setBrushSize] = useState(() => {
@@ -85,7 +90,7 @@ export function MaskPainter({
     const img = new Image();
     img.onload = () => { ctx.drawImage(img, 0, 0, c.width, c.height); };
     img.src = backdropUrl;
-  }, [backdropUrl, open, w, h]);
+  }, [backdropUrl, open, w, h, surface]);
 
   // Hydrate the existing mask (if any) into maskCanvas when opened.
   useEffect(() => {
@@ -129,7 +134,7 @@ export function MaskPainter({
         URL.revokeObjectURL(url);
       }
     })();
-  }, [open, layer?.paintedMaskBlobId]);
+  }, [open, layer?.paintedMaskBlobId, surface]);
 
   const toCanvasCoords = (clientX: number, clientY: number) => {
     const c = maskCanvasRef.current;
@@ -249,120 +254,96 @@ export function MaskPainter({
   if (!layer) return null;
 
   return (
-    <Modal open={open} onClose={onClose} panelClassName="w-[760px] max-w-[95vw]">
-      <Modal.Column className="flex-1">
-        <Modal.Header className="flex items-center gap-3">
-          <div className="text-[13px] font-semibold text-fg-secondary">Paint mask</div>
-          <div className="text-[11px] text-fg-tertiary">
-            White = inpaint, black = keep. Saved at {w}×{h}.
-          </div>
-          <div className="ml-auto"><Modal.Close /></div>
-        </Modal.Header>
-        <Modal.Body className="flex flex-col gap-3">
-          <div className="flex w-full items-center justify-center">
-            <div
-              className="relative"
-              style={{
-                aspectRatio: `${w} / ${h}`,
-                width: `min(100%, ${Math.round((w / h) * 520)}px)`,
-                maxHeight: '60vh',
-              }}
-            >
-              <canvas
-                ref={imageCanvasRef}
-                width={w}
-                height={h}
-                className="absolute inset-0 h-full w-full rounded border border-border-default object-contain"
-              />
-              <canvas
-                ref={maskCanvasRef}
-                width={w}
-                height={h}
-                onPointerDown={onPointerDown}
-                onPointerMove={onPointerMove}
-                onPointerUp={onPointerUp}
-                onPointerCancel={onPointerUp}
-                onPointerLeave={onPointerLeave}
-                className="absolute inset-0 h-full w-full touch-none rounded"
-                style={{ cursor: 'none' }}
-              />
-              {cursor && (
-                <div
-                  aria-hidden
-                  className="pointer-events-none absolute rounded-full border shadow-[0_0_0_1px_rgba(0,0,0,0.4)]"
-                  style={{
-                    left: `${cursor.x * cursor.scale - (brushSize * cursor.scale) / 2}px`,
-                    top: `${cursor.y * cursor.scale - (brushSize * cursor.scale) / 2}px`,
-                    width: `${brushSize * cursor.scale}px`,
-                    height: `${brushSize * cursor.scale}px`,
-                    borderColor: mode === 'paint' ? 'rgba(255,255,255,0.9)' : 'rgba(255,180,180,0.9)',
-                    background: mode === 'paint'
-                      ? 'rgba(220,60,60,0.18)'
-                      : 'rgba(0,0,0,0.12)',
-                  }}
-                />
-              )}
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <div className="flex rounded-md border border-border-default bg-bg-input p-0.5">
-              {(['paint', 'erase'] as const).map(m => (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => setMode(m)}
-                  aria-pressed={mode === m}
-                  className={cn(
-                    'rounded px-3 py-1.5 text-[11px] font-medium transition-colors',
-                    mode === m ? 'bg-accent text-white shadow-sm' : 'text-fg-muted hover:text-fg-secondary',
-                  )}
-                >
-                  {m === 'paint' ? 'Paint' : 'Erase'}
-                </button>
-              ))}
-            </div>
-            <button
-              type="button"
-              onClick={clearMask}
-              className="rounded-md border border-border-default px-3 py-1.5 text-[11px] font-medium text-fg-muted transition-colors hover:border-border-strong hover:text-fg-secondary"
-            >
-              Clear all
-            </button>
-          </div>
-
-          <Field label="Brush size">
-            <Slider
-              value={brushSize}
-              onValueChange={(v) => setBrushSize(Math.round(v))}
-              min={4}
-              max={Math.min(512, Math.max(w, h))}
-              step={1}
-              ariaLabel="Brush size"
+    <Modal
+      opened={open}
+      onClose={onClose}
+      fullScreen={narrow}
+      size={760}
+      centered
+      title={
+        <Group gap="xs" wrap="wrap">
+          <Text fw={600}>Paint mask</Text>
+          <Text size="xs" c="dimmed">White = inpaint, black = keep. Saved at {w}×{h}.</Text>
+        </Group>
+      }
+    >
+      <Stack gap="md">
+        <div className="flex w-full items-center justify-center">
+          <div
+            className="relative"
+            style={{
+              aspectRatio: `${w} / ${h}`,
+              width: `min(100%, ${Math.round((w / h) * 520)}px, calc(50dvh * ${w / h}))`,
+            }}
+          >
+            <canvas
+              ref={imageCanvasRef}
+              width={w}
+              height={h}
+              className="absolute inset-0 h-full w-full rounded border border-border-default object-contain"
             />
-            <span className="w-12 shrink-0 text-right text-[12px] font-medium tabular-nums text-fg-secondary">
-              {brushSize}px
-            </span>
-          </Field>
-        </Modal.Body>
-        <Modal.Footer className="flex items-center justify-end gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-md border border-border-default px-3 py-1.5 text-[12px] text-fg-muted transition-colors hover:border-border-strong hover:text-fg-secondary"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={() => { void save(); }}
-            disabled={!dirty && !layer.paintedMaskBlobId}
-            className="rounded-md bg-accent px-3 py-1.5 text-[12px] font-semibold text-white shadow-sm transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Save mask
-          </button>
-        </Modal.Footer>
-      </Modal.Column>
+            <canvas
+              ref={attachMask}
+              width={w}
+              height={h}
+              onPointerDown={onPointerDown}
+              onPointerMove={onPointerMove}
+              onPointerUp={onPointerUp}
+              onPointerCancel={onPointerUp}
+              onPointerLeave={onPointerLeave}
+              className="absolute inset-0 h-full w-full touch-none rounded"
+              style={{ cursor: 'none' }}
+            />
+            {cursor && (
+              <div
+                aria-hidden
+                className="pointer-events-none absolute rounded-full border shadow-[0_0_0_1px_rgba(0,0,0,0.4)]"
+                style={{
+                  left: `${cursor.x * cursor.scale - (brushSize * cursor.scale) / 2}px`,
+                  top: `${cursor.y * cursor.scale - (brushSize * cursor.scale) / 2}px`,
+                  width: `${brushSize * cursor.scale}px`,
+                  height: `${brushSize * cursor.scale}px`,
+                  borderColor: mode === 'paint' ? 'rgba(255,255,255,0.9)' : 'rgba(255,180,180,0.9)',
+                  background: mode === 'paint'
+                    ? 'rgba(220,60,60,0.18)'
+                    : 'rgba(0,0,0,0.12)',
+                }}
+              />
+            )}
+          </div>
+        </div>
+
+        <Group gap="xs">
+          <SegmentedControl
+            size="xs"
+            value={mode}
+            onChange={(v) => setMode(v as 'paint' | 'erase')}
+            aria-label="Brush mode"
+            data={[
+              { value: 'paint', label: <Group gap={4} wrap="nowrap"><IconBrush size={14} />Paint</Group> },
+              { value: 'erase', label: <Group gap={4} wrap="nowrap"><IconEraser size={14} />Erase</Group> },
+            ]}
+          />
+          <Button size="xs" variant="default" leftSection={<IconTrash size={14} />} onClick={clearMask}>
+            Clear all
+          </Button>
+        </Group>
+
+        <SliderField
+          label="Brush size"
+          value={brushSize}
+          onChange={(v) => setBrushSize(Math.round(v))}
+          min={4}
+          max={Math.min(512, Math.max(w, h))}
+          step={1}
+          defaultValue={64}
+        />
+
+        <Group justify="flex-end" gap="xs">
+          <Button variant="default" onClick={onClose}>Cancel</Button>
+          <Button onClick={() => { void save(); }} disabled={!dirty && !layer.paintedMaskBlobId}>Save mask</Button>
+        </Group>
+      </Stack>
     </Modal>
   );
 }

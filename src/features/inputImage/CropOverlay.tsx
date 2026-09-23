@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import { Button, Group, Text } from '@mantine/core';
+import { IconCheck, IconX } from '@tabler/icons-react';
 import type { CropRect } from './imageOps';
 
 type Props = {
@@ -137,7 +139,8 @@ export function CropOverlay({ imageWidth, imageHeight, onApply, onCancel }: Prop
   };
 
   return (
-    <div ref={rootRef} className="absolute inset-0">
+    // `touch-none`: the overlay is a drag surface, so a finger must move the rect, not the page.
+    <div ref={rootRef} className="absolute inset-0 touch-none">
       {/* Dimmed area outside the rect via four overlays. */}
       <div className="absolute left-0 right-0 top-0 bg-black/55" style={{ height: pct.top }} />
       <div className="absolute left-0 right-0 bottom-0 bg-black/55" style={{ top: `calc(${pct.top} + ${pct.height})` }} />
@@ -157,25 +160,21 @@ export function CropOverlay({ imageWidth, imageHeight, onApply, onCancel }: Prop
       </div>
 
       {/* Floating action bar */}
-      <div className="absolute bottom-3 left-1/2 z-10 flex -translate-x-1/2 items-center gap-2 rounded-full bg-black/65 px-3 py-1.5 backdrop-blur-md">
-        <span className="font-mono text-[10px] text-white/70">
+      <Group
+        gap={6}
+        wrap="nowrap"
+        className="absolute bottom-3 left-1/2 z-10 -translate-x-1/2 rounded-full bg-black/65 px-3 py-1.5 backdrop-blur-md"
+      >
+        <Text size="xs" ff="monospace" c="white" opacity={0.7} className="whitespace-nowrap">
           {Math.round(rect.w)}×{Math.round(rect.h)} @ {Math.round(rect.x)},{Math.round(rect.y)}
-        </span>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="rounded-md bg-white/15 px-2.5 py-1 text-[11px] font-medium text-white/85 hover:bg-white/25"
-        >
+        </Text>
+        <Button size="compact-xs" variant="white" color="dark" radius="xl" leftSection={<IconX size={12} />} onClick={onCancel}>
           Cancel
-        </button>
-        <button
-          type="button"
-          onClick={() => onApply(rect)}
-          className="rounded-md bg-accent px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-accent-hover"
-        >
+        </Button>
+        <Button size="compact-xs" radius="xl" leftSection={<IconCheck size={12} />} onClick={() => onApply(rect)}>
           Apply crop
-        </button>
-      </div>
+        </Button>
+      </Group>
     </div>
   );
 }
@@ -188,15 +187,15 @@ function Handle({
   onPointerDown: (e: React.PointerEvent) => void;
 }) {
   const pos = {
-    nw: '-left-1.5 -top-1.5 cursor-nwse-resize',
-    ne: '-right-1.5 -top-1.5 cursor-nesw-resize',
-    sw: '-left-1.5 -bottom-1.5 cursor-nesw-resize',
-    se: '-right-1.5 -bottom-1.5 cursor-nwse-resize',
+    nw: '-left-2 -top-2 cursor-nwse-resize',
+    ne: '-right-2 -top-2 cursor-nesw-resize',
+    sw: '-left-2 -bottom-2 cursor-nesw-resize',
+    se: '-right-2 -bottom-2 cursor-nwse-resize',
   }[position];
   return (
     <div
       onPointerDown={onPointerDown}
-      className={`absolute h-3 w-3 rounded-sm border-2 border-accent bg-white ${pos}`}
+      className={`absolute h-4 w-4 rounded-sm border-2 border-accent bg-white ${pos}`}
     />
   );
 }

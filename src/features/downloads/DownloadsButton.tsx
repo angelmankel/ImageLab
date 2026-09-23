@@ -1,13 +1,15 @@
-import * as RPopover from '@radix-ui/react-popover';
-import { cn } from '@/lib/cn';
-import { CloseIcon, DownloadIcon } from '@/components/ui/icons';
+import {
+  ActionIcon, Badge, Box, Button, Group, Paper, Progress, RingProgress, ScrollArea, Stack, Text, Tooltip,
+} from '@mantine/core';
+import { IconDownload, IconX } from '@tabler/icons-react';
+import * as RPopover from '@/components/ui/popover';
 import { useDownloadsStore, type DownloadRow } from './store';
 
 /**
- * The downloads panel: a toolbar badge that opens a popover listing CivitAI
- * model downloads across every server, with live progress. Polling is driven
- * by `useDownloads`. The ✕ cancels an in-flight download (or dismisses a
- * finished/failed row) on its server.
+ * The downloads panel: a compact nav button that opens a popover listing
+ * CivitAI model downloads across every server, with live progress. Polling is
+ * driven by `useDownloads`. The ✕ cancels an in-flight download (or dismisses
+ * a finished/failed row) on its server.
  *
  * Downloads are fired at every online server, so the same model can appear
  * once per server — each row is tagged with where it's running.
@@ -25,50 +27,46 @@ export function DownloadsButton() {
   return (
     <RPopover.Root>
       <RPopover.Trigger asChild>
-        <button
-          type="button"
+        <Button
+          variant="default"
+          size="compact-sm"
+          h={30}
+          px={8}
+          radius="sm"
+          aria-label="Show CivitAI downloads"
           title={
             aggregate !== null
               ? `Downloads — ${Math.round(aggregate * 100)}% (${active} active)`
               : 'Show CivitAI downloads'
           }
-          className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border-default bg-bg-elev/80 px-2.5 backdrop-blur transition-colors hover:border-border-strong focus:outline-none focus:ring-1 focus:ring-accent"
+          leftSection={<IconDownload size={14} />}
         >
-          <DownloadIcon size={13} className="text-fg-dim" />
-          <ProgressBadge
-            count={active}
-            progress={aggregate}
-            tone={hasError ? 'error' : active > 0 ? 'accent' : 'idle'}
-          />
-        </button>
+          <CountBadge count={active} progress={aggregate} hasError={hasError} />
+        </Button>
       </RPopover.Trigger>
 
       <RPopover.Portal>
-        <RPopover.Content
-          align="center"
-          sideOffset={6}
-          className="z-50 w-[420px] max-w-[92vw] overflow-hidden rounded-lg border border-border-default bg-bg-elev shadow-xl"
-        >
-          <div className="flex items-center justify-between border-b border-border-subtle px-3 py-2">
-            <span className="text-[11px] font-semibold uppercase tracking-section text-fg-tertiary">
-              Downloads
-            </span>
-            <span className="text-[11px] text-fg-muted">
-              {active > 0 ? `${active} active` : `${sorted.length} total`}
-            </span>
-          </div>
+        <RPopover.Content align="center" sideOffset={6}>
+          <Paper withBorder shadow="md" radius="md" w={420} maw="92vw" style={{ overflow: 'hidden' }}>
+            <Group justify="space-between" px="sm" py={8} style={{ borderBottom: '1px solid var(--mantine-color-default-border)' }}>
+              <Text size="xs" fw={600} tt="uppercase" c="dimmed">Downloads</Text>
+              <Text size="xs" c="dimmed">
+                {active > 0 ? `${active} active` : `${sorted.length} total`}
+              </Text>
+            </Group>
 
-          {sorted.length === 0 ? (
-            <div className="px-3 py-6 text-center text-[12px] italic text-fg-muted">
-              No downloads
-            </div>
-          ) : (
-            <ul className="max-h-[360px] overflow-y-auto p-1.5">
-              {sorted.map((row) => (
-                <DownloadRowItem key={row.rowId} row={row} onCancel={() => cancel(row)} />
-              ))}
-            </ul>
-          )}
+            {sorted.length === 0 ? (
+              <Text size="xs" c="dimmed" ta="center" fs="italic" py="lg">No downloads</Text>
+            ) : (
+              <ScrollArea.Autosize scrollbars="y" mah={360} type="auto">
+                <Stack gap={2} p={6}>
+                  {sorted.map((row) => (
+                    <DownloadRowItem key={row.rowId} row={row} onCancel={() => cancel(row)} />
+                  ))}
+                </Stack>
+              </ScrollArea.Autosize>
+            )}
+          </Paper>
         </RPopover.Content>
       </RPopover.Portal>
     </RPopover.Root>
@@ -83,68 +81,31 @@ function fmtBytes(n: number): string {
 }
 
 /**
- * Circular count-badge with an outer progress arc. The arc tracks aggregate
- * download progress across all active downloads (Σ downloaded / Σ total) so
- * a glance at the toolbar tells you "how close everything is to done." When
- * idle (no active downloads) it falls back to a flat pill — same height, no
- * extra chrome — so the toolbar doesn't jump.
+ * Count badge. While anything downloads it becomes a ring tracking aggregate
+ * progress (Σ downloaded / Σ total), so a glance at the bar says how close
+ * everything is to done; idle, it is a flat badge of the same footprint.
  */
-function ProgressBadge({
-  count, progress, tone,
-}: { count: number; progress: number | null; tone: 'error' | 'accent' | 'idle' }) {
-  // Flat pill when nothing's active — preserves the original look.
+function CountBadge({ count, progress, hasError }: { count: number; progress: number | null; hasError: boolean }) {
   if (progress === null) {
     return (
-      <span
-        className={cn(
-          'flex h-4 min-w-4 items-center justify-center rounded px-1 text-[10px] font-semibold',
-          tone === 'error' ? 'bg-status-err text-white'
-            : tone === 'accent' ? 'bg-accent text-white'
-            : 'bg-bg-base text-fg-secondary',
-        )}
+      <Badge
+        size="sm"
+        circle={count < 10}
+        variant={count > 0 || hasError ? 'filled' : 'light'}
+        color={hasError ? 'red' : count > 0 ? undefined : 'gray'}
       >
         {count}
-      </span>
+      </Badge>
     );
   }
-
-  // SVG ring around the count. r=8 means a 16×16 inner; we render at 20×20
-  // and absolutely-position the count to keep the toolbar slot at h-4 worth
-  // of visual weight. stroke-dashoffset draws the progress arc.
-  const SIZE = 20;
-  const R = 8;
-  const CIRC = 2 * Math.PI * R;
-  const dash = CIRC * (1 - Math.max(0, Math.min(1, progress)));
-  const trackClass =
-    tone === 'error' ? 'stroke-status-err/25' : 'stroke-accent/20';
-  const arcClass =
-    tone === 'error' ? 'stroke-status-err' : 'stroke-accent';
-
   return (
-    <span className="relative inline-flex h-5 w-5 items-center justify-center">
-      <svg
-        width={SIZE}
-        height={SIZE}
-        viewBox={`0 0 ${SIZE} ${SIZE}`}
-        className="absolute inset-0 -rotate-90"
-        aria-hidden
-      >
-        <circle
-          cx={SIZE / 2} cy={SIZE / 2} r={R}
-          fill="none" strokeWidth={2}
-          className={trackClass}
-        />
-        <circle
-          cx={SIZE / 2} cy={SIZE / 2} r={R}
-          fill="none" strokeWidth={2} strokeLinecap="round"
-          strokeDasharray={CIRC} strokeDashoffset={dash}
-          className={cn(arcClass, 'transition-[stroke-dashoffset] duration-300 ease-out')}
-        />
-      </svg>
-      <span className="relative text-[9px] font-semibold leading-none text-fg-secondary">
-        {count}
-      </span>
-    </span>
+    <RingProgress
+      size={22}
+      thickness={2}
+      roundCaps
+      sections={[{ value: progress * 100, color: hasError ? 'red' : 'var(--mantine-primary-color-filled)' }]}
+      label={<Text fz={9} fw={600} ta="center" lh={1}>{count}</Text>}
+    />
   );
 }
 
@@ -158,14 +119,16 @@ function fmtSpeed(bps: number): string {
   return `${Math.round(bps)} B/s`;
 }
 
+/** v1 JobStatusBadge colours, applied to download states. */
+const STATUS_BADGE: Record<string, { color: string; label: string }> = {
+  downloading: { color: 'blue', label: 'downloading' },
+  completed: { color: 'green', label: 'done' },
+  failed: { color: 'red', label: 'failed' },
+  cancelled: { color: 'gray', label: 'cancelled' },
+};
+
 function DownloadRowItem({ row, onCancel }: { row: DownloadRow; onCancel: () => void }) {
   const bps = useDownloadsStore((s) => s.bytesPerSecond(row.rowId));
-
-  const dotClass =
-    row.status === 'failed' ? 'bg-status-err'
-    : row.status === 'completed' ? 'bg-green-500'
-    : row.status === 'downloading' ? 'bg-yellow-400'
-    : 'bg-fg-dim';
 
   const speed = row.status === 'downloading' ? fmtSpeed(bps) : '';
   const statusLabel =
@@ -173,39 +136,43 @@ function DownloadRowItem({ row, onCancel }: { row: DownloadRow; onCancel: () => 
     : row.status === 'completed' ? 'Done'
     : row.status === 'cancelled' ? 'Cancelled'
     : row.total_bytes > 0
-      ? `${fmtBytes(row.downloaded_bytes)} / ${fmtBytes(row.total_bytes)} · ${row.percent}%${speed ? ` · ${speed}` : ''}`
+      ? `${fmtBytes(row.downloaded_bytes)} / ${fmtBytes(row.total_bytes)}${speed ? ` · ${speed}` : ''}`
       : speed ? `Starting… · ${speed}` : 'Starting…';
 
   const cancelLabel = row.status === 'downloading' ? 'Cancel download' : 'Dismiss';
+  const badge = STATUS_BADGE[row.status] ?? { color: 'gray', label: row.status };
+  const badgeLabel = row.status === 'downloading' && row.total_bytes > 0 ? `${row.percent}%` : badge.label;
 
   return (
-    <li className="rounded-md px-2 py-2 hover:bg-bg-base/60">
-      <div className="flex items-center gap-2">
-        <span className={cn('h-2 w-2 shrink-0 rounded-full', dotClass)} />
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-[12px] text-fg-secondary">{row.filename}</div>
-          <div className="whitespace-normal break-words text-[10px] leading-snug text-fg-muted">
+    <Box
+      px={8}
+      py={6}
+      style={{ borderRadius: 'var(--mantine-radius-sm)', backgroundColor: 'var(--mantine-color-dark-6)' }}
+    >
+      <Group gap={8} wrap="nowrap" align="flex-start">
+        <Box style={{ flex: 1, minWidth: 0 }}>
+          <Text size="xs" truncate>{row.filename}</Text>
+          <Text
+            fz={10}
+            lh={1.35}
+            c={row.status === 'failed' ? 'red.4' : 'dimmed'}
+            style={{ wordBreak: 'break-word' }}
+          >
             {row.serverName} · {row.folder} · {statusLabel}
-          </div>
-        </div>
-        <button
-          type="button"
-          aria-label={cancelLabel}
-          title={cancelLabel}
-          onClick={onCancel}
-          className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-fg-muted transition-colors hover:bg-status-err/15 hover:text-status-err"
-        >
-          <CloseIcon size={12} />
-        </button>
-      </div>
+          </Text>
+        </Box>
+        <Badge size="xs" variant="filled" color={badge.color}>{badgeLabel}</Badge>
+        <Tooltip label={cancelLabel} withinPortal fz="xs">
+          <ActionIcon size="sm" variant="subtle" color="gray" aria-label={cancelLabel} onClick={onCancel}>
+            <IconX size={12} />
+          </ActionIcon>
+        </Tooltip>
+      </Group>
       {row.status === 'downloading' && (
-        <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-bg-base">
-          <div
-            className="h-full rounded-full bg-accent transition-all"
-            style={{ width: `${row.total_bytes > 0 ? row.percent : 0}%` }}
-          />
-        </div>
+        row.total_bytes > 0
+          ? <Progress value={row.percent} size="xs" color="blue" animated mt={6} />
+          : <Progress value={100} size="xs" color="blue" striped animated mt={6} opacity={0.4} />
       )}
-    </li>
+    </Box>
   );
 }

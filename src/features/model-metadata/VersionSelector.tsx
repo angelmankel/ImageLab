@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Select } from '@/components/ui/Select';
 import { useStore } from '@/lib/store';
 import { localHashSet, versionOnDisk } from '@/lib/modelHash';
-import { Chip } from '@/features/models/primitives';
+import { Anchor, Badge, Group, Stack, Text } from '@mantine/core';
 import { formatDate } from './civitai';
 import { useModelMetadataStore, useSelectedVersion } from './store';
 
@@ -47,8 +47,8 @@ export function VersionSelector() {
   const published = formatDate(version.publishedAt ?? version.createdAt);
 
   return (
-    <div className="flex flex-col gap-1.5">
-      <div className="flex items-center gap-2">
+    <Stack gap={6}>
+      <Group gap="xs" wrap="nowrap">
         <Select
           value={String(version.id)}
           onValueChange={(id) => selectVersion(Number(id))}
@@ -62,28 +62,24 @@ export function VersionSelector() {
           ariaLabel="Model version"
         />
         {version.baseModel && (
-          <Chip tone="accent" className="shrink-0">
+          <Badge size="sm" variant="light" color="blue" className="shrink-0" tt="none">
             {version.baseModel}
-          </Chip>
+          </Badge>
         )}
-      </div>
+      </Group>
       {(published || showToggle) && (
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-fg-dim">
-          {published && <span>Published {published}</span>}
-          {published && showToggle && <span className="text-fg-faint">·</span>}
+        <Group gap={6}>
+          {published && <Text size="10px" c="dimmed">Published {published}</Text>}
+          {published && showToggle && <Text size="10px" c="dark.3">·</Text>}
           {showToggle && (
-            <button
-              type="button"
-              onClick={() => setShowAll((v) => !v)}
-              className="font-medium transition-colors hover:text-fg-tertiary"
-            >
+            <Anchor component="button" type="button" size="10px" c="dimmed" onClick={() => setShowAll((v) => !v)}>
               {showAll
                 ? 'Show on-disk versions only'
                 : `Show all ${allVersions.length} versions (${hiddenCount} on CivitAI only)`}
-            </button>
+            </Anchor>
           )}
-        </div>
+        </Group>
       )}
-    </div>
+    </Stack>
   );
 }

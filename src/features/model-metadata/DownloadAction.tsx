@@ -1,9 +1,8 @@
-import * as RPopover from '@radix-ui/react-popover';
-import { cn } from '@/lib/cn';
+import { Button, Menu, Text } from '@mantine/core';
+import { IconCheck, IconChevronDown, IconDownload } from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
 import { serversWithModel } from '@/lib/routing';
 import { useDownloadsStore } from '@/features/downloads';
-import { DownloadIcon, CheckIcon, ChevronDownIcon } from '@/components/ui/icons';
 import { primaryFile, type CivitaiModelVersion } from './civitai';
 
 /**
@@ -43,11 +42,8 @@ export function DownloadAction({ version }: { version: CivitaiModelVersion }) {
     (r) => r.version_id === version.id && r.status === 'downloading',
   );
 
-  const base =
-    'inline-flex items-center gap-1.5 rounded-lg border border-border-default px-3.5 py-2 text-[12.5px] font-medium';
-
   if (online.length === 0) {
-    return <span className={cn(base, 'text-fg-muted')}>No servers online</span>;
+    return <Button size="xs" variant="default" disabled>No servers online</Button>;
   }
 
   // Main-button label/state.
@@ -74,29 +70,24 @@ export function DownloadAction({ version }: { version: CivitaiModelVersion }) {
   }
 
   return (
-    <div className="inline-flex items-stretch">
-      <button
-        type="button"
+    <Button.Group>
+      <Button
+        size="xs"
+        variant={mainTone === 'idle' ? 'default' : 'light'}
+        color={mainTone === 'ok' ? 'green' : undefined}
         onClick={mainAction ?? undefined}
-        disabled={mainDisabled}
+        // "On disk" is a status, not an action: shown green and inert rather than greyed out.
+        disabled={mainDisabled && mainTone !== 'ok'}
+        style={mainTone === 'ok' ? { cursor: 'default' } : undefined}
         title={
           mainLabel.startsWith('Sync')
             ? `Missing on: ${missing.map((s) => s.name).join(', ')}`
             : undefined
         }
-        className={cn(
-          base,
-          'rounded-r-none border-r-0 transition-colors',
-          mainDisabled && 'cursor-default',
-          !mainDisabled && 'hover:border-border-strong',
-          mainTone === 'ok' && 'text-vae-fg',
-          mainTone === 'accent' && 'text-accent-fg hover:text-accent-hover',
-          mainTone === 'idle' && 'text-fg-secondary hover:text-fg-primary',
-        )}
+        leftSection={mainTone === 'ok' ? <IconCheck size={13} /> : <IconDownload size={13} />}
       >
-        {mainTone === 'ok' ? <CheckIcon size={13} /> : <DownloadIcon size={13} />}
         {mainLabel}
-      </button>
+      </Button>
 
       <ServerDropdown
         servers={online}
@@ -104,14 +95,14 @@ export function DownloadAction({ version }: { version: CivitaiModelVersion }) {
         isDownloadingOn={isDownloadingOn}
         onPick={(serverId) => void start(version.id, undefined, [serverId])}
       />
-    </div>
+    </Button.Group>
   );
 }
 
 /**
- * Split-button chevron. Opens a popover with one row per online server so
+ * Split-button chevron. Opens a menu with one row per online server so
  * the user can fire a download at a specific box without disturbing the
- * others. Hides itself when there's only one server online — the main
+ * others. Disabled when there's only one server online — the main
  * button already does the right thing in that case.
  */
 function ServerDropdown({
@@ -123,70 +114,49 @@ function ServerDropdown({
   onPick: (id: string) => void;
 }) {
   if (servers.length <= 1) {
-    // Still render a disabled cap so the main button keeps its rounded edge.
     return (
-      <span className="rounded-r-lg border border-l-0 border-border-default px-2 text-fg-dim opacity-50">
-        <ChevronDownIcon size={12} />
-      </span>
+      <Button size="xs" px={8} variant="default" disabled aria-label="Download to a specific server">
+        <IconChevronDown size={12} />
+      </Button>
     );
   }
   return (
-    <RPopover.Root>
-      <RPopover.Trigger asChild>
-        <button
-          type="button"
+    <Menu position="top-end" withinPortal width={260} shadow="md">
+      <Menu.Target>
+        <Button
+          size="xs"
+          px={8}
+          variant="default"
           aria-label="Download to a specific server"
           title="Download to a specific server"
-          className="inline-flex items-center justify-center rounded-r-lg border border-border-default bg-bg-elev px-2 text-fg-tertiary transition-colors hover:border-border-strong hover:text-fg-secondary"
         >
-          <ChevronDownIcon size={12} />
-        </button>
-      </RPopover.Trigger>
-      <RPopover.Portal>
-        <RPopover.Content
-          align="end"
-          sideOffset={6}
-          className="z-50 w-[260px] overflow-hidden rounded-lg border border-border-default bg-bg-elev shadow-xl"
-        >
-          <div className="border-b border-border-subtle px-3 py-2 text-[10px] font-semibold uppercase tracking-section text-fg-tertiary">
-            Download to one server
-          </div>
-          <ul className="max-h-[280px] overflow-y-auto p-1.5">
-            {servers.map((s) => {
-              const has = haveIds.has(s.id);
-              const busy = isDownloadingOn(s.id);
-              const disabled = has || busy;
-              return (
-                <li key={s.id}>
-                  <button
-                    type="button"
-                    disabled={disabled}
-                    onClick={() => !disabled && onPick(s.id)}
-                    className={cn(
-                      'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[12px] transition-colors',
-                      disabled
-                        ? 'cursor-default text-fg-muted'
-                        : 'text-fg-secondary hover:bg-bg-base/60 hover:text-fg-primary',
-                    )}
-                  >
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center">
-                      {has
-                        ? <CheckIcon size={12} className="text-vae-fg" />
-                        : busy
-                          ? <DownloadIcon size={12} className="text-yellow-400 animate-pulse" />
-                          : <DownloadIcon size={12} className="text-fg-tertiary" />}
-                    </span>
-                    <span className="flex-1 truncate">{s.name}</span>
-                    <span className="text-[10px] text-fg-muted">
-                      {has ? 'on disk' : busy ? 'downloading' : 'missing'}
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </RPopover.Content>
-      </RPopover.Portal>
-    </RPopover.Root>
+          <IconChevronDown size={12} />
+        </Button>
+      </Menu.Target>
+      <Menu.Dropdown>
+        <Menu.Label>Download to one server</Menu.Label>
+        {servers.map((s) => {
+          const has = haveIds.has(s.id);
+          const busy = isDownloadingOn(s.id);
+          return (
+            <Menu.Item
+              key={s.id}
+              disabled={has || busy}
+              onClick={() => onPick(s.id)}
+              leftSection={
+                has
+                  ? <IconCheck size={13} color="var(--mantine-color-green-5)" />
+                  : <IconDownload size={13} className={busy ? 'animate-pulse text-yellow-400' : undefined} />
+              }
+              rightSection={
+                <Text size="10px" c="dimmed">{has ? 'on disk' : busy ? 'downloading' : 'missing'}</Text>
+              }
+            >
+              {s.name}
+            </Menu.Item>
+          );
+        })}
+      </Menu.Dropdown>
+    </Menu>
   );
 }

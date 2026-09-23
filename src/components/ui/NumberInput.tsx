@@ -1,5 +1,5 @@
+import { NumberInput as MNumberInput } from '@mantine/core';
 import { cn } from '@/lib/cn';
-import { useEffect, useState } from 'react';
 
 type Props = {
   value: number;
@@ -7,45 +7,31 @@ type Props = {
   step?: number;
   min?: number;
   max?: number;
-  align?: 'left' | 'right';
+  align?: 'left' | 'right' | 'center';
   className?: string;
   ariaLabel?: string;
+  size?: 'xs' | 'sm';
 };
 
 /**
- * Local-edit number input that commits on blur or Enter, so typing partial
- * values like "1." doesn't immediately get reset by NaN-clamping.
+ * The v1 number input (Mantine). Clamps on blur rather than per keystroke, so typing a partial
+ * value like "1." is not reset under the cursor.
  */
-export function NumberInput({ value, onValueChange, step = 1, min, max, align = 'right', className, ariaLabel }: Props) {
-  const [draft, setDraft] = useState(String(value));
-  useEffect(() => { setDraft(String(value)); }, [value]);
-  const commit = () => {
-    const n = Number(draft);
-    if (!Number.isFinite(n)) { setDraft(String(value)); return; }
-    let v = n;
-    if (min != null && v < min) v = min;
-    if (max != null && v > max) v = max;
-    onValueChange(v);
-    setDraft(String(v));
-  };
+export function NumberInput({ value, onValueChange, step = 1, min, max, align = 'right', className, ariaLabel, size = 'sm' }: Props) {
+  const decimals = String(step).includes('.') ? String(step).split('.')[1].length : 0;
   return (
-    <input
-      type="number"
-      value={draft}
-      onChange={(e) => setDraft(e.target.value)}
-      onBlur={commit}
-      onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+    <MNumberInput
+      value={value}
+      onChange={v => { const n = typeof v === 'number' ? v : Number(v); if (Number.isFinite(n) && v !== '') onValueChange(n); }}
       step={step}
       min={min}
       max={max}
+      clampBehavior="blur"
+      decimalScale={decimals || undefined}
+      size={size}
       aria-label={ariaLabel}
-      className={cn(
-        'min-w-0 flex-1 rounded-lg border border-border-default bg-bg-input px-3 py-2.5',
-        'text-[13px] font-medium text-fg-secondary outline-none tabular-nums',
-        'hover:border-border-strong focus:border-accent',
-        align === 'right' && 'text-right',
-        className,
-      )}
+      className={cn('min-w-0 flex-1', className)}
+      styles={{ input: { textAlign: align, fontWeight: 600, fontVariantNumeric: 'tabular-nums' } }}
     />
   );
 }

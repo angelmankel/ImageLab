@@ -1,13 +1,27 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { ActionIcon, Badge, Chip, Group, SimpleGrid, Slider, Stack, Text, Tooltip } from '@mantine/core';
+import { IconHistory, IconLayoutGrid, IconStar, IconStarFilled, IconTrash } from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
 import { viewUrl } from '@/lib/comfy';
 import type { HistoryEntry } from '@/lib/types';
-import { FullscreenViewer } from './FullscreenViewer';
-import { cn } from '@/lib/cn';
-import { CloseIcon, HeartIcon, TrashIcon } from '@/components/ui/icons';
+import { FullscreenViewer, useLiveFrame } from './FullscreenViewer';
+import { useViewerPrefs } from './viewerPrefs';
+import { HistoryGridItem } from './HistoryGridItem';
+import { JobQueue } from './JobQueue';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
-import { ImageTile } from '@/components/ui/ImageTile';
 import { useShortcut, ShortcutPriority } from '@/hooks/useShortcut';
+
+const COLUMNS_KEY = 'imagelab.historyColumns.v1';
+const MIN_COLUMNS = 2;
+const MAX_COLUMNS = 5;
+
+function loadColumns(): number {
+  try {
+    const n = Number(localStorage.getItem(COLUMNS_KEY));
+    if (n >= MIN_COLUMNS && n <= MAX_COLUMNS) return n;
+  } catch { /* ignore */ }
+  return 2;
+}
 
 export interface HistoryPanelProps {
   /**
@@ -22,8 +36,11 @@ export interface HistoryPanelProps {
 
 /**
  * History is one unified list now — the server that generated an image is just
- * metadata (`entry.serverId`). The tab row ("All" + one per server) filters on
+ * metadata (`entry.serverId`). The chip row ("All" + one per server) filters on
  * that metadata; like/delete go straight through the store.
+ *
+ * Laid out as v1's OutputPanel: a slim controls bar (grid-size slider, filters,
+ * bulk delete), the running-job strip, then a square-tile grid.
  */
 export function HistoryPanel({ tileClickMode = 'select-then-open' }: HistoryPanelProps = {}) {
   // In 'open-immediately' mode the panel doesn't write to the global
@@ -45,6 +62,10 @@ export function HistoryPanel({ tileClickMode = 'select-then-open' }: HistoryPane
   const clearUnliked = useStore(s => s.clearUnliked);
   const confirm = useConfirm();
   const viewerOpen = useStore(s => s.viewerOpen);
+  // The viewer can open on a live frame before anything has finished.
+  const liveFrame = useLiveFrame();
+  const livePref = useViewerPrefs(s => s.livePreview);
+  const hasLiveFrame = !!liveFrame && livePref;
   const openViewer = useStore(s => s.openViewer);
   const closeViewer = useStore(s => s.closeViewer);
 
@@ -52,6 +73,11 @@ export function HistoryPanel({ tileClickMode = 'select-then-open' }: HistoryPane
   const [tab, setTab] = useState<string>('all');
   const [likedOnly, setLikedOnly] = useState(false);
   const [sizes, setSizes] = useState<Record<string, [number, number]>>({});
+  const [columns, setColumnsState] = useState(loadColumns);
+  const setColumns = (n: number) => {
+    setColumnsState(n);
+    try { localStorage.setItem(COLUMNS_KEY, String(n)); } catch { /* ignore */ }
+  };
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const hostFor = useCallback(
@@ -130,94 +156,117 @@ export function HistoryPanel({ tileClickMode = 'select-then-open' }: HistoryPane
     }
   };
 
-  const tabs: { id: string; label: string }[] = [
-    { id: 'all', label: 'All' },
-    ...servers.map(s => ({ id: s.id, label: s.name })),
-  ];
+  const deleteEntry = async (entry: HistoryEntry) => {
+    const ok = await confirm({
+      message: 'Delete this image?',
+      confirmLabel: 'Delete',
+      dontAskAgainKey: 'history.deleteEntry',
+    });
+    if (ok) removeHistoryEntry(entry.id);
+  };
   const viewerIndex = viewerOpen ? Math.max(0, list.findIndex(e => e.id === selectedId)) : -1;
 
   return (
-    <aside className="flex h-full flex-col">
-      <div className="flex items-center justify-between gap-2 border-b border-border-subtle bg-bg-panel px-4 py-3">
-        <div className="flex items-center gap-2">
-          <span className="text-[14px] font-semibold text-fg-primary">History</span>
-          <span className="rounded bg-bg-elev px-1.5 py-0.5 text-[11px] font-medium text-fg-muted">
-            {list.length}
-          </span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            aria-label="Show favorites only"
-            aria-pressed={likedOnly}
-            title="Show favorites only"
-            onClick={() => setLikedOnly(v => !v)}
-            className={cn(
-              'flex h-9 w-9 items-center justify-center rounded-lg border transition-colors',
-              likedOnly
-                ? 'border-red-500/60 bg-red-500/15 text-red-400'
-                : 'border-border-default bg-bg-elev text-fg-tertiary hover:border-border-strong',
-            )}
+    <Stack component="aside" h="100%" gap={0}>
+      {/* Controls bar */}
+      <Group justify="space-between" gap="xs" wrap="nowrap" px="xs" py={6} style={{ borderBottom: '1px solid var(--mantine-color-dark-4)', flexShrink: 0 }}>
+        <Group gap={6} wrap="nowrap">
+          <IconHistory size={14} style={{ opacity: 0.6 }} />
+          <Text size="sm" fw={600}>History</Text>
+          <Badge size="xs" variant="light" color="gray">{list.length}</Badge>
+        </Group>
+        <Group gap={6} wrap="nowrap">
+          <Tooltip label="Grid size" withinPortal fz="xs">
+            <Group gap={6} wrap="nowrap">
+              <IconLayoutGrid size={14} style={{ opacity: 0.5 }} />
+              <Slider
+                aria-label="Grid columns"
+                value={columns}
+                onChange={setColumns}
+                min={MIN_COLUMNS}
+                max={MAX_COLUMNS}
+                step={1}
+                size="xs"
+                label={null}
+                w={64}
+                styles={{ thumb: { display: 'none' } }}
+              />
+            </Group>
+          </Tooltip>
+          <Tooltip label="Show favorites only" withinPortal fz="xs">
+            <ActionIcon
+              variant={likedOnly ? 'light' : 'subtle'}
+              color={likedOnly ? 'yellow' : 'gray'}
+              size="sm"
+              aria-label="Show favorites only"
+              aria-pressed={likedOnly}
+              onClick={() => setLikedOnly(v => !v)}
+            >
+              {likedOnly ? <IconStarFilled size={14} /> : <IconStar size={14} />}
+            </ActionIcon>
+          </Tooltip>
+          <Tooltip
+            label={unlikedCount === 0
+              ? 'No non-favorited images'
+              : `Delete ${unlikedCount} non-favorite image${unlikedCount === 1 ? '' : 's'}`}
+            withinPortal
+            fz="xs"
           >
-            <HeartIcon size={16} filled={likedOnly} />
-          </button>
-          <button
-            type="button"
-            aria-label="Delete non-favorited images"
-            title="Delete every non-favorited image"
-            onClick={onClearUnliked}
-            disabled={unlikedCount === 0}
-            className={cn(
-              'flex h-9 w-9 items-center justify-center rounded-lg border border-border-default bg-bg-elev transition-colors',
-              unlikedCount === 0
-                ? 'cursor-not-allowed text-fg-dim opacity-50'
-                : 'text-fg-tertiary hover:border-red-500/60 hover:bg-red-500/10 hover:text-red-400',
-            )}
-          >
-            <TrashIcon size={15} />
-          </button>
-        </div>
-      </div>
+            <ActionIcon
+              variant="subtle"
+              color="red"
+              size="sm"
+              aria-label="Delete non-favorited images"
+              onClick={onClearUnliked}
+              disabled={unlikedCount === 0}
+            >
+              <IconTrash size={14} />
+            </ActionIcon>
+          </Tooltip>
+        </Group>
+      </Group>
 
-      {/* Server filter tabs */}
-      <div className="flex items-center gap-1.5 overflow-x-auto px-3.5 pt-3 pb-2">
-        {tabs.map(t => (
-          <button
-            key={t.id}
-            type="button"
-            onClick={() => setTab(t.id)}
-            className={cn(
-              'min-h-[40px] shrink-0 rounded-full border px-3.5 text-[12px] font-medium transition-colors',
-              tab === t.id
-                ? 'border-accent bg-accent-soft text-accent-fg'
-                : 'border-border-default bg-bg-elev text-fg-tertiary hover:border-border-strong',
-            )}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      {/* Server filter chips */}
+      {servers.length > 0 && (
+        <Chip.Group multiple={false} value={tab} onChange={setTab}>
+          <Group gap={4} wrap="nowrap" px="xs" py={6} style={{ overflowX: 'auto', flexShrink: 0 }}>
+            <Chip value="all" size="xs" radius="sm">All</Chip>
+            {servers.map(sv => (
+              <Chip key={sv.id} value={sv.id} size="xs" radius="sm">{sv.name}</Chip>
+            ))}
+          </Group>
+        </Chip.Group>
+      )}
 
-      <div ref={scrollRef} className="scroll-y min-h-0 flex-1 px-3.5 pb-3.5 pt-1">
+      <JobQueue />
+
+      <div ref={scrollRef} className="scroll-y min-h-0 flex-1" style={{ padding: 8 }}>
         {list.length === 0 ? (
-          <div className="px-2 py-10 text-center text-[12px] italic text-fg-muted">
-            {likedOnly ? 'No favorited images here' : 'No generations yet'}
-          </div>
+          <Stack align="center" justify="center" gap="xs" py="xl">
+            <IconHistory size={32} style={{ opacity: 0.3 }} />
+            <Text size="sm" c="dimmed" ta="center">
+              {likedOnly ? 'No favorited images here' : 'No outputs yet'}
+            </Text>
+            {!likedOnly && (
+              <Text size="xs" c="dimmed" ta="center">Generated images will appear here</Text>
+            )}
+          </Stack>
         ) : (
-          <div className="grid grid-cols-2 gap-2.5">
+          <SimpleGrid cols={columns} spacing={4} verticalSpacing={4}>
             {list.map(entry => {
               const url = viewUrl(entry, hostFor(entry));
-              const selected = entry.id === selectedId;
               return (
-                <ImageTile
+                <HistoryGridItem
                   key={entry.id}
-                  src={url}
-                  selected={selected}
-                  selectedClassName="border-accent border-2 shadow-[0_0_14px_rgba(79,138,255,0.4)]"
-                  className="block w-full"
-                  buttonLabel={entry.positive || 'history image'}
-                  dragPayload={{ url, name: entry.filename }}
-                  onClick={() => {
+                  id={entry.id}
+                  url={url}
+                  filename={entry.filename}
+                  label={entry.positive || 'history image'}
+                  liked={!!entry.liked}
+                  selected={entry.id === selectedId}
+                  serverLabel={tab === 'all' ? serverName(entry.serverId) : null}
+                  size={sizes[entry.id]}
+                  onSelect={() => {
                     if (tileClickMode === 'open-immediately') {
                       selectEntry(entry);
                       openViewer();
@@ -226,68 +275,29 @@ export function HistoryPanel({ tileClickMode = 'select-then-open' }: HistoryPane
                     if (entry.id === selectedId) { openViewer(); return; }
                     selectEntry(entry);
                   }}
+                  onInfo={() => { selectEntry(entry); openViewer({ withInfo: true }); }}
+                  onToggleLiked={() => toggleHistoryLiked(entry.id)}
+                  onDelete={() => { void deleteEntry(entry); }}
                   onNaturalSize={(w, h) => setSizes(prev =>
                     prev[entry.id]?.[0] === w && prev[entry.id]?.[1] === h
                       ? prev
                       : { ...prev, [entry.id]: [w, h] }
                   )}
-                >
-                  <div data-history-id={entry.id} className="pointer-events-none absolute inset-0">
-                    {/* Server badge — only meaningful on the All tab */}
-                    {tab === 'all' && (
-                      <span className="pointer-events-none absolute bottom-1.5 right-1.5 rounded bg-black/65 px-1.5 py-0.5 text-[9px] font-medium text-white/90">
-                        {serverName(entry.serverId)}
-                      </span>
-                    )}
-                    {sizes[entry.id] && (
-                      <span className="pointer-events-none absolute bottom-1.5 left-1.5 rounded bg-black/65 px-1.5 py-0.5 font-mono text-[9px] text-white/90 opacity-0 transition-opacity group-hover:opacity-100">
-                        {sizes[entry.id][0]}×{sizes[entry.id][1]}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Like + delete — always visible so they work on touch */}
-                  <button
-                    type="button"
-                    aria-label={entry.liked ? 'Unfavorite' : 'Favorite'}
-                    title={entry.liked ? 'Unfavorite' : 'Favorite'}
-                    onClick={(e) => { e.stopPropagation(); toggleHistoryLiked(entry.id); }}
-                    className={cn(
-                      'absolute left-1.5 top-1.5 flex h-9 w-9 items-center justify-center rounded-full backdrop-blur-md transition-colors',
-                      entry.liked
-                        ? 'bg-red-500/85 text-white'
-                        : 'bg-black/50 text-white/80 hover:bg-black/70 hover:text-white',
-                    )}
-                  >
-                    <HeartIcon size={16} filled={entry.liked} />
-                  </button>
-                  <button
-                    type="button"
-                    aria-label="Delete image"
-                    title="Delete image"
-                    onClick={async (e) => {
-                      e.stopPropagation();
-                      if (await confirm('Delete this image?')) removeHistoryEntry(entry.id);
-                    }}
-                    className="absolute right-1.5 top-1.5 flex h-9 w-9 items-center justify-center rounded-full bg-black/50 text-white/80 backdrop-blur-md transition-colors hover:bg-red-500/80 hover:text-white"
-                  >
-                    <CloseIcon size={13} />
-                  </button>
-                </ImageTile>
+                />
               );
             })}
-          </div>
+          </SimpleGrid>
         )}
       </div>
 
-      {viewerOpen && list.length > 0 && (
+      {viewerOpen && (list.length > 0 || hasLiveFrame) && (
         <FullscreenViewer
           list={list}
-          index={viewerIndex}
+          index={Math.max(0, viewerIndex)}
           onIndexChange={(i) => { const next = list[i]; if (next) selectEntry(next); }}
           onClose={closeViewer}
         />
       )}
-    </aside>
+    </Stack>
   );
 }

@@ -1,16 +1,13 @@
 import { createContext, useCallback, useContext, useState, type ReactNode } from 'react';
-import * as RDialog from '@radix-ui/react-dialog';
-import { cn } from '@/lib/cn';
+import { Button, Checkbox, Group, Modal, Text } from '@mantine/core';
 
 /**
  * App-styled replacement for `window.confirm()`. Mount `<ConfirmProvider>`
  * once near the app root and call `const confirm = useConfirm()` anywhere —
  * `await confirm(message)` resolves to `true` / `false`.
  *
- * The dialog is a Radix Dialog (the lighter primitive — we don't need
- * AlertDialog's role-attribute boilerplate, and pulling in another Radix
- * package only for that wouldn't pay off). Esc / overlay click resolve to
- * `false` to match window.confirm semantics.
+ * The dialog is the v1 Mantine confirm modal, above any other modal. Esc /
+ * overlay click resolve to `false` to match window.confirm semantics.
  */
 
 type ConfirmOptions = {
@@ -98,57 +95,31 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
   return (
     <ConfirmContext.Provider value={confirm}>
       {children}
-      <RDialog.Root open={!!state} onOpenChange={(o) => { if (!o) settle(false); }}>
-        <RDialog.Portal>
-          <RDialog.Overlay className="fixed inset-0 z-50 bg-black/55 data-[state=open]:animate-in data-[state=open]:fade-in" />
-          <RDialog.Content
-            className={cn(
-              'fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2',
-              'w-[min(92vw,400px)] rounded-xl border border-border-strong bg-bg-elev px-5 py-4 text-fg-secondary shadow-2xl outline-none',
-            )}
-          >
-            <RDialog.Title className="mb-1 text-[13px] font-semibold text-fg-primary">
-              {state?.title ?? 'Confirm'}
-            </RDialog.Title>
-            <RDialog.Description className="mb-4 text-[12px] text-fg-muted">
-              {state?.message}
-            </RDialog.Description>
-            {state?.dontAskAgainKey && (
-              <label className="mb-3 flex cursor-pointer items-center gap-2 text-[11px] text-fg-muted hover:text-fg-secondary">
-                <input
-                  type="checkbox"
-                  checked={dontAsk}
-                  onChange={(e) => setDontAsk(e.currentTarget.checked)}
-                  className="h-3.5 w-3.5 rounded border-border-default bg-bg-input accent-accent"
-                />
-                Don&apos;t ask again
-              </label>
-            )}
-            <div className="flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => settle(false)}
-                className="rounded-md border border-border-default bg-bg-input px-3 py-1.5 text-[12px] font-medium text-fg-secondary hover:border-border-strong"
-              >
-                {cancelLabel}
-              </button>
-              <button
-                type="button"
-                autoFocus
-                onClick={() => settle(true)}
-                className={cn(
-                  'rounded-md px-3 py-1.5 text-[12px] font-semibold text-white',
-                  destructive
-                    ? 'bg-status-err hover:bg-status-err/85'
-                    : 'bg-accent hover:bg-accent-hover',
-                )}
-              >
-                {confirmLabel}
-              </button>
-            </div>
-          </RDialog.Content>
-        </RDialog.Portal>
-      </RDialog.Root>
+      <Modal
+        opened={!!state}
+        onClose={() => settle(false)}
+        title={state?.title ?? 'Confirm'}
+        centered
+        size="sm"
+        zIndex={400}
+      >
+        <Text size="sm" c="dimmed" mb="md">{state?.message}</Text>
+        {state?.dontAskAgainKey && (
+          <Checkbox
+            size="xs"
+            mb="md"
+            label="Don't ask again"
+            checked={dontAsk}
+            onChange={(e) => setDontAsk(e.currentTarget.checked)}
+          />
+        )}
+        <Group justify="flex-end" gap="xs">
+          <Button size="xs" variant="subtle" color="gray" onClick={() => settle(false)}>{cancelLabel}</Button>
+          <Button size="xs" color={destructive ? 'red' : undefined} data-autofocus onClick={() => settle(true)}>
+            {confirmLabel}
+          </Button>
+        </Group>
+      </Modal>
     </ConfirmContext.Provider>
   );
 }

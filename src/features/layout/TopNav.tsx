@@ -70,7 +70,9 @@ export function TopNav({
           className,
         )}
       >
-        {isDesktop ? (
+        {/* The absolute tracks exist only to keep a centre cluster centred. Without one they just let
+            the left and right clusters paint over each other once both grow, so flow layout is used. */}
+        {isDesktop && center ? (
           <>
             <NavCluster align="start">{left}</NavCluster>
             <NavCluster align="center" className="hidden sm:inline-flex">
@@ -79,13 +81,16 @@ export function TopNav({
             <NavCluster align="end">{right}</NavCluster>
           </>
         ) : (
-          <div className="flex w-full min-w-0 items-center gap-1.5">
+          <div className="flex w-full min-w-0 items-center gap-3">
             {/* The panel triggers are the way back into the app, so they never
                 shrink and never scroll away. Only the action strip between them
                 gives up space. */}
             <div className="flex shrink-0 items-center gap-1.5">{left}</div>
-            <div className="scroll-x-thin flex min-w-0 flex-1 items-center justify-end gap-1.5 overflow-x-auto">
-              {right}
+            {/* `ml-auto` on an inner row rather than `justify-end` on the scroller: a right-aligned
+                flex row that is too wide spills out to the left, under the cluster beside it,
+                where it cannot be scrolled to. This way it scrolls. */}
+            <div className="scroll-x-thin flex min-w-0 flex-1 items-center overflow-x-auto">
+              <div className="ml-auto flex shrink-0 items-center gap-1.5">{right}</div>
             </div>
           </div>
         )}

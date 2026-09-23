@@ -1,4 +1,4 @@
-import * as RPopover from '@radix-ui/react-popover';
+import * as RPopover from '@/components/ui/popover';
 import { useStore } from '@/lib/store';
 import { RESOLUTION_PRESETS } from '@/lib/storage';
 import { fireFromStore } from './GenerateButton';

@@ -1,9 +1,15 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import * as RPopover from '@radix-ui/react-popover';
+import {
+  ActionIcon, Badge, CloseButton, Group, Popover, Stack, Text, Tooltip, UnstyledButton,
+} from '@mantine/core';
+import {
+  IconCheck, IconChevronLeft, IconChevronRight, IconInfoCircle, IconPlayerPause, IconPlayerPlay,
+  IconSettings, IconX,
+} from '@tabler/icons-react';
+import { POPOVER_Z } from '@/components/ui/popover';
 import { usePanZoom } from '@/hooks/usePanZoom';
 import { useShortcut, ShortcutPriority } from '@/hooks/useShortcut';
-import { CloseIcon, InfoIcon, PauseIcon, PlayIcon, ChevronDownIcon, CheckIcon } from '@/components/ui/icons';
 import {
   loadSlideshowTransition,
   saveSlideshowTransition,
@@ -47,6 +53,13 @@ type Props = {
   slideshowMs?: number;
   /** Optional caption rendered with the page counter. */
   pageCaption?: string;
+  /**
+   * A running job's latest preview frame. When set it is shown in place of the current item and
+   * marked LIVE; each new frame swaps in without resetting pan or zoom.
+   */
+  liveUrl?: string | null;
+  /** Extra controls at the start of the top-right cluster. */
+  toolbarExtra?: ReactNode;
 };
 
 const DEFAULT_SLIDESHOW_MS = 3000;
@@ -62,9 +75,12 @@ export function FullscreenImage({
   onPlayingChange,
   slideshowMs = DEFAULT_SLIDESHOW_MS,
   pageCaption,
+  liveUrl,
+  toolbarExtra,
 }: Props) {
   const item = items[index];
-  const url = item?.url ?? '';
+  const live = !!liveUrl;
+  const url = liveUrl || (item?.url ?? '');
 
   // Controlled-or-uncontrolled playing state.
   const [playingState, setPlayingState] = useState(playingProp ?? false);
@@ -120,10 +136,11 @@ export function FullscreenImage({
   // Slideshow auto-advance. The `index` dependency means a manual nav resets
   // the timer naturally — the interval is torn down + recreated.
   useEffect(() => {
-    if (!playing || len < 2) return;
+    // A live frame is on screen: the slideshow waits until the job finishes.
+    if (!playing || len < 2 || live) return;
     const t = setInterval(() => onIndexChange((index + 1) % len), slideshowMs);
     return () => clearInterval(t);
-  }, [playing, index, len, onIndexChange, slideshowMs]);
+  }, [playing, index, len, onIndexChange, slideshowMs, live]);
 
   // Top-overlay priority — when the fullscreen viewer is open, its arrows
   // and Esc take precedence over the history panel / metadata gallery behind.
@@ -132,13 +149,19 @@ export function FullscreenImage({
   useShortcut('ArrowRight', () => onIndexChange((index + 1) % len), { priority: ShortcutPriority.TopOverlay });
   useShortcut(['s', 'S'], () => setPlaying(p => !p), { priority: ShortcutPriority.TopOverlay });
 
-  if (!item) return null;
+  if (!item && !live) return null;
+
+  // Chrome buttons are v1's viewer controls: dark filled ActionIcons at 0.8 opacity. Each stops
+  // its click so the container's tap-to-close does not fire underneath it.
+  const chrome = { variant: 'filled', color: 'dark', size: 'lg', style: { opacity: 0.8 } } as const;
 
   return createPortal(
     <div
       ref={containerRef}
-      className="fixed inset-0 z-[80] overflow-hidden"
-      style={{ touchAction: 'none' }}
+      // Above Mantine modals (200) so it can open from the model-metadata modal, below popovers
+      // (300) so the transition picker and tooltips still show over it.
+      className="fixed inset-0 z-[250] overflow-hidden"
+      style={{ touchAction: 'none', backgroundColor: 'rgba(0, 0, 0, 0.95)' }}
       onWheel={handlers.onWheel}
       onPointerDown={handlers.onPointerDown}
       onPointerMove={handlers.onPointerMove}
@@ -146,18 +169,6 @@ export function FullscreenImage({
       onPointerCancel={handlers.onPointerUp}
       onClick={handlers.onClick}
     >
-      {/* Ambient backdrop sampled from the image via heavy blur. */}
-      <div className="pointer-events-none absolute inset-0">
-        <img
-          src={url}
-          alt=""
-          aria-hidden
-          className="h-full w-full scale-125 object-cover opacity-50"
-          style={{ filter: 'blur(60px)' }}
-        />
-        <div className="absolute inset-0 bg-black/55" />
-      </div>
-
       {/* Image stack — when the slideshow is playing with a non-`none`
           transition, the outgoing image (back layer) runs its exit anim
           while the new image (front layer) runs its enter anim. Outside of
@@ -171,7 +182,7 @@ export function FullscreenImage({
               src={prevUrl}
               alt=""
               draggable={false}
-              className="max-h-[92vh] max-w-[92vw] select-none rounded-md shadow-[0_20px_70px_rgba(0,0,0,0.7)]"
+              className="max-h-[92vh] max-w-[92vw] select-none"
             />
           </div>
         )}
@@ -185,8 +196,12 @@ export function FullscreenImage({
               alt=""
               draggable={false}
               onLoad={(e) => setSize({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight })}
-              className="max-h-[92vh] max-w-[92vw] select-none rounded-md shadow-[0_20px_70px_rgba(0,0,0,0.7)]"
+              className="max-h-[92vh] max-w-[92vw] select-none"
               style={{
+                // Preview frames are small (often a fraction of the final size); at their natural
+                // size they sat in the middle of an empty screen. A live frame is scaled up to the
+                // largest box that fits, keeping its shape.
+                ...(live ? { width: '92vw', height: '92vh', objectFit: 'contain' as const } : null),
                 transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom})`,
                 transition: reframing ? 'transform 250ms cubic-bezier(0.22, 1, 0.36, 1)' : undefined,
               }}
@@ -195,125 +210,132 @@ export function FullscreenImage({
         </div>
       </div>
 
-      {len > 1 && (
+      {/* Prev / next — hidden while the slideshow plays, as in v1. */}
+      {len > 1 && !playing && !live && (
         <>
-          <button
-            type="button"
+          <ActionIcon
+            {...chrome}
+            size="xl"
             aria-label="Previous"
             onClick={(e) => { e.stopPropagation(); prev(); }}
-            className="absolute left-4 top-1/2 z-10 flex h-14 w-14 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-[24px] text-white/80 backdrop-blur-md hover:bg-black/60 hover:text-white"
+            className="!absolute left-4 top-1/2 z-10 -translate-y-1/2"
           >
-            ‹
-          </button>
-          <button
-            type="button"
+            <IconChevronLeft size="1.5rem" />
+          </ActionIcon>
+          <ActionIcon
+            {...chrome}
+            size="xl"
             aria-label="Next"
             onClick={(e) => { e.stopPropagation(); next(); }}
-            className="absolute right-4 top-1/2 z-10 flex h-14 w-14 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-[24px] text-white/80 backdrop-blur-md hover:bg-black/60 hover:text-white"
+            className={cn('!absolute top-1/2 z-10 -translate-y-1/2', infoSlot && infoOpen ? 'right-[356px]' : 'right-4')}
           >
-            ›
-          </button>
+            <IconChevronRight size="1.5rem" />
+          </ActionIcon>
         </>
       )}
 
-      {/* Top-right control cluster: slideshow + transition picker + info + close.
-          The slideshow button moved up here (it used to live bottom-center,
-          where it overlapped tall portraits). */}
-      <div className="absolute right-4 top-4 z-10 flex items-center gap-2">
-        {len > 1 && (
+      {/* Top-right control cluster: transition settings + slideshow + info + close. */}
+      <Group
+        gap="xs"
+        className={cn('!absolute top-4 z-20 transition-[right] duration-200', infoSlot && infoOpen ? 'right-[356px]' : 'right-4')}
+      >
+        {toolbarExtra}
+        {len > 1 && !live && (
           <>
-            <button
-              type="button"
-              aria-label={playing ? 'Pause slideshow' : 'Play slideshow'}
-              title={playing ? 'Pause slideshow (S)' : 'Play slideshow (S)'}
-              onClick={(e) => { e.stopPropagation(); setPlaying(p => !p); }}
-              className={cn(
-                'flex h-11 items-center gap-2 rounded-full px-4 text-[12.5px] font-medium backdrop-blur-md transition-colors',
-                playing
-                  ? 'bg-white/85 text-black hover:bg-white'
-                  : 'bg-black/40 text-white/85 hover:bg-black/60 hover:text-white',
-              )}
-            >
-              {playing ? <PauseIcon size={14} /> : <PlayIcon size={14} />}
-              <span>{playing ? 'Pause' : 'Slideshow'}</span>
-            </button>
             <TransitionPicker value={transition} onChange={setTransition} />
+            <Tooltip label={playing ? 'Pause slideshow (S)' : 'Play slideshow (S)'} withArrow>
+              <ActionIcon
+                {...chrome}
+                color={playing ? undefined : 'dark'}
+                aria-label={playing ? 'Pause slideshow' : 'Play slideshow'}
+                aria-pressed={playing}
+                onClick={(e) => { e.stopPropagation(); setPlaying(p => !p); }}
+              >
+                {playing ? <IconPlayerPause size="1.2rem" /> : <IconPlayerPlay size="1.2rem" />}
+              </ActionIcon>
+            </Tooltip>
           </>
         )}
 
         {infoSlot && (
-          <button
-            type="button"
-            aria-label={infoOpen ? 'Hide image info' : 'Show image info'}
-            title={infoOpen ? 'Hide image info' : 'Show image info'}
-            aria-expanded={infoOpen}
-            onClick={(e) => { e.stopPropagation(); setInfoOpen(o => !o); }}
-            className={cn(
-              'flex h-11 w-11 items-center justify-center rounded-full backdrop-blur-md',
-              infoOpen
-                ? 'bg-white/85 text-black hover:bg-white'
-                : 'bg-black/40 text-white/80 hover:bg-black/60 hover:text-white',
-            )}
-          >
-            <InfoIcon size={18} />
-          </button>
+          <Tooltip label={infoOpen ? 'Hide image info' : 'Show image info'} withArrow>
+            <ActionIcon
+              {...chrome}
+              color={infoOpen ? undefined : 'dark'}
+              aria-label={infoOpen ? 'Hide image info' : 'Show image info'}
+              aria-expanded={infoOpen}
+              onClick={(e) => { e.stopPropagation(); setInfoOpen(o => !o); }}
+            >
+              <IconInfoCircle size="1.2rem" />
+            </ActionIcon>
+          </Tooltip>
         )}
 
-        <button
-          type="button"
+        <ActionIcon
+          {...chrome}
           aria-label="Close"
           onClick={(e) => { e.stopPropagation(); onClose(); }}
-          className="flex h-11 w-11 items-center justify-center rounded-full bg-black/40 text-white/80 backdrop-blur-md hover:bg-black/60 hover:text-white"
         >
-          <CloseIcon size={17} />
-        </button>
-      </div>
+          <IconX size="1.2rem" />
+        </ActionIcon>
+      </Group>
 
       {infoSlot && (
-        <>
-          <div
-            onClick={(e) => e.stopPropagation()}
-            onPointerDown={(e) => e.stopPropagation()}
-            onWheel={(e) => e.stopPropagation()}
-            style={{ touchAction: 'pan-y' }}
-            className={`absolute right-0 top-0 z-10 flex h-full w-[340px] max-w-[85vw] flex-col bg-black/65 backdrop-blur-xl transition-transform duration-200 ${
-              infoOpen ? 'translate-x-0' : 'pointer-events-none translate-x-full'
-            }`}
-          >
-            <div className="flex items-center justify-between px-5 pb-3 pt-5">
-              <span className="text-[13px] font-semibold uppercase tracking-wide text-white/80">Image Info</span>
-              <button
-                type="button"
-                aria-label="Hide image info"
-                onClick={(e) => { e.stopPropagation(); setInfoOpen(false); }}
-                className="flex h-7 w-7 items-center justify-center rounded-full bg-white/10 text-white/70 hover:bg-white/20 hover:text-white"
-              >
-                <CloseIcon size={13} />
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto px-5 pb-6">
-              {infoSlot}
-            </div>
+        <div
+          onClick={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
+          onWheel={(e) => e.stopPropagation()}
+          style={{
+            touchAction: 'pan-y',
+            backgroundColor: 'var(--mantine-color-dark-7)',
+            borderLeft: '1px solid var(--mantine-color-dark-4)',
+          }}
+          className={`absolute right-0 top-0 z-10 flex h-full w-[340px] max-w-[85vw] flex-col transition-transform duration-200 ${
+            infoOpen ? 'translate-x-0' : 'pointer-events-none translate-x-full'
+          }`}
+        >
+          <Group justify="space-between" px="md" py="sm" style={{ borderBottom: '1px solid var(--mantine-color-dark-4)' }}>
+            <Text size="sm" fw={600}>Image info</Text>
+            <CloseButton
+              size="sm"
+              aria-label="Hide image info"
+              onClick={(e) => { e.stopPropagation(); setInfoOpen(false); }}
+            />
+          </Group>
+          <div className="flex-1 overflow-y-auto px-4 py-3">
+            {infoSlot}
           </div>
-        </>
+        </div>
       )}
 
-      <div className="pointer-events-none absolute left-4 top-4 z-10 flex items-center gap-2 rounded-full bg-black/40 px-3 py-1.5 font-mono text-[12px] text-white/70 backdrop-blur-md">
-        <span>{index + 1} / {len}</span>
+      {/* Page counter + dimensions, v1's filled dimensions badge. */}
+      <Group gap={6} className="pointer-events-none !absolute left-4 top-4 z-10">
+        {live ? (
+          <Badge variant="filled" color="red" size="lg" radius="sm" leftSection={<span className="block h-2 w-2 animate-pulse rounded-full bg-white" />}>
+            Live
+          </Badge>
+        ) : len > 0 && (
+          <Badge variant="filled" color="dark" size="lg" radius="sm" className="font-mono" style={{ opacity: 0.85 }}>
+            {index + 1} / {len}
+          </Badge>
+        )}
         {size && (
-          <>
-            <span className="text-white/30">·</span>
-            <span>{size.w}×{size.h}</span>
-          </>
+          <Badge variant="filled" color="dark" size="lg" radius="sm" className="font-mono" style={{ opacity: 0.85 }}>
+            {size.w} × {size.h}
+          </Badge>
         )}
         {pageCaption && (
-          <>
-            <span className="text-white/30">·</span>
-            <span>{pageCaption}</span>
-          </>
+          <Badge variant="filled" color="dark" size="lg" radius="sm" tt="none" style={{ opacity: 0.85 }}>
+            {pageCaption}
+          </Badge>
         )}
-      </div>
+      </Group>
 
+      {playing && !live && (
+        <Text size="xs" c="dimmed" className="pointer-events-none !absolute bottom-4 left-1/2 z-10 -translate-x-1/2">
+          Slideshow playing — press S to pause
+        </Text>
+      )}
     </div>,
     document.body,
   );
@@ -363,61 +385,60 @@ const TRANSITION_OPTIONS: { value: SlideshowTransition; label: string; hint: str
   { value: 'ken-burns', label: 'Ken Burns',      hint: 'Slow continuous zoom' },
 ];
 
-/** Compact dropdown sitting next to the slideshow play button. Lives in the
- *  same top-right cluster so the user finds it with the play control. */
+/** v1's slideshow settings: a gear ActionIcon opening the effect list. Lives in the top-right
+ *  cluster next to the play control. */
 function TransitionPicker({
   value, onChange,
 }: { value: SlideshowTransition; onChange: (v: SlideshowTransition) => void }) {
   const active = TRANSITION_OPTIONS.find(o => o.value === value) ?? TRANSITION_OPTIONS[1];
+  // Controlled, so the gear's own click handler (which must stop propagation) does the toggling.
+  const [open, setOpen] = useState(false);
   return (
-    <RPopover.Root>
-      <RPopover.Trigger asChild>
-        <button
-          type="button"
-          aria-label={`Slideshow transition: ${active.label}`}
-          title={`Slideshow transition: ${active.label}`}
-          onClick={(e) => e.stopPropagation()}
-          className="flex h-11 items-center gap-1.5 rounded-full bg-black/40 px-3 text-[12px] font-medium text-white/85 backdrop-blur-md hover:bg-black/60 hover:text-white"
-        >
-          <span>{active.label}</span>
-          <ChevronDownIcon size={12} />
-        </button>
-      </RPopover.Trigger>
-      <RPopover.Portal>
-        <RPopover.Content
-          align="end"
-          sideOffset={6}
-          onClick={(e) => e.stopPropagation()}
-          onPointerDown={(e) => e.stopPropagation()}
-          className="z-[90] w-[200px] overflow-hidden rounded-lg border border-white/10 bg-black/85 p-1 shadow-xl backdrop-blur-md"
-        >
-          <div className="px-2 py-1.5 text-[10px] font-semibold uppercase tracking-section text-white/50">
-            Slideshow transition
-          </div>
-          {TRANSITION_OPTIONS.map((o) => {
-            const selected = o.value === value;
-            return (
-              <button
+    <Popover opened={open} onChange={setOpen} position="bottom-end" withArrow withinPortal zIndex={POPOVER_Z} shadow="md">
+      <Popover.Target>
+        <Tooltip label={`Slideshow transition: ${active.label}`} withArrow>
+          <ActionIcon
+            variant="filled"
+            color="dark"
+            size="lg"
+            style={{ opacity: 0.8 }}
+            aria-label={`Slideshow transition: ${active.label}`}
+            aria-expanded={open}
+            onClick={(e) => { e.stopPropagation(); setOpen((o) => !o); }}
+          >
+            <IconSettings size="1.2rem" />
+          </ActionIcon>
+        </Tooltip>
+      </Popover.Target>
+      {/* The dropdown is portalled, but React still bubbles its events to the viewer's
+          tap-to-close handler, so it stops them. */}
+      <Popover.Dropdown onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
+        <Stack gap="xs" miw={220}>
+          <Text size="sm" fw={600}>Slideshow settings</Text>
+          <Text size="xs" c="dimmed">Effect</Text>
+          <Stack gap={2}>
+            {TRANSITION_OPTIONS.map((o) => (
+              <UnstyledButton
                 key={o.value}
-                type="button"
                 onClick={() => onChange(o.value)}
-                className={cn(
-                  'flex w-full items-start gap-2 rounded-md px-2 py-1.5 text-left text-[12px] transition-colors',
-                  selected ? 'bg-white/10 text-white' : 'text-white/80 hover:bg-white/10 hover:text-white',
-                )}
+                aria-pressed={o.value === value}
+                className="rounded-sm px-2 py-1.5 hover:bg-[var(--mantine-color-dark-5)]"
+                style={o.value === value ? { backgroundColor: 'var(--mantine-primary-color-light)' } : undefined}
               >
-                <span className="mt-0.5 flex h-3 w-3 shrink-0 items-center justify-center">
-                  {selected && <CheckIcon size={11} />}
-                </span>
-                <span className="flex min-w-0 flex-col">
-                  <span className="font-medium">{o.label}</span>
-                  <span className="text-[10.5px] text-white/55">{o.hint}</span>
-                </span>
-              </button>
-            );
-          })}
-        </RPopover.Content>
-      </RPopover.Portal>
-    </RPopover.Root>
+                <Group gap="xs" wrap="nowrap" align="flex-start">
+                  <span className="mt-0.5 flex h-3 w-3 shrink-0 items-center justify-center">
+                    {o.value === value && <IconCheck size={12} />}
+                  </span>
+                  <div>
+                    <Text size="xs" fw={500}>{o.label}</Text>
+                    <Text size="xs" c="dimmed">{o.hint}</Text>
+                  </div>
+                </Group>
+              </UnstyledButton>
+            ))}
+          </Stack>
+        </Stack>
+      </Popover.Dropdown>
+    </Popover>
   );
 }

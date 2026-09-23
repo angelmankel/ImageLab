@@ -1,3 +1,5 @@
+import { TileDownload } from './TileDownload';
+import { Button } from '@mantine/core';
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import type { CivitaiSearchHit, CivitaiImage } from '@/lib/civitai';
 import { civitaiThumbUrl } from '@/lib/civitai';
@@ -93,13 +95,9 @@ function EmptyState({ error, onRetry }: { error: string | null; onRetry: () => v
       </div>
       {error
         ? (
-          <button
-            type="button"
-            onClick={onRetry}
-            className="rounded-md border border-border-default bg-bg-elev px-3 py-1.5 text-[12px] text-fg-secondary hover:border-accent hover:text-accent"
-          >
+          <Button size="xs" variant="default" onClick={onRetry}>
             Retry
-          </button>
+          </Button>
         ) : (
           <div>Try widening the type or base-model filters, or clear the search.</div>
         )
@@ -122,6 +120,8 @@ function ModelCard({ model, blurNsfw, nsfwFirst, onClick }: {
   nsfwFirst: boolean;
   onClick: () => void;
 }) {
+  // Which version each sample image belongs to, so the download button can follow the preview.
+  const imageVersion = useRef(new Map<string, number>());
   const images: CivitaiImage[] = useMemo(() => {
     // Two collection strategies. The default (SFW catalog) takes the first
     // ~8 images in version-walk order — cheap and matches CivitAI's own
@@ -132,11 +132,13 @@ function ModelCard({ model, blurNsfw, nsfwFirst, onClick }: {
     const out: CivitaiImage[] = [];
     const seen = new Set<string>();
     const versions = model.modelVersions ?? [];
+    imageVersion.current.clear();
     for (const v of versions) {
       for (const img of v.images ?? []) {
         if (img.url && !seen.has(img.url)) {
           seen.add(img.url);
           out.push(img);
+          imageVersion.current.set(img.url, v.id);
         }
       }
       if (!nsfwFirst && out.length >= 8) break;
@@ -161,7 +163,7 @@ function ModelCard({ model, blurNsfw, nsfwFirst, onClick }: {
    *  so off-screen tiles don't issue requests at all, and on-screen tiles
    *  start fetching ~2 viewport-heights before the user reaches them. */
   const [prefetchArmed, setPrefetchArmed] = useState(false);
-  const cardRef = useRef<HTMLButtonElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (prefetchArmed) return;
@@ -202,10 +204,13 @@ function ModelCard({ model, blurNsfw, nsfwFirst, onClick }: {
   const heroLoaded = heroThumb ? !!loaded[heroThumb] : true;
 
   return (
-    <button
+    // A div, not a button: the tile holds its own download buttons, and buttons cannot nest.
+    <div
       ref={cardRef}
-      type="button"
+      role="button"
+      tabIndex={0}
       onClick={onClick}
+      onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onClick(); } }}
       onMouseEnter={() => { setHover(true); setHoverArmed(true); setTickIdx(0); }}
       onMouseLeave={() => setHover(false)}
       // content-visibility: auto + a contain-intrinsic-size hint lets the
@@ -217,7 +222,7 @@ function ModelCard({ model, blurNsfw, nsfwFirst, onClick }: {
         // 220 tile width × (3/4 hero aspect) + ~44 footer ≈ 209
         containIntrinsicSize: '220px 360px',
       }}
-      className="group flex flex-col overflow-hidden rounded-lg border border-border-subtle bg-bg-elev/40 text-left transition-transform hover:-translate-y-0.5 hover:border-accent/60 hover:shadow-lg"
+      className="group flex cursor-pointer flex-col overflow-hidden rounded-lg border border-border-subtle bg-bg-elev/40 text-left outline-none transition-transform hover:-translate-y-0.5 hover:border-accent/60 hover:shadow-lg focus-visible:border-accent"
     >
       <div className="relative aspect-[3/4] w-full overflow-hidden bg-bg-elev">
         {/* Skeleton — visible shimmer under the image until the hero's bytes
@@ -319,6 +324,9 @@ function ModelCard({ model, blurNsfw, nsfwFirst, onClick }: {
             <span>·</span>
             <span title="Rating">★ {(model.stats?.rating ?? 0).toFixed(1)}</span>
           </div>
+          <div className="mt-1.5">
+            <TileDownload versions={model.modelVersions ?? []} previewVersionId={hero ? imageVersion.current.get(hero.url) : undefined} />
+          </div>
         </div>
       ) : (
         <div aria-hidden className="space-y-1.5 p-2.5">
@@ -326,6 +334,6 @@ function ModelCard({ model, blurNsfw, nsfwFirst, onClick }: {
           <div className="skeleton-shimmer h-2 w-1/2 rounded" />
         </div>
       )}
-    </button>
+    </div>
   );
 }

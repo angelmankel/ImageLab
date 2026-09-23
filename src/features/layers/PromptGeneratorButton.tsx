@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { ActionIcon } from '@mantine/core';
+import { IconSparkles } from '@tabler/icons-react';
+import * as Popover from '@/components/ui/popover';
 import { useStore } from '@/lib/store';
 import { compileLayers } from '@/lib/prompt';
 import { generateLayerSet, type GenerateLayerSource } from '@/lib/venice';
-import { useShortcut, ShortcutPriority } from '@/hooks/useShortcut';
 import { CloseIcon, SparkleIcon } from '@/components/ui/icons';
 import { cn } from '@/lib/cn';
 
@@ -17,40 +18,51 @@ import { cn } from '@/lib/cn';
  * their place. Negative layers are untouched (they're usually quality
  * boilerplate the user wants to keep across regenerations).
  */
-export function PromptGeneratorButton() {
+export function PromptGeneratorButton({ variant = 'text' }: { variant?: 'text' | 'icon' }) {
   const [open, setOpen] = useState(false);
-  const btnRef = useRef<HTMLButtonElement>(null);
   const venice = useStore(s => s.venice);
   const disabled = !venice.apiKey;
+  const title = disabled
+    ? 'Set a Venice API key in Settings → AI to enable prompt generation'
+    : 'Prompt Studio — draft prompt parts with AI';
 
   return (
-    <>
-      <button
-        ref={btnRef}
-        type="button"
-        onClick={() => setOpen(o => !o)}
-        disabled={disabled}
-        title={disabled
-          ? 'Set a Venice API key in Settings → AI to enable prompt generation'
-          : 'Generate a fresh set of prompt layers with AI'}
-        className={cn(
-          'flex h-6 items-center gap-1 rounded-md px-1.5 text-[10px] font-medium transition-colors',
-          'text-fg-dim hover:bg-bg-elev hover:text-accent-fg',
-          'disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-fg-dim',
+    <Popover.Root open={open} onOpenChange={setOpen}>
+      <Popover.Trigger asChild>
+        {variant === 'icon' ? (
+          <ActionIcon size="sm" variant="subtle" color="violet" disabled={disabled} title={title} aria-label="Generate prompt with AI">
+            <IconSparkles size="1rem" />
+          </ActionIcon>
+        ) : (
+          <button
+            type="button"
+            disabled={disabled}
+            title={title}
+            className={cn(
+              'flex h-6 items-center gap-1 rounded-md px-1.5 text-[10px] font-medium transition-colors',
+              'text-fg-dim hover:bg-bg-elev hover:text-accent-fg',
+              'disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-fg-dim',
+            )}
+            aria-label="Generate prompt with AI"
+          >
+            <SparkleIcon size={12} />
+            Draft with AI
+          </button>
         )}
-        aria-label="Generate prompt with AI"
+      </Popover.Trigger>
+      <Popover.Content
+        side="right"
+        align="start"
+        sideOffset={6}
+        className="flex max-h-[min(560px,calc(100dvh-16px))] w-[340px] flex-col rounded-xl border border-border-default bg-bg-elev shadow-2xl"
       >
-        <SparkleIcon size={12} />
-        Draft with AI
-      </button>
-      {open && btnRef.current && (
-        <PromptGeneratorPopover anchor={btnRef.current} onClose={() => setOpen(false)} />
-      )}
-    </>
+        {open && <PromptGeneratorPopover onClose={() => setOpen(false)} />}
+      </Popover.Content>
+    </Popover.Root>
   );
 }
 
-function PromptGeneratorPopover({ anchor, onClose }: { anchor: HTMLElement; onClose: () => void }) {
+function PromptGeneratorPopover({ onClose }: { onClose: () => void }) {
   const layers = useStore(s => s.layers);
   const venice = useStore(s => s.venice);
   const replaceLayers = useStore(s => s.replaceLayers);
@@ -63,38 +75,8 @@ function PromptGeneratorPopover({ anchor, onClose }: { anchor: HTMLElement; onCl
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
-  // Position: popover hangs from the trigger's right edge, flips to the left
-  // side if there isn't room, vertically clamped to viewport.
-  const r = anchor.getBoundingClientRect();
-  const WIDTH = 340;
-  const MARGIN = 8;
-  const GAP = 6;
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
-  const flipLeft = vw - r.right - MARGIN < WIDTH + GAP && r.left - MARGIN >= WIDTH + GAP;
-  const left = flipLeft
-    ? r.left - GAP - WIDTH
-    : Math.min(r.right + GAP, vw - WIDTH - MARGIN);
-  const maxH = Math.max(260, vh - r.top - MARGIN);
-  const top = Math.max(MARGIN, Math.min(r.top, vh - MARGIN - Math.min(maxH, vh - 2 * MARGIN)));
-
-  useEffect(() => {
-    const onDocClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement | null;
-      if (target?.closest('[data-prompt-gen-popover]')) return;
-      onClose();
-    };
-    const timer = setTimeout(() => document.addEventListener('mousedown', onDocClick), 0);
-    return () => {
-      clearTimeout(timer);
-      document.removeEventListener('mousedown', onDocClick);
-    };
-  }, [onClose]);
-
-  useShortcut('Escape', () => {
-    abortRef.current?.abort();
-    onClose();
-  }, { priority: ShortcutPriority.Drawer });
+  // Closing the popover (Escape, a click outside) unmounts this, which cancels a run in flight.
+  useEffect(() => () => abortRef.current?.abort(), []);
 
   const canRun = source === 'idea'
     ? idea.trim().length > 0
@@ -130,12 +112,8 @@ function PromptGeneratorPopover({ anchor, onClose }: { anchor: HTMLElement; onCl
     }
   };
 
-  return createPortal(
-    <div
-      data-prompt-gen-popover
-      style={{ left, top, width: WIDTH, maxHeight: maxH }}
-      className="fixed z-50 flex flex-col rounded-xl border border-border-default bg-bg-elev shadow-2xl"
-    >
+  return (
+    <>
       <header className="flex shrink-0 items-center gap-2 border-b border-border-subtle px-3 py-2">
         <SparkleIcon size={13} className="text-accent-fg" />
         <span className="text-[11px] font-semibold uppercase tracking-section text-fg-secondary">
@@ -218,8 +196,7 @@ function PromptGeneratorPopover({ anchor, onClose }: { anchor: HTMLElement; onCl
           {busy ? 'Generating…' : 'Generate'}
         </button>
       </footer>
-    </div>,
-    document.body,
+    </>
   );
 }
 

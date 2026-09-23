@@ -1,200 +1,252 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ComponentType } from 'react';
-import * as RDialog from '@radix-ui/react-dialog';
 import {
-  CloseIcon, SearchIcon,
-  ComfyIcon, SettingsIcon, SparkleIcon, ImagePlaceholderIcon,
-} from '@/components/ui/icons';
-import { cn } from '@/lib/cn';
+  Modal, Box, Stack, Group, Text, Title, TextInput, CloseButton, NavLink, ScrollArea,
+  Highlight, UnstyledButton,
+} from '@mantine/core';
+import {
+  IconSearch, IconServer, IconSparkles, IconKey, IconPhoto, IconPalette, IconVolume,
+  IconChevronRight,
+  type Icon as TablerIcon,
+} from '@tabler/icons-react';
 import { ServersTab } from './ServersTab';
 import { VeniceTab } from './VeniceTab';
 import { CivitaiTab } from './CivitaiTab';
 import { PreviewsTab } from './PreviewsTab';
 import { ThemeTab } from './ThemeTab';
+import { SoundsTab } from './SoundsTab';
 
 type Props = { open: boolean; onOpenChange: (o: boolean) => void };
 
 /* ────────────────────────────────────────────────────────────────────────
-   Section registry — single source of truth. Add a new pane by appending
-   one entry: an id, label, icon, search keywords, and the component to
-   render. Tab components are self-contained — they read what they need
-   from the store and never touch the shell.
+   Category registry — single source of truth. Add a new pane by appending
+   one entry here, plus its searchable settings below. Tab components are
+   self-contained — they read what they need from the store and never touch
+   the shell.
    ──────────────────────────────────────────────────────────────────────── */
 
-type SectionDef = {
+type CategoryDef = {
   id: string;
   label: string;
-  blurb: string;
-  keywords: string[];
-  Icon: ComponentType<{ size?: number; className?: string }>;
+  description: string;
+  Icon: TablerIcon;
   Component: ComponentType;
 };
 
-const SETTINGS_SECTIONS: SectionDef[] = [
-  {
-    id: 'servers',
-    label: 'Servers',
-    blurb: 'ComfyUI endpoints — every parameter, prompt and history is shared across them.',
-    keywords: ['server', 'comfyui', 'endpoint', 'host', 'lan', 'routing'],
-    Icon: ComfyIcon,
-    Component: ServersTab,
-  },
-  {
-    id: 'ai',
-    label: 'AI / Venice',
-    blurb: 'API key + model used by the snippet library, tagging, and image-to-prompt.',
-    keywords: ['venice', 'ai', 'api', 'llm', 'prompt', 'brainstorm', 'tag'],
-    Icon: SparkleIcon,
-    Component: VeniceTab,
-  },
-  {
-    id: 'civitai',
-    label: 'CivitAI',
-    blurb: 'Bearer token for the model browser. Required for the full Civitai Red catalog.',
-    keywords: ['civitai', 'red', 'token', 'api', 'key', 'auth', 'browser', 'adult', 'nsfw'],
-    Icon: ImagePlaceholderIcon,
-    Component: CivitaiTab,
-  },
-  {
-    id: 'previews',
-    label: 'Previews',
-    blurb: 'How the model-picker hover slideshow orders its images.',
-    keywords: ['preview', 'slideshow', 'civitai', 'model', 'image', 'random'],
-    Icon: ImagePlaceholderIcon,
-    Component: PreviewsTab,
-  },
-  {
-    id: 'theme',
-    label: 'Theme',
-    blurb: 'Font, icon weight, and the full color palette. Fork any theme to edit.',
-    keywords: ['theme', 'color', 'palette', 'font', 'icon', 'dark', 'light', 'custom'],
-    Icon: SettingsIcon,
-    Component: ThemeTab,
-  },
+const SETTINGS_CATEGORIES: CategoryDef[] = [
+  { id: 'servers',    label: 'Servers',     description: 'ComfyUI endpoints and routing',          Icon: IconServer,   Component: ServersTab },
+  { id: 'ai',         label: 'AI / Venice', description: 'Prompt helpers and image-to-prompt',     Icon: IconSparkles, Component: VeniceTab },
+  { id: 'civitai',    label: 'CivitAI',     description: 'Model browser credentials',              Icon: IconKey,      Component: CivitaiTab },
+  { id: 'previews',   label: 'Previews',    description: 'Model picker hover slideshow',           Icon: IconPhoto,    Component: PreviewsTab },
+  { id: 'appearance', label: 'Appearance',  description: 'Theme and visual customization',         Icon: IconPalette,  Component: ThemeTab },
+  { id: 'sounds',     label: 'Sounds',      description: 'Notification sounds and volume',         Icon: IconVolume,   Component: SoundsTab },
 ];
 
+type SearchableSetting = {
+  categoryId: string;
+  settingId: string;
+  label: string;
+  description: string;
+  keywords: string[];
+};
+
+// v1's search index: one row per setting, matched on every word of the query.
+const SEARCHABLE_SETTINGS: SearchableSetting[] = [
+  { categoryId: 'servers', settingId: 'servers', label: 'Active Servers', description: 'Rename, re-point, pause, or remove ComfyUI endpoints', keywords: ['server', 'comfyui', 'endpoint', 'host', 'port', 'lan', 'enable', 'disable', 'remove'] },
+  { categoryId: 'servers', settingId: 'addServer', label: 'Add Server', description: 'Connect another ComfyUI endpoint', keywords: ['server', 'add', 'new', 'comfyui', 'host', 'routing', 'round-robin'] },
+  { categoryId: 'ai', settingId: 'apiKey', label: 'Venice API Key', description: 'Key for the snippet library, tagging, and image-to-prompt', keywords: ['venice', 'ai', 'api', 'key', 'llm', 'token'] },
+  { categoryId: 'ai', settingId: 'model', label: 'Venice Model', description: 'Chat model used by every AI helper', keywords: ['venice', 'ai', 'model', 'llm', 'llama'] },
+  { categoryId: 'ai', settingId: 'promptStyle', label: 'Prompt Style', description: 'Generic SDXL phrases or Illustrious / Danbooru tags', keywords: ['prompt', 'style', 'sdxl', 'illustrious', 'danbooru', 'tag', 'brainstorm'] },
+  { categoryId: 'ai', settingId: 'baseUrl', label: 'Base URL', description: 'Any OpenAI-compatible endpoint', keywords: ['base', 'url', 'endpoint', 'openai', 'provider', 'advanced'] },
+  { categoryId: 'civitai', settingId: 'apiKey', label: 'CivitAI API Key', description: 'Bearer token for the model browser and metadata lookups', keywords: ['civitai', 'red', 'token', 'api', 'key', 'auth', 'browser', 'adult', 'nsfw'] },
+  { categoryId: 'previews', settingId: 'previewSource', label: 'Preview Order', description: 'How the model picker hover slideshow orders its images', keywords: ['preview', 'slideshow', 'civitai', 'model', 'image', 'random', 'history', 'popular'] },
+  { categoryId: 'appearance', settingId: 'theme', label: 'Theme', description: 'Choose application color theme', keywords: ['theme', 'color', 'dark', 'appearance', 'style', 'palette'] },
+  { categoryId: 'appearance', settingId: 'customTheme', label: 'Custom Theme', description: 'Create and manage custom color themes', keywords: ['custom', 'theme', 'color', 'create', 'picker'] },
+  { categoryId: 'appearance', settingId: 'iconStyle', label: 'Icon Style', description: 'Stroke weight of the interface icons', keywords: ['icon', 'weight', 'thin', 'bold', 'solid', 'outline', 'fill'] },
+  { categoryId: 'appearance', settingId: 'gradientStyle', label: 'Background Style', description: 'Choose background gradient style for the main content area', keywords: ['background', 'gradient', 'flat', 'radial', 'mesh', 'glow', 'style'] },
+  { categoryId: 'appearance', settingId: 'borderRadius', label: 'Border Radius', description: 'Control the roundness of corners throughout the interface', keywords: ['border', 'radius', 'corners', 'rounded', 'sharp', 'pill'] },
+  { categoryId: 'appearance', settingId: 'shadows', label: 'Shadows', description: 'Adjust shadow depth for cards and panels', keywords: ['shadow', 'depth', 'elevation', 'flat', 'dramatic'] },
+  { categoryId: 'appearance', settingId: 'borders', label: 'Borders', description: 'Control the visibility and weight of borders between UI sections', keywords: ['border', 'line', 'separator', 'divider', 'outline'] },
+  { categoryId: 'sounds', settingId: 'volume', label: 'Sound Volume', description: 'Notification sounds for job submission and completion', keywords: ['sound', 'audio', 'volume', 'chime', 'mute', 'notification'] },
+];
+
+const categoryById = (id: string) => SETTINGS_CATEGORIES.find(c => c.id === id) ?? SETTINGS_CATEGORIES[0];
+
 /**
- * Settings shell — fixed-size landscape modal, searchable left rail, and an
- * independently scrolling content pane. Long content (Theme/Fork) scrolls
- * vertically inside the pane while the chrome stays put.
+ * Settings — v1's settings page (category sidebar with search, a titled pane of section
+ * cards) inside a large centred modal. Only the content pane scrolls; the chrome stays put.
  */
 export function SettingsModal({ open, onOpenChange }: Props) {
-  const [activeId, setActiveId] = useState<string>(SETTINGS_SECTIONS[0].id);
+  const [activeId, setActiveId] = useState<string>(SETTINGS_CATEGORIES[0].id);
   const [query, setQuery] = useState('');
 
   // Reset to a clean state every time the modal is reopened so users don't
   // land on a stale section (or a search query from last time).
   useEffect(() => {
-    if (open) { setActiveId(SETTINGS_SECTIONS[0].id); setQuery(''); }
+    if (open) { setActiveId(SETTINGS_CATEGORIES[0].id); setQuery(''); }
   }, [open]);
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return SETTINGS_SECTIONS;
-    return SETTINGS_SECTIONS.filter(s =>
-      s.label.toLowerCase().includes(q)
-      || s.blurb.toLowerCase().includes(q)
-      || s.keywords.some(k => k.includes(q))
-    );
+  const isSearching = query.trim().length > 0;
+  const results = useMemo(() => {
+    const terms = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    if (terms.length === 0) return [];
+    return SEARCHABLE_SETTINGS.filter(s => {
+      const category = categoryById(s.categoryId);
+      const text = [s.label, s.description, category.label, ...s.keywords].join(' ').toLowerCase();
+      return terms.every(t => text.includes(t));
+    });
   }, [query]);
+  const highlighted = useMemo(() => new Set(results.map(r => r.categoryId)), [results]);
 
-  // Keep the rendered section in sync with the search: if the user types a
-  // query that filters out the active section, jump to the first match.
+  // Like v1: while searching, move the sidebar selection onto the first matching category.
   useEffect(() => {
-    if (filtered.length === 0) return;
-    if (!filtered.some(s => s.id === activeId)) setActiveId(filtered[0].id);
-  }, [filtered, activeId]);
+    if (results.length > 0 && !highlighted.has(activeId)) setActiveId(results[0].categoryId);
+  }, [results, highlighted, activeId]);
 
-  const active = SETTINGS_SECTIONS.find(s => s.id === activeId) ?? SETTINGS_SECTIONS[0];
+  const openCategory = (id: string) => { setActiveId(id); setQuery(''); };
+  const active = categoryById(activeId);
   const ActiveComponent = active.Component;
-  const ActiveIcon = active.Icon;
 
   return (
-    <RDialog.Root open={open} onOpenChange={onOpenChange}>
-      <RDialog.Portal>
-        <RDialog.Overlay className="fixed inset-0 z-20 bg-black/55 data-[state=open]:animate-in data-[state=open]:fade-in" />
-        <RDialog.Content
-          className={cn(
-            'fixed left-1/2 top-1/2 z-30 -translate-x-1/2 -translate-y-1/2',
-            'flex h-[min(86vh,640px)] w-[min(96vw,960px)] flex-col overflow-hidden',
-            'rounded-xl border border-border-strong bg-bg-elev text-fg-secondary shadow-2xl outline-none',
-          )}
+    <Modal
+      opened={open}
+      onClose={() => onOpenChange(false)}
+      title="Settings"
+      centered
+      size="80vw"
+      padding={0}
+      closeButtonProps={{ 'aria-label': 'Close' }}
+      overlayProps={{ backgroundOpacity: 0.7, blur: 3 }}
+      styles={{
+        content: {
+          height: '80vh',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+          backgroundColor: 'var(--mantine-color-dark-7)',
+        },
+        header: { paddingInline: 'var(--mantine-spacing-lg)' },
+        title: { fontWeight: 600 },
+        body: { flex: 1, minHeight: 0, display: 'flex', padding: 0 },
+      }}
+    >
+      <Group gap={0} align="stretch" wrap="nowrap" style={{ flex: 1, minHeight: 0, width: '100%' }}>
+        {/* Sidebar — search + categories */}
+        <Box
+          p="md"
+          style={{
+            width: 240,
+            flexShrink: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 'var(--mantine-spacing-md)',
+            backgroundColor: 'var(--mantine-color-dark-6)',
+            borderRight: '1px solid var(--mantine-color-dark-4)',
+          }}
         >
-          <RDialog.Title className="sr-only">Settings</RDialog.Title>
+          <TextInput
+            placeholder="Search settings..."
+            aria-label="Search settings"
+            leftSection={<IconSearch size={16} />}
+            rightSection={query ? <CloseButton size="sm" onClick={() => setQuery('')} aria-label="Clear search" /> : null}
+            value={query}
+            onChange={(e) => setQuery(e.currentTarget.value)}
+            data-autofocus
+          />
+          <ScrollArea scrollbars="y" style={{ flex: 1, minHeight: 0 }} type="auto" offsetScrollbars>
+            <Text size="xs" fw={600} c="dimmed" mb="sm" tt="uppercase">Categories</Text>
+            <Stack gap={4} role="tablist" aria-orientation="vertical">
+              {SETTINGS_CATEGORIES.map(c => {
+                const isActive = c.id === active.id;
+                const isHit = isSearching && highlighted.has(c.id);
+                return (
+                  <NavLink
+                    key={c.id}
+                    component="button"
+                    type="button"
+                    role="tab"
+                    aria-selected={isActive}
+                    label={c.label}
+                    description={c.description}
+                    leftSection={<c.Icon size={18} />}
+                    active={isActive}
+                    variant="filled"
+                    onClick={() => openCategory(c.id)}
+                    style={{
+                      borderRadius: 'var(--mantine-radius-sm)',
+                      ...(isHit && !isActive
+                        ? { backgroundColor: 'var(--mantine-color-dark-5)', borderLeft: '2px solid var(--mantine-primary-color-filled)' }
+                        : {}),
+                    }}
+                    styles={{ description: { fontSize: 'var(--mantine-font-size-xs)' } }}
+                  />
+                );
+              })}
+            </Stack>
+          </ScrollArea>
+        </Box>
 
-          <header className="flex shrink-0 items-center gap-3 border-b border-border-subtle px-4 py-2.5">
-            <span className="text-[11px] font-semibold uppercase tracking-section text-fg-tertiary">
-              Settings
-            </span>
-            <span className="text-fg-dim">·</span>
-            <span className="text-[12px] font-semibold text-fg-secondary">{active.label}</span>
-            <div className="flex-1" />
-            <RDialog.Close
-              aria-label="Close"
-              className="flex h-7 w-7 items-center justify-center rounded-md border border-border-default bg-bg-elev text-fg-muted hover:border-border-strong hover:text-fg-secondary"
-            >
-              <CloseIcon size={14} />
-            </RDialog.Close>
-          </header>
-
-          <div className="flex min-h-0 flex-1">
-            <nav className="flex w-[220px] shrink-0 flex-col gap-2 border-r border-border-subtle bg-bg-panel/40 px-2 py-2.5">
-              <div className="relative px-1">
-                <SearchIcon size={12} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-fg-dim" />
-                <input
-                  type="search"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search settings…"
-                  className="w-full rounded-md border border-border-default bg-bg-input pl-7 pr-2 py-1.5 text-[12px] text-fg-secondary outline-none placeholder:text-fg-dim focus:border-accent"
-                  aria-label="Search settings"
-                />
-              </div>
-              <ul role="tablist" className="scroll-y flex min-h-0 flex-1 flex-col gap-0.5 px-1">
-                {filtered.map(s => {
-                  const isActive = s.id === active.id;
-                  const Icon = s.Icon;
-                  return (
-                    <li key={s.id}>
-                      <button
-                        type="button"
-                        role="tab"
-                        aria-selected={isActive}
-                        onClick={() => setActiveId(s.id)}
-                        className={cn(
-                          'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[12px] transition-colors',
-                          isActive
-                            ? 'bg-accent text-white'
-                            : 'text-fg-tertiary hover:bg-bg-elev hover:text-fg-secondary',
-                        )}
-                      >
-                        <Icon size={14} className={isActive ? 'text-white' : 'text-fg-muted'} />
-                        <span className="min-w-0 flex-1 truncate font-semibold">{s.label}</span>
-                      </button>
-                    </li>
-                  );
-                })}
-                {filtered.length === 0 && (
-                  <li className="px-2 py-3 text-center text-[11px] text-fg-dim">No matches</li>
-                )}
-              </ul>
-            </nav>
-
-            <main className="flex min-h-0 min-w-0 flex-1 flex-col">
-              <div className="flex shrink-0 items-center gap-2 border-b border-border-subtle px-5 py-3">
-                <ActiveIcon size={16} className="text-fg-muted" />
-                <div className="min-w-0">
-                  <div className="text-[13px] font-semibold text-fg-primary">{active.label}</div>
-                  <div className="truncate text-[11px] text-fg-muted">{active.blurb}</div>
-                </div>
-              </div>
-              <div className="scroll-y min-h-0 flex-1 px-5 py-4">
+        {/* Content pane — keyed so each category (or the results list) opens scrolled to the top. */}
+        <ScrollArea scrollbars="y" key={isSearching ? 'search' : active.id} style={{ flex: 1, minWidth: 0 }} type="auto">
+          <Box p="lg">
+            {isSearching ? (
+              <SearchResults results={results} query={query} onOpen={openCategory} />
+            ) : (
+              <>
+                <Box mb="lg">
+                  <Title order={2} size="h3">{active.label}</Title>
+                  <Text size="sm" c="dimmed" mt={4}>{active.description}</Text>
+                </Box>
                 <ActiveComponent />
-              </div>
-            </main>
-          </div>
-        </RDialog.Content>
-      </RDialog.Portal>
-    </RDialog.Root>
+              </>
+            )}
+          </Box>
+        </ScrollArea>
+      </Group>
+    </Modal>
+  );
+}
+
+/** v1's search results list. Each row opens its category (v1's rows were inert). */
+function SearchResults({ results, query, onOpen }: {
+  results: SearchableSetting[];
+  query: string;
+  onOpen: (categoryId: string) => void;
+}) {
+  if (results.length === 0) {
+    return (
+      <Box ta="center" py="xl">
+        <Text c="dimmed">No settings found for "{query}"</Text>
+      </Box>
+    );
+  }
+  const terms = query.trim().split(/\s+/);
+  return (
+    <Stack gap="md">
+      <Text size="sm" c="dimmed">
+        Found {results.length} setting{results.length !== 1 ? 's' : ''}
+      </Text>
+      {results.map(r => (
+        <UnstyledButton
+          key={`${r.categoryId}-${r.settingId}`}
+          onClick={() => onOpen(r.categoryId)}
+          p="md"
+          style={{
+            borderRadius: 'var(--mantine-radius-sm)',
+            border: '1px solid var(--mantine-color-dark-4)',
+            backgroundColor: 'var(--mantine-color-dark-6)',
+          }}
+        >
+          <Group justify="space-between" wrap="nowrap">
+            <div>
+              <Highlight highlight={terms} size="sm" fw={500}>{r.label}</Highlight>
+              <Highlight highlight={terms} size="xs" c="dimmed">{r.description}</Highlight>
+              <Text size="xs" c="dimmed" mt={4}>Category: {categoryById(r.categoryId).label}</Text>
+            </div>
+            <IconChevronRight size={16} style={{ opacity: 0.5, flexShrink: 0 }} />
+          </Group>
+        </UnstyledButton>
+      ))}
+    </Stack>
   );
 }

@@ -1,6 +1,12 @@
-import { useMemo, useRef, useState } from 'react';
-import * as RPopover from '@radix-ui/react-popover';
-import { Modal } from '@/components/modal';
+import { useMemo, useState, type ReactNode } from 'react';
+import {
+  Badge, Box, Button, Group, Image, Menu, Modal, ScrollArea, SimpleGrid, Slider, Stack, Text,
+} from '@mantine/core';
+import { useMediaQuery } from '@mantine/hooks';
+import {
+  IconAdjustments, IconArrowBackUp, IconBackground, IconCheck, IconChevronDown, IconContrast, IconCrop,
+  IconFlipHorizontal, IconFlipVertical, IconRotateClockwise,
+} from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
 import { runImageTool, removeBackgroundGraph } from '@/lib/imageJobs';
 import {
@@ -10,9 +16,6 @@ import {
   type CssFilters, type CropRect,
 } from './imageOps';
 import { CropOverlay } from './CropOverlay';
-import { cn } from '@/lib/cn';
-import { Slider } from '@/components/ui/Slider';
-import { CheckIcon, ChevronDownIcon, ResetIcon } from '@/components/ui/icons';
 import type { InputImageState } from '@/lib/types';
 
 type Props = {
@@ -23,7 +26,7 @@ type Props = {
 type Mode = 'idle' | 'adjustments' | 'crop';
 
 /** One entry in the in-modal edit-history stack. Each tool that mutates the
- *  image pushes a step here; the popover lets the user revert to any of
+ *  image pushes a step here; the menu lets the user revert to any of
  *  them. Modal-local — closing and re-opening starts a fresh stack at the
  *  current `workflow.inputImage`. */
 type HistoryStep = { state: InputImageState; label: string; at: number };
@@ -34,12 +37,16 @@ type HistoryStep = { state: InputImageState; label: string; at: number };
  * Canvas; Remove BG offloads to ComfyUI via `runImageTool` and swaps the
  * result back into the workflow's `inputImage`. Tools share the same image
  * state, so chaining works (crop → remove bg → adjust → ...).
+ *
+ * A Mantine modal sized to the viewport: side by side on a desktop, stacked and full screen on a
+ * phone, with the tools scrolling on their own so nothing is ever cut off.
  */
 export function EditImageModal({ image, onClose }: Props) {
   const setWorkflow = useStore(s => s.setWorkflow);
   const setStatus = useStore(s => s.setStatus);
   const inputMaxSize = useStore(s => s.workflow.inputMaxSize);
   const peekNextServer = useStore(s => s.peekNextServer);
+  const narrow = useMediaQuery('(max-width: 48em)') ?? false;
 
   // Modal-session history. The first entry is the image we were opened with
   // and is never mutated — that's what "Reset to original" jumps back to.
@@ -54,7 +61,6 @@ export function EditImageModal({ image, onClose }: Props) {
   const [mode, setMode] = useState<Mode>('idle');
   const [filters, setFilters] = useState<CssFilters>(NEUTRAL_FILTERS);
   const [busy, setBusy] = useState<string | null>(null);
-  const previewRef = useRef<HTMLDivElement | null>(null);
 
   // Commit edited state up to the workflow store *and* push a new history
   // step. Doing this on every op (instead of waiting for a final "Apply")
@@ -137,82 +143,86 @@ export function EditImageModal({ image, onClose }: Props) {
   const previewFilter = mode === 'adjustments' ? cssFilterString(filters) : 'none';
 
   return (
-    <Modal open onClose={onClose} panelClassName="w-[min(1100px,95vw)] h-[min(720px,90vh)]">
-      <div className="flex h-full w-full flex-col">
-        <div className="flex shrink-0 items-center gap-3 border-b border-border-subtle px-4 py-3">
-          <span className="text-[12px] font-semibold uppercase tracking-section text-fg-secondary">
-            Edit input image
-          </span>
-          <span className="font-mono text-[10px] text-fg-dim">{current.state.width}×{current.state.height}</span>
-          {busy && (
-            <span className="rounded bg-accent-soft px-2 py-0.5 text-[10px] font-medium text-accent-fg">
-              {busy}…
-            </span>
+    <Modal
+      opened
+      onClose={onClose}
+      fullScreen={narrow}
+      size="calc(min(1100px, 95vw))"
+      centered
+      padding={0}
+      title={
+        <Group gap="xs">
+          <Text fw={600}>Edit input image</Text>
+          <Badge size="sm" variant="light" color="blue">{current.state.width} × {current.state.height}</Badge>
+          {busy && <Badge size="sm" variant="light">{busy}…</Badge>}
+        </Group>
+      }
+      styles={{
+        content: { display: 'flex', flexDirection: 'column', height: narrow ? '100dvh' : 'min(720px, 90dvh)', overflow: 'hidden' },
+        // `padding={0}` is for the body; the header keeps v1's padding.
+        header: { flexShrink: 0, padding: 'var(--mantine-spacing-sm) var(--mantine-spacing-md)' },
+        body: { flex: 1, minHeight: 0, display: 'flex', flexDirection: narrow ? 'column' : 'row', padding: 0 },
+      }}
+    >
+      {/* Preview */}
+      {/* A size container, so the frame can fit both ways in CSS: the crop overlay covers the
+          frame, and the frame must be exactly the image, never a letterboxed box around it. */}
+      <Box
+        style={{ flex: narrow ? '1 1 45%' : 1, minHeight: 0, minWidth: 0, containerType: 'size' }}
+        className="relative flex items-center justify-center overflow-hidden bg-bg-base/40"
+      >
+        <div
+          className="relative flex items-center justify-center"
+          style={{
+            aspectRatio: `${current.state.width} / ${current.state.height}`,
+            width: `min(${current.state.width}px, calc(100cqw - 32px), calc((100cqh - 32px) * ${current.state.width / current.state.height}))`,
+          }}
+        >
+          <img
+            src={current.state.dataUrl}
+            alt=""
+            style={{ filter: previewFilter }}
+            className="block h-full w-full select-none rounded-md object-contain shadow-lg"
+            draggable={false}
+          />
+          {mode === 'crop' && (
+            <CropOverlay
+              imageWidth={current.state.width}
+              imageHeight={current.state.height}
+              onApply={handleApplyCrop}
+              onCancel={() => setMode('idle')}
+            />
           )}
-          <div className="flex-1" />
-          <Modal.Close />
         </div>
+      </Box>
 
-        <div className="flex min-h-0 flex-1">
-          {/* Preview */}
-          <div className="relative flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden bg-bg-base/40 p-4" ref={previewRef}>
-            <div
-              className="relative flex items-center justify-center"
-              style={{
-                aspectRatio: `${current.state.width} / ${current.state.height}`,
-                maxWidth: '100%',
-                maxHeight: '100%',
-                width: `${current.state.width}px`,
-              }}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={current.state.dataUrl}
-                alt=""
-                style={{ filter: previewFilter }}
-                className="block h-full w-full select-none rounded-md object-contain shadow-lg"
-                draggable={false}
-              />
-              {mode === 'crop' && (
-                <CropOverlay
-                  imageWidth={current.state.width}
-                  imageHeight={current.state.height}
-                  onApply={handleApplyCrop}
-                  onCancel={() => setMode('idle')}
-                />
-              )}
-            </div>
-          </div>
-
-          {/* Tools rail */}
-          <div className="scroll-y flex w-[280px] shrink-0 flex-col gap-3 border-l border-border-subtle bg-bg-panel px-3.5 py-3.5">
+      {/* Tools rail — scrolls on its own so the Done button is always reachable. */}
+      <Box
+        style={{ width: narrow ? '100%' : 280, flex: narrow ? '1 1 55%' : 'none', minHeight: 0 }}
+        className={narrow ? 'flex flex-col border-t border-border-default bg-bg-panel' : 'flex flex-col border-l border-border-default bg-bg-panel'}
+      >
+        <ScrollArea scrollbars="y" style={{ flex: 1, minHeight: 0 }} type="auto">
+          <Stack gap="md" p="sm">
             <ToolSection title="Quick">
-              <div className="grid grid-cols-2 gap-1.5">
-                <ToolButton label="Rotate 90°" onClick={handleRotate} disabled={!!busy} />
-                <ToolButton label="Flip H"    onClick={handleFlipH}  disabled={!!busy} />
-                <ToolButton label="Flip V"    onClick={handleFlipV}  disabled={!!busy} />
-                <ToolButton label="Invert"    onClick={handleInvert} disabled={!!busy} />
-              </div>
+              <SimpleGrid cols={2} spacing={6}>
+                <ToolButton icon={<IconRotateClockwise size={14} />} label="Rotate 90°" onClick={handleRotate} disabled={!!busy} />
+                <ToolButton icon={<IconFlipHorizontal size={14} />} label="Flip H" onClick={handleFlipH} disabled={!!busy} />
+                <ToolButton icon={<IconFlipVertical size={14} />} label="Flip V" onClick={handleFlipV} disabled={!!busy} />
+                <ToolButton icon={<IconContrast size={14} />} label="Invert" onClick={handleInvert} disabled={!!busy} />
+              </SimpleGrid>
             </ToolSection>
 
-            <ToolSection title="Crop">
+            <ToolSection title="Crop" hint="Drag corners to size, drag inside to move, then Apply.">
               {mode === 'crop' ? (
-                <button
-                  type="button"
-                  onClick={() => setMode('idle')}
-                  className="h-8 w-full rounded-md border border-border-default bg-bg-elev px-2 text-[11px] font-medium text-fg-tertiary hover:border-border-strong"
-                >
-                  Cancel crop
-                </button>
+                <Button variant="default" size="xs" fullWidth onClick={() => setMode('idle')}>Cancel crop</Button>
               ) : (
-                <ToolButton label="Crop image" onClick={() => setMode('crop')} disabled={!!busy} variant="full" />
+                <ToolButton icon={<IconCrop size={14} />} label="Crop image" onClick={() => setMode('crop')} disabled={!!busy} />
               )}
-              <p className="text-[10px] leading-snug text-fg-dim">Drag corners to size, drag inside to move, then Apply.</p>
             </ToolSection>
 
             <ToolSection title="Adjustments">
               {mode === 'adjustments' ? (
-                <>
+                <Stack gap="sm">
                   <FilterRow label="Brightness" value={filters.brightness} min={0} max={2} step={0.01}
                     onChange={(v) => setFilters({ ...filters, brightness: v })} />
                   <FilterRow label="Contrast"   value={filters.contrast}   min={0} max={2} step={0.01}
@@ -221,87 +231,58 @@ export function EditImageModal({ image, onClose }: Props) {
                     onChange={(v) => setFilters({ ...filters, saturation: v })} />
                   <FilterRow label="Blur"       value={filters.blur}       min={0} max={20} step={0.1}
                     onChange={(v) => setFilters({ ...filters, blur: v })} />
-                  <div className="flex gap-1.5 pt-1">
-                    <button
-                      type="button"
-                      onClick={() => { setFilters(NEUTRAL_FILTERS); setMode('idle'); }}
-                      className="h-8 flex-1 rounded-md border border-border-default bg-bg-elev px-2 text-[11px] font-medium text-fg-tertiary hover:border-border-strong"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleApplyFilters}
-                      disabled={!!busy}
-                      className="h-8 flex-1 rounded-md bg-accent px-2 text-[11px] font-semibold text-white hover:bg-accent-hover disabled:opacity-60"
-                    >
-                      Apply
-                    </button>
-                  </div>
-                </>
+                  <Group gap={6} grow>
+                    <Button variant="default" size="xs" onClick={() => { setFilters(NEUTRAL_FILTERS); setMode('idle'); }}>Cancel</Button>
+                    <Button size="xs" onClick={handleApplyFilters} disabled={!!busy}>Apply</Button>
+                  </Group>
+                </Stack>
               ) : (
-                <ToolButton label="Open adjustments" onClick={() => setMode('adjustments')} disabled={!!busy} variant="full" />
+                <ToolButton icon={<IconAdjustments size={14} />} label="Open adjustments" onClick={() => setMode('adjustments')} disabled={!!busy} />
               )}
             </ToolSection>
 
-            <ToolSection title="AI">
-              <ToolButton
-                label={busy === 'Remove BG' ? 'Removing…' : 'Remove background'}
+            <ToolSection title="AI" hint="Runs as a separate ComfyUI job (BRIA RMBG). Replaces the current image with the result.">
+              <Button
+                variant="light"
+                size="xs"
+                fullWidth
+                leftSection={<IconBackground size={14} />}
                 onClick={handleRemoveBg}
-                disabled={!!busy}
-                variant="full"
-              />
-              <p className="text-[10px] leading-snug text-fg-dim">Runs as a separate ComfyUI job (BRIA RMBG). Replaces the current image with the result.</p>
-            </ToolSection>
-
-            <div className="flex-1" />
-
-            <div className="flex flex-col gap-1.5">
-              <div className="flex h-8 w-full overflow-hidden rounded-md border border-border-default bg-bg-elev">
-                <button
-                  type="button"
-                  onClick={handleReset}
-                  disabled={!!busy || cursor === 0}
-                  className="flex flex-1 items-center justify-center gap-1.5 px-2 text-[11px] font-medium text-fg-tertiary transition-colors hover:text-fg-secondary disabled:cursor-default disabled:opacity-50"
-                >
-                  <ResetIcon size={11} />
-                  Reset to original
-                </button>
-                <RPopover.Root>
-                  <RPopover.Trigger asChild>
-                    <button
-                      type="button"
-                      disabled={!!busy || history.length < 2}
-                      title="Version history"
-                      aria-label="Version history"
-                      className="flex w-8 shrink-0 items-center justify-center border-l border-border-default text-fg-tertiary transition-colors hover:bg-bg-base/40 hover:text-fg-secondary disabled:cursor-default disabled:opacity-50"
-                    >
-                      <ChevronDownIcon size={11} />
-                    </button>
-                  </RPopover.Trigger>
-                  <RPopover.Portal>
-                    <RPopover.Content
-                      side="left"
-                      align="end"
-                      sideOffset={8}
-                      className="z-[60] w-[260px] overflow-hidden rounded-lg border border-border-default bg-bg-elev shadow-xl"
-                    >
-                      <HistoryList history={history} cursor={cursor} onPick={revertTo} />
-                    </RPopover.Content>
-                  </RPopover.Portal>
-                </RPopover.Root>
-              </div>
-              <button
-                type="button"
-                onClick={onClose}
-                className="h-9 w-full rounded-md bg-accent px-2 text-[12px] font-semibold text-white hover:bg-accent-hover"
+                disabled={!!busy && busy !== 'Remove BG'}
+                loading={busy === 'Remove BG'}
               >
-                Done
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+                Remove background
+              </Button>
+            </ToolSection>
+          </Stack>
+        </ScrollArea>
+
+        <Stack gap={6} p="sm" className="shrink-0 border-t border-border-default">
+          <Button.Group>
+            <Button
+              variant="default"
+              size="xs"
+              style={{ flex: 1 }}
+              leftSection={<IconArrowBackUp size={14} />}
+              onClick={handleReset}
+              disabled={!!busy || cursor === 0}
+            >
+              Reset to original
+            </Button>
+            <Menu position="top-end" width={260} withinPortal shadow="md">
+              <Menu.Target>
+                <Button variant="default" size="xs" px={8} disabled={!!busy || history.length < 2} aria-label="Version history" title="Version history">
+                  <IconChevronDown size={14} />
+                </Button>
+              </Menu.Target>
+              <Menu.Dropdown>
+                <HistoryList history={history} cursor={cursor} onPick={revertTo} />
+              </Menu.Dropdown>
+            </Menu>
+          </Button.Group>
+          <Button fullWidth onClick={onClose}>Done</Button>
+        </Stack>
+      </Box>
     </Modal>
   );
 }
@@ -320,79 +301,60 @@ function HistoryList({
     [history],
   );
   return (
-    <div className="flex flex-col">
-      <div className="border-b border-border-subtle px-3 py-2 text-[10px] font-semibold uppercase tracking-section text-fg-tertiary">
-        Version history
-      </div>
-      <div className="scroll-y max-h-[320px] p-1.5">
+    <>
+      <Menu.Label>Version history</Menu.Label>
+      <ScrollArea.Autosize scrollbars="y" mah={320}>
         {reversed.map(({ step, idx }) => {
           const active = idx === cursor;
           return (
-            <RPopover.Close asChild key={`${step.at}-${idx}`}>
-              <button
-                type="button"
-                onClick={() => onPick(idx)}
-                className={cn(
-                  'flex w-full items-center gap-2.5 rounded-md p-1.5 text-left transition-colors',
-                  active ? 'bg-accent-soft' : 'hover:bg-bg-base/60',
-                )}
-              >
-                <img
-                  src={step.state.dataUrl}
-                  alt=""
-                  className="h-10 w-10 shrink-0 rounded border border-border-default object-cover"
-                />
-                <span className="flex min-w-0 flex-1 flex-col">
-                  <span className={cn('truncate text-[12px] font-medium', active ? 'text-accent-fg' : 'text-fg-secondary')}>
-                    {idx === 0 ? 'Original' : step.label}
-                  </span>
-                  <span className="font-mono text-[10px] text-fg-dim">
-                    {step.state.width}×{step.state.height}
-                    {idx > 0 && ` · step ${idx}`}
-                  </span>
-                </span>
-                {active && <CheckIcon size={13} className="shrink-0 text-accent-fg" />}
-              </button>
-            </RPopover.Close>
+            <Menu.Item
+              key={`${step.at}-${idx}`}
+              onClick={() => onPick(idx)}
+              leftSection={<Image src={step.state.dataUrl} alt="" w={40} h={40} radius="sm" fit="cover" />}
+              rightSection={active ? <IconCheck size={14} color="var(--mantine-primary-color-filled)" /> : null}
+              bg={active ? 'var(--mantine-primary-color-light)' : undefined}
+            >
+              <Text size="sm" fw={500} truncate c={active ? 'var(--mantine-primary-color-light-color)' : undefined}>
+                {idx === 0 ? 'Original' : step.label}
+              </Text>
+              <Text size="xs" c="dimmed" ff="monospace">
+                {step.state.width}×{step.state.height}
+                {idx > 0 && ` · step ${idx}`}
+              </Text>
+            </Menu.Item>
           );
         })}
-      </div>
-    </div>
+      </ScrollArea.Autosize>
+    </>
   );
 }
 
-function ToolSection({ title, children }: { title: string; children: React.ReactNode }) {
+function ToolSection({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
   return (
-    <section className="flex flex-col gap-1.5">
-      <h3 className="text-[10px] font-semibold uppercase tracking-section text-fg-dim">{title}</h3>
+    <Stack gap={6}>
+      <Text size="xs" fw={700} c="dimmed" tt="uppercase">{title}</Text>
       {children}
-    </section>
+      {hint && <Text size="xs" c="dimmed">{hint}</Text>}
+    </Stack>
   );
 }
 
 function ToolButton({
-  label, onClick, disabled, variant = 'compact',
+  icon, label, onClick, disabled,
 }: {
+  icon: ReactNode;
   label: string;
   onClick: () => void;
   disabled?: boolean;
-  variant?: 'compact' | 'full';
 }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className={cn(
-        'rounded-md border border-border-default bg-bg-elev px-2 text-[11px] font-medium text-fg-tertiary transition-colors hover:border-accent-hover hover:text-accent-fg disabled:opacity-50 disabled:cursor-not-allowed',
-        variant === 'full' ? 'h-9 w-full' : 'h-8',
-      )}
-    >
+    <Button variant="default" size="xs" fullWidth leftSection={icon} onClick={onClick} disabled={disabled}>
       {label}
-    </button>
+    </Button>
   );
 }
 
+/** v1 sub-parameter row: a dimmed label and its value above a plain slider. */
 function FilterRow({
   label, value, min, max, step, onChange,
 }: {
@@ -403,13 +365,14 @@ function FilterRow({
   step: number;
   onChange: (v: number) => void;
 }) {
+  const shown = step >= 1 ? value.toFixed(0) : step >= 0.1 ? value.toFixed(1) : value.toFixed(2);
   return (
-    <div className="flex items-center gap-2">
-      <span className="w-[70px] shrink-0 text-[11px] text-fg-muted">{label}</span>
-      <Slider value={value} onValueChange={onChange} min={min} max={max} step={step} ariaLabel={label} />
-      <span className="w-10 shrink-0 text-right text-[11px] font-medium tabular-nums text-fg-secondary">
-        {step >= 1 ? value.toFixed(0) : value.toFixed(2)}
-      </span>
+    <div>
+      <Group justify="space-between" mb={4}>
+        <Text size="xs" c="dimmed">{label}</Text>
+        <Text size="xs" fw={500} className="tabular-nums">{shown}</Text>
+      </Group>
+      <Slider value={value} onChange={onChange} min={min} max={max} step={step} label={null} thumbProps={{ 'aria-label': label }} className="touch-pan-y" />
     </div>
   );
 }

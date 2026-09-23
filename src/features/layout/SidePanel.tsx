@@ -2,6 +2,7 @@ import type { CSSProperties, ReactNode } from 'react';
 import { IconButton } from '@/components/ui/IconButton';
 import { ChevronRightIcon } from '@/components/ui/icons';
 import { cn } from '@/lib/cn';
+import { usePanelLayout } from './panelLayout';
 
 export interface SidePanelProps {
   /** Which edge of the viewport the panel docks to. */
@@ -10,7 +11,7 @@ export interface SidePanelProps {
   open: boolean;
   /** Whether to use desktop (in-flow absolute) or mobile (viewport-fixed) geometry. */
   isDesktop: boolean;
-  /** Panel width on desktop, in px. The closed-state transform slides this far off-screen. */
+  /** Panel width on desktop, in px. Set by the resize handle. */
   width: number;
   /**
    * Px the always-visible left rail reserves on mobile. The left drawer starts past it;
@@ -36,8 +37,8 @@ export interface SidePanelProps {
  * z-index) and the slide-in/out transform — but knows nothing about its
  * contents, so the same shell can host different feature panels per view.
  *
- * Geometry differs by `isDesktop`: desktop panels are absolutely positioned
- * inside their parent (no resize side-effects on the canvas); mobile panels
+ * Geometry differs by `isDesktop`: desktop panels are docked to their edge of
+ * the parent and resized by a handle; mobile panels
  * are viewport-fixed drawers with an optional left offset to clear a side
  * rail.
  *
@@ -57,24 +58,23 @@ export function SidePanel({
   header,
   children,
 }: SidePanelProps) {
-  // Desktop: panel floats with an 8px gutter on all sides — matching the
-  // TopNav's wrapper padding so the two read as a unified frame. The closed
-  // transform overshoots by 16px (gutter + a few px of shadow) so nothing
-  // peeks back into the viewport when collapsed.
-  const desktopClosed =
-    side === 'left' ? 'translateX(calc(-100% - 16px))' : 'translateX(calc(100% + 16px))';
+  // Desktop: docked flush to its edge, the full height of the view, the way v1's resizable
+  // panels sat — the canvas fills what is left. The width comes from the resize handle, and it
+  // snaps rather than animates while that handle is being dragged.
+  const dragging = usePanelLayout(st => st.dragging);
+  const desktopClosed = side === 'left' ? 'translateX(-100%)' : 'translateX(100%)';
   const desktopStyle: CSSProperties = {
     position: 'absolute',
-    top: 8,
-    bottom: 8,
-    [side]: 8,
+    top: 0,
+    bottom: 0,
+    [side]: 0,
     width,
     zIndex: 30,
     transform: open ? 'translateX(0)' : desktopClosed,
-    transition: 'transform 200ms ease-out',
-    // A closed panel overshoots the edge, but the left one is offset past the rail, so its
-    // last 52px stay under it — close enough to the surface to win a hit test and eat taps
-    // aimed at the rail. `inert` stops interaction; this stops hit-testing as well.
+    transition: dragging ? 'none' : 'transform 200ms ease-out',
+    // A closed panel is off-screen, but the left one is offset past the rail, so its last 52px
+    // stay under it — close enough to the surface to win a hit test and eat taps aimed at the
+    // rail. `inert` stops interaction; this stops hit-testing as well.
     pointerEvents: open ? undefined : 'none',
   };
 
@@ -103,10 +103,10 @@ export function SidePanel({
     pointerEvents: open ? undefined : 'none',
   };
 
-  // Desktop: detached card → full border + rounded corners + matches TopNav.
-  // Mobile: flush drawer → single edge border, no rounding.
-  const desktopShell = 'border border-border-subtle rounded-md overflow-hidden';
-  const mobileShell = side === 'left' ? 'border-r border-border-subtle' : 'border-l border-border-subtle';
+  // Both are flush now: a single border on the canvas side, no rounding.
+  const edgeBorder = side === 'left' ? 'border-r border-border-default' : 'border-l border-border-default';
+  const desktopShell = `${edgeBorder} overflow-hidden`;
+  const mobileShell = edgeBorder;
 
   return (
     <aside
@@ -118,7 +118,7 @@ export function SidePanel({
       // should be. `inert` takes the whole subtree out of hit-testing and focus at once.
       {...(!open ? { inert: '' as unknown as boolean } : {})}
       className={cn(
-        'flex flex-col bg-bg-panel/85 backdrop-blur-md',
+        'flex flex-col bg-bg-panel',
         isDesktop ? desktopShell : mobileShell,
         className,
       )}

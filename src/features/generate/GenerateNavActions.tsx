@@ -1,21 +1,28 @@
 import { useCallback } from 'react';
-import { IconButton } from '@/components/ui/IconButton';
-import { HeartIcon, InfiniteViewIcon, TrashIcon } from '@/components/ui/icons';
+import { Divider, Group } from '@mantine/core';
+import {
+  IconInfinity, IconInfoCircle, IconMaximize, IconStar, IconStarFilled, IconTrash,
+} from '@tabler/icons-react';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useShortcut, ShortcutPriority } from '@/hooks/useShortcut';
 import { useStore } from '@/lib/store';
 import { sendEntryToCanvas } from '@/features/canvas/sendEntryToCanvas';
+import { RecallButton } from '@/features/layout/RecallButton';
+import { DownloadSelectedButton } from '@/features/layout/DownloadSelectedButton';
+import { ToolbarButton } from './ToolbarButton';
 
 /**
- * Right-slot actions for the generate top nav that act on whichever history
- * entry is currently shown on the stripped canvas (selected, else newest).
- * Lives inside <ConfirmProvider>, so useConfirm() is safe.
+ * The image toolbar in the generate top nav — v1's ImagePanelToolbar: one
+ * compact group of subtle icon buttons acting on whichever history entry is
+ * shown on the stripped canvas (selected, else newest), with delete split off
+ * behind a divider. Lives inside <ConfirmProvider>, so useConfirm() is safe.
  */
 export function GenerateNavActions() {
   const selectedEntry = useStore(s => s.selectedEntry);
   const newest = useStore(s => s.history[0] ?? null);
   const toggleHistoryLiked = useStore(s => s.toggleHistoryLiked);
   const removeHistoryEntry = useStore(s => s.removeHistoryEntry);
+  const openViewer = useStore(s => s.openViewer);
   const selectHistoryEntry = useStore(s => s.selectHistoryEntry);
   const confirm = useConfirm();
   const entry = selectedEntry ?? newest;
@@ -52,35 +59,48 @@ export function GenerateNavActions() {
   }, { priority: ShortcutPriority.Global, when: () => !!entry });
 
   return (
-    <>
-      <IconButton
-        aria-label="Send image to canvas"
-        title="Send this image to the infinite canvas as a new image layer"
-        onClick={() => { if (entry) void sendEntryToCanvas(entry); }}
-        disabled={disabled}
-        className="disabled:cursor-not-allowed disabled:opacity-40"
-      >
-        <InfiniteViewIcon size={16} />
-      </IconButton>
-      <IconButton
-        state={liked ? 'on' : 'off'}
-        aria-label={liked ? 'Unfavorite image' : 'Favorite image'}
-        title={liked ? 'Unfavorite this image' : 'Favorite this image'}
+    <Group gap={4} wrap="nowrap">
+      <RecallButton />
+      <ToolbarButton
+        icon={liked
+          ? <IconStarFilled size={16} color="var(--mantine-color-yellow-5)" />
+          : <IconStar size={16} />}
+        label={liked ? 'Unfavorite image' : 'Favorite image'}
+        tooltip={liked ? 'Remove from favorites' : 'Add to favorites'}
+        pressed={liked}
         onClick={() => { if (entry) toggleHistoryLiked(entry.id); }}
         disabled={disabled}
-        className="disabled:cursor-not-allowed disabled:opacity-40"
-      >
-        <HeartIcon size={16} filled={liked} />
-      </IconButton>
-      <IconButton
-        aria-label="Delete image"
-        title="Delete this image from history (Del)"
+      />
+      <DownloadSelectedButton />
+      <ToolbarButton
+        icon={<IconInfinity size={16} />}
+        label="Send image to canvas"
+        tooltip="Send this image to the infinite canvas as a new image layer"
+        onClick={() => { if (entry) void sendEntryToCanvas(entry); }}
+        disabled={disabled}
+      />
+      <ToolbarButton
+        icon={<IconInfoCircle size={16} />}
+        label="Open image info"
+        tooltip="Open the selected image with its details"
+        onClick={() => openViewer({ withInfo: true })}
+        disabled={disabled}
+      />
+      <ToolbarButton
+        icon={<IconMaximize size={16} />}
+        label="View image fullscreen"
+        tooltip="View image fullscreen (Space)"
+        onClick={() => openViewer()}
+        disabled={disabled}
+      />
+      <Divider orientation="vertical" h={18} mx={6} style={{ alignSelf: 'center' }} />
+      <ToolbarButton
+        icon={<IconTrash size={16} />}
+        label="Delete image"
+        tooltip="Delete this image from history (Del)"
         onClick={() => { void deleteCurrent(); }}
         disabled={disabled}
-        className="disabled:cursor-not-allowed disabled:opacity-40 hover:!text-status-err"
-      >
-        <TrashIcon size={16} />
-      </IconButton>
-    </>
+      />
+    </Group>
   );
 }

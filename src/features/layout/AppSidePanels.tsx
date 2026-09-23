@@ -1,10 +1,9 @@
 import { LeftPanel } from './LeftPanel';
 import { RightPanel } from '@/features/canvasLayers';
 import { SidePanel, SidePanelTrigger, BothPanelsTrigger } from './SidePanel';
-import { StatusPill } from './StatusPill';
-import { QueueButton } from './QueueButton';
-import { DownloadsButton } from '@/features/downloads';
-import { LEFT_W, RIGHT_W, SIDENAV_W } from './constants';
+import { SIDENAV_W } from './constants';
+import { usePanelLayout } from './panelLayout';
+import { PanelResizeHandle } from './PanelResizeHandle';
 import { cn } from '@/lib/cn';
 
 interface Props {
@@ -17,6 +16,8 @@ interface Props {
 
 export function AppSidePanels({ isDesktop, leftOpen, rightOpen, setLeftOpen, setRightOpen }: Props) {
   const anyOpen = leftOpen || rightOpen;
+  const leftW = usePanelLayout(s => s.left);
+  const rightW = usePanelLayout(s => s.right);
   return (
     <>
       {/* Mobile scrim. A drawer covering most of the screen needs somewhere to tap to
@@ -37,18 +38,14 @@ export function AppSidePanels({ isDesktop, leftOpen, rightOpen, setLeftOpen, set
         side="left"
         open={leftOpen}
         isDesktop={isDesktop}
-        width={LEFT_W}
+        width={leftW}
         mobileLeftOffset={SIDENAV_W}
-        header={
-          <div className="flex items-center justify-between gap-2">
-            <StatusPill />
-            <div className="flex items-center gap-1.5">
-              <QueueButton />
-              <DownloadsButton />
-              <SidePanelTrigger side="left" open={leftOpen} onClick={() => setLeftOpen(false)} />
-            </div>
+        // Desktop folds the panel from its resize handle; a phone drawer needs its own close.
+        header={isDesktop ? undefined : (
+          <div className="flex items-center justify-end gap-2">
+            <SidePanelTrigger side="left" open={leftOpen} onClick={() => setLeftOpen(false)} />
           </div>
-        }
+        )}
       >
         <LeftPanel />
       </SidePanel>
@@ -56,7 +53,7 @@ export function AppSidePanels({ isDesktop, leftOpen, rightOpen, setLeftOpen, set
         side="right"
         open={rightOpen}
         isDesktop={isDesktop}
-        width={RIGHT_W}
+        width={rightW}
         mobileLeftOffset={SIDENAV_W}
         header={
           <div className="flex items-center gap-1.5">
@@ -75,6 +72,10 @@ export function AppSidePanels({ isDesktop, leftOpen, rightOpen, setLeftOpen, set
       >
         <RightPanel />
       </SidePanel>
+      {isDesktop && <>
+        <PanelResizeHandle side="left" open={leftOpen} setOpen={setLeftOpen} />
+        <PanelResizeHandle side="right" open={rightOpen} setOpen={setRightOpen} />
+      </>}
     </>
   );
 }
