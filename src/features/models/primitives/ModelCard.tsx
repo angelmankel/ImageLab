@@ -69,14 +69,16 @@ function Root({ kind, children, onOpen, className }: RootProps) {
 /** Optional left-side preview column. */
 function Preview({
   src,
+  srcs,
   label,
   className,
 }: {
   src?: string | null;
+  srcs?: string[];
   label?: string;
   className?: string;
 }) {
-  return <PreviewThumb src={src} label={label} className={cn('w-[88px] shrink-0 self-stretch', className)} />;
+  return <PreviewThumb src={src} srcs={srcs} label={label} className={cn('w-[88px] shrink-0 self-stretch', className)} />;
 }
 
 /** Right-side content column. */

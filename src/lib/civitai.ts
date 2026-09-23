@@ -7,9 +7,8 @@
  *   by-hash   GET /model-versions/by-hash/:sha256
  *             Maps a local model file → its CivitAI identity (one version,
  *             carrying `modelId`). Cached in IndexedDB keyed by hash. A SHA256
- *             never changes, so a "found" entry is permanent; "not found"
- *             results are cached too (so local-only models aren't re-queried
- *             every load) but expire after NOT_FOUND_TTL.
+ *             never changes, but its gallery can. Both "found" and "not found"
+ *             results expire, with shorter lifetimes for missing previews.
  *
  *   by-id     GET /models/:id
  *             The full model — every version, gallery, license, stats — that
@@ -145,8 +144,9 @@ export function civitaiThumbUrl(url: string, width: number): string {
   return url;
 }
 
-/** Re-check a "not found" hash after this long. "Found" entries never expire. */
-const NOT_FOUND_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days
+const FOUND_TTL = 24 * 60 * 60 * 1000;
+const EMPTY_IMAGES_TTL = 5 * 60 * 1000;
+const NOT_FOUND_TTL = 60 * 60 * 1000;
 
 /** How many CivitAI requests to keep in flight at once. They rate-limit
  *  per-IP and there's no documented quota; 3 is empirically the highest we
@@ -169,7 +169,7 @@ const RATE_LIMIT_BACKOFF_MS = 2500;
  * the returned promise rejects with `'AbortError'`, which callers map to a
  * meaningful error message.
  */
-async function fetchWithTimeout(url: string, opts: { signal?: AbortSignal } = {}): Promise<Response> {
+async function fetchWithTimeout(url: string, opts: { signal?: AbortSignal } = {}): Promise<Pick<Response, 'ok' | 'status' | 'json' | 'text'>> {
   const ac = new AbortController();
   const timer = setTimeout(() => ac.abort(), REQUEST_TIMEOUT_MS);
   const onExternalAbort = () => ac.abort();
@@ -178,7 +178,10 @@ async function fetchWithTimeout(url: string, opts: { signal?: AbortSignal } = {}
     else opts.signal.addEventListener('abort', onExternalAbort, { once: true });
   }
   try {
-    return await fetch(withCivitaiAuth(url), { signal: ac.signal });
+    const res = await fetch(withCivitaiAuth(url), { signal: ac.signal });
+    // Headers can arrive while the body stalls; keep the timeout through both.
+    const body = await res.text();
+    return { ok: res.ok, status: res.status, json: async () => JSON.parse(body), text: async () => body };
   } finally {
     clearTimeout(timer);
     opts.signal?.removeEventListener('abort', onExternalAbort);
@@ -375,7 +378,10 @@ export async function fetchCivitaiByHash(hash: string, signal?: AbortSignal): Pr
 
 /** Is a cache entry good enough to use without re-fetching? */
 function isFresh(entry: CivitaiCacheEntry): boolean {
-  if (entry.status === 'found') return true;
+  if (entry.status === 'found') {
+    const images = (entry.data as CivitaiVersionByHash | null)?.images;
+    return Date.now() - entry.fetchedAt < (images?.length ? FOUND_TTL : EMPTY_IMAGES_TTL);
+  }
   if (entry.status === 'not-found') return Date.now() - entry.fetchedAt < NOT_FOUND_TTL;
   return false; // 'error' entries are never persisted, but be safe
 }
@@ -447,13 +453,23 @@ export async function resolveCivitai(
   await pooled(toFetch, CONCURRENCY, async (hash) => {
     if (signal?.aborted) return;
     const entry = await fetchCivitaiByHash(hash, signal);
+    const previous = cached.get(hash);
+    // Keep existing previews during an outage, without extending their expiry.
+    if (entry.status === 'error' && previous?.status === 'found') {
+      result.set(hash, previous);
+      onResolved?.(previous);
+      return;
+    }
     result.set(hash, entry);
     if (entry.status !== 'error') fresh.push(entry);
     onResolved?.(entry);
   });
 
   // 3. Persist the new found/not-found results (errors are skipped above).
-  if (fresh.length) await putCivitaiMany(fresh);
+  if (fresh.length) {
+    try { await putCivitaiMany(fresh); }
+    catch (e) { wlog('Could not cache metadata:', e); }
+  }
 
   if (toFetch.length) {
     vlog(`resolveCivitai done — issued=${STATS.issued} ok=${STATS.ok} 404=${STATS.notFound} 429=${STATS.rateLimited} timeout=${STATS.timedOut} fail=${STATS.failed}`);
@@ -469,14 +485,14 @@ export async function resolveCivitai(
  * error) — failures are not cached, so they retry on the next open.
  */
 export async function fetchCivitaiModel(modelId: number, signal?: AbortSignal): Promise<CivitaiModel> {
-  const cached = await getCivitaiModel(modelId);
-  if (cached) return cached.data as CivitaiModel;
+  const cached = await getCivitaiModel(modelId).catch(() => undefined);
+  if (cached && Date.now() - cached.fetchedAt < FOUND_TTL) return cached.data as CivitaiModel;
 
   const url = `${CIVITAI_API}/models/${modelId}`;
   vlog(`fetchCivitaiModel ${modelId} → ${url}`);
   STATS.issued++;
   const t0 = performance.now();
-  let res: Response;
+  let res: Awaited<ReturnType<typeof fetchWithTimeout>>;
   try {
     res = await fetchWithTimeout(url, { signal });
     if (res.status === 429) {
@@ -502,7 +518,7 @@ export async function fetchCivitaiModel(modelId: number, signal?: AbortSignal): 
   vlog(`fetchCivitaiModel ${modelId} ok in ${Math.round(performance.now() - t0)}ms`);
   const data = (await res.json()) as CivitaiModel;
 
-  await putCivitaiModel({ modelId, fetchedAt: Date.now(), data });
+  await putCivitaiModel({ modelId, fetchedAt: Date.now(), data }).catch(e => wlog('Could not cache model:', e));
   return data;
 }
 

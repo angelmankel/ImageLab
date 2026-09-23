@@ -99,9 +99,11 @@ export interface ModelHashes {
  * Pass the previous response's `version` as `knownVersion` — the endpoint
  * answers `304` when nothing has changed, in which case this returns `null`.
  */
-export async function fetchModelHashes(host: string, knownVersion?: string): Promise<ModelHashes | null> {
+export async function fetchModelHashes(host: string, knownVersion?: string, signal?: AbortSignal): Promise<ModelHashes | null> {
+  const timeout = AbortSignal.timeout(15_000);
   const res = await fetch(`${comfyHttpFor(host)}/imagelab/api/hashes`, {
     headers: knownVersion ? { 'If-None-Match': `"${knownVersion}"` } : {},
+    signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
   });
   if (res.status === 304) return null;
   if (!res.ok) throw new Error(`HTTP ${res.status}`);

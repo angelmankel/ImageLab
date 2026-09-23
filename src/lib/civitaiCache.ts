@@ -12,8 +12,7 @@
  * startup / modal open, where a synchronous multi-MB JSON.parse would jank
  * the UI. IndexedDB is async and effectively unbounded for this.
  *
- * Entries are immutable-by-key, so there's no invalidation logic here; the
- * freshness policy (permanent "found", expiring "not-found") lives in
+ * Entries are keyed by identity; the metadata freshness policy lives in
  * `civitai.ts`. Bumping SCHEMA_VERSION drops and rebuilds every store — fine,
  * it's only a cache.
  */

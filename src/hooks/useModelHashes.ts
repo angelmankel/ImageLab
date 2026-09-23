@@ -1,18 +1,9 @@
 import { useEffect } from 'react';
 import { useStore } from '@/lib/store';
-import { fetchModelHashes, type ModelHash } from '@/lib/comfy';
+import { fetchModelHashes, type ModelHashes } from '@/lib/comfy';
 import { resolveCivitai, type CivitaiCacheEntry } from '@/lib/civitai';
 
-/**
- * Loads the model-hash cache from the ImageLab custom node on *every* server,
- * merges them (a model file is the same content wherever it lives, so they're
- * de-duped by hash), then eagerly resolves CivitAI metadata so model cards can
- * show previews. Re-runs when the server list changes.
- *
- * Hashes land in `store.modelHashes`; CivitAI results stream into
- * `store.civitaiByHash` as they resolve, buffered + flushed once per microtask
- * (a warm cache fires the callback for every model in one synchronous burst).
- */
+/** Keep hashes and previews current while models download and CivitAI recovers. */
 export function useModelHashes() {
   const servers = useStore(s => s.servers);
   const setModelHashes = useStore(s => s.setModelHashes);
@@ -21,6 +12,11 @@ export function useModelHashes() {
   useEffect(() => {
     let cancelled = false;
     const ac = new AbortController();
+    const snapshots = new Map<string, ModelHashes>();
+    let timer: ReturnType<typeof setTimeout>;
+    let resolving = false;
+    let nextResolve = 0;
+    let lastVersion = '';
 
     const buffer: CivitaiCacheEntry[] = [];
     let flushScheduled = false;
@@ -29,40 +25,52 @@ export function useModelHashes() {
       if (!cancelled && buffer.length) mergeCivitai(buffer.splice(0));
     };
 
-    (async () => {
+    const poll = async () => {
       const results = await Promise.allSettled(
-        servers.map(s => fetchModelHashes(s.host)),
+        servers.map(s => fetchModelHashes(s.host, snapshots.get(s.host)?.version, ac.signal)),
       );
       if (cancelled) return;
-
-      const byHash = new Map<string, ModelHash>();
       results.forEach((r, i) => {
         const sv = servers[i];
         if (r.status === 'fulfilled' && r.value) {
-          for (const m of r.value.models) byHash.set(m.hash, m);
+          snapshots.set(sv.host, r.value);
         } else if (r.status === 'rejected') {
-          // The ImageLab node returns a useful 404 when not installed, and a
-          // 5xx if the index isn't built yet. Either way, no hashes → no
-          // CivitAI lookups → no model previews / metadata. Stays as a
-          // console.warn so missing-node setups don't fail silently.
           console.warn(`[imagelab-node] ${sv.name} (${sv.host}) failed:`, r.reason);
         }
+        // A 304 or a temporarily unreachable server keeps its last snapshot.
       });
-      const merged = [...byHash.values()];
-      setModelHashes(merged);
+      const version = JSON.stringify([...snapshots].map(([host, value]) => [host, value.version]));
+      const changed = version !== lastVersion;
+      const merged = [...snapshots.values()].flatMap(s => s.models);
+      if (changed) {
+        // Keep filename aliases: identical content can have different names.
+        setModelHashes(merged);
+        lastVersion = version;
+      }
 
-      void resolveCivitai(merged.map(m => m.hash), {
-        signal: ac.signal,
-        onResolved: entry => {
-          buffer.push(entry);
-          if (!flushScheduled) {
-            flushScheduled = true;
-            queueMicrotask(flush);
-          }
-        },
-      });
-    })();
+      if (!resolving && (changed || Date.now() >= nextResolve)) {
+        resolving = true;
+        void resolveCivitai(merged.map(m => m.hash), {
+          signal: ac.signal,
+          onResolved: entry => {
+            if (cancelled) return;
+            buffer.push(entry);
+            if (!flushScheduled) {
+              flushScheduled = true;
+              queueMicrotask(flush);
+            }
+          },
+        }).catch(error => {
+          if (!cancelled) console.warn('[civitai] Could not refresh metadata:', error);
+        }).finally(() => {
+          resolving = false;
+          nextResolve = Date.now() + 30_000;
+        });
+      }
+      timer = setTimeout(() => { void poll(); }, 10_000);
+    };
+    void poll();
 
-    return () => { cancelled = true; ac.abort(); };
+    return () => { cancelled = true; clearTimeout(timer); ac.abort(); };
   }, [servers, setModelHashes, mergeCivitai]);
 }

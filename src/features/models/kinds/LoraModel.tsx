@@ -11,13 +11,13 @@ import { ModelCard, ParamSlider } from '../primitives';
 export function LoraModel({
   lora,
   onOpen,
-  previewUrl,
+  previewUrls,
   editSlot,
 }: {
   lora: WorkflowLora;
   onOpen?: () => void;
   /** CivitAI preview image, when resolved. */
-  previewUrl?: string;
+  previewUrls?: string[];
   /** Per-card edit trigger — typically a <ModelPicker> with a pencil icon. */
   editSlot?: ReactNode;
 }) {
@@ -25,7 +25,7 @@ export function LoraModel({
   const removeLora = useStore((s) => s.removeLora);
   return (
     <ModelCard kind="lora" onOpen={onOpen}>
-      <ModelCard.Preview src={previewUrl} label="preview" />
+      <ModelCard.Preview srcs={previewUrls} label="preview" />
       <ModelCard.Body>
         <ModelCard.Header
           title={lora.name}

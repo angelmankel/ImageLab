@@ -11,7 +11,7 @@ export function CheckpointModel({
   isBase,
   onRemove,
   onOpen,
-  previewUrl,
+  previewUrls,
   editSlot,
 }: {
   fileName: string;
@@ -19,13 +19,13 @@ export function CheckpointModel({
   onRemove?: () => void;
   onOpen?: () => void;
   /** CivitAI preview image, when resolved. */
-  previewUrl?: string;
+  previewUrls?: string[];
   /** Per-card edit trigger — typically a <ModelPicker> with a pencil icon. */
   editSlot?: ReactNode;
 }) {
   return (
     <ModelCard kind="checkpoint" onOpen={onOpen}>
-      <ModelCard.Preview src={previewUrl} label="preview" />
+      <ModelCard.Preview srcs={previewUrls} label="preview" />
       <ModelCard.Body>
         <ModelCard.Header
           title={fileName}

@@ -1,6 +1,6 @@
 import { forwardRef, useMemo, type ButtonHTMLAttributes } from 'react';
 import { useStore } from '@/lib/store';
-import { modelPreviewUrl, modelPreviewUrls, modelBaseBucket } from '@/lib/modelHash';
+import { modelPreviewUrls, modelBaseBucket } from '@/lib/modelHash';
 import { viewUrl } from '@/lib/comfy';
 import { useModelMetadataStore } from '@/features/model-metadata';
 import { useResourceAvailability } from '@/hooks/useResourceAvailability';
@@ -44,7 +44,6 @@ export function ModelStack() {
   const loraAvail = useResourceAvailability('lora');
 
   const checkpoints = workflow.checkpoints;
-  const previewUrl = (fileName: string) => modelPreviewUrl(modelHashes, civitaiByHash, fileName);
   // Resolvers passed into the pickers — kept lightweight; the popover memoises
   // the result so we don't refire these on every keystroke.
   const previewUrls = (fileName: string) => modelPreviewUrls(modelHashes, civitaiByHash, fileName);
@@ -102,7 +101,7 @@ export function ModelStack() {
             isBase={i === 0}
             onRemove={() => removeCheckpoint(ckpt.id)}
             onOpen={() => openForFile(ckpt.id, ckpt.name)}
-            previewUrl={previewUrl(ckpt.name)}
+            previewUrls={previewUrls(ckpt.name)}
             editSlot={
               <ModelPicker
                 kind="checkpoint"
@@ -190,7 +189,7 @@ export function ModelStack() {
             key={lora.id}
             lora={lora}
             onOpen={() => openForFile(lora.id, lora.name)}
-            previewUrl={previewUrl(lora.name)}
+            previewUrls={previewUrls(lora.name)}
             editSlot={
               <ModelPicker
                 kind="lora"
