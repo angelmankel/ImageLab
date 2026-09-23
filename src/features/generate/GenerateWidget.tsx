@@ -24,7 +24,7 @@ export function GenerateWidget() {
       <div className="btn-glow flex overflow-hidden rounded-md">
         <button
           type="button"
-          onClick={fireFromStore}
+          onClick={() => { void fireFromStore(); }}
           className="flex min-h-[36px] items-center gap-1.5 bg-accent px-3 text-[12px] font-semibold text-white transition-colors hover:bg-accent-hover"
         >
           <GenerateIcon size={13} />
@@ -34,6 +34,7 @@ export function GenerateWidget() {
             <KeyboardEnterIcon size={10} />
           </span>
         </button>
+        <button type="button" onClick={() => { void fireFromStore(true); }} aria-label="Generate with new seed" title="Generate with new seed" className="flex items-center gap-1 border-l border-white/20 bg-accent px-2 text-xs text-white hover:bg-accent-hover"><DiceIcon size={14} />New seed</button>
         <RoutingPicker variant="sm" align="start" />
       </div>
 

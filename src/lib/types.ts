@@ -21,6 +21,8 @@ export type Snippet = {
   kind: LayerKind;
   /** Category id (see SnippetCategory). Defaults to 'uncategorized' for legacy. */
   categoryId: string;
+  /** A complete preset; older snippets remain usable as single-part presets. */
+  layers?: Array<Omit<Layer, 'id' | 'originSnippetId'>>;
 };
 
 /** Snippet library category — organizational only; users can add/rename/delete. */
@@ -198,16 +200,14 @@ export type InputImageState = {
   height: number;
 };
 
-/**
- * One additional sampling pass, chained after the base (Pass 1 = the
- * WorkflowState's top-level sampler/scheduler/steps/cfg/seed/denoise). Each
- * extra pass LatentUpscales the previous pass's samples by `scale` (clamped
- * so the result's long edge ≤ `maxEdge`) and resamples with its own params.
- * Replaces the old Hi-Res Fix; `WorkflowState.passes` is empty by default
- * (single-pass behaves exactly like before).
- */
+/** One ordered refinement or finishing step. Missing kind means a saved sampling pass. */
 export type Pass = {
   id: string;
+  kind?: 'sample' | 'upscale' | 'resize' | 'remove-bg';
+  resizeMode?: 'factor' | 'size';
+  width?: number;
+  height?: number;
+  resizeMethod?: WorkflowState['resizeMethod'];
   sampler: string;
   scheduler: string;
   steps: number;
@@ -318,9 +318,8 @@ export type WorkflowState = {
   /** LoRAs applied between the checkpoint and the sampler, in order. */
   loras: WorkflowLora[];
   /**
-   * Extra sampling passes chained after the base pass. Empty array = single-
-   * pass (legacy behavior). Each entry latent-upscales the previous output
-   * and resamples with its own full parameter set. Replaces Hi-Res Fix.
+   * Ordered refinement, upscale, resize and background-removal steps.
+   * Empty means only the base generation runs.
    */
   passes: Pass[];
   upscaleEnabled: boolean;

@@ -10,7 +10,7 @@
  * persisted per section, and a section forced open by a search stays visually open without
  * disturbing what the person chose.
  */
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { useCollapsed } from '@/hooks/useCollapsed';
 import { ChevronDownIcon } from '@/components/ui/icons';
 import { cn } from '@/lib/cn';
@@ -26,13 +26,16 @@ export interface ControlSectionProps {
   defaultCollapsed?: boolean;
   /** Forces the section open regardless of stored state — used while a search is active. */
   forceOpen?: boolean;
+  /** Expand when an action opens an editor, while still allowing manual collapse. */
+  expandOn?: boolean;
   children: ReactNode;
 }
 
 export function ControlSection({
-  id, title, summary, action, defaultCollapsed = false, forceOpen, children,
+  id, title, summary, action, defaultCollapsed = false, forceOpen, expandOn, children,
 }: ControlSectionProps) {
-  const [collapsed, toggle] = useCollapsed(`controls.${id}`, defaultCollapsed);
+  const [collapsed, toggle, setCollapsed] = useCollapsed(`controls.${id}`, defaultCollapsed);
+  useEffect(() => { if (expandOn) setCollapsed(false); }, [expandOn, setCollapsed]);
   const open = forceOpen || !collapsed;
 
   return (

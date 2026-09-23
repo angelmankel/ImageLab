@@ -1,3 +1,4 @@
+import { prepareSeeds } from '@/lib/pipeline';
 import { useShortcut, ShortcutPriority } from '@/hooks/useShortcut';
 import { useStore } from '@/lib/store';
 import { useCanvasStore } from '@/lib/canvasStore';
@@ -33,7 +34,7 @@ async function resolveLayerSourceBlob(layer: CanvasLayer): Promise<Blob | null> 
 }
 
 import {
-  GenerateIcon, KeyboardCommandIcon, KeyboardEnterIcon,
+  GenerateIcon, KeyboardCommandIcon, KeyboardEnterIcon, DiceIcon,
 } from '@/components/ui/icons';
 import { RoutingPicker } from './RoutingPicker';
 
@@ -43,7 +44,15 @@ import { RoutingPicker } from './RoutingPicker';
  * cursor only advances on a *successful* queue, so a blocked attempt doesn't
  * silently skip a server.
  */
-export async function fireFromStore() {
+export async function fireFromStore(newSeed = false) {
+  if (useStore.getState().isSubmitting) return;
+  useStore.setState({ isSubmitting: true });
+  try { await queueFromStore(newSeed); }
+  catch (error) { useStore.getState().setStatus(error instanceof Error ? error.message : 'Could not queue generation', 'error'); }
+  finally { useStore.setState({ isSubmitting: false }); }
+}
+
+async function queueFromStore(newSeed: boolean) {
   const st = useStore.getState();
   const { layers, setStatus } = st;
 
@@ -71,9 +80,8 @@ export async function fireFromStore() {
   // contribute only bounds (size + position) + the targetLayerId routing
   // hint; editing params in the left panel applies to whichever gen fires
   // next, layer-targeted or not.
-  if (st.workflow.randomizeSeed) {
-    st.setWorkflow({ seed: Math.floor(Math.random() * 0xFFFFFFFF) });
-  }
+  const prepared = prepareSeeds(st.workflow, newSeed);
+  st.setWorkflow({ seed: prepared.seed, passes: prepared.passes });
 
   // Build the workflow we'll queue. For layer-targeted gens, override
   // width/height from the layer's bounds — bounds are the source of truth for
@@ -369,17 +377,18 @@ export function GenerateButton() {
   // In infinite canvas mode every gen targets a layer (#41). Without a
   // selected layer, there's nothing to stamp into — disable Generate to
   // make that obvious rather than silently routing to the global preview.
-  const disabled = mainView === 'canvas' && !activeLayer;
+  const submitting = useStore(s => s.isSubmitting);
+  const disabled = submitting || mainView === 'canvas' && !activeLayer;
 
   return (
     <div className="btn-glow flex w-full overflow-hidden rounded-xl">
       <button
         type="button"
-        onClick={fireFromStore}
+        onClick={() => { void fireFromStore(); }}
         disabled={disabled}
         title={disabled ? 'Select a canvas layer to generate' : undefined}
         className={cn(
-          'flex flex-1 items-center justify-between gap-2 px-4 py-3.5 font-semibold text-white transition-colors',
+          'flex min-w-0 flex-1 items-center justify-between gap-2 px-4 py-3.5 font-semibold text-white transition-colors',
           disabled
             ? 'cursor-not-allowed bg-bg-elev text-fg-dim'
             : 'bg-accent hover:bg-accent-hover',
@@ -398,11 +407,16 @@ export function GenerateButton() {
           )}
         </span>
         {!disabled && (
-          <span className="flex items-center gap-1 rounded bg-white/15 px-1.5 py-0.5">
+          <span className="hidden items-center gap-1 rounded bg-white/15 xl:flex px-1.5 py-0.5">
             <KeyboardCommandIcon size={12} />
             <KeyboardEnterIcon size={12} />
           </span>
         )}
+      </button>
+      <button type="button" onClick={() => { void fireFromStore(true); }} disabled={disabled}
+        title="Generate with fresh seeds for this run" aria-label="Generate with new seed"
+        className="flex shrink-0 flex-col items-center justify-center gap-1 border-l border-white/20 bg-accent px-3 text-white hover:bg-accent-hover disabled:opacity-40">
+        <DiceIcon size={17} /><span className="text-[10px] font-semibold">New seed</span>
       </button>
       <RoutingPicker variant="lg" align="end" />
     </div>

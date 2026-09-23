@@ -293,6 +293,7 @@ type Store = {
   importedImages: ImportedImage[];
 
   setWorkflow: (patch: Partial<WorkflowState>) => void;
+  isSubmitting: boolean;
   setStatus: (text: string, kind?: Status['kind']) => void;
   setServerInfo: (serverId: string, info: ServerInfo) => void;
   dropServerInfo: (serverId: string) => void;
@@ -369,6 +370,7 @@ type Store = {
    *  while the user regenerates the positive prompt, and vice-versa). */
   replaceLayers: (kind: LayerKind, items: Array<{ tag: string; text: string; weight?: number }>) => void;
   moveLayer: (id: string, dir: -1 | 1) => void;
+  setPromptLayers: (layers: Layer[]) => void;
 
   // Snippets
   addSnippet: (s: Omit<Snippet, 'id'>) => string;
@@ -515,6 +517,7 @@ export const useStore = create<Store>((set, get) => {
       }
       return { workflow };
     }),
+    isSubmitting: false,
     setStatus: (text, kind = '') => set({ status: { text, kind } }),
 
     // No reconciliation here: the workflow is global and a model may legitimately
@@ -558,6 +561,7 @@ export const useStore = create<Store>((set, get) => {
       let queue: { running: string[]; pending: string[] };
       try { queue = await fetchQueue(server.host); } catch { return; }
       for (const job of mine) {
+        if (_completingPromptIds.has(job.id) || job.status === 'error') continue;
         if (queue.running.includes(job.id)) {
           const before = get().jobs.find(j => j.id === job.id);
           get().updateJob(job.id, { status: 'running' });
@@ -575,9 +579,15 @@ export const useStore = create<Store>((set, get) => {
           continue;
         }
         // Not running, not pending — finished while away, or dropped.
+        _completingPromptIds.add(job.id);
         const res = await fetchPromptResult(server.host, job.id, job);
+        _completingPromptIds.delete(job.id);
         if ('error' in res) {
-          get().removeJob(job.id);
+          // The history response can lag the queue by a few seconds.
+          if (Date.now() - job.createdAt < 30_000) continue;
+          get().updateJob(job.id, { status: 'error', error: res.error, progress: undefined });
+          get().setStatus(res.error, 'error');
+          useCanvasStore.getState().setLivePreview(serverId, null);
         } else {
           const stamped = get().pushHistory({
             ...res.entry,
@@ -585,6 +595,7 @@ export const useStore = create<Store>((set, get) => {
             ...(job.targetLayerId ? { layerId: job.targetLayerId } : {}),
           });
           get().removeJob(job.id);
+          useCanvasStore.getState().setLivePreview(serverId, null);
           if (job.targetLayerId) {
             // Same layer-targeted post-completion path as in handleWsEvent.
             const ctl = getCanvasController();
@@ -596,6 +607,7 @@ export const useStore = create<Store>((set, get) => {
             get().setStatus('Ready', 'ok');
           } else if (get().autoFrameOnComplete) {
             get().selectHistoryEntry(stamped);
+            get().setStatus('Ready', 'ok');
             getCanvasController()?.loadHttpUrl(res.url, (ok) =>
               get().setStatus(ok ? 'Ready' : 'Image load failed', ok ? 'ok' : 'error'));
           } else {
@@ -642,22 +654,25 @@ export const useStore = create<Store>((set, get) => {
       }
 
       if (ev.type === 'progress') {
+        const running = s.jobs.find(j => j.serverId === serverId && j.id === ev.promptId);
+        if (!running) return;
         setStatus(`Generating ${ev.value}/${ev.max}`, 'busy');
-        const running = s.jobs.find(j => j.serverId === serverId && j.status === 'running');
         if (running) get().updateJob(running.id, { progress: { value: ev.value, max: ev.max } });
         return;
       }
 
       if (ev.type === 'execution_error') {
+        const running = s.jobs.find(j => j.serverId === serverId && j.id === ev.promptId);
+        if (!running) return;
         setStatus(`Error: ${ev.message}`, 'error');
-        const running = s.jobs.find(j => j.serverId === serverId && j.status === 'running');
-        if (running) get().updateJob(running.id, { status: 'error', error: ev.message, node: undefined });
+        if (running) get().updateJob(running.id, { status: 'error', error: ev.message, node: undefined, progress: undefined });
         useCanvasStore.getState().setLivePreview(serverId, null);
         return;
       }
 
       // ev.type === 'executing'
-      const job = s.jobs.find(j => j.id === ev.promptId);
+      const job = s.jobs.find(j => j.id === ev.promptId && j.serverId === serverId);
+      if (!job || job.status === 'error') return;
       if (ev.node !== null) {
         if (job) {
           // Bump executedNodes only when the node actually changes — ComfyUI
@@ -668,6 +683,7 @@ export const useStore = create<Store>((set, get) => {
           get().updateJob(job.id, {
             status: 'running',
             node: ev.node,
+            ...(advance ? { progress: undefined } : {}),
             ...(advance ? { executedNodes: (job.executedNodes ?? 0) + 1 } : {}),
           });
         }
@@ -676,18 +692,20 @@ export const useStore = create<Store>((set, get) => {
       }
 
       // node === null → prompt finished.
-      if (!job || _completingPromptIds.has(job.id)) return;
+      if (_completingPromptIds.has(job.id)) return;
       const host = get().servers.find(sv => sv.id === job.serverId)?.host;
       if (!host) { get().removeJob(job.id); return; }
 
       _completingPromptIds.add(job.id);
+      get().updateJob(job.id, { progress: undefined, node: undefined });
       setStatus('Loading result…', 'busy');
       const res = await fetchPromptResult(host, job.id, job);
       _completingPromptIds.delete(job.id);
 
       if ('error' in res) {
+        if (res.error === 'No history for prompt') return; // the reconciliation poll will retry
         setStatus(`Result error: ${res.error}`, 'error');
-        get().updateJob(job.id, { status: 'error', error: res.error });
+        get().updateJob(job.id, { status: 'error', error: res.error, progress: undefined });
         return;
       }
 
@@ -699,6 +717,7 @@ export const useStore = create<Store>((set, get) => {
         serverId: job.serverId,
         ...(job.targetLayerId ? { layerId: job.targetLayerId } : {}),
       });
+      get().removeJob(job.id);
 
       if (job.targetLayerId) {
         // Layer-targeted: stamp into the layer's sprite + write a separate
@@ -718,6 +737,7 @@ export const useStore = create<Store>((set, get) => {
         // Stripped canvas mode (separate ticket) ships, this entire path
         // will route through that view instead.
         get().selectHistoryEntry(stamped);
+        get().setStatus('Ready', 'ok');
         getCanvasController()?.loadHttpUrl(res.url, (ok) =>
           setStatus(ok ? 'Ready' : 'Image load failed', ok ? 'ok' : 'error'));
       } else {
@@ -727,7 +747,6 @@ export const useStore = create<Store>((set, get) => {
       // canvas (and the future PiP box) snap back to the static result
       // instead of lingering on the last preview frame.
       useCanvasStore.getState().setLivePreview(job.serverId, null);
-      get().removeJob(job.id);
     },
 
     setRouting: (mode) => {
@@ -876,6 +895,7 @@ export const useStore = create<Store>((set, get) => {
     requestLayerFocus: (id) => set({ pendingFocusLayerId: id }),
     consumeLayerFocus: () => set({ pendingFocusLayerId: null }),
 
+    setPromptLayers: (layers) => setLayersAndMirror(layers),
     replaceLayers: (kind, items) => {
       const others = get().layers.filter(l => l.kind !== kind);
       const fresh: Layer[] = items.map(it => ({

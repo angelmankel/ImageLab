@@ -41,7 +41,7 @@ export function PromptGeneratorButton() {
         aria-label="Generate prompt with AI"
       >
         <SparkleIcon size={12} />
-        Generate
+        Draft with AI
       </button>
       {open && btnRef.current && (
         <PromptGeneratorPopover anchor={btnRef.current} onClose={() => setOpen(false)} />

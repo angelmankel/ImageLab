@@ -1,3 +1,4 @@
+import { appendPasses } from './pipeline';
 import type { Layer, WorkflowState, ServerInfo, HistoryEntry } from './types';
 import { compileLayers } from './prompt';
 import { subscribeComfy } from './comfyBus';
@@ -530,175 +531,23 @@ export function buildGraph(
     delete graph["5"];
   }
 
-  // Multi-pass chain. Each entry in `workflow.passes` adds a
-  // LatentUpscaleBy + KSampler on top of the previous pass's latent. The
-  // first item in this chain reads from the base sampler ("3"); each
-  // subsequent item reads from the previous pass's KSampler. Each pass's
-  // `scale` is clamped down so the resulting long edge ≤ `maxEdge`.
-  //
-  // Best-effort starting dims (so we can compute the clamp client-side):
-  //   - inpaint with explicit targetSize → that size, square
-  //   - inpaint auto                    → workflow.width × .height (fallback)
-  //   - img2img                         → input image scaled by scaleForLongestEdge
-  //   - else                            → workflow.width × .height
-  let curW = baseW;
-  let curH = baseH;
-  if (inpaint) {
-    if (inpaint.targetSize !== 'auto') {
-      const t = Math.max(64, Math.round(inpaint.targetSize as number));
-      curW = t; curH = t;
-    }
-  } else if (inputImageRef && workflow.inputImage) {
-    const { width, height } = workflow.inputImage;
-    const s = scaleForLongestEdge(width, height, workflow.inputMaxSize, workflow.inputMinSize);
-    curW = Math.max(8, Math.round(width * s));
-    curH = Math.max(8, Math.round(height * s));
+  let curW = baseW, curH = baseH;
+  if (inputImageRef && workflow.inputImage && !inpaint) {
+    const scale = scaleForLongestEdge(workflow.inputImage.width, workflow.inputImage.height, workflow.inputMaxSize, workflow.inputMinSize);
+    curW = Math.round(workflow.inputImage.width * scale);
+    curH = Math.round(workflow.inputImage.height * scale);
   }
-
-  let finalSamples: [string, number] = ["3", 0];
-  const clampNotes: string[] = [];
-  workflow.passes.forEach((pass, idx) => {
-    // Bypassed passes are skipped entirely; the next active pass reads from
-    // whatever `finalSamples` points at (i.e. the previous active pass, or
-    // the base sampler when no prior pass was active).
-    if (pass.on === false) return;
-    const requested = Math.max(0.1, Number(pass.scale) || 1);
-    const cap = Math.max(64, Number(pass.maxEdge) || 2048);
-    const longEdge = Math.max(curW, curH);
-    const maxByCap = cap / longEdge;
-    let effective = requested;
-    if (effective > maxByCap) {
-      effective = maxByCap;
-      // Pass 1 here is workflow.passes[0] in user terms (the first EXTRA
-      // pass is "Pass 2" since the base pass is implicit Pass 1).
-      clampNotes.push(
-        `Pass ${idx + 2} capped to ${cap}px → effective ×${effective.toFixed(2)}`,
-      );
-    }
-    if (effective <= 1.001) return; // nothing to do — would just resample at same dims
-    curW = Math.round(curW * effective);
-    curH = Math.round(curH * effective);
-
-    const upId = `pU${idx}`;
-    const kId  = `pK${idx}`;
-
-    if (pass.upscaleMode === 'model') {
-      // Enlarge in PIXELS, not in latent space. A latent upscale interpolates between values that
-      // only mean something after decoding, so edges arrive soft and no amount of low-denoise
-      // resampling puts them back. Decoding, running a real upscaler, resizing to the target and
-      // re-encoding costs a VAE round trip and keeps the linework.
-      //
-      // The upscaler has its own fixed factor (4x-AnimeSharp is 4x whatever you ask for), so the
-      // ImageScale afterwards is what actually lands the pass on `effective`.
-      const model = pass.upscaleModel || workflow.upscaleModel || '';
-      graph[`${upId}d`] = { class_type: "VAEDecode", inputs: { samples: finalSamples, vae: vaeRef }};
-      graph[`${upId}l`] = { class_type: "UpscaleModelLoader", inputs: { model_name: model }};
-      graph[`${upId}u`] = { class_type: "ImageUpscaleWithModel", inputs: {
-        upscale_model: [`${upId}l`, 0],
-        image: [`${upId}d`, 0],
-      }};
-      graph[`${upId}s`] = { class_type: "ImageScale", inputs: {
-        image: [`${upId}u`, 0],
-        // lanczos: the sharpest of the options for the downscale that always follows a 4x model.
-        // An earlier version of this line said bicubic because a truncated read of object_info
-        // appeared to show lanczos missing. It is there.
-        upscale_method: "lanczos",
-        width: curW,
-        height: curH,
-        crop: "disabled",
-      }};
-      graph[upId] = { class_type: "VAEEncode", inputs: { pixels: [`${upId}s`, 0], vae: vaeRef }};
-    } else {
-      graph[upId] = { class_type: "LatentUpscaleBy", inputs: {
-        samples: finalSamples,
-        upscale_method: "nearest-exact",
-        scale_by: effective,
-      }};
-    }
-    const passSeed = pass.randomizeSeed
-      ? Math.trunc(Math.random() * 0xFFFFFFFF)
-      : Math.trunc(Number(pass.seed) || 0);
-    graph[kId] = { class_type: "KSampler", inputs: {
-      seed: passSeed,
-      steps: Math.max(1, Number(pass.steps) | 0),
-      cfg: Number(pass.cfg),
-      sampler_name: pass.sampler || workflow.sampler,
-      scheduler: pass.scheduler || workflow.scheduler,
-      denoise: Number(pass.denoise),
-      model: modelRef,
-      positive: ["6", 0],
-      negative: ["7", 0],
-      latent_image: [upId, 0],
-    }};
-    finalSamples = [kId, 0];
-  });
-
-  graph["8"] = { class_type: "VAEDecode", inputs: { samples: finalSamples, vae: vaeRef }};
-
-  // Post-processing chain: each step optionally inserts a node and threads its
-  // output forward. The image is SAVED at its native resolution — the canvas
-  // size is a non-destructive display setting applied in InfiniteCanvas at
-  // render time, not baked into the graph.
+  graph["8"] = { class_type: "VAEDecode", inputs: { samples: ["3", 0], vae: vaeRef } };
   let img: [string, number] = ["8", 0];
-
-  // Inpaint stitch: take the inpainted crop and seam-blend it back into the
-  // untouched original via the stitcher object that InpaintCropImproved set
-  // up. The output is the full-size original image with the inpainted region
-  // pasted in — unmasked pixels stay pixel-perfect (no VAE round-trip), the
-  // edge blends per InpaintCrop's `mask_blend_pixels`.
-  //
-  // Skipped when extra passes are configured: a later pass's latent is at a
-  // different resolution than the crop the stitcher expects to receive.
-  // Multi-pass + inpaint stitching is a follow-up — wire each pass's
-  // LatentUpscaleBy / KSampler at the intermediate stage before
-  // InpaintStitchImproved.
-  if (inpaint && workflow.passes.length === 0) {
+  if (inpaint) {
     graph["iStitch"] = { class_type: "InpaintStitchImproved", inputs: {
-      stitcher: ["iCrop", 0],
-      inpainted_image: img,
+      stitcher: ["iCrop", 0], inpainted_image: img,
     }};
     img = ["iStitch", 0];
   }
-
-  if (workflow.upscaleEnabled && workflow.upscaleModel) {
-    graph["10a"] = { class_type: "UpscaleModelLoader", inputs: { model_name: workflow.upscaleModel }};
-    graph["10"] = { class_type: "ImageUpscaleWithModel", inputs: {
-      upscale_model: ["10a", 0],
-      image: img,
-    }};
-    img = ["10", 0];
-  }
-
-  // Plain resize. Deliberately after the model upscale: a 4x model produces whatever 4x happens to
-  // be, and this is what lands it on the size actually wanted. On its own it is a pure resample —
-  // nothing is reinterpreted, no model is loaded, and it costs a fraction of a second.
-  if (workflow.resizeEnabled) {
-    if (workflow.resizeMode === 'size') {
-      graph["12"] = { class_type: "ImageScale", inputs: {
-        image: img,
-        upscale_method: workflow.resizeMethod,
-        width: Math.max(8, Math.round(Number(workflow.resizeWidth) || 1024)),
-        height: Math.max(8, Math.round(Number(workflow.resizeHeight) || 1024)),
-        crop: "disabled",
-      }};
-    } else {
-      graph["12"] = { class_type: "ImageScaleBy", inputs: {
-        image: img,
-        upscale_method: workflow.resizeMethod,
-        scale_by: Math.max(0.05, Number(workflow.resizeScale) || 1),
-      }};
-    }
-    img = ["12", 0];
-  }
-
-  if (workflow.removeBg) {
-    graph["11a"] = { class_type: "BRIA_RMBG_ModelLoader_Zho", inputs: {} };
-    graph["11"] = { class_type: "BRIA_RMBG_Zho", inputs: {
-      rmbgmodel: ["11a", 0],
-      image: img,
-    }};
-    img = ["11", 0];
-  }
+  const pipeline = appendPasses(graph, workflow, img, inpaint ? null : ["3", 0], modelRef, vaeRef, curW, curH, !!inpaint);
+  img = pipeline.image;
+  const clampNotes = pipeline.clampNotes;
 
   // PreviewImage drops the result into ComfyUI's `temp/` folder instead of
   // `output/`. ComfyUI wipes `temp/` on next startup, so unfavorited generations
@@ -839,6 +688,10 @@ export async function fetchPromptResult(
     const hist = await res.json();
     const entry = hist[promptId];
     if (!entry) return { error: 'No history for prompt' };
+    if (entry.status?.status_str === 'error') {
+      const failure = entry.status.messages?.find(([type]: [string, unknown]) => type === 'execution_error' || type === 'execution_interrupted');
+      return { error: failure?.[1]?.exception_message || 'Generation interrupted or failed' };
+    }
     for (const out of Object.values(entry.outputs || {}) as Array<{ images?: Array<{ filename: string; subfolder?: string; type?: string }> }>) {
       if (out.images && out.images.length) {
         const img = out.images[0];
@@ -927,9 +780,9 @@ export async function fetchLastWorkflow(host: string): Promise<
 
 export type WsEvent =
   | { type: 'binary'; mime: string; bytes: Uint8Array }
-  | { type: 'progress'; value: number; max: number }
+  | { type: 'progress'; value: number; max: number; promptId: string }
   | { type: 'executing'; promptId: string; node: string | null }
-  | { type: 'execution_error'; message: string };
+  | { type: 'execution_error'; message: string; promptId: string };
 
 /**
  * Connect to a ComfyUI server's websocket. Auto-reconnects every 2s on close.
@@ -953,11 +806,13 @@ export function connectComfyWs(host: string, handlers: {
         case 'binary':
           return handlers.onEvent({ type: 'binary', mime: ev.mime, bytes: ev.bytes });
         case 'progress':
-          return handlers.onEvent({ type: 'progress', value: ev.value, max: ev.max });
+          return handlers.onEvent({ type: 'progress', value: ev.value, max: ev.max, promptId: ev.promptId });
         case 'executing':
           return handlers.onEvent({ type: 'executing', promptId: ev.promptId, node: ev.node });
+        case 'execution_success':
+          return handlers.onEvent({ type: 'executing', promptId: ev.promptId, node: null });
         case 'execution_error':
-          return handlers.onEvent({ type: 'execution_error', message: ev.message });
+          return handlers.onEvent({ type: 'execution_error', message: ev.message, promptId: ev.promptId });
         default:
           return;   // execution_start / cached / executed / status are Studio's, not this view's
       }

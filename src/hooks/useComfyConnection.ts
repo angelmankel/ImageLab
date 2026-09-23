@@ -70,6 +70,7 @@ export function useComfyConnection() {
           // node fires — or worse, finishes and we never notice.
           void useStore.getState().reconcileServerJobs(server.id);
         },
+        onClose: () => { if (!cancelled) useStore.getState().dropServerInfo(server.id); },
         onEvent: (ev) => { void useStore.getState().handleWsEvent(server.id, ev); },
       });
       cleanups.push(close);

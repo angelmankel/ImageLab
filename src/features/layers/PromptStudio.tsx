@@ -69,15 +69,6 @@ export function PromptStudio({ onOpenLibrary }: { onOpenLibrary: (kind: LayerKin
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center gap-1.5">
-        <button
-          type="button"
-          onClick={() => onOpenLibrary('positive')}
-          title="Open the snippet library"
-          className={toolBtn}
-        >
-          <span aria-hidden>📚</span>
-          Library
-        </button>
         <PromptGeneratorButton />
         {layers.length >= SEARCH_AT && (
           <div className="relative ml-auto min-w-0 flex-1">
@@ -147,7 +138,7 @@ export function PromptStudio({ onOpenLibrary }: { onOpenLibrary: (kind: LayerKin
   );
 }
 
-const toolBtn = 'flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-border-default bg-bg-elev px-2.5 text-[12px] font-medium text-fg-secondary transition-colors hover:border-border-strong';
+
 
 // ---------------------------------------------------------------------------
 // The empty box at the end of each list. Typing into it IS adding a prompt:
@@ -255,10 +246,10 @@ function KindSection({
       <button
         type="button"
         onClick={onOpenLibrary}
-        title={`Add ${kind} prompts from the library`}
+        title={`Add ${kind} prompts from saved presets`}
         className="self-start rounded-md px-1.5 py-1 text-[11.5px] text-fg-muted transition-colors hover:bg-bg-elev hover:text-fg-secondary"
       >
-        📚 Add from library
+        Browse presets
       </button>
     </section>
   );

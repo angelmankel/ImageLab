@@ -12,7 +12,7 @@ terminate) and is the entry point for all three repos.
 - `dist/` is **committed**. The pod image clones this repo at a pinned commit and bakes it in, so a
   change here means: `npm run build`, commit `dist/`, push, and bump the pin in
   `ImageLabDocker/Dockerfile` if new pods should have it.
-- `npm run build` runs `tsc -b` first. Keep it clean; there are no tests.
+- `npm run build` runs `tsc -b` first. Run `node --test tests/*.test.cjs` for the metadata and generation workspace regression tests.
 
 ## Do not break these
 

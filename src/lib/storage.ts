@@ -686,6 +686,7 @@ function normalizeSnippet(s: Partial<Snippet>): Snippet {
   return {
     id: s.id || uid(),
     name: String(s.name || 'Untitled'),
+    ...(Array.isArray(s.layers) ? { layers: s.layers.map(l => ({ kind: l.kind === 'negative' ? 'negative' as const : 'positive' as const, text: String(l.text || ''), tag: String(l.tag || ''), weight: Number.isFinite(l.weight) ? l.weight : 1, on: l.on !== false })) } : {}),
     tag: String(s.tag || ''),
     text: String(s.text || ''),
     weight: Number.isFinite(s.weight) ? (s.weight as number) : 1.0,

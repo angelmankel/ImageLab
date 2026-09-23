@@ -1,3 +1,4 @@
+import { pipelinePasses } from './pipeline';
 import type { ServerInfo, WorkflowState } from './types';
 
 /**
@@ -63,13 +64,19 @@ export function missingResources(workflow: WorkflowState, info: ServerInfo | und
   for (const l of workflow.loras) {
     if (l.on) need('lora', l.name, `LoRA “${l.name}”`);
   }
-  if (workflow.upscaleEnabled) need('upscale', workflow.upscaleModel, `upscale model “${workflow.upscaleModel}”`);
   need('sampler', workflow.sampler, `sampler “${workflow.sampler}”`);
   need('scheduler', workflow.scheduler, `scheduler “${workflow.scheduler}”`);
-  // Each extra pass may pick its own sampler/scheduler — validate too.
-  workflow.passes.forEach((p, i) => {
-    if (p.sampler) need('sampler', p.sampler, `Pass ${i + 2} sampler “${p.sampler}”`);
-    if (p.scheduler) need('scheduler', p.scheduler, `Pass ${i + 2} scheduler “${p.scheduler}”`);
+  pipelinePasses(workflow).forEach((p, i) => {
+    if (p.on === false) return;
+    if (!p.kind || p.kind === 'sample') {
+      need('sampler', p.sampler, `Pass ${i + 2} sampler “${p.sampler}”`);
+      need('scheduler', p.scheduler, `Pass ${i + 2} scheduler “${p.scheduler}”`);
+    }
+    if (p.kind === 'upscale' || ((!p.kind || p.kind === 'sample') && p.upscaleMode === 'model' && p.scale !== 1)) {
+      const model = p.upscaleModel || workflow.upscaleModel;
+      if (!model) missing.push(`Pass ${i + 2} needs an upscale model`);
+      else need('upscale', model, `Pass ${i + 2} upscale model “${model}”`);
+    }
   });
   return missing;
 }

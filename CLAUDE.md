@@ -30,13 +30,19 @@ npm run build
 
 ## The two views
 
-- **Generate** (`features/layers`, `features/controls`, `features/generate`) drives one fixed
-  pipeline described by `WorkflowState`. Its prompt panel is a list of layers, each a plain text
-  box: no title field, saved as you type (250 ms, and on blur), on/off switch, weight as −/number/+,
-  one-click delete with an undo, and a "type a new prompt…" box that becomes a layer on the first
-  keystroke. It was rebuilt in Sept 2026 because the old card — click to expand, save on blur,
-  weight in a popover slider — was three precise gestures per edit on a trackpad. Keep it that way:
-  every control is a click target, nothing needs a steady drag.
+- **Generate** uses one left workspace with collapsible Prompts, Models, Base image, Input image,
+  and Passes sections. Generation controls stay at the bottom with a live sampler progress bar,
+  a seed field, Auto toggle, and a separate New seed action. Status follows tracked jobs, never
+  a leftover status string. Completion must not depend on a mounted canvas controller.
+- **Passes** (`lib/pipeline.ts`) run in the displayed order: refine, upscale, resize, or remove
+  background. Each can be duplicated, moved, bypassed, or removed. Old finishing flags are read
+  as steps until the list is edited; existing workflows keep their settings. Same-size refinement
+  still samples. Inpainting skips refinement to preserve the masked stitch. Background removal
+  uses the installed BiRefNet_toonout model; its optional widget defaults must be sent explicitly.
+- **Prompt presets** reuse the existing snippet storage. Older snippets remain available;
+  full presets carry positive and negative parts with their weights and on/off states. Insert
+  appends; Replace on a single-kind preset preserves the other kind. Replacement and deletion
+  offer Undo. Edits save as typed, and every operation has a click target for trackpad use.
 - **Studio** (`features/studio`) drives *any* workflow saved in ComfyUI, read live from
   `/object_info` plus the saved graph. Its own store (`studioStore.ts`) is deliberately separate
   from the generate view's. Each workflow has **keywords** (its own tags) and shares a **prompt**
