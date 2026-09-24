@@ -6,7 +6,8 @@
  * back out. Each card's menu edits or deletes the snippet itself. Full presets (a whole saved
  * prompt) are listed too; clicking one inserts all its parts.
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMediaQuery } from '@mantine/hooks';
 import {
   ActionIcon, Badge, Box, Button, Center, Group, Menu, Modal, Paper, ScrollArea, SegmentedControl, SimpleGrid,
   Stack, Text, TextInput, Textarea, Tooltip, UnstyledButton, Select,
@@ -30,23 +31,72 @@ export function categoryColor(id: string): string {
 
 const ALL = '__all__';
 
+/**
+ * Where the library was left — category and Positive/Negative filter per prompt kind, kept across
+ * reloads, and the list's scroll position per view, saved when the window closes — so reopening lands on
+ * the same spot instead of "All" at the top.
+ */
+const PLACE_KEY = 'imagelab.snippets.lastPlace.v1';
+type Place = { tab: string; showKind: LayerKind | 'all' };
+function loadPlace(kind: LayerKind): Place {
+  try {
+    const p = JSON.parse(localStorage.getItem(PLACE_KEY) || '{}')[kind];
+    if (p && typeof p.tab === 'string') return { tab: p.tab, showKind: p.showKind ?? kind };
+  } catch { /* fall through */ }
+  return { tab: ALL, showKind: kind };
+}
+function savePlace(kind: LayerKind, place: Place) {
+  try {
+    const all = JSON.parse(localStorage.getItem(PLACE_KEY) || '{}');
+    localStorage.setItem(PLACE_KEY, JSON.stringify({ ...all, [kind]: place }));
+  } catch { /* ignore */ }
+}
+const SCROLL_KEY = 'imagelab.snippets.scroll.v1';
+const scrollMemo = new Map<string, number>((() => {
+  try { return Object.entries(JSON.parse(localStorage.getItem(SCROLL_KEY) || '{}')) as [string, number][]; } catch { return []; }
+})());
+function saveScrollMemo() {
+  try { localStorage.setItem(SCROLL_KEY, JSON.stringify(Object.fromEntries(scrollMemo))); } catch { /* ignore */ }
+}
+
 export function SnippetsModal({ opened, onClose, kind }: { opened: boolean; onClose: () => void; kind: LayerKind }) {
   const snippets = useStore((s) => s.snippets);
   const categories = useStore((s) => s.snippetCategories);
   const layers = useStore((s) => s.layers);
-  const [activeTab, setActiveTab] = useState<string>(ALL);
+  const [activeTab, setActiveTab] = useState<string>(() => loadPlace(kind).tab);
   const [search, setSearch] = useState('');
-  const [showKind, setShowKind] = useState<LayerKind | 'all'>(kind);
+  const [showKind, setShowKind] = useState<LayerKind | 'all'>(() => loadPlace(kind).showKind);
   const [editing, setEditing] = useState<Snippet | 'new' | null>(null);
+  // Phones get a full-screen sheet: categories as a sideways-scrolling chip row, cards full width.
+  const narrow = useMediaQuery('(max-width: 48em)') ?? false;
+
+  // A category deleted since it was saved falls back to All.
+  const tab = activeTab === ALL || categories.some((c) => c.id === activeTab) ? activeTab : ALL;
+  useEffect(() => { savePlace(kind, { tab, showKind }); }, [kind, tab, showKind]);
+
+  // Restore the list's scroll for this view when the window opens or the view changes.
+  const listRef = useRef<HTMLDivElement>(null);
+  const chipsRef = useRef<HTMLDivElement>(null);
+  const scrollKey = `${kind}:${tab}:${showKind}`;
+  useEffect(() => {
+    if (!opened) return;
+    const id = requestAnimationFrame(() => {
+      if (listRef.current) listRef.current.scrollTop = scrollMemo.get(scrollKey) ?? 0;
+      chipsRef.current?.querySelector('[data-active="true"]')?.scrollIntoView({ inline: 'center', block: 'nearest' });
+    });
+    return () => cancelAnimationFrame(id);
+  }, [opened, scrollKey, narrow]);
+  const onListScroll = ({ y }: { y: number }) => { if (!search) scrollMemo.set(scrollKey, y); };
+  useEffect(() => { if (!opened) saveScrollMemo(); }, [opened]);
 
   const inPrompt = useMemo(() => new Set(layers.map((l) => l.originSnippetId).filter(Boolean)), [layers]);
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase();
     return snippets.filter((s) =>
       (showKind === 'all' || s.kind === showKind || s.layers?.some((l) => l.kind === showKind))
-      && (activeTab === ALL || s.categoryId === activeTab)
+      && (tab === ALL || s.categoryId === tab)
       && (!q || `${s.name} ${s.tag} ${s.text} ${s.layers?.map((l) => l.text).join(' ') ?? ''}`.toLowerCase().includes(q)));
-  }, [snippets, showKind, activeTab, search]);
+  }, [snippets, showKind, tab, search]);
 
   const countIn = (categoryId: string) => snippets.filter((s) => (categoryId === ALL || s.categoryId === categoryId) && inPrompt.has(s.id)).length;
 
@@ -73,7 +123,7 @@ export function SnippetsModal({ opened, onClose, kind }: { opened: boolean; onCl
     useStore.getState().addSnippet({
       name: first.split(/\s+/).slice(0, 5).join(' '),
       text: layers.filter((l) => l.kind === 'positive').map((l) => l.text).join(', '),
-      kind: 'positive', tag: '', weight: 1, categoryId: activeTab === ALL ? DEFAULT_CATEGORY_ID : activeTab,
+      kind: 'positive', tag: '', weight: 1, categoryId: tab === ALL ? DEFAULT_CATEGORY_ID : tab,
       layers: layers.map(({ kind, text, tag, weight, on }) => ({ kind, text, tag, weight, on })),
     });
     notifications.show({ title: 'Preset saved', message: 'The whole prompt is now a preset in this list', color: 'green' });
@@ -85,7 +135,7 @@ export function SnippetsModal({ opened, onClose, kind }: { opened: boolean; onCl
         opened={opened}
         onClose={onClose}
         title={
-          <Group gap="sm">
+          <Group gap="sm" wrap="wrap">
             <Text fw={600} size="lg">Snippets</Text>
             <Tooltip label="Create new snippet">
               <ActionIcon variant="light" size="sm" onClick={() => setEditing('new')} aria-label="Create new snippet">
@@ -101,18 +151,80 @@ export function SnippetsModal({ opened, onClose, kind }: { opened: boolean; onCl
         }
         size="80vw"
         centered
+        fullScreen={narrow}
         styles={{
-          content: { maxWidth: 1200, height: '80vh', maxHeight: 800, display: 'flex', flexDirection: 'column' },
+          content: narrow ? { display: 'flex', flexDirection: 'column' } : { maxWidth: 1200, height: '80vh', maxHeight: 800, display: 'flex', flexDirection: 'column' },
           body: { flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', padding: 0 },
-          header: { padding: 'var(--mantine-spacing-md)', borderBottom: '1px solid var(--mantine-color-dark-4)' },
+          header: { padding: narrow ? 'var(--mantine-spacing-sm)' : 'var(--mantine-spacing-md)', borderBottom: '1px solid var(--mantine-color-dark-4)' },
         }}
       >
+        {narrow ? (
+          <Stack gap={0} style={{ flex: 1, overflow: 'hidden' }}>
+            <Stack gap="xs" p="sm" style={{ borderBottom: '1px solid var(--mantine-color-dark-4)' }}>
+              <TextInput
+                placeholder={`Search ${tab === ALL ? 'snippets' : tabs.find((t) => t.id === tab)?.name ?? ''}...`}
+                leftSection={<IconSearch size={16} />}
+                value={search}
+                onChange={(e) => setSearch(e.currentTarget.value)}
+                size="sm"
+              />
+              <SegmentedControl
+                size="sm" fullWidth
+                value={showKind}
+                onChange={(v) => setShowKind(v as LayerKind | 'all')}
+                data={[{ label: 'Positive', value: 'positive' }, { label: 'Negative', value: 'negative' }, { label: 'All', value: 'all' }]}
+              />
+              <ScrollArea type="never" scrollbars="x">
+                <Group gap={6} wrap="nowrap" pb={2} ref={chipsRef}>
+                  {tabs.map((cat) => {
+                    const isActive = tab === cat.id;
+                    const count = countIn(cat.id);
+                    return (
+                      <Button key={cat.id} data-active={isActive} size="compact-md" radius="xl" variant={isActive ? 'filled' : 'default'} color={categoryColor(cat.id)}
+                        onClick={() => { setActiveTab(cat.id); setSearch(''); }} style={{ flexShrink: 0 }}
+                        rightSection={count > 0 ? <Badge size="xs" circle color="dark">{count}</Badge> : undefined}>
+                        {'icon' in cat && cat.icon ? `${cat.icon} ` : ''}{cat.name}
+                      </Button>
+                    );
+                  })}
+                </Group>
+              </ScrollArea>
+            </Stack>
+            <ScrollArea scrollbars="y" style={{ flex: 1 }} p="sm" viewportRef={listRef} onScrollPositionChange={onListScroll}>
+              {visible.length > 0 ? (
+                <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="sm">
+                  {visible.map((s) => (
+                    <SnippetCard
+                      key={s.id}
+                      snippet={s}
+                      isSelected={inPrompt.has(s.id)}
+                      onToggle={() => toggle(s)}
+                      onEdit={() => setEditing(s)}
+                      onDelete={() => confirmDelete(s)}
+                    />
+                  ))}
+                </SimpleGrid>
+              ) : (
+                <Center py="xl">
+                  <Stack align="center" gap="sm">
+                    <Text c="dimmed" ta="center">{snippets.length ? `No snippets found${search ? ` matching "${search}"` : ''}` : 'No snippets yet.'}</Text>
+                    <Button variant="outline" leftSection={<IconPlus size={16} />} onClick={() => setEditing('new')}>Create Custom</Button>
+                  </Stack>
+                </Center>
+              )}
+            </ScrollArea>
+            <Group justify="space-between" p="sm" style={{ borderTop: '1px solid var(--mantine-color-dark-4)' }}>
+              <Text size="sm" c="dimmed">{inPrompt.size} in the prompt</Text>
+              <Button onClick={onClose}>Done</Button>
+            </Group>
+          </Stack>
+        ) : (
         <Group align="stretch" gap={0} style={{ flex: 1, overflow: 'hidden' }} wrap="nowrap">
           <Box style={{ width: 200, flexShrink: 0, borderRight: '1px solid var(--mantine-color-dark-4)', display: 'flex', flexDirection: 'column' }}>
             <ScrollArea scrollbars="y" style={{ flex: 1 }} p="sm">
               <Stack gap={4}>
                 {tabs.map((cat) => {
-                  const isActive = activeTab === cat.id;
+                  const isActive = tab === cat.id;
                   const count = countIn(cat.id);
                   const color = categoryColor(cat.id);
                   return (
@@ -144,7 +256,7 @@ export function SnippetsModal({ opened, onClose, kind }: { opened: boolean; onCl
           <Box style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
             <Group p="md" gap="sm" wrap="nowrap" style={{ borderBottom: '1px solid var(--mantine-color-dark-4)' }}>
               <TextInput
-                placeholder={`Search ${activeTab === ALL ? 'snippets' : tabs.find((t) => t.id === activeTab)?.name ?? ''}...`}
+                placeholder={`Search ${tab === ALL ? 'snippets' : tabs.find((t) => t.id === tab)?.name ?? ''}...`}
                 leftSection={<IconSearch size={16} />}
                 value={search}
                 onChange={(e) => setSearch(e.currentTarget.value)}
@@ -159,7 +271,7 @@ export function SnippetsModal({ opened, onClose, kind }: { opened: boolean; onCl
                 data={[{ label: 'Positive', value: 'positive' }, { label: 'Negative', value: 'negative' }, { label: 'All', value: 'all' }]}
               />
             </Group>
-            <ScrollArea scrollbars="y" style={{ flex: 1 }} p="md">
+            <ScrollArea scrollbars="y" style={{ flex: 1 }} p="md" viewportRef={listRef} onScrollPositionChange={onListScroll}>
               {visible.length > 0 ? (
                 <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="sm">
                   {visible.map((s) => (
@@ -184,12 +296,13 @@ export function SnippetsModal({ opened, onClose, kind }: { opened: boolean; onCl
             </ScrollArea>
           </Box>
         </Group>
+        )}
       </Modal>
       <SnippetFormModal
         snippet={editing === 'new' ? null : editing}
         opened={editing !== null}
         defaultKind={kind}
-        defaultCategory={activeTab === ALL ? undefined : activeTab}
+        defaultCategory={tab === ALL ? undefined : tab}
         onClose={() => setEditing(null)}
       />
     </>

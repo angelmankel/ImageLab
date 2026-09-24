@@ -5,12 +5,16 @@ const ZOOM_MIN = 1;
 const ZOOM_MAX = 8;
 const SWIPE_THRESHOLD = 80; // px of horizontal flick (at zoom ~1) to navigate
 const CLICK_BUFFER = 6;     // px of travel under which a press counts as a tap
+/** At or under this zoom the image counts as fit: one finger swipes to page, never pans. */
+const FIT_ZOOM = 1.05;
 
 type Options = {
   /** When this changes, zoom/offset reset and any running throw stops. */
   resetKey: unknown;
   /** Horizontal flick at zoom ~1 — `dir` is -1 (previous) or +1 (next). */
   onSwipe?: (dir: -1 | 1) => void;
+  /** Downward flick at zoom ~1 (e.g. close the viewer). */
+  onSwipeDown?: () => void;
   /** A press that didn't drag (a tap). */
   onTap?: () => void;
 };
@@ -38,7 +42,7 @@ export type PanZoom = {
  */
 export function usePanZoom(
   containerRef: RefObject<HTMLElement | null>,
-  { resetKey, onSwipe, onTap }: Options,
+  { resetKey, onSwipe, onSwipeDown, onTap }: Options,
 ): PanZoom {
   const [zoom, setZoom] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
@@ -59,6 +63,8 @@ export function usePanZoom(
   const downPosRef = useRef<{ x: number; y: number } | null>(null);
   const panStartRef = useRef<{ ox: number; oy: number } | null>(null);
   const pinchStartRef = useRef<{ d: number; z: number; ox: number; oy: number; cx: number; cy: number } | null>(null);
+  /** A second finger joined this gesture: its end is never a swipe, even back at zoom 1. */
+  const pinchedRef = useRef(false);
   const velocity = useRef(createVelocityTracker());
   const cancelInertiaRef = useRef<(() => void) | null>(null);
 
@@ -115,11 +121,13 @@ export function usePanZoom(
     map.set(e.pointerId, { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY });
 
     if (map.size === 1) {
+      pinchedRef.current = false;
       panStartRef.current = { ox: offsetRef.current.x, oy: offsetRef.current.y };
       pinchStartRef.current = null;
       downPosRef.current = { x: e.clientX, y: e.clientY };
       velocity.current.reset(e.clientX, e.clientY);
     } else if (map.size === 2) {
+      pinchedRef.current = true;
       downPosRef.current = null;
       const [a, b] = [...map.values()];
       const r = containerRef.current!.getBoundingClientRect();
@@ -143,6 +151,8 @@ export function usePanZoom(
     pt.y = e.clientY;
 
     if (map.size === 1 && panStartRef.current) {
+      // At fit, a one-finger drag is a swipe (or nothing): the image stays put.
+      if (zoomRef.current <= FIT_ZOOM) return;
       const only = [...map.values()][0];
       setOffset({
         x: panStartRef.current.ox + (only.x - only.sx),
@@ -176,24 +186,25 @@ export function usePanZoom(
     map.delete(e.pointerId);
 
     if (map.size === 0) {
-      // After a pinch-out below the floor, snap back to the initial framing.
-      if (zoomRef.current <= ZOOM_MIN + 0.001 && (offsetRef.current.x !== 0 || offsetRef.current.y !== 0)) {
-        reframe();
-      } else if (panStartRef.current) {
-        const moved = Math.hypot(dx, dy);
-        if (zoomRef.current <= 1.05) {
-          // Un-zoomed: a horizontal flick navigates; otherwise snap back.
-          if (moved > SWIPE_THRESHOLD && Math.abs(dx) > Math.abs(dy)) {
-            onSwipe?.(dx > 0 ? -1 : 1);
-          } else {
-            setOffset({ x: 0, y: 0 });
-          }
-        } else if (moved > THROW_MIN_DISTANCE) {
-          // Zoomed in: throw the image with the (idle-decayed) release velocity.
-          stopInertia();
-          cancelInertiaRef.current = runInertia(velocity.current.release(), (sdx, sdy) =>
-            setOffset(o => ({ x: o.x + sdx, y: o.y + sdy })));
-        }
+      const atFit = zoomRef.current <= FIT_ZOOM;
+      const moved = Math.hypot(dx, dy);
+      if (atFit && !pinchedRef.current && panStartRef.current
+          && moved > SWIPE_THRESHOLD && Math.abs(dx) > Math.abs(dy) * 1.5) {
+        // Un-zoomed one-finger sideways flick: navigate (the new item resets the framing).
+        onSwipe?.(dx > 0 ? -1 : 1);
+        if (!onSwipe) reframe();
+      } else if (atFit && onSwipeDown && !pinchedRef.current && panStartRef.current
+          && dy > SWIPE_THRESHOLD && dy > Math.abs(dx) * 1.5) {
+        // Un-zoomed one-finger downward flick.
+        onSwipeDown();
+      } else if (atFit) {
+        // Back at the fit — after a pinch-out, a drag, or a short flick — snap to the initial framing.
+        if (zoomRef.current !== ZOOM_MIN || offsetRef.current.x !== 0 || offsetRef.current.y !== 0) reframe();
+      } else if (panStartRef.current && moved > THROW_MIN_DISTANCE) {
+        // Zoomed in: throw the image with the (idle-decayed) release velocity.
+        stopInertia();
+        cancelInertiaRef.current = runInertia(velocity.current.release(), (sdx, sdy) =>
+          setOffset(o => ({ x: o.x + sdx, y: o.y + sdy })));
       }
       panStartRef.current = null;
       pinchStartRef.current = null;

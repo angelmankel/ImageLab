@@ -17,7 +17,7 @@ import { Button, Group, Text, TextInput } from '@mantine/core';
  *   - version URL:    `https://civitai.com/api/v1/model-versions/290640`
  *   (civitai.com or civitai.red both work)
  */
-export function OpenByIdInput() {
+export function OpenByIdInput({ fullWidth }: { fullWidth?: boolean } = {}) {
   const openModel = useModelMetadataStore((s) => s.open);
   const [raw, setRaw] = useState('');
   const [busy, setBusy] = useState(false);
@@ -53,11 +53,12 @@ export function OpenByIdInput() {
   };
 
   return (
-    <form onSubmit={onSubmit}>
+    <form onSubmit={onSubmit} style={fullWidth ? { width: '100%' } : undefined}>
       <Group gap={6} wrap="nowrap">
         <TextInput
           size="xs"
-          w={260}
+          w={fullWidth ? undefined : 260}
+          style={fullWidth ? { flex: 1 } : undefined}
           value={raw}
           onChange={(e) => { setRaw(e.currentTarget.value); if (error) setError(null); }}
           placeholder="Open by id / AIR urn / URL…"

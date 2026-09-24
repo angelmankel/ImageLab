@@ -60,6 +60,7 @@ export function useMobilePanels(isDesktop: boolean): MobilePanels {
 
     const onStart = (e: TouchEvent) => {
       if (e.touches.length !== 1) return;
+      if ((e.target as HTMLElement | null)?.closest('[data-no-swipe]')) return;
       const t = e.touches[0];
       const w = window.innerWidth;
       if (leftOpen) active = { startX: t.clientX, startY: t.clientY, mode: 'close-left', committed: false };

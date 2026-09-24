@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMediaQuery } from '@mantine/hooks';
 import { useBrowserStore } from './store';
-import { BrowserFiltersRail } from './BrowserFiltersRail';
+import { BrowserFiltersRail, BrowserSearchInput, activeFilterCount } from './BrowserFiltersRail';
 import { BrowserGrid } from './BrowserGrid';
 import { OpenByIdInput } from './OpenByIdInput';
-import { Badge, Text } from '@mantine/core';
-import { IconBoxModel } from '@tabler/icons-react';
+import { Badge, Button, Drawer, Stack, Text } from '@mantine/core';
+import { IconAdjustmentsHorizontal, IconBoxModel } from '@tabler/icons-react';
 import { useModelMetadataStore } from '@/features/model-metadata/store';
 
 /**
@@ -22,6 +23,9 @@ import { useModelMetadataStore } from '@/features/model-metadata/store';
  *   │  search  │                                        │
  *   └──────────┴────────────────────────────────────────┘
  *
+ * On a phone the filter rail would eat the screen, so it becomes a bottom sheet behind a
+ * Filters button; the search box stays in the header and the grid runs two columns.
+ *
  * Clicking a card opens the existing `<ModelMetadataModal>` which already
  * does the gallery + download flow. That keeps the browser focused on
  * discovery and reuses the polished single-model surface for action.
@@ -36,6 +40,8 @@ export function ModelBrowserView() {
   const refresh = useBrowserStore((s) => s.refresh);
   const loadMore = useBrowserStore((s) => s.loadMore);
   const openModel = useModelMetadataStore((s) => s.open);
+  const narrow = useMediaQuery('(max-width: 48em)') ?? false;
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   // First mount → kick off the initial fetch. Subsequent filter changes are
   // handled by the store's `setFilters` action so each chip click re-runs.
@@ -72,6 +78,51 @@ export function ModelBrowserView() {
     return `${items.length}${nextCursor ? '+' : ''} model${items.length === 1 ? '' : 's'}`;
   }, [loading, error, items.length, nextCursor]);
 
+  const grid = (
+    <BrowserGrid
+      items={items}
+      loading={loading}
+      loadingMore={loadingMore}
+      error={error}
+      onRetry={refresh}
+      onCardClick={onCardClick}
+      showNsfw={filters.showNsfw}
+      nsfwFirst={filters.catalog === 'red'}
+      sentinelRef={sentinelRef}
+      compact={narrow}
+    />
+  );
+
+  if (narrow) {
+    const active = activeFilterCount(filters);
+    return (
+      <div className="flex h-full w-full min-w-0 flex-col bg-bg-base">
+        <header className="flex shrink-0 flex-col gap-2 border-b border-border-subtle bg-bg-panel px-3 py-2">
+          <div className="flex min-w-0 items-center gap-2">
+            <Text size="sm" fw={600} className="shrink-0">Models</Text>
+            <Badge size="sm" variant="light" color="gray" tt="none" className="min-w-0">{headerCount}</Badge>
+            <Button ml="auto" size="xs" variant={active ? 'light' : 'default'} className="shrink-0"
+              leftSection={<IconAdjustmentsHorizontal size={14} />} onClick={() => setFiltersOpen(true)}>
+              Filters{active ? ` · ${active}` : ''}
+            </Button>
+          </div>
+          <BrowserSearchInput size="sm" />
+        </header>
+        <div className="flex min-h-0 flex-1">{grid}</div>
+        <Drawer opened={filtersOpen} onClose={() => setFiltersOpen(false)} position="bottom" size="85%" title="Filters"
+          styles={{ content: { borderTopLeftRadius: 16, borderTopRightRadius: 16 } }}>
+          <BrowserFiltersRail filters={filters} sheet footer={
+            <Stack gap={6}>
+              <Text size="xs" fw={600} c="dimmed">Open by id</Text>
+              <OpenByIdInput fullWidth />
+              <Button mt="sm" fullWidth onClick={() => setFiltersOpen(false)}>Show {headerCount}</Button>
+            </Stack>
+          } />
+        </Drawer>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-full w-full flex-col bg-bg-base">
       <header className="flex shrink-0 items-center gap-2 border-b border-border-subtle bg-bg-panel px-3 py-2">
@@ -85,17 +136,7 @@ export function ModelBrowserView() {
 
       <div className="flex min-h-0 flex-1">
         <BrowserFiltersRail filters={filters} />
-        <BrowserGrid
-          items={items}
-          loading={loading}
-          loadingMore={loadingMore}
-          error={error}
-          onRetry={refresh}
-          onCardClick={onCardClick}
-          showNsfw={filters.showNsfw}
-          nsfwFirst={filters.catalog === 'red'}
-          sentinelRef={sentinelRef}
-        />
+        {grid}
       </div>
     </div>
   );

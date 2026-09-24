@@ -5,6 +5,7 @@
  * Every replace offers Undo.
  */
 import { useMemo, useState } from 'react';
+import { useMediaQuery } from '@mantine/hooks';
 import {
   Badge, Box, Button, Checkbox, Group, Modal, Paper, ScrollArea, SegmentedControl, SimpleGrid, Stack, Text, TextInput,
   UnstyledButton,
@@ -56,6 +57,7 @@ export function PresetLibraryModal({ opened, onClose, kind }: { opened: boolean;
   const [search, setSearch] = useState('');
   const [withNegative, setWithNegative] = useState(true);
   const positive = kind === 'positive';
+  const narrow = useMediaQuery('(max-width: 48em)') ?? false;
 
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -78,15 +80,16 @@ export function PresetLibraryModal({ opened, onClose, kind }: { opened: boolean;
       title={<Text fw={600} size="lg">{positive ? 'Prompt presets' : 'Negative presets'}</Text>}
       size={positive ? '80vw' : 'lg'}
       centered
+      fullScreen={narrow}
       styles={{
-        content: positive ? { maxWidth: 1200, height: '80vh', maxHeight: 800, display: 'flex', flexDirection: 'column' } : undefined,
+        content: positive && narrow ? { display: 'flex', flexDirection: 'column' } : positive ? { maxWidth: 1200, height: '80vh', maxHeight: 800, display: 'flex', flexDirection: 'column' } : undefined,
         body: positive ? { flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', padding: 0 } : undefined,
         header: { borderBottom: '1px solid var(--mantine-color-dark-4)' },
       }}
     >
       {positive ? (
         <Group align="stretch" gap={0} style={{ flex: 1, overflow: 'hidden' }} wrap="nowrap">
-          <Box visibleFrom="sm" style={{ width: 180, flexShrink: 0, borderRight: '1px solid var(--mantine-color-dark-4)' }}>
+          {!narrow && <Box style={{ width: 180, flexShrink: 0, borderRight: '1px solid var(--mantine-color-dark-4)' }}>
             <ScrollArea h="100%" p="sm">
               <Stack gap={2}>
                 {[ALL, ...PRESET_CATEGORIES].map((c) => {
@@ -102,17 +105,27 @@ export function PresetLibraryModal({ opened, onClose, kind }: { opened: boolean;
                 })}
               </Stack>
             </ScrollArea>
-          </Box>
+          </Box>}
           <Box style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-            <Stack p="md" gap="sm" style={{ borderBottom: '1px solid var(--mantine-color-dark-4)' }}>
+            <Stack p={narrow ? 'sm' : 'md'} gap="sm" style={{ borderBottom: '1px solid var(--mantine-color-dark-4)' }}>
+              {narrow && (
+                <ScrollArea type="never" scrollbars="x">
+                  <Group gap={6} wrap="nowrap">
+                    {[ALL, ...PRESET_CATEGORIES].map((c) => (
+                      <Button key={c} size="compact-md" radius="xl" variant={c === category ? 'filled' : 'default'}
+                        onClick={() => setCategory(c)} style={{ flexShrink: 0 }}>{c}</Button>
+                    ))}
+                  </Group>
+                </ScrollArea>
+              )}
               <Group gap="sm" wrap="wrap">
                 <TextInput placeholder="Search presets..." leftSection={<IconSearch size={16} />} value={search}
-                  onChange={(e) => setSearch(e.currentTarget.value)} size="sm" style={{ flex: 1, minWidth: 180 }} data-autofocus />
+                  onChange={(e) => setSearch(e.currentTarget.value)} size="sm" style={{ flex: 1, minWidth: 180 }} data-autofocus={!narrow || undefined} />
                 {familyControl}
               </Group>
               <Checkbox size="xs" label="Also replace the negative prompt" checked={withNegative} onChange={(e) => setWithNegative(e.currentTarget.checked)} />
             </Stack>
-            <ScrollArea style={{ flex: 1 }} p="md">
+            <ScrollArea style={{ flex: 1 }} p={narrow ? 'sm' : 'md'}>
               <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="sm">
                 {visible.map((p) => {
                   const text = presetPrompt(p, fam);

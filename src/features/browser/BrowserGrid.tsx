@@ -25,7 +25,7 @@ const PREFETCH_ROOT_MARGIN = '1200px 0px';
  * observes.
  */
 export function BrowserGrid({
-  items, loading, loadingMore, error, onRetry, onCardClick, showNsfw, nsfwFirst, sentinelRef,
+  items, loading, loadingMore, error, onRetry, onCardClick, showNsfw, nsfwFirst, sentinelRef, compact,
 }: {
   items: CivitaiSearchHit[];
   loading: boolean;
@@ -39,16 +39,19 @@ export function BrowserGrid({
    *  blur is suppressed regardless of the SFW toggle. */
   nsfwFirst: boolean;
   sentinelRef: RefObject<HTMLDivElement>;
+  /** Phone: two narrow columns and less padding. */
+  compact?: boolean;
 }) {
+  const cols = compact ? 'grid-cols-2 gap-2' : 'grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3';
   return (
-    <div className="scroll-y min-h-0 flex-1 overflow-x-hidden p-4">
+    <div className={`scroll-y min-h-0 flex-1 overflow-x-hidden ${compact ? 'p-2' : 'p-4'}`}>
       {loading && items.length === 0 ? (
-        <SkeletonGrid />
+        <SkeletonGrid cols={cols} />
       ) : items.length === 0 ? (
         <EmptyState error={error} onRetry={onRetry} />
       ) : (
         <>
-          <div className="grid gap-3 grid-cols-[repeat(auto-fill,minmax(220px,1fr))]">
+          <div className={`grid ${cols}`}>
             {items.map((m) => (
               <ModelCard
                 key={m.id}
@@ -71,9 +74,9 @@ export function BrowserGrid({
   );
 }
 
-function SkeletonGrid() {
+function SkeletonGrid({ cols }: { cols: string }) {
   return (
-    <div className="grid gap-3 grid-cols-[repeat(auto-fill,minmax(220px,1fr))]">
+    <div className={`grid ${cols}`}>
       {Array.from({ length: 12 }).map((_, i) => (
         <div key={i} className="overflow-hidden rounded-lg border border-border-subtle bg-bg-elev/40">
           <div className="skeleton-shimmer aspect-[3/4] w-full" />

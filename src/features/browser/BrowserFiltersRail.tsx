@@ -39,20 +39,41 @@ const RATING_OPTIONS: { label: string; bit: number }[] = [
   { label: 'XXX',   bit: BROWSING_LEVEL_BITS.XXX },
 ];
 
-/** Left filter rail. All chip toggles route through the store's `setFilters`
- *  which kicks a refresh; the search box debounces 350ms so each keystroke
- *  doesn't fire a request. */
-export function BrowserFiltersRail({ filters }: { filters: BrowserFilters }) {
+/** The search box. Debounces 350ms so each keystroke doesn't fire a request. */
+export function BrowserSearchInput({ size = 'xs' }: { size?: 'xs' | 'sm' }) {
+  const query = useBrowserStore((s) => s.filters.query);
   const setFilters = useBrowserStore((s) => s.setFilters);
-
   // Local mirror for the search input so typing is instant; commit on debounce.
-  const [searchDraft, setSearchDraft] = useState(filters.query);
-  useEffect(() => { setSearchDraft(filters.query); }, [filters.query]);
+  const [searchDraft, setSearchDraft] = useState(query);
+  useEffect(() => { setSearchDraft(query); }, [query]);
   useEffect(() => {
-    if (searchDraft === filters.query) return;
+    if (searchDraft === query) return;
     const t = setTimeout(() => setFilters({ query: searchDraft.trim() }), 350);
     return () => clearTimeout(t);
-  }, [searchDraft, filters.query, setFilters]);
+  }, [searchDraft, query, setFilters]);
+  return (
+    <TextInput
+      size={size}
+      value={searchDraft}
+      onChange={(e) => setSearchDraft(e.currentTarget.value)}
+      placeholder="Name, tag, creator…"
+      spellCheck={false}
+      leftSection={<IconSearch size={14} />}
+      aria-label="Search models"
+    />
+  );
+}
+
+/** How many filters differ from "nothing picked" — the phone's Filters button shows it. */
+export function activeFilterCount(f: BrowserFilters): number {
+  return f.types.length + f.baseModels.length;
+}
+
+/** Left filter rail. All chip toggles route through the store's `setFilters`, which kicks a
+ *  refresh. `sheet` renders the same controls for the phone's bottom sheet: no rail frame, and
+ *  no search box (the phone header has it). */
+export function BrowserFiltersRail({ filters, sheet, footer }: { filters: BrowserFilters; sheet?: boolean; footer?: React.ReactNode }) {
+  const setFilters = useBrowserStore((s) => s.setFilters);
 
   const toggleType = (id: CivitaiSearchType) => {
     const has = filters.types.includes(id);
@@ -68,7 +89,7 @@ export function BrowserFiltersRail({ filters }: { filters: BrowserFilters }) {
   };
 
   return (
-    <aside className="flex w-[220px] shrink-0 flex-col gap-4 overflow-y-auto border-r border-border-subtle bg-bg-panel/60 px-3 py-4">
+    <aside className={sheet ? 'flex flex-col gap-5' : 'flex w-[220px] shrink-0 flex-col gap-4 overflow-y-auto border-r border-border-subtle bg-bg-panel/60 px-3 py-4'}>
       <Group label="Catalog">
         <SegmentedControl
           size="xs"
@@ -82,21 +103,16 @@ export function BrowserFiltersRail({ filters }: { filters: BrowserFilters }) {
         />
       </Group>
 
-      <Group label="Search">
-        <TextInput
-          size="xs"
-          value={searchDraft}
-          onChange={(e) => setSearchDraft(e.currentTarget.value)}
-          placeholder="Name, tag, creator…"
-          spellCheck={false}
-          leftSection={<IconSearch size={14} />}
-        />
-      </Group>
+      {!sheet && (
+        <Group label="Search">
+          <BrowserSearchInput />
+        </Group>
+      )}
 
       <Group label="Type">
         <ChipRow>
           {TYPE_OPTIONS.map((t) => (
-            <Chip key={t.id} active={filters.types.includes(t.id)} onClick={() => toggleType(t.id)}>
+            <Chip big={sheet} key={t.id} active={filters.types.includes(t.id)} onClick={() => toggleType(t.id)}>
               {t.label}
             </Chip>
           ))}
@@ -106,7 +122,7 @@ export function BrowserFiltersRail({ filters }: { filters: BrowserFilters }) {
       <Group label="Base model">
         <ChipRow>
           {BASE_MODELS.map((b) => (
-            <Chip key={b} active={filters.baseModels.includes(b)} onClick={() => toggleBase(b)}>
+            <Chip big={sheet} key={b} active={filters.baseModels.includes(b)} onClick={() => toggleBase(b)}>
               {b}
             </Chip>
           ))}
@@ -116,7 +132,7 @@ export function BrowserFiltersRail({ filters }: { filters: BrowserFilters }) {
       <Group label="Rating">
         <ChipRow>
           {RATING_OPTIONS.map((r) => (
-            <Chip key={r.bit} active={(filters.browsingLevels & r.bit) !== 0} onClick={() => toggleRating(r.bit)}>
+            <Chip big={sheet} key={r.bit} active={(filters.browsingLevels & r.bit) !== 0} onClick={() => toggleRating(r.bit)}>
               {r.label}
             </Chip>
           ))}
@@ -125,7 +141,7 @@ export function BrowserFiltersRail({ filters }: { filters: BrowserFilters }) {
 
       <Group label="Sort">
         <Select
-          size="xs"
+          size={sheet ? 'sm' : 'xs'}
           aria-label="Sort"
           value={filters.sort}
           onChange={(v) => { if (v) setFilters({ sort: v as CivitaiSearchSort }); }}
@@ -137,7 +153,7 @@ export function BrowserFiltersRail({ filters }: { filters: BrowserFilters }) {
 
       <Group label="Period">
         <Select
-          size="xs"
+          size={sheet ? 'sm' : 'xs'}
           aria-label="Period"
           value={filters.period}
           onChange={(v) => { if (v) setFilters({ period: v as CivitaiSearchPeriod }); }}
@@ -163,6 +179,7 @@ export function BrowserFiltersRail({ filters }: { filters: BrowserFilters }) {
           </MGroup>
         </Paper>
       )}
+      {footer}
     </aside>
   );
 }
@@ -182,10 +199,10 @@ function ChipRow({ children }: { children: React.ReactNode }) {
 
 /** A filter toggle: v1's Mantine Chip (outline, check icon when on). */
 function Chip({
-  active, onClick, children,
-}: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  active, onClick, children, big,
+}: { active: boolean; onClick: () => void; children: React.ReactNode; big?: boolean }) {
   return (
-    <MChip size="xs" variant="outline" checked={active} onChange={onClick}>
+    <MChip size={big ? 'md' : 'xs'} variant="outline" checked={active} onChange={onClick}>
       {children}
     </MChip>
   );
