@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMediaQuery } from '@mantine/hooks';
 import { cn } from '@/lib/cn';
 import { useStore } from '@/lib/store';
 import { useShortcut, ShortcutPriority } from '@/hooks/useShortcut';
@@ -8,7 +9,7 @@ import {
   ActionIcon, Box, Button, Group, SegmentedControl, Skeleton, Text, Tooltip, UnstyledButton,
 } from '@mantine/core';
 import {
-  IconChevronLeft, IconHeart, IconHeartFilled, IconPhoto, IconPlayerPause, IconPlayerPlay, IconTrash,
+  IconAdjustments, IconChevronLeft, IconHeart, IconHeartFilled, IconPhoto, IconPlayerPause, IconPlayerPlay, IconTrash,
 } from '@tabler/icons-react';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { urlToImageState } from '@/features/inputImage/imageOps';
@@ -47,6 +48,9 @@ type GalleryItem =
  * overlay with delete / favorite actions that act on the underlying entry.
  */
 export function GalleryColumn() {
+  // Phone: the gallery is the top of a stacked layout — a fixed share of the height, thumbnails in
+  // a sideways strip under the picture, and generation settings as an overlay.
+  const narrow = useMediaQuery('(max-width: 48em)') ?? false;
   const load = useModelMetadataStore((s) => s.load);
   const version = useSelectedVersion();
   const versionId = version?.id ?? null;
@@ -168,17 +172,17 @@ export function GalleryColumn() {
   };
 
   return (
-    <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+    <div className={narrow ? 'flex h-[52dvh] min-w-0 shrink-0 flex-col overflow-hidden' : 'flex min-w-0 flex-1 flex-col overflow-hidden'}>
       {/* Header — source toggle, slideshow play/pause, NSFW filter (civitai only). */}
       <Group
         gap="xs"
         px="sm"
         py={8}
-        wrap="nowrap"
+        wrap={narrow ? 'wrap' : 'nowrap'}
         className="shrink-0"
         style={{ borderBottom: '1px solid var(--mantine-color-dark-4)' }}
       >
-        <Text size="xs" fw={600} c="dimmed">Gallery</Text>
+        {!narrow && <Text size="xs" fw={600} c="dimmed">Gallery</Text>}
         <SegmentedControl
           size="xs"
           data={SOURCE_OPTIONS}
@@ -186,7 +190,13 @@ export function GalleryColumn() {
           onChange={(v) => setGallerySource(v as GallerySource)}
           aria-label="Gallery source"
         />
-        <div className="flex-1" />
+        {!narrow && <div className="flex-1" />}
+        {narrow && gallerySource === 'civitai' && (
+          <ActionIcon variant={genParamsOpen ? 'filled' : 'default'} onClick={() => setGenParamsOpen(!genParamsOpen)}
+            aria-label="Generation settings" aria-pressed={genParamsOpen}>
+            <IconAdjustments size={14} />
+          </ActionIcon>
+        )}
         <Tooltip label={slideshowPlaying ? 'Pause slideshow' : 'Play slideshow'} withArrow>
           <ActionIcon
             variant={slideshowPlaying ? 'filled' : 'default'}
@@ -230,7 +240,7 @@ export function GalleryColumn() {
         )}
       </Group>
 
-      <div className="flex min-h-0 flex-1">
+      <div className={narrow ? 'relative flex min-h-0 flex-1 flex-col-reverse' : 'flex min-h-0 flex-1'}>
         {load === 'loading' || load === 'idle' ? (
           <GallerySkeleton />
         ) : emptyCivitai ? (
@@ -247,8 +257,10 @@ export function GalleryColumn() {
             {/* Vertical, single-column, scrollable thumbnail rail. */}
             {items.length > 1 && (
               <div
-                className="scroll-y flex min-h-0 w-[112px] shrink-0 flex-col gap-1.5 p-1.5"
-                style={{ borderRight: '1px solid var(--mantine-color-dark-4)' }}
+                className={narrow
+                  ? 'flex h-[72px] w-full shrink-0 flex-row gap-1.5 overflow-x-auto overflow-y-hidden p-1.5'
+                  : 'scroll-y flex min-h-0 w-[112px] shrink-0 flex-col gap-1.5 p-1.5'}
+                style={{ [narrow ? 'borderTop' : 'borderRight']: '1px solid var(--mantine-color-dark-4)' }}
               >
                 {/* v1 thumbnails: 2px primary ring on the selected one, the rest dimmed. */}
                 {items.map((it, i) => (
@@ -258,7 +270,8 @@ export function GalleryColumn() {
                     aria-label={`Image ${i + 1}`}
                     aria-current={i === selectedIndex || undefined}
                     className={cn(
-                      'aspect-square w-full shrink-0 overflow-hidden rounded-sm border-2 transition-all duration-150',
+                      'aspect-square shrink-0 overflow-hidden rounded-sm border-2 transition-all duration-150',
+                      narrow ? 'h-full' : 'w-full',
                       i === selectedIndex
                         ? 'border-[var(--mantine-primary-color-filled)] opacity-100'
                         : 'border-transparent opacity-70 hover:opacity-100',
@@ -283,7 +296,7 @@ export function GalleryColumn() {
             {/* Main image — a square sized to fit the available height. Click
                 or spacebar opens the fullscreen viewer. In ImageLab mode the
                 hero is overlaid with delete / favorite actions. */}
-            <div className="relative flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden p-3">
+            <div className={cn('relative flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden', narrow ? 'p-1.5' : 'p-3')}>
               <button
                 type="button"
                 onClick={() => hero && setFullscreenOpen(true)}
@@ -318,7 +331,12 @@ export function GalleryColumn() {
                 Closed by default. Only meaningful for Civit.ai images (their
                 `meta` carries the prompt/sampler/etc.); ImageLab images don't
                 expose it via this panel today, so the strip stays hidden. */}
-            {gallerySource === 'civitai' && (
+            {gallerySource === 'civitai' && narrow && genParamsOpen && (
+              <Box p="sm" className="!absolute inset-0 z-10 flex flex-col" style={{ backgroundColor: 'var(--mantine-color-dark-7)' }}>
+                <GenerationSettings image={civitaiHero} onCollapse={() => setGenParamsOpen(false)} />
+              </Box>
+            )}
+            {gallerySource === 'civitai' && !narrow && (
               genParamsOpen ? (
                 <Box
                   w={300}

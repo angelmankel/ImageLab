@@ -1,4 +1,5 @@
 import { Modal } from '@mantine/core';
+import { useMediaQuery } from '@mantine/hooks';
 import { GalleryColumn } from './GalleryColumn';
 import { MetadataColumn } from './MetadataColumn';
 import { useModelMetadataStore } from './store';
@@ -18,6 +19,9 @@ export function ModelMetadataModal() {
   // The fullscreen viewer owns Escape while it is up; without this the key would bubble (through
   // the React tree) to the modal and close both at once.
   const fullscreenOpen = useModelMetadataStore((s) => s.fullscreenOpen);
+  // Phones: full screen, pictures on top and the details under them — two columns side by side
+  // pushed the gallery off the right edge.
+  const narrow = useMediaQuery('(max-width: 48em)') ?? false;
   return (
     <Modal
       opened={open}
@@ -25,6 +29,7 @@ export function ModelMetadataModal() {
       closeOnEscape={!fullscreenOpen}
       withCloseButton={false}
       centered
+      fullScreen={narrow}
       size="90vw"
       padding={0}
       radius="md"
@@ -32,13 +37,13 @@ export function ModelMetadataModal() {
       aria-label="Model details"
       styles={{
         content: {
-          maxWidth: 1200,
-          height: 'min(820px, 88vh)',
+          maxWidth: narrow ? undefined : 1200,
+          height: narrow ? '100dvh' : 'min(820px, 88vh)',
           display: 'flex',
           overflow: 'hidden',
           backgroundColor: 'var(--mantine-color-dark-7)',
         },
-        body: { display: 'flex', flex: 1, minHeight: 0, width: '100%', padding: 0 },
+        body: { display: 'flex', flexDirection: narrow ? 'column' : 'row', flex: 1, minHeight: 0, width: '100%', padding: 0 },
       }}
     >
       <GalleryColumn />

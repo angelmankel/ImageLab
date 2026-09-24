@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { useMediaQuery } from '@mantine/hooks';
 import {
   Anchor, Avatar, Badge, Box, Button, CloseButton, Group, ScrollArea, Skeleton, Stack, Text, Title,
 } from '@mantine/core';
@@ -18,11 +19,13 @@ import { DownloadAction } from './DownloadAction';
 
 /** v1's side panel: a fixed-width column with a left border, header / scroll body / footer. */
 function Column({ children }: { children: ReactNode }) {
+  // On a phone it is the lower half of a stacked layout: full width, taking what the gallery leaves.
+  const narrow = useMediaQuery('(max-width: 48em)') ?? false;
   return (
     <Box
-      w={380}
-      className="flex min-h-0 shrink-0 flex-col"
-      style={{ borderLeft: '1px solid var(--mantine-color-dark-4)', backgroundColor: 'var(--mantine-color-dark-6)' }}
+      w={narrow ? '100%' : 380}
+      className={narrow ? 'flex min-h-0 flex-1 flex-col' : 'flex min-h-0 shrink-0 flex-col'}
+      style={{ [narrow ? 'borderTop' : 'borderLeft']: '1px solid var(--mantine-color-dark-4)', backgroundColor: 'var(--mantine-color-dark-6)' }}
     >
       {children}
     </Box>

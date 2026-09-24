@@ -6,6 +6,7 @@
  * side rail the way an anchored popover could.
  */
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { useMediaQuery } from '@mantine/hooks';
 import {
   ActionIcon, Badge, Box, Card, Center, Checkbox, Chip, Divider, Group, Image,
   Modal, ScrollArea, Skeleton, Slider, Stack, Text, TextInput, Tooltip,
@@ -87,8 +88,45 @@ export function ModelSelectorModal({
     try { await onRefresh(); } finally { setRefreshing(false); }
   };
 
-  // scale 0 = 8 columns (smallest), scale 1 = 3 columns (largest)
-  const columns = Math.round(8 - scale * 5);
+  // The slider sets each tile's smallest width, 110px to 520px; the grid fits as many as the
+  // screen holds. At the top end a phone shows one tile the full width of the screen.
+  const tileMin = Math.round(110 + scale * 410);
+  const narrow = useMediaQuery('(max-width: 48em)') ?? false;
+
+  const searchBox = (
+    <TextInput
+      placeholder="Search models..."
+      leftSection={<IconSearch size="0.875rem" />}
+      rightSection={search && (
+        <ActionIcon variant="subtle" color="gray" size="xs" onClick={() => setSearch('')} aria-label="Clear search">
+          <IconX size="0.75rem" />
+        </ActionIcon>
+      )}
+      value={search}
+      onChange={(e) => setSearch(e.currentTarget.value)}
+      size="sm"
+      style={narrow ? undefined : { width: 250 }}
+      data-autofocus={!narrow || undefined}
+    />
+  );
+  const chips = (
+    <ScrollArea type="never" scrollbars="x">
+      <Chip.Group multiple={false} value={baseModelFilter || ''} onChange={(v) => setBaseModelFilter((v as string) || null)}>
+        <Group gap={6} wrap="nowrap">
+          <Chip value="" variant="light" size={narrow ? 'sm' : 'xs'}>All</Chip>
+          {baseModels.map((m) => <Chip key={m} value={m} variant="light" size={narrow ? 'sm' : 'xs'}>{m}</Chip>)}
+        </Group>
+      </Chip.Group>
+    </ScrollArea>
+  );
+  const sizeSlider = (
+    <Group gap={6} style={narrow ? { flex: 1 } : { flexShrink: 0 }} wrap="nowrap">
+      <IconZoomOut size={14} style={{ opacity: 0.4 }} />
+      <Slider value={scale} onChange={setScale} min={0} max={1} step={0.05} style={narrow ? { flex: 1 } : { width: 140 }}
+        label={null} size={narrow ? 'md' : 'sm'} thumbSize={narrow ? 20 : undefined} aria-label="Tile size" />
+      <IconZoomIn size={14} style={{ opacity: 0.4 }} />
+    </Group>
+  );
 
   return (
     <Modal
@@ -103,41 +141,23 @@ export function ModelSelectorModal({
         title: { fontSize: '14px', fontWeight: 600 },
       }}
     >
+      {narrow ? (
+        <Stack gap={8} mb={6}>
+          {searchBox}
+          {chips}
+        </Stack>
+      ) : null}
       <Group gap="md" mb={6} wrap="nowrap" align="center">
-        <Box style={{ flex: 1, minWidth: 0 }}>
-          <Group gap="sm" wrap="nowrap" align="center">
-            <TextInput
-              placeholder="Search models..."
-              leftSection={<IconSearch size="0.875rem" />}
-              rightSection={search && (
-                <ActionIcon variant="subtle" color="gray" size="xs" onClick={() => setSearch('')} aria-label="Clear search">
-                  <IconX size="0.75rem" />
-                </ActionIcon>
-              )}
-              value={search}
-              onChange={(e) => setSearch(e.currentTarget.value)}
-              size="sm"
-              style={{ width: 250 }}
-              data-autofocus
-            />
-            <Box style={{ flex: 1, minHeight: 28, minWidth: 0 }}>
-              <ScrollArea type="never" scrollbars="x">
-                <Chip.Group multiple={false} value={baseModelFilter || ''} onChange={(v) => setBaseModelFilter((v as string) || null)}>
-                  <Group gap={6} wrap="nowrap">
-                    <Chip value="" variant="light" size="xs">All</Chip>
-                    {baseModels.map((m) => <Chip key={m} value={m} variant="light" size="xs">{m}</Chip>)}
-                  </Group>
-                </Chip.Group>
-              </ScrollArea>
-            </Box>
-          </Group>
-        </Box>
+        {!narrow && (
+          <Box style={{ flex: 1, minWidth: 0 }}>
+            <Group gap="sm" wrap="nowrap" align="center">
+              {searchBox}
+              <Box style={{ flex: 1, minHeight: 28, minWidth: 0 }}>{chips}</Box>
+            </Group>
+          </Box>
+        )}
 
-        <Group gap={6} style={{ flexShrink: 0 }} wrap="nowrap">
-          <IconZoomOut size={14} style={{ opacity: 0.4 }} />
-          <Slider value={scale} onChange={setScale} min={0} max={1} step={0.05} style={{ width: 100 }} label={null} size="xs" />
-          <IconZoomIn size={14} style={{ opacity: 0.4 }} />
-        </Group>
+        {sizeSlider}
 
         {onRefresh && (
           <Tooltip label="Refresh models" position="bottom">
@@ -164,7 +184,7 @@ export function ModelSelectorModal({
         <Center h={200}><Text c="dimmed">{models.length === 0 ? 'No models on the connected servers' : 'No models found'}</Text></Center>
       ) : (
         <ScrollArea scrollbars="y" style={{ flex: 1 }} type="auto" offsetScrollbars>
-          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`, gap: 8, padding: 8 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fill, minmax(min(${tileMin}px, 100%), 1fr))`, gap: 8, padding: narrow ? 2 : 8 }}>
             {sorted.map((f) => (
               <ModelGridItem
                 key={f}

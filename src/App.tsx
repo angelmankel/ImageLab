@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Sidebar } from '@/features/layout/Sidebar';
 import { SettingsModal } from '@/features/settings/SettingsModal';
 import { ModelMetadataModal } from '@/features/model-metadata';
+import { KeyboardDoneButton } from '@/components/ui/KeyboardDoneButton';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { TooltipProvider } from '@/components/ui/Tooltip';
 import { ConfirmProvider } from '@/components/ui/ConfirmDialog';
@@ -100,6 +101,7 @@ export default function App() {
         <SettingsModal open={settingsOpen} onOpenChange={setSettingsOpen} />
         <ErrorBoundary label="Model metadata">
           <ModelMetadataModal />
+          <KeyboardDoneButton />
         </ErrorBoundary>
       </TooltipProvider>
       </ConfirmProvider>
