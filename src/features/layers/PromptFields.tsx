@@ -10,11 +10,11 @@
 import { StepperInput } from '@/components/fields/StepperInput';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActionIcon, Button, Collapse, Group, Slider, Stack, Switch, Text, Textarea, Tooltip,
+  ActionIcon, Badge, Button, Collapse, Group, Slider, Stack, Switch, Text, Textarea, Tooltip,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
-  IconBooks, IconChevronDown, IconChevronUp, IconDeviceFloppy, IconEye, IconEyeOff, IconPencil, IconPlus, IconTrash, IconX,
+  IconBooks, IconBox, IconChevronDown, IconChevronUp, IconDeviceFloppy, IconEye, IconEyeOff, IconPencil, IconPlus, IconTrash, IconX,
 } from '@tabler/icons-react';
 import * as Popover from '@/components/ui/popover';
 import { FieldWrapper } from '@/components/fields/FieldWrapper';
@@ -24,6 +24,9 @@ import { DEFAULT_CATEGORY_ID } from '@/lib/storage';
 import type { Layer, LayerKind } from '@/lib/types';
 import { PromptGeneratorButton } from './PromptGeneratorButton';
 import { SnippetsModal, categoryColor } from './SnippetsModal';
+import { modelKeywordSources, modelKeywordState, withModelKeywords, type ModelKeywordSource } from '@/lib/modelKeywords';
+import { modelLabel, modelTrainedWords } from '@/components/models/modelInfo';
+import { withEmbeddings } from '@/lib/embeddings';
 import { PresetLibraryModal } from './PresetLibraryModal';
 
 /** Weights run 0–2 here (v1 stopped at 1); the bar shows the whole range. */
@@ -166,7 +169,9 @@ function SnippetsRow({ kind, compact }: { kind: LayerKind; compact?: boolean }) 
   const [showPills, setShowPills] = useState(true);
   const [showPreview, setShowPreview] = useState(false);
   const [browsing, setBrowsing] = useState(false);
-  const preview = useMemo(() => compileLayers(layers, kind), [layers, kind]);
+  const workflow = useStore((s) => s.workflow);
+  useStore((s) => s.civitaiByHash);
+  const preview = compileLayers(withEmbeddings(kind === 'positive' ? withModelKeywords(layers, workflow, modelTrainedWords) : layers, workflow, modelTrainedWords), kind);
 
   // The negative side only shows its row once there is something in it — v1 had no negative snippets.
   if (compact && extras.length === 0) {
@@ -207,13 +212,16 @@ function SnippetsRow({ kind, compact }: { kind: LayerKind; compact?: boolean }) 
       </Group>
 
       <Collapse in={showPills}>
-        {extras.length === 0 ? (
-          <Text size="xs" c="dimmed">No snippets selected. Click &quot;Add&quot; to browse available options.</Text>
-        ) : (
-          <Stack gap={4}>
-            {extras.map((l) => <SnippetRow key={l.id} layer={l} />)}
-          </Stack>
-        )}
+        <Stack gap={4}>
+          {extras.length === 0 ? (
+            <Text size="xs" c="dimmed">No snippets selected. Click &quot;Add&quot; to browse available options.</Text>
+          ) : (
+            <Stack gap={4}>
+              {extras.map((l) => <SnippetRow key={l.id} layer={l} />)}
+            </Stack>
+          )}
+          {kind === 'positive' && <ModelKeywordRows />}
+        </Stack>
       </Collapse>
 
       {showPreview && preview && (
@@ -260,7 +268,7 @@ function SnippetRow({ layer }: { layer: Layer }) {
           <Text size="sm" truncate style={{ flex: 1, minWidth: 0, cursor: 'pointer' }} onClick={() => update({ on: !layer.on })}>{name}</Text>
         </Tooltip>
         <Group gap={2} wrap="nowrap" style={{ flexShrink: 0 }}>
-          <SnippetEditor layer={layer} />
+          <PartEditor text={layer.text} onText={(text) => update({ text })} weight={layer.weight} on={layer.on} onPatch={update} />
           <ActionIcon size="md" color="gray" variant="subtle" onClick={() => useStore.getState().removeLayer(layer.id)} aria-label={`Remove ${name}`}>
             <IconX size="1rem" />
           </ActionIcon>
@@ -280,27 +288,105 @@ function SnippetRow({ layer }: { layer: Layer }) {
   );
 }
 
-/** Edit one part in place: its text, label, weight and on/off. */
-function SnippetEditor({ layer }: { layer: Layer }) {
+/** Edit one part in place: its text, weight and on/off. Without `onText` the text is read-only. */
+function PartEditor({ text, onText, weight, on, onPatch, readOnlyHint }: {
+  text: string; onText?: (text: string) => void; weight: number; on: boolean;
+  onPatch: (patch: { weight?: number; on?: boolean }) => void; readOnlyHint?: string;
+}) {
   const [open, setOpen] = useState(false);
-  const update = (patch: Partial<Layer>) => useStore.getState().updateLayer(layer.id, patch);
   return (
     <Popover.Root open={open} onOpenChange={setOpen}>
       <Popover.Trigger asChild>
-        <ActionIcon size="md" color="gray" variant="subtle" aria-label="Edit snippet">
+        <ActionIcon size="md" color="gray" variant="subtle" aria-label={onText ? 'Edit snippet' : 'Show trigger words'}>
           <IconPencil size="1rem" />
         </ActionIcon>
       </Popover.Trigger>
       <Popover.Content side="bottom" align="start" className="w-[300px] rounded-md border border-border-default bg-bg-elev p-3 shadow-xl">
         <Stack gap="xs">
-          <Textarea label="Text" value={layer.text} onChange={(e) => update({ text: e.currentTarget.value })} autosize minRows={2} maxRows={8} size="xs" data-autofocus />
+          <Textarea label={onText ? 'Text' : 'Trigger words'} value={text} onChange={(e) => onText?.(e.currentTarget.value)} disabled={!onText}
+            description={onText ? undefined : readOnlyHint} autosize minRows={2} maxRows={8} size="xs" data-autofocus={onText ? true : undefined}
+            // Disabled, but still easy to read.
+            styles={onText ? undefined : { input: { opacity: 1, color: 'var(--mantine-color-text)', cursor: 'default' } }} />
           <Group gap="xs" wrap="nowrap" align="flex-end">
-            <StepperInput label="Weight" value={layer.weight} min={0} max={MAX_WEIGHT} step={0.05} size="xs" style={{ flex: 1 }}
-              onChange={(weight) => update({ weight })} styles={{ input: { textAlign: 'center' } }} />
-            <Switch label="On" size="xs" checked={layer.on} onChange={(e) => update({ on: e.currentTarget.checked })} mb={6} />
+            <StepperInput label="Weight" value={weight} min={0} max={MAX_WEIGHT} step={0.05} size="xs" style={{ flex: 1 }}
+              onChange={(w) => onPatch({ weight: w })} styles={{ input: { textAlign: 'center' } }} />
+            <Switch label="On" size="xs" checked={on} onChange={(e) => onPatch({ on: e.currentTarget.checked })} mb={6} />
           </Group>
         </Stack>
       </Popover.Content>
     </Popover.Root>
+  );
+}
+
+// ============================================
+// Model trigger words (checkpoint / LoRA)
+// ============================================
+
+/**
+ * One row per chosen model that has trigger words in its metadata. Same shape as a snippet row, but
+ * it cannot be edited or removed — only switched off and weighted — because the words belong to
+ * the model. They join the prompt at generate time (see lib/modelKeywords).
+ */
+function ModelKeywordRows() {
+  const checkpoints = useStore((s) => s.workflow.checkpoints);
+  const loras = useStore((s) => s.workflow.loras);
+  // Re-read when model metadata lands.
+  useStore((s) => s.modelHashes);
+  useStore((s) => s.civitaiByHash);
+  const sources = modelKeywordSources({ checkpoints, loras }, modelTrainedWords);
+  if (!sources.length) return null;
+  return (
+    <Stack gap={4}>
+      <Text size="xs" fw={600} c="dimmed" mt={4}>Model trigger words</Text>
+      {sources.map((src) => <ModelKeywordRow key={src.file} source={src} />)}
+    </Stack>
+  );
+}
+
+function ModelKeywordRow({ source }: { source: ModelKeywordSource }) {
+  // Select the stored entry itself: a merged object made in the selector is new every time and
+  // would re-render forever.
+  const saved = useStore((s) => s.workflow.modelKeywords?.[source.file]);
+  const state = modelKeywordState({ modelKeywords: saved ? { [source.file]: saved } : undefined }, source.file);
+  const color = source.kind === 'checkpoint' ? 'blue' : 'grape';
+  const name = modelLabel(source.file);
+  const text = source.words.join(', ');
+  const patch = (p: { weight?: number; on?: boolean }) => {
+    const st = useStore.getState();
+    const all = st.workflow.modelKeywords ?? {};
+    st.setWorkflow({ modelKeywords: { ...all, [source.file]: { ...modelKeywordState(st.workflow, source.file), ...p } } });
+  };
+  const on = state.on && source.active;
+  return (
+    <Stack
+      gap={2} px="xs" py={6}
+      style={{
+        borderRadius: 'var(--mantine-radius-sm)',
+        borderLeft: `3px solid var(--mantine-color-${color}-${on ? 6 : 9})`,
+        backgroundColor: 'var(--mantine-color-dark-6)',
+        opacity: on ? 1 : 0.55,
+      }}
+    >
+      <Group gap="xs" wrap="nowrap">
+        <Switch size="sm" color={color} checked={state.on} onChange={(e) => patch({ on: e.currentTarget.checked })} aria-label={`${name} trigger words on`} />
+        <IconBox size={16} style={{ flexShrink: 0, color: `var(--mantine-color-${color}-4)` }} />
+        <Tooltip label={source.active ? text : 'This LoRA is switched off in Models'} multiline maw={320} openDelay={500}>
+          <Text size="sm" truncate style={{ flex: 1, minWidth: 0, cursor: 'pointer' }} onClick={() => patch({ on: !state.on })}>{name}</Text>
+        </Tooltip>
+        <Badge size="xs" variant="light" color={color} style={{ flexShrink: 0 }}>{source.kind === 'checkpoint' ? 'Checkpoint' : 'LoRA'}</Badge>
+        <PartEditor text={text} weight={state.weight} on={state.on} onPatch={patch}
+          readOnlyHint="From the model's CivitAI metadata. Read-only." />
+      </Group>
+      <Group gap="sm" wrap="nowrap" pl={4}>
+        <Slider
+          size="md" thumbSize={18} color={color} min={0} max={MAX_WEIGHT} step={0.05} label={null} className="touch-pan-y"
+          value={state.weight} onChange={(weight) => patch({ weight })} aria-label={`${name} trigger words weight`}
+          style={{ flex: 1 }}
+        />
+        <Text size="xs" ff="monospace" w={32} ta="right" style={{ flexShrink: 0 }} c={Math.abs(state.weight - 1) > 0.001 ? undefined : 'dimmed'}>
+          {state.weight.toFixed(2)}
+        </Text>
+      </Group>
+    </Stack>
   );
 }

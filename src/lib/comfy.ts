@@ -65,12 +65,16 @@ export async function fetchServerInfo(host: string): Promise<ServerInfo> {
   };
   const get = (cls: string, key: string) =>
     list(info[cls]?.input?.required?.[key]);
+  // Embeddings are not a node input, so /object_info does not list them.
+  const embeddings = await fetch(`${comfyHttpFor(host)}/embeddings`)
+    .then((r) => (r.ok ? r.json() : null)).catch(() => null);
   return {
     samplers:      get('KSampler', 'sampler_name')              ?? FALLBACKS.samplers,
     schedulers:    get('KSampler', 'scheduler')                 ?? FALLBACKS.schedulers,
     models:        get('CheckpointLoaderSimple', 'ckpt_name')   ?? FALLBACKS.models,
     vaes:          get('VAELoader', 'vae_name')                 ?? FALLBACKS.vaes,
     loras:         get('LoraLoader', 'lora_name')               ?? FALLBACKS.loras,
+    embeddings:    Array.isArray(embeddings) ? embeddings.map(String) : FALLBACKS.embeddings,
     tagModels:     get('WD14Tagger|pysssss', 'model')           ?? FALLBACKS.tagModels,
     upscaleModels: get('UpscaleModelLoader', 'model_name')      ?? FALLBACKS.upscaleModels,
     controlnets:   get('ControlNetLoader', 'control_net_name')  ?? FALLBACKS.controlnets,

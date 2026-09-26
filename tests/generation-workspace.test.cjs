@@ -11,7 +11,7 @@ function load(name) {
   vm.runInNewContext(code, { exports });
   return exports;
 }
-const { createPass, pipelinePasses, withPipeline, appendPasses, prepareSeeds, loopbackSizes, loopbackDenoises, loopbackPasses, jobStages, applyClipSkip } = load('pipeline');
+const { createPass, pipelinePasses, withPipeline, appendPasses, prepareSeeds, loopbackSizes, loopbackDenoises, loopbackPasses, jobStages, applyClipSkip, loopbackRounds, lerpFrame, frameRect, frameZoom, cropPixels, croppedSize } = load('pipeline');
 const { applyPromptPreset } = load('promptPresets');
 const { jobActivity } = load('jobActivity');
 const base = { passes: [], sampler: 'euler', scheduler: 'normal', steps: 20, cfg: 7, seed: 42, randomizeSeed: false, width: 512, height: 512, upscaleModel: '4x-AnimeSharp.pth' };
@@ -170,4 +170,148 @@ test('snippet library ids are unique and every snippet sits in a known category'
   for (const s of all) assert.ok(cats.has(s.categoryId), s.id);
   assert.ok(all.some(s => s.id === 'pony-score') && all.some(s => s.id === 'ill-quality'));
   assert.ok(all.filter(s => s.categoryId.startsWith('neg-')).every(s => s.kind === 'negative'));
+});
+
+test('model trigger words become positive parts: cleaned, per-model state, inactive LoRAs left out', () => {
+  const { modelKeywordSources, withModelKeywords } = load('modelKeywords');
+  const words = { 'ck.safetensors': ['anime style, '], 'a.safetensors': ['zxc', 'ZXC', ' ', 'qwe'], 'b.safetensors': null, 'off.safetensors': ['off'] };
+  const wf = {
+    checkpoints: [{ name: 'ck.safetensors' }],
+    loras: [{ name: 'a.safetensors', on: true }, { name: 'b.safetensors', on: true }, { name: 'off.safetensors', on: false }],
+    modelKeywords: { 'a.safetensors': { on: true, weight: 1.4 }, 'ck.safetensors': { on: false, weight: 1 } },
+  };
+  const sources = modelKeywordSources(wf, f => words[f]);
+  assert.deepEqual(plain(sources.map(s => [s.file, s.kind, s.words, s.active])), [
+    ['ck.safetensors', 'checkpoint', ['anime style'], true],
+    ['a.safetensors', 'lora', ['zxc', 'qwe'], true],
+    ['off.safetensors', 'lora', ['off'], false],
+  ]);
+  const layers = withModelKeywords([{ id: 'p', kind: 'positive', on: true, text: 'cat', weight: 1, tag: '' }], wf, f => words[f]);
+  assert.deepEqual(plain(layers.map(l => [l.text, l.on, l.weight])), [['cat', true, 1], ['anime style', false, 1], ['zxc, qwe', true, 1.4]]);
+  const { compileLayers } = load('prompt');
+  assert.equal(compileLayers(layers, 'positive'), 'cat, (zxc, qwe:1.40)');
+});
+
+test('embeddings join their own prompt side as weighted embedding: tokens; negatives start negative', () => {
+  const { withEmbeddings, defaultEmbeddingTarget } = load('embeddings');
+  const { compileLayers } = load('prompt');
+  assert.equal(defaultEmbeddingTarget('ILXLneg'), 'negative');
+  assert.equal(defaultEmbeddingTarget('Stable_Yogis_General_Negatives_V1-neg'), 'negative');
+  assert.equal(defaultEmbeddingTarget('StyleEmbed'), 'positive');
+  const layers = withEmbeddings([
+    { id: 'p', kind: 'positive', on: true, text: 'cat', weight: 1, tag: '' },
+    { id: 'n', kind: 'negative', on: true, text: 'blurry', weight: 1, tag: '' },
+  ], { embeddings: [
+    { id: 'a', name: 'ILXLneg', target: 'negative', strength: 1, on: true },
+    { id: 'b', name: 'Style', target: 'positive', strength: 1.2, on: true },
+    { id: 'c', name: 'Off', target: 'negative', strength: 1, on: false },
+  ] });
+  assert.equal(compileLayers(layers, 'positive'), 'cat, (embedding:Style:1.20)');
+  assert.equal(compileLayers(layers, 'negative'), 'blurry, embedding:ILXLneg');
+});
+
+test('embedding names without an extension still find their hash', () => {
+  const { findModelHash } = load('modelHash');
+  const hashes = [
+    { key: 'embeddings/ILXLneg.safetensors', filename: 'ILXLneg.safetensors', hash: 'e1' },
+    { key: 'loras/ILXLneg.safetensors', filename: 'ILXLneg.safetensors', hash: 'l1' },
+  ];
+  assert.equal(findModelHash(hashes, 'ILXLneg')?.hash, 'e1');
+  assert.equal(findModelHash(hashes, 'ILXLneg.pt'), undefined);
+});
+
+test('an embedding\'s trigger words follow its token on the same side, with their own switch and weight', () => {
+  const { withEmbeddings } = load('embeddings');
+  const { compileLayers } = load('prompt');
+  const words = { ILXLneg: ['ILXLneg, ', 'lowres'], Style: ['stylez'], Plain: null };
+  const wf = { embeddings: [
+    { id: 'a', name: 'ILXLneg', target: 'negative', strength: 1, on: true },
+    { id: 'b', name: 'Style', target: 'positive', strength: 1, on: true, words: { on: true, weight: 1.3 } },
+    { id: 'c', name: 'Plain', target: 'positive', strength: 1, on: true },
+    { id: 'd', name: 'Style', target: 'positive', strength: 1, on: true, words: { on: false, weight: 1 } },
+  ] };
+  const layers = withEmbeddings([], wf, n => words[n]);
+  assert.equal(compileLayers(layers, 'negative'), 'embedding:ILXLneg, ILXLneg, lowres');
+  assert.equal(compileLayers(layers, 'positive'), 'embedding:Style, (stylez:1.30), embedding:Plain, embedding:Style');
+});
+
+test('refine noise injection puts InjectLatentNoise+ before the sampler; 0 adds nothing; loopback carries it', () => {
+  const noisy = { ...createPass(base, 'sample', 's'), noise: 0.4, seed: 42 };
+  const { graph } = graphFor([noisy]);
+  assert.equal(graph.pass0noise.class_type, 'InjectLatentNoise+');
+  assert.deepEqual(plain(graph.pass0noise.inputs.latent), ['3', 0]);
+  assert.equal(graph.pass0noise.inputs.noise_strength, 0.4);
+  assert.equal(graph.pass0noise.inputs.noise_seed, 43);
+  assert.deepEqual(plain(graph.pass0sample.inputs.latent_image), ['pass0noise', 0]);
+  const { graph: plainGraph } = graphFor([createPass(base, 'sample', 's')]);
+  assert.ok(!plainGraph.pass0noise);
+  const lb = loopbackPasses({ ...base, loopback: { enabled: true, iterations: 2, upscale: 1.25, denoise: 0.5, steps: 10, cfg: 7, noise: 0.3 } });
+  assert.deepEqual(plain(lb.map(p => p.noise)), [0.3, 0.3]);
+});
+
+test('loopback ramps move steps, cfg, upscale and noise from start to end; fixed values stay put', () => {
+  const lb = { enabled: true, iterations: 3, upscale: 1.25, denoise: 0.5, steps: 10, cfg: 7, noise: 0,
+    ramps: { steps: { start: 10, end: 20 }, cfg: { start: 7, end: 5 }, upscale: { start: 1.5, end: 1 } } };
+  const r = loopbackRounds(lb);
+  assert.deepEqual(plain(r.map(x => x.steps)), [10, 15, 20]);
+  assert.deepEqual(plain(r.map(x => x.cfg)), [7, 6, 5]);
+  assert.deepEqual(plain(r.map(x => x.upscale)), [1.5, 1.25, 1]);
+  assert.deepEqual(plain(r.map(x => x.noise)), [0, 0, 0]);
+  assert.deepEqual(plain(r.map(x => x.frame)), [null, null, null]);
+  assert.deepEqual(plain(loopbackSizes(lb, 512, 512)), [[768, 768], [960, 960], [960, 960]]);
+  const passes = loopbackPasses({ ...base, loopback: lb });
+  assert.deepEqual(plain(passes.map(p => [p.steps, p.cfg, p.scale])), [[10, 7, 1.5], [15, 6, 1.25], [20, 5, 1]]);
+});
+
+test('loopback frame path: crops are relative to the previous round, so zoom never compounds', () => {
+  // Old zoom-only frames still read.
+  assert.deepEqual(plain(frameRect({ x: 0.5, y: 0.5, zoom: 2 })), { x: 0.5, y: 0.5, w: 0.5, h: 0.5 });
+  assert.deepEqual(plain(lerpFrame({ x: 0.5, y: 0.5, w: 1, h: 1 }, { x: 0.5, y: 0.5, w: 0.25, h: 0.25 }, 0.5)), { x: 0.5, y: 0.5, w: 0.5, h: 0.5 });
+  const lb = { enabled: true, iterations: 3, upscale: 1, denoise: 0.5, steps: 10, cfg: 7,
+    frame: { enabled: true, start: { x: 0.5, y: 0.5, w: 1, h: 1 }, end: { x: 0.5, y: 0.5, w: 0.25, h: 0.25 } } };
+  const r = loopbackRounds(lb);
+  // What each round shows of the base image: ×1, ×2, ×4 — the end frame, not ×8.
+  assert.deepEqual(plain(r.map(x => frameZoom(x.frame))), [1, 2, 4]);
+  assert.equal(r[0].crop, null);
+  // Round 2 keeps half of round 1's image; round 3 keeps half of round 2's (which is already half).
+  assert.deepEqual(plain(r[1].crop), { left: 0.25, top: 0.25, width: 0.5, height: 0.5 });
+  assert.deepEqual(plain(r[2].crop), { left: 0.25, top: 0.25, width: 0.5, height: 0.5 });
+  // A frame reaching outside the previous one is pulled back inside it, and reported as such.
+  const pan = loopbackRounds({ ...lb, iterations: 2,
+    frame: { enabled: true, start: { x: 0.25, y: 0.5, w: 0.5, h: 1 }, end: { x: 0.75, y: 0.5, w: 0.5, h: 1 } } });
+  assert.deepEqual(plain(pan[1].frame), { x: 0.25, y: 0.5, w: 0.5, h: 1 });
+});
+
+test('a drawn frame sets the output shape and keeps the pixel area', () => {
+  const px = cropPixels({ left: 0, top: 0, width: 0.5, height: 1 }, 1024, 1024);
+  assert.deepEqual(plain(px), { x: 0, y: 0, width: 512, height: 1024 });
+  // Same area as 1024², in a 1:2 shape.
+  assert.deepEqual(plain(croppedSize(px, 1024, 1024, 1)), [728, 1448]);
+  assert.deepEqual(plain(croppedSize(px, 1024, 1024, 2, 2048)), [1024, 2048]);
+  const lb = { enabled: true, iterations: 2, upscale: 1, denoise: 0.5, steps: 10, cfg: 7,
+    frame: { enabled: true, start: { x: 0.5, y: 0.5, w: 1, h: 1 }, end: { x: 0.25, y: 0.5, w: 0.5, h: 1 } } };
+  assert.deepEqual(plain(loopbackSizes(lb, 1024, 1024)), [[1024, 1024], [728, 1448]]);
+  // graphFor starts from a 512² image: round 2 crops the left half (256×512) and renders it 1:2.
+  const { graph } = graphFor([], { loopback: lb });
+  assert.ok(!graph.pass0crop);
+  assert.equal(graph.pass1crop.class_type, 'LatentCrop');
+  assert.deepEqual(plain(graph.pass1latent.inputs.width), 360);
+});
+
+test('quick search: every query word must match; label starts beat label words beat keywords', () => {
+  const { rankSpotlight, spotlightScore } = load('spotlight');
+  const noop = () => {};
+  const items = [
+    { id: 'a', group: 'Panel', label: 'Parameters', keywords: 'sampler steps cfg', run: noop },
+    { id: 'b', group: 'LoRAs', label: 'Detail Tweaker', keywords: 'add_detail.safetensors', run: noop },
+    { id: 'c', group: 'Actions', label: 'Generate', keywords: 'run queue', run: noop },
+    { id: 'd', group: 'Go to', label: 'Generate view', run: noop },
+    { id: 'e', group: 'Snippets', label: 'Steps up', run: noop },
+  ];
+  assert.equal(spotlightScore(items[0], 'zzz'), 0);
+  assert.deepEqual(plain(rankSpotlight(items, 'steps').map(i => i.id)), ['e', 'a']);
+  assert.deepEqual(plain(rankSpotlight(items, 'gen').map(i => i.id)), ['c', 'd']);
+  assert.deepEqual(plain(rankSpotlight(items, 'detail add').map(i => i.id)), ['b']);
+  // Empty query keeps the given order.
+  assert.deepEqual(plain(rankSpotlight(items, '').map(i => i.id)), ['a', 'b', 'c', 'd', 'e']);
 });

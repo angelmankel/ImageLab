@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { installPersistence } from './persistence';
 import type {
-  Layer, Snippet, SnippetCategory, HistoryEntry, WorkflowState, WorkflowCheckpoint, WorkflowLora,
+  Layer, Snippet, SnippetCategory, HistoryEntry, WorkflowState, WorkflowCheckpoint, WorkflowLora, WorkflowEmbedding,
   ServerInfo, Status, LayerKind, Job, Collection, ImportedImage,
 } from './types';
 import type { ModelHash, WsEvent } from './comfy';
@@ -33,6 +33,7 @@ import { resolveTheme } from './themes';
 import { putJob, deleteJob as deleteJobDb, deleteJobsForServer } from './jobsDb';
 import { playCompleteSound } from './sounds';
 import { jobStages } from './pipeline';
+import { defaultEmbeddingTarget } from './embeddings';
 
 /** Which server's preview the canvas shows: every server (`all`, a 2×2/3×3
  *  grid), whichever job streamed most recently (`last`), or one server id. */
@@ -228,6 +229,7 @@ function unionInfo(record: Record<string, ServerInfo>): ServerInfo {
     models: merge('models'),
     vaes: merge('vaes'),
     loras: merge('loras'),
+    embeddings: merge('embeddings'),
     tagModels: merge('tagModels'),
     upscaleModels: merge('upscaleModels'),
     controlnets: merge('controlnets'),
@@ -439,6 +441,9 @@ type Store = {
   addLora: (name: string) => void;
   removeLora: (id: string) => void;
   updateLora: (id: string, patch: Partial<Omit<WorkflowLora, 'id'>>) => void;
+  addEmbedding: (name: string) => void;
+  removeEmbedding: (id: string) => void;
+  updateEmbedding: (id: string, patch: Partial<Omit<WorkflowEmbedding, 'id'>>) => void;
 
   // History
   pushHistory: (entry: HistoryEntry) => HistoryEntry;
@@ -1102,6 +1107,16 @@ export const useStore = create<Store>((set, get) => {
     updateLora: (id, patch) => {
       const loras = get().workflow.loras.map(l => l.id === id ? { ...l, ...patch } : l);
       get().setWorkflow({ loras });
+    },
+    addEmbedding: (name) => {
+      const embeddings = [...(get().workflow.embeddings ?? []), { id: uid(), name, target: defaultEmbeddingTarget(name), strength: 1, on: true }];
+      get().setWorkflow({ embeddings });
+    },
+    removeEmbedding: (id) => {
+      get().setWorkflow({ embeddings: (get().workflow.embeddings ?? []).filter(e => e.id !== id) });
+    },
+    updateEmbedding: (id, patch) => {
+      get().setWorkflow({ embeddings: (get().workflow.embeddings ?? []).map(e => e.id === id ? { ...e, ...patch } : e) });
     },
 
     pushHistory: (entry) => {

@@ -17,7 +17,7 @@ import { TileHover } from '@/components/ui/TileHover';
 import { BASE_MODEL_BUCKETS } from '@/lib/modelHash';
 import { readModelInfo, modelLabel, plainDescription, type ModelInfo } from './modelInfo';
 
-export type ModelSelectorKind = 'checkpoint' | 'lora' | 'vae';
+export type ModelSelectorKind = 'checkpoint' | 'lora' | 'embedding' | 'vae';
 
 export interface ModelSelectorModalProps {
   opened: boolean;
@@ -33,7 +33,7 @@ export interface ModelSelectorModalProps {
   onRefresh?: () => Promise<void> | void;
 }
 
-const TITLES: Record<ModelSelectorKind, string> = { checkpoint: 'Checkpoints', lora: 'LoRAs', vae: 'VAEs' };
+const TITLES: Record<ModelSelectorKind, string> = { checkpoint: 'Checkpoints', lora: 'LoRAs', embedding: 'Embeddings', vae: 'VAEs' };
 const SCALE_KEY = 'imagelab.modelSelectorScale.v1';
 
 export function ModelSelectorModal({

@@ -3,6 +3,7 @@ import { useStore } from '@/lib/store';
 import {
   fetchDownloads, startDownload, cancelDownload, type Download,
 } from '@/lib/comfy';
+import { useLibraryStore } from '@/features/library/store';
 
 /**
  * Feature-scoped store for the downloads panel — separate from the global app
@@ -45,6 +46,8 @@ function _aggregateProgress(rows: DownloadRow[]): number | null {
   return Math.max(0, Math.min(1, doneBytes / totalBytes));
 }
 
+export type StartResult = { accepted: number; errors: string[] };
+
 type DownloadsState = {
   rows: DownloadRow[];
   /** True while a refresh is in flight — lets the polling hook skip overlap. */
@@ -54,9 +57,10 @@ type DownloadsState = {
   /**
    * Start a CivitAI version downloading. Fires at every online server by
    * default; pass `serverIds` to target a subset (e.g. syncing a model to
-   * just the servers missing it).
+   * just the servers missing it). Resolves to how many servers accepted it
+   * and the refusals of the rest.
    */
-  start: (versionId: number, folder?: string, serverIds?: string[]) => Promise<void>;
+  start: (versionId: number, folder?: string, serverIds?: string[]) => Promise<StartResult>;
   /** Cancel an in-flight row, or dismiss a finished/failed one. */
   cancel: (row: DownloadRow) => Promise<void>;
   /** Bytes per second for a row, derived from the last 3s of poll deltas.
@@ -138,8 +142,14 @@ export const useDownloadsStore = create<DownloadsState>((set, get) => ({
     const { servers, serverInfo } = useStore.getState();
     const online = servers.filter((s) => serverInfo[s.id]);
     const targets = serverIds ? online.filter((s) => serverIds.includes(s.id)) : online;
-    await Promise.allSettled(targets.map((s) => startDownload(s.host, versionId, folder)));
+    const results = await Promise.allSettled(targets.map((s) => startDownload(s.host, versionId, folder)));
+    const accepted = results.filter((r) => r.status === 'fulfilled').length;
+    const errors = results.flatMap((r, i) =>
+      r.status === 'rejected' ? [`${targets[i].name}: ${r.reason instanceof Error ? r.reason.message : String(r.reason)}`] : []);
+    // Every download started from the app lands in the device-local "My models" list.
+    if (accepted > 0) void useLibraryStore.getState().recordDownload(versionId);
     await get().refresh();
+    return { accepted, errors };
   },
 
   cancel: async (row) => {

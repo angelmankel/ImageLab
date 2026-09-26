@@ -35,6 +35,9 @@ async function resolveLayerSourceBlob(layer: CanvasLayer): Promise<Blob | null> 
 import { ActionIcon, Button, Group, Tooltip } from '@mantine/core';
 import { IconDice, IconPlayerPlay } from '@tabler/icons-react';
 import { playSubmitSound } from '@/lib/sounds';
+import { withModelKeywords } from '@/lib/modelKeywords';
+import { withEmbeddings } from '@/lib/embeddings';
+import { modelTrainedWords } from '@/components/models/modelInfo';
 
 /**
  * Queue a job. Resolves the routing target, blocks if any model the workflow
@@ -322,7 +325,10 @@ async function queueFromStore(newSeed: boolean) {
   }
 
   setStatus(`Queueing on ${target.name}…`, 'busy');
-  const res = await queuePrompt(target.host, workflow, layers, preUploadedRef, inpaintSource);
+  // Model trigger words and embeddings join the prompt here only; the saved layers stay the
+  // user's own parts.
+  const promptLayers = withEmbeddings(withModelKeywords(layers, workflow, modelTrainedWords), workflow, modelTrainedWords);
+  const res = await queuePrompt(target.host, workflow, promptLayers, preUploadedRef, inpaintSource);
   if (!res.ok) {
     console.error('[queuePrompt] failed on', target.name, '→', res.error);
     setStatus(res.error, 'error');

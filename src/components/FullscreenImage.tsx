@@ -66,6 +66,13 @@ type Props = {
 
 const DEFAULT_SLIDESHOW_MS = 3000;
 
+/**
+ * Every image — small previews and live frames included — is scaled to the largest size that fits
+ * the whole screen, so a tall image always fills its full height. The buttons and badges float
+ * over it; they never take space from it.
+ */
+const IMAGE_BOX = 'block h-[100dvh] w-screen select-none object-contain';
+
 export function FullscreenImage({
   items,
   index,
@@ -193,7 +200,7 @@ export function FullscreenImage({
               src={prevUrl}
               alt=""
               draggable={false}
-              className="max-h-[92vh] max-w-[92vw] select-none"
+              className={IMAGE_BOX}
             />
           </div>
         )}
@@ -207,12 +214,8 @@ export function FullscreenImage({
               alt=""
               draggable={false}
               onLoad={(e) => setSize({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight })}
-              className="max-h-[92vh] max-w-[92vw] select-none"
+              className={IMAGE_BOX}
               style={{
-                // Preview frames are small (often a fraction of the final size); at their natural
-                // size they sat in the middle of an empty screen. A live frame is scaled up to the
-                // largest box that fits, keeping its shape.
-                ...(live ? { width: '92vw', height: '92vh', objectFit: 'contain' as const } : null),
                 transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom})`,
                 transition: reframing ? 'transform 250ms cubic-bezier(0.22, 1, 0.36, 1)' : undefined,
               }}

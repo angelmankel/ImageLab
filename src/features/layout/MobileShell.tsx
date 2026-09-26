@@ -10,12 +10,13 @@
 import { memo, useEffect, useRef, useState, type ReactNode } from 'react';
 import { ActionIcon, Box, Group, Menu, RingProgress, Text, Title, Tooltip, UnstyledButton } from '@mantine/core';
 import {
-  IconAdjustments, IconBoxModel, IconDots, IconFolders, IconInfinity, IconLayoutGrid, IconPhoto,
+  IconAdjustments, IconBoxModel, IconDots, IconFolders, IconInfinity, IconLayoutGrid, IconPhoto, IconSearch,
   IconPlayerPlay, IconPlayerStop, IconPlus, IconSettings, IconWand,
 } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import { useStore } from '@/lib/store';
 import { useCanvasStore, type MainView } from '@/lib/canvasStore';
+import { emitApp, onApp } from '@/lib/appEvents';
 import { StrippedCanvas } from '@/features/canvas/StrippedCanvas';
 import { RightPanel } from '@/features/canvasLayers';
 import { fireFromStore } from '@/features/generate/GenerateButton';
@@ -58,6 +59,8 @@ export function MobileShell({ onOpenSettings }: { onOpenSettings: () => void }) 
     try { const t = localStorage.getItem(TAB_KEY); return t === 'image' || t === 'gallery' ? t : 'parameters'; } catch { return 'parameters'; }
   });
   const setActiveTab = (t: MobileTab) => { setActiveTabRaw(t); try { localStorage.setItem(TAB_KEY, t); } catch { /* ignore */ } };
+  // The quick search can send the phone to a tab (e.g. Parameters, to show a panel section).
+  useEffect(() => onApp('mobile-tab', (t) => setActiveTab(t)), []); // eslint-disable-line react-hooks/exhaustive-deps
   // Gallery always mounts: it owns the fullscreen viewer the Image tab opens.
   const [mounted, setMounted] = useState<Set<MobileTab>>(() => new Set([activeTab, 'gallery']));
   useEffect(() => {
@@ -139,6 +142,10 @@ function MobileHeader({ onOpenSettings }: { onOpenSettings: () => void }) {
     >
       <Group justify="space-between" wrap="nowrap" gap="xs">
         <Title order={4} style={{ flexShrink: 0 }}>ImageLab</Title>
+        <Group gap={4} wrap="nowrap">
+        <ActionIcon variant="subtle" color="gray" size="lg" aria-label="Quick search" onClick={() => emitApp('open-spotlight')}>
+          <IconSearch size={18} />
+        </ActionIcon>
         <Menu position="bottom-end" withinPortal shadow="md" width={200}>
           <Menu.Target>
             <ActionIcon variant="subtle" color="gray" size="lg" aria-label="More views and settings"><IconDots size={18} /></ActionIcon>
@@ -152,6 +159,7 @@ function MobileHeader({ onOpenSettings }: { onOpenSettings: () => void }) {
             <Menu.Item leftSection={<IconSettings size={16} />} onClick={onOpenSettings}>Settings</Menu.Item>
           </Menu.Dropdown>
         </Menu>
+        </Group>
       </Group>
       {/* Status, server, queue and downloads get a row of their own: squeezed beside the title,
           their labels were cut down to "Re…" and "Que". */}

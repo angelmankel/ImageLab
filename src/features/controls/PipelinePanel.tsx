@@ -14,7 +14,6 @@ import { createPass, listedPasses, withPipeline, PASS_LABELS, type PassKind } fr
 import type { Pass } from '@/lib/types';
 import { FieldWrapper } from '@/components/fields/FieldWrapper';
 import { NumberField } from '@/components/fields/NumberField';
-import { ControlSection } from './ControlSection';
 import { ParamRow } from './ParamRow';
 
 const MAX_SEED = 0xFFFFFFFF;
@@ -61,79 +60,75 @@ export function PipelinePanel({ inpaintMode = false }: { inpaintMode?: boolean }
     setRemoved({ pass, index });
   };
 
-  return <ControlSection id="workspace-passes" title="Passes" icon={IconArrowsMaximize}
-    summary={`${passes.filter(p => p.on !== false && !(inpaintMode && (!p.kind || p.kind === 'sample'))).length} after base image`}
-    expandOn={adding}
-    action={<Button size="compact-sm" variant={adding ? 'filled' : 'light'} leftSection={<IconPlus size={14} />}
-      onClick={() => setAdding(!adding)} aria-label="Add pass" aria-expanded={adding}>Add pass</Button>}>
-    <Stack gap="xs" pb="xs">
-      {/* The base image is step 1 of the pipeline; the passes below number on from it. */}
-      <Group gap="xs" wrap="nowrap" px={4}>
-        <ThemeIcon size={22} radius="xl" variant="light"><Text size="xs" fw={600}>1</Text></ThemeIcon>
-        <Text size="sm" fw={500}>Base image</Text>
-        <Text size="xs" c="dimmed" ml="auto">{workflow.steps} steps</Text>
-      </Group>
+  return <Stack gap="xs" pb="xs">
+    {/* The base image is step 1 of the pipeline; the passes below number on from it. */}
+    <Group gap="xs" wrap="nowrap" px={4}>
+      <ThemeIcon size={22} radius="xl" variant="light"><Text size="xs" fw={600}>1</Text></ThemeIcon>
+      <Text size="sm" fw={500}>Base image</Text>
+      <Text size="xs" c="dimmed" ml="auto">{workflow.steps} steps</Text>
+      <Button size="compact-sm" variant={adding ? 'filled' : 'light'} leftSection={<IconPlus size={14} />}
+        onClick={() => setAdding(!adding)} aria-label="Add pass" aria-expanded={adding}>Add pass</Button>
+    </Group>
 
-      <Collapse in={adding}>
-        <SimpleGrid cols={2} spacing="xs" aria-label="Add a pass">
-          {(Object.keys(PASS_LABELS) as PassKind[]).map(kind => {
-            const Icon = PASS_ICONS[kind];
-            const off = inpaintMode && kind === 'sample';
-            return <UnstyledButton key={kind} aria-label={`Add ${PASS_LABELS[kind]} pass`} disabled={off} onClick={() => add(kind)}
-              className="rounded-md border border-border-default bg-bg-input px-2.5 py-2 text-left transition-colors hover:border-accent disabled:cursor-not-allowed disabled:opacity-40">
-              <Group gap={6} wrap="nowrap"><Icon size={14} stroke={1.6} /><Text size="xs" fw={600}>{PASS_LABELS[kind]}</Text></Group>
-              <Text size="10px" c="dimmed" mt={2}>{passBlurb(kind, inpaintMode)}</Text>
-            </UnstyledButton>;
-          })}
-        </SimpleGrid>
-      </Collapse>
+    <Collapse in={adding}>
+      <SimpleGrid cols={2} spacing="xs" aria-label="Add a pass">
+        {(Object.keys(PASS_LABELS) as PassKind[]).map(kind => {
+          const Icon = PASS_ICONS[kind];
+          const off = inpaintMode && kind === 'sample';
+          return <UnstyledButton key={kind} aria-label={`Add ${PASS_LABELS[kind]} pass`} disabled={off} onClick={() => add(kind)}
+            className="rounded-md border border-border-default bg-bg-input px-2.5 py-2 text-left transition-colors hover:border-accent disabled:cursor-not-allowed disabled:opacity-40">
+            <Group gap={6} wrap="nowrap"><Icon size={14} stroke={1.6} /><Text size="xs" fw={600}>{PASS_LABELS[kind]}</Text></Group>
+            <Text size="10px" c="dimmed" mt={2}>{passBlurb(kind, inpaintMode)}</Text>
+          </UnstyledButton>;
+        })}
+      </SimpleGrid>
+    </Collapse>
 
-      {!passes.length && !adding && <Text size="xs" c="dimmed" px={4}>Add refinement or finishing steps here. They run from top to bottom.</Text>}
+    {!passes.length && !adding && <Text size="xs" c="dimmed" px={4}>Add refinement or finishing steps here. They run from top to bottom.</Text>}
 
-      {passes.map((pass, index) => {
-        const kind = pass.kind ?? 'sample';
-        const Icon = PASS_ICONS[kind];
-        const n = index + 2;
-        const unavailable = inpaintMode && kind === 'sample';
-        const enabled = pass.on !== false && !unavailable;
-        const open = expanded === pass.id;
-        const summary = kind === 'sample' ? `${pass.steps} steps · ${pass.denoise} denoise · ${pass.scale}×` : kind === 'remove-bg' ? 'Transparent background' : kind === 'resize' && pass.resizeMode === 'size' ? `${pass.width} × ${pass.height}` : `${pass.scale}×`;
-        return <Paper key={pass.id} withBorder radius="md" bg="dark.6" style={{ opacity: enabled ? 1 : 0.6, overflow: 'hidden' }}>
-          <Group gap="xs" wrap="nowrap" px="xs">
-            <UnstyledButton aria-expanded={open} onClick={() => setExpanded(open ? null : pass.id)} className="flex min-h-12 min-w-0 flex-1 items-center gap-2 text-left">
-              {open ? <IconChevronDown size={14} className="shrink-0 opacity-50" /> : <IconChevronRight size={14} className="shrink-0 opacity-50" />}
-              <Badge size="sm" circle variant="default">{n}</Badge>
-              <Icon size={15} stroke={1.6} className="shrink-0" />
-              <span className="min-w-0 flex-1">
-                <Text size="sm" fw={500} truncate>{PASS_LABELS[kind]}</Text>
-                <Text size="xs" c="dimmed" truncate>{unavailable ? 'Not applied to inpainting' : summary}</Text>
-              </span>
-            </UnstyledButton>
-            <Tooltip label={pass.on !== false ? 'Bypass this pass' : 'Turn this pass back on'}>
-              <Switch size="sm" checked={pass.on !== false} onChange={e => update(pass.id, { on: e.currentTarget.checked })} aria-label={`Enable pass ${n}`} />
-            </Tooltip>
-          </Group>
-          <Group gap={2} px={6} py={4} className="border-t border-border-subtle">
-            <PassAction label="Move up" aria={`Move pass ${n} up`} disabled={index === 0} onClick={() => move(index, -1)}><IconArrowUp size={15} /></PassAction>
-            <PassAction label="Move down" aria={`Move pass ${n} down`} disabled={index === passes.length - 1} onClick={() => move(index, 1)}><IconArrowDown size={15} /></PassAction>
-            <PassAction label="Duplicate" aria={`Duplicate pass ${n}`} onClick={() => duplicate(pass, index)}><IconCopy size={15} /></PassAction>
-            <div className="flex-1" />
-            <PassAction label="Remove" aria={`Remove pass ${n}`} color="red" onClick={() => remove(pass, index)}><IconTrash size={15} /></PassAction>
-          </Group>
-          <Collapse in={open}>
-            <Stack gap="sm" p="sm" className="border-t border-border-subtle">
-              <PassFields pass={pass} update={patch => update(pass.id, patch)} />
-            </Stack>
-          </Collapse>
-        </Paper>;
-      })}
+    {passes.map((pass, index) => {
+      const kind = pass.kind ?? 'sample';
+      const Icon = PASS_ICONS[kind];
+      const n = index + 2;
+      const unavailable = inpaintMode && kind === 'sample';
+      const enabled = pass.on !== false && !unavailable;
+      const open = expanded === pass.id;
+      const summary = kind === 'sample' ? `${pass.steps} steps · ${pass.denoise} denoise${pass.noise ? ` · noise ${pass.noise}` : ''} · ${pass.scale}×` : kind === 'remove-bg' ? 'Transparent background' : kind === 'resize' && pass.resizeMode === 'size' ? `${pass.width} × ${pass.height}` : `${pass.scale}×`;
+      return <Paper key={pass.id} withBorder radius="md" bg="dark.6" style={{ opacity: enabled ? 1 : 0.6, overflow: 'hidden' }}>
+        <Group gap="xs" wrap="nowrap" px="xs">
+          <UnstyledButton aria-expanded={open} onClick={() => setExpanded(open ? null : pass.id)} className="flex min-h-12 min-w-0 flex-1 items-center gap-2 text-left">
+            {open ? <IconChevronDown size={14} className="shrink-0 opacity-50" /> : <IconChevronRight size={14} className="shrink-0 opacity-50" />}
+            <Badge size="sm" circle variant="default">{n}</Badge>
+            <Icon size={15} stroke={1.6} className="shrink-0" />
+            <span className="min-w-0 flex-1">
+              <Text size="sm" fw={500} truncate>{PASS_LABELS[kind]}</Text>
+              <Text size="xs" c="dimmed" truncate>{unavailable ? 'Not applied to inpainting' : summary}</Text>
+            </span>
+          </UnstyledButton>
+          <Tooltip label={pass.on !== false ? 'Bypass this pass' : 'Turn this pass back on'}>
+            <Switch size="sm" checked={pass.on !== false} onChange={e => update(pass.id, { on: e.currentTarget.checked })} aria-label={`Enable pass ${n}`} />
+          </Tooltip>
+        </Group>
+        <Group gap={2} px={6} py={4} className="border-t border-border-subtle">
+          <PassAction label="Move up" aria={`Move pass ${n} up`} disabled={index === 0} onClick={() => move(index, -1)}><IconArrowUp size={15} /></PassAction>
+          <PassAction label="Move down" aria={`Move pass ${n} down`} disabled={index === passes.length - 1} onClick={() => move(index, 1)}><IconArrowDown size={15} /></PassAction>
+          <PassAction label="Duplicate" aria={`Duplicate pass ${n}`} onClick={() => duplicate(pass, index)}><IconCopy size={15} /></PassAction>
+          <div className="flex-1" />
+          <PassAction label="Remove" aria={`Remove pass ${n}`} color="red" onClick={() => remove(pass, index)}><IconTrash size={15} /></PassAction>
+        </Group>
+        <Collapse in={open}>
+          <Stack gap="sm" p="sm" className="border-t border-border-subtle">
+            <PassFields pass={pass} update={patch => update(pass.id, patch)} />
+          </Stack>
+        </Collapse>
+      </Paper>;
+    })}
 
-      {removed && <Group role="status" justify="space-between" px={4}>
-        <Text size="xs" c="dimmed">Pass removed</Text>
-        <Button size="compact-xs" variant="subtle" onClick={() => { const next = [...passes]; next.splice(removed.index, 0, removed.pass); save(next); setRemoved(null); }}>Undo</Button>
-      </Group>}
-    </Stack>
-  </ControlSection>;
+    {removed && <Group role="status" justify="space-between" px={4}>
+      <Text size="xs" c="dimmed">Pass removed</Text>
+      <Button size="compact-xs" variant="subtle" onClick={() => { const next = [...passes]; next.splice(removed.index, 0, removed.pass); save(next); setRemoved(null); }}>Undo</Button>
+    </Group>}
+  </Stack>;
 }
 
 function PassAction({ label, aria, onClick, disabled, color = 'gray', children }: {
@@ -178,6 +173,9 @@ function PassFields({ pass, update }: { pass: Pass; update: (patch: Partial<Pass
       <ParamRow label="Steps" value={pass.steps} min={1} max={200} defaultValue={12} onChange={steps => update({ steps })} />
       <ParamRow label="CFG" value={pass.cfg} min={0} max={30} step={0.1} defaultValue={7} onChange={cfg => update({ cfg })} />
       <ParamRow label="Denoise" value={pass.denoise} min={0} max={1} step={0.01} defaultValue={0.3} onChange={denoise => update({ denoise })} />
+      <ParamRow label="Noise injection" value={pass.noise ?? 0} min={0} max={2} step={0.01} defaultValue={0}
+        presets={[0, 0.1, 0.25, 0.5, 1]} hint="Adds fresh noise to the image before this pass samples, for more new detail. 0 = off."
+        onChange={noise => update({ noise })} />
       <PassSelect label="Sampler" aria="Pass sampler" value={pass.sampler} options={[...new Set([pass.sampler, ...server.samplers])]} onChange={sampler => update({ sampler })} />
       <PassSelect label="Scheduler" aria="Pass scheduler" value={pass.scheduler} options={[...new Set([pass.scheduler, ...server.schedulers])]} onChange={scheduler => update({ scheduler })} />
       {pass.scale !== 1 && <>

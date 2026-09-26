@@ -8,13 +8,14 @@ import type { ServerInfo, WorkflowState } from './types';
  */
 
 export type ResourceKind =
-  | 'checkpoint' | 'vae' | 'lora' | 'upscale' | 'tag' | 'sampler' | 'scheduler';
+  | 'checkpoint' | 'vae' | 'lora' | 'embedding' | 'upscale' | 'tag' | 'sampler' | 'scheduler';
 
 /** Which `ServerInfo` list backs each resource kind. */
 export const RESOURCE_LIST: Record<ResourceKind, keyof ServerInfo> = {
   checkpoint: 'models',
   vae: 'vaes',
   lora: 'loras',
+  embedding: 'embeddings',
   upscale: 'upscaleModels',
   tag: 'tagModels',
   sampler: 'samplers',
@@ -33,7 +34,7 @@ export function serverHasResource(
 }
 
 /** Model-file resource kinds — the ones a CivitAI model could be. */
-const MODEL_KINDS: ResourceKind[] = ['checkpoint', 'vae', 'lora'];
+const MODEL_KINDS: ResourceKind[] = ['checkpoint', 'vae', 'lora', 'embedding'];
 
 /**
  * Ids of every server whose model lists contain `name`. Matches across
@@ -63,6 +64,9 @@ export function missingResources(workflow: WorkflowState, info: ServerInfo | und
   need('vae', workflow.vae, `VAE “${workflow.vae}”`);
   for (const l of workflow.loras) {
     if (l.on) need('lora', l.name, `LoRA “${l.name}”`);
+  }
+  for (const e of workflow.embeddings ?? []) {
+    if (e.on) need('embedding', e.name, `embedding “${e.name}”`);
   }
   need('sampler', workflow.sampler, `sampler “${workflow.sampler}”`);
   need('scheduler', workflow.scheduler, `scheduler “${workflow.scheduler}”`);

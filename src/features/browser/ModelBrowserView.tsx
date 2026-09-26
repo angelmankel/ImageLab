@@ -7,6 +7,7 @@ import { OpenByIdInput } from './OpenByIdInput';
 import { Badge, Button, Drawer, Stack, Text } from '@mantine/core';
 import { IconAdjustmentsHorizontal, IconBoxModel } from '@tabler/icons-react';
 import { useModelMetadataStore } from '@/features/model-metadata/store';
+import { BrowserModeSwitch, LibraryView, useLibraryStore } from '@/features/library';
 
 /**
  * Model browser — a top-level view switched from the sidebar (not an overlay).
@@ -42,15 +43,16 @@ export function ModelBrowserView() {
   const openModel = useModelMetadataStore((s) => s.open);
   const narrow = useMediaQuery('(max-width: 48em)') ?? false;
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const mode = useLibraryStore((s) => s.browserMode);
 
   // First mount → kick off the initial fetch. Subsequent filter changes are
   // handled by the store's `setFilters` action so each chip click re-runs.
   const fetchedOnce = useRef(false);
   useEffect(() => {
-    if (fetchedOnce.current) return;
+    if (fetchedOnce.current || mode === 'library') return;
     fetchedOnce.current = true;
     void refresh();
-  }, [refresh]);
+  }, [refresh, mode]);
 
   // Infinite scroll: intersection observer on a sentinel after the grid. A
   // generous root margin (2500px) means the next page is requested long
@@ -78,6 +80,9 @@ export function ModelBrowserView() {
     return `${items.length}${nextCursor ? '+' : ''} model${items.length === 1 ? '' : 's'}`;
   }, [loading, error, items.length, nextCursor]);
 
+  // "My models" replaces the whole browse layout (header included — it carries the switch back).
+  if (mode === 'library') return <LibraryView narrow={narrow} />;
+
   const grid = (
     <BrowserGrid
       items={items}
@@ -99,7 +104,7 @@ export function ModelBrowserView() {
       <div className="flex h-full w-full min-w-0 flex-col bg-bg-base">
         <header className="flex shrink-0 flex-col gap-2 border-b border-border-subtle bg-bg-panel px-3 py-2">
           <div className="flex min-w-0 items-center gap-2">
-            <Text size="sm" fw={600} className="shrink-0">Models</Text>
+            <BrowserModeSwitch />
             <Badge size="sm" variant="light" color="gray" tt="none" className="min-w-0">{headerCount}</Badge>
             <Button ml="auto" size="xs" variant={active ? 'light' : 'default'} className="shrink-0"
               leftSection={<IconAdjustmentsHorizontal size={14} />} onClick={() => setFiltersOpen(true)}>
@@ -127,7 +132,7 @@ export function ModelBrowserView() {
     <div className="flex h-full w-full flex-col bg-bg-base">
       <header className="flex shrink-0 items-center gap-2 border-b border-border-subtle bg-bg-panel px-3 py-2">
         <IconBoxModel size={16} className="text-[var(--mantine-color-dimmed)]" />
-        <Text size="sm" fw={600}>Browse models</Text>
+        <BrowserModeSwitch />
         <Badge size="sm" variant="light" color="gray" tt="none" className="shrink-0">
           {headerCount}
         </Badge>

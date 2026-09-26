@@ -74,6 +74,7 @@ export const FALLBACKS = {
   models: [] as string[],
   vaes: [] as string[],
   loras: [] as string[],
+  embeddings: [] as string[],
   tagModels: [] as string[],
   upscaleModels: [] as string[],
   controlnets: [] as string[],

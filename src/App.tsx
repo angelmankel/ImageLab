@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Sidebar } from '@/features/layout/Sidebar';
 import { SettingsModal } from '@/features/settings/SettingsModal';
 import { ModelMetadataModal } from '@/features/model-metadata';
 import { KeyboardDoneButton } from '@/components/ui/KeyboardDoneButton';
+import { Spotlight } from '@/features/spotlight/Spotlight';
+import { onApp } from '@/lib/appEvents';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { TooltipProvider } from '@/components/ui/Tooltip';
 import { ConfirmProvider } from '@/components/ui/ConfirmDialog';
@@ -26,6 +28,8 @@ import { useCanvasControllerProvider } from '@/hooks/useCanvasControllerProvider
 export default function App() {
   const canvas = useCanvasControllerProvider();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // The quick search asks for Settings by name; it cannot reach this state directly.
+  useEffect(() => onApp('open-settings', () => setSettingsOpen(true)), []);
   const servers = useStore(s => s.servers);
 
   const isDesktop = useIsDesktop();
@@ -102,6 +106,7 @@ export default function App() {
         <ErrorBoundary label="Model metadata">
           <ModelMetadataModal />
           <KeyboardDoneButton />
+          <Spotlight />
         </ErrorBoundary>
       </TooltipProvider>
       </ConfirmProvider>

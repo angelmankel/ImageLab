@@ -34,7 +34,7 @@ function mainText(kind: LayerKind): string {
   return useStore.getState().layers.find((l) => l.kind === kind)?.text ?? '';
 }
 
-function applyWithUndo(changes: Partial<Record<LayerKind, string>>, name: string) {
+export function applyWithUndo(changes: Partial<Record<LayerKind, string>>, name: string) {
   const before = Object.fromEntries(Object.keys(changes).map((k) => [k, mainText(k as LayerKind)])) as Partial<Record<LayerKind, string>>;
   for (const [kind, text] of Object.entries(changes)) setMainText(kind as LayerKind, text!);
   const id = `preset-${Date.now()}`;

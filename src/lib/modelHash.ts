@@ -12,9 +12,14 @@ import type { CivitaiCacheEntry, CivitaiModelVersion, CivitaiVersionByHash } fro
 /** Find the hash entry for a ComfyUI model name, or undefined if not hashed. */
 export function findModelHash(hashes: ModelHash[], fileName: string): ModelHash | undefined {
   if (!fileName) return undefined;
+  const base = fileName.split('/').pop();
   return (
     hashes.find((h) => h.key === fileName || h.key.endsWith('/' + fileName)) ??
-    hashes.find((h) => h.filename === fileName.split('/').pop())
+    hashes.find((h) => h.filename === base) ??
+    // Embeddings are named without their extension (ComfyUI's /embeddings list, and the prompt
+    // token), so match on the stem too.
+    (/\.[a-z0-9]+$/i.test(fileName) ? undefined
+      : hashes.find((h) => h.key.startsWith('embeddings/') && h.filename.replace(/\.[^.]+$/, '') === base))
   );
 }
 

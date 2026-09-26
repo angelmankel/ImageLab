@@ -5,11 +5,11 @@ import {
   IconInfinity,
   IconPalette,
   IconSettings,
-  IconWand,
-} from '@tabler/icons-react';
+  IconWand, IconSearch } from '@tabler/icons-react';
 import { Logo } from '@/components/Logo';
 import { ComfyIcon } from '@/components/ui/icons';
 import { useCanvasStore } from '@/lib/canvasStore';
+import { emitApp } from '@/lib/appEvents';
 import { useFocusMode } from '@/features/studio/StudioView';
 import type { MainView } from '@/lib/canvasStore';
 import type { Server } from '@/lib/storage';
@@ -56,6 +56,12 @@ export function Sidebar({
         <Tooltip label="ImageLab" position="right" withArrow>
           <ActionIcon size="lg" variant="transparent" aria-label="ImageLab">
             <Logo size={28} className="shrink-0" />
+          </ActionIcon>
+        </Tooltip>
+
+        <Tooltip label="Quick search (Ctrl+K)" position="right" withArrow>
+          <ActionIcon size="lg" variant="subtle" color="gray" aria-label="Quick search" onClick={() => emitApp('open-spotlight')}>
+            <IconSearch size="1.2rem" />
           </ActionIcon>
         </Tooltip>
 

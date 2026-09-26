@@ -44,14 +44,17 @@ npm run build
 
 ## The two views
 
-- **Generate** uses one left workspace with collapsible Prompts, Models, Base image, Input image,
-  and Passes sections. Generation controls stay at the bottom with a live sampler progress bar,
+- **Generate** uses one left workspace with tabs (Prompt, Models, Settings, Enhance, Input,
+  Passes by default). Generation controls stay at the bottom with a live sampler progress bar,
   a seed field, Auto toggle, and a separate New seed action. Status follows tracked jobs, never
   a leftover status string. Completion must not depend on a mounted canvas controller.
-- **The left panel follows v1.** Flat accordion sections with icons (`ControlSection`), whose
-  open state lives in `controls/sectionGroup.ts` so the toolbar (`PanelToolbar`) can expand all,
-  collapse all, and run single-open mode. Its five preset slots (`paramPresets.ts`) hold the
-  workflow and prompt parts, never the input image.
+- **The left panel is tabbed** (`features/panel`). The old accordion sections are the building
+  blocks (`sections.tsx`: body, icon, live summary/badge); the user owns which tab holds which
+  section, the order, names, icons and hidden tabs (`lib/panelTabs.ts`, pure + tested; store
+  `panelTabsStore.ts`, `imagelab.panelTabs.v1`). Tabs mount on first visit and stay mounted, so
+  scroll and open editors survive a switch. Alt+1…9 opens the Nth tab; the summary strip jumps to a
+  section. The toolbar (`PanelToolbar`) keeps the five preset slots (`paramPresets.ts`), which hold
+  the workflow and prompt parts, never the input image.
 - **Desktop side panels are docked and resizable.** Widths live in `layout/panelLayout.ts`
   (persisted); `PanelResizeHandle` drags, folds past the minimum, and resets on double-click.
 - **Sounds** (`lib/sounds.ts`): a blip on queue, a chime on the live completion path only — the

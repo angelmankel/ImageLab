@@ -254,6 +254,9 @@ export type CivitaiStats = {
   commentCount: number;
   rating?: number;
   ratingCount?: number;
+  /** Buzz tipped to the creator. */
+  tippedAmountCount?: number;
+  favoriteCount?: number;
 };
 
 export type CivitaiFileMetadata = {
@@ -306,6 +309,11 @@ export type CivitaiModelVersion = {
   files: CivitaiFile[];
   images: CivitaiImage[];
   stats: CivitaiStats;
+  availability?: string;
+  /** Set while the version is in paid Early Access; `endsAt` is when it becomes free. */
+  paidAccess?: { permanent: boolean; endsAt: string | null } | null;
+  earlyAccessDeadline?: string | null;
+  supportsGeneration?: boolean;
 };
 
 export type CivitaiModel = {
@@ -322,6 +330,12 @@ export type CivitaiModel = {
   creator: CivitaiCreator;
   stats: CivitaiStats;
   modelVersions: CivitaiModelVersion[];
+  nsfwLevel?: number;
+  supportsGeneration?: boolean;
+  /** True while some version is in paid Early Access. */
+  hasActivePaidAccess?: boolean;
+  /** Portrays a real person. */
+  poi?: boolean;
 };
 
 /**
@@ -586,19 +600,43 @@ export async function fetchCivitaiImages(
 
 // ── search: paginated model feed for the in-app browser ───────────────────
 
-export type CivitaiSearchType =
-  | 'Checkpoint' | 'LORA' | 'LoCon' | 'TextualInversion'
-  | 'Hypernetwork' | 'AestheticGradient' | 'Controlnet' | 'Poses'
-  | 'VAE' | 'Upscaler' | 'Wildcards';
+/** Every model type the /models endpoint accepts (read off its validation errors, 2026-09). */
+export const CIVITAI_MODEL_TYPES = [
+  'Checkpoint', 'LORA', 'LoCon', 'DoRA', 'TextualInversion', 'VAE', 'Controlnet', 'Upscaler',
+  'Hypernetwork', 'AestheticGradient', 'MotionModule', 'TextEncoder', 'UNet', 'CLIPVision', 'CLIP',
+  'Poses', 'Wildcards', 'Workflows', 'ComfyWorkflows', 'Detection', 'VisionLanguage', 'LLM', 'Other',
+] as const;
+export type CivitaiSearchType = typeof CIVITAI_MODEL_TYPES[number];
 
-export type CivitaiSearchSort =
-  | 'Highest Rated' | 'Most Downloaded' | 'Most Liked' | 'Most Discussed'
-  | 'Most Collected' | 'Most Buzz' | 'Newest';
+export const CIVITAI_SORTS = [
+  'Highest Rated', 'Most Downloaded', 'Most Liked', 'Most Discussed', 'Most Collected', 'Most Images',
+  'Newest', 'Oldest', 'Recently Added',
+] as const;
+export type CivitaiSearchSort = typeof CIVITAI_SORTS[number];
+
+export const CIVITAI_FILE_FORMATS = ['SafeTensor', 'PickleTensor', 'GGUF', 'Diffusers', 'Core ML', 'ONNX', 'Other'] as const;
+export const CIVITAI_COMMERCIAL_USE = ['None', 'Image', 'RentCivit', 'Rent', 'Sell', 'SellMerge'] as const;
 
 export type CivitaiSearchPeriod = 'AllTime' | 'Year' | 'Month' | 'Week' | 'Day';
 
 export type CivitaiSearchParams = {
   query?: string;
+  /** Creator's username, exact. */
+  username?: string;
+  /** One tag name, e.g. "anime". */
+  tag?: string;
+  checkpointType?: 'Trained' | 'Merge';
+  fileFormats?: string[];
+  /** Minimum commercial permission, one of CIVITAI_COMMERCIAL_USE. */
+  allowCommercialUse?: string;
+  /** Only models still in paid Early Access. */
+  earlyAccess?: boolean;
+  /** Only models CivitAI can generate with on site. */
+  supportsGeneration?: boolean;
+  primaryFileOnly?: boolean;
+  /** The API key's own favorites / hidden models (needs a key in Settings). */
+  favorites?: boolean;
+  hidden?: boolean;
   /** Each value is a CivitAI model type — multiple OR together. */
   types?: CivitaiSearchType[];
   /** CivitAI base-model labels: "SDXL 1.0", "Pony", "Illustrious", "SD 1.5", "Flux.1 D", … */
@@ -649,9 +687,22 @@ export async function searchCivitaiModels(
     const qp = new URLSearchParams();
     qp.set('limit', String(params.limit ?? 20));
     if (params.query) qp.set('query', params.query);
+    if (params.username) qp.set('username', params.username);
+    if (params.tag) qp.set('tag', params.tag);
+    if (params.checkpointType) qp.set('checkpointType', params.checkpointType);
+    (params.fileFormats ?? []).forEach((f) => qp.append('fileFormats', f));
+    if (params.allowCommercialUse) qp.set('allowCommercialUse', params.allowCommercialUse);
+    if (params.earlyAccess) qp.set('earlyAccess', 'true');
+    if (params.supportsGeneration) qp.set('supportsGeneration', 'true');
+    if (params.primaryFileOnly) qp.set('primaryFileOnly', 'true');
+    if (params.favorites) qp.set('favorites', 'true');
+    if (params.hidden) qp.set('hidden', 'true');
     if (params.sort) qp.set('sort', params.sort);
     if (params.period) qp.set('period', params.period);
-    if (params.nsfw === false) qp.set('nsfw', 'false');
+    // The API hides every NSFW-flagged model unless asked for them outright, so leaving the flag
+    // off (as this once did for `true`) silently dropped a large part of the catalog — most of
+    // civitai.red. Send it both ways.
+    if (params.nsfw != null) qp.set('nsfw', String(params.nsfw));
     if (params.cursor) qp.set('cursor', params.cursor);
     (params.types ?? []).forEach((t) => qp.append('types', t));
     (params.baseModels ?? []).forEach((b) => qp.append('baseModels', b));

@@ -9,10 +9,11 @@
  */
 import { memo, useState, type ReactNode } from 'react';
 import {
-  ActionIcon, Badge, Box, Button, Group, Image, Paper, ScrollArea, SimpleGrid, Stack, Switch, Text,
+  ActionIcon, Badge, Box, Button, Group, Image, Paper, ScrollArea, SegmentedControl, SimpleGrid, Stack, Switch, Text,
 } from '@mantine/core';
 import { IconPlus, IconX } from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
+import type { WorkflowEmbedding } from '@/lib/types';
 import { TileHover } from '@/components/ui/TileHover';
 import { useResourceAvailability } from '@/hooks/useResourceAvailability';
 import { useModelMetadataStore } from '@/features/model-metadata';
@@ -20,7 +21,8 @@ import { Select } from '@/components/ui/Select';
 import { FieldWrapper } from '@/components/fields/FieldWrapper';
 import { StrengthControl } from '@/components/fields/StrengthControl';
 import { ModelSelectorModal } from './ModelSelectorModal';
-import { modelLabel, plainDescription, useModelInfo } from './modelInfo';
+import { modelLabel, modelTrainedWords, plainDescription, useModelInfo } from './modelInfo';
+import { embeddingWords } from '@/lib/embeddings';
 
 async function refreshAllServers() {
   const st = useStore.getState();
@@ -296,6 +298,118 @@ export function LorasField() {
   );
 }
 
+const EMBEDDING_CHIPS = [0.5, 0.8, 1, 1.2, 1.5];
+
+/**
+ * Embeddings (textual inversions), picked like LoRAs. Each joins the positive or negative prompt
+ * as an `embedding:<name>` token at its weight; negatives are the common case, and names that
+ * look like one start there.
+ */
+export function EmbeddingsField() {
+  const embeddings = useStore((s) => s.workflow.embeddings) ?? NO_EMBEDDINGS;
+  const models = useStore((s) => s.server.embeddings);
+  const addEmbedding = useStore((s) => s.addEmbedding);
+  const removeEmbedding = useStore((s) => s.removeEmbedding);
+  const updateEmbedding = useStore((s) => s.updateEmbedding);
+  const openForFile = useModelMetadataStore((s) => s.openForFile);
+  const availability = useResourceAvailability('embedding');
+  const [open, setOpen] = useState(false);
+
+  const toggle = (name: string) => {
+    const existing = embeddings.find((e) => e.name === name);
+    if (existing) removeEmbedding(existing.id);
+    else addEmbedding(name);
+  };
+
+  return (
+    <>
+      <PickerBlock
+        label="Embeddings"
+        count={embeddings.length}
+        color="orange"
+        addLabel="Add Embedding"
+        emptyLabel="No embeddings selected"
+        onAdd={() => setOpen(true)}
+        settings={embeddings.map((e) => (
+          <ModelSettings key={e.id} name={e.name} off={!e.on}>
+            <SegmentedControl size="xs" fullWidth value={e.target} aria-label={`${e.name} prompt`}
+              color={e.target === 'negative' ? 'red' : 'teal'}
+              onChange={(v) => updateEmbedding(e.id, { target: v as WorkflowEmbedding['target'] })}
+              data={[{ value: 'positive', label: 'Positive prompt' }, { value: 'negative', label: 'Negative prompt' }]} />
+            <StrengthControl label="Strength" value={e.strength} min={0} max={2} step={0.05} chips={EMBEDDING_CHIPS} color="orange"
+              onChange={(strength) => updateEmbedding(e.id, { strength })} />
+            <EmbeddingWords embedding={e} onChange={(words) => updateEmbedding(e.id, { words })} />
+          </ModelSettings>
+        ))}
+      >
+        {embeddings.map((e) => (
+          <SelectedModelCard
+            key={e.id}
+            fileName={e.name}
+            isDisabled={!e.on}
+            badge={e.target === 'negative' ? 'Negative' : 'Positive'}
+            onRemove={() => removeEmbedding(e.id)}
+            onOpen={() => openForFile(e.id, e.name)}
+            footer={
+              <Switch
+                size="xs"
+                checked={e.on}
+                onChange={() => updateEmbedding(e.id, { on: !e.on })}
+                label={<Text size="xs" c="dimmed">{e.on ? 'On' : 'Off'}</Text>}
+                styles={{ track: { cursor: 'pointer' }, label: { cursor: 'pointer', paddingLeft: 4 } }}
+              />
+            }
+          />
+        ))}
+      </PickerBlock>
+      <ModelSelectorModal
+        opened={open}
+        onClose={() => setOpen(false)}
+        kind="embedding"
+        models={models}
+        selectedModels={embeddings.map((e) => e.name)}
+        onToggleModel={toggle}
+        onClearSelection={() => embeddings.forEach((e) => removeEmbedding(e.id))}
+        availability={availability}
+        onRefresh={refreshAllServers}
+      />
+    </>
+  );
+}
+/**
+ * An embedding's own trigger words from its CivitAI metadata: shown read-only, with their own
+ * on/off and weight. They join the same prompt side as the embedding, right after its token.
+ */
+function EmbeddingWords({ embedding, onChange }: {
+  embedding: WorkflowEmbedding; onChange: (words: { on: boolean; weight: number }) => void;
+}) {
+  // Re-read when model metadata lands.
+  useStore((s) => s.modelHashes);
+  useStore((s) => s.civitaiByHash);
+  const words = embeddingWords(modelTrainedWords(embedding.name));
+  const state = { on: true, weight: 1, ...embedding.words };
+  if (!words.length) return <Text size="xs" c="dimmed">No trigger words in this embedding's metadata.</Text>;
+  return (
+    <Stack gap={6}>
+      <Group justify="space-between" wrap="nowrap" gap="xs">
+        <Text size="xs" c="dimmed">Trigger words</Text>
+        <Switch size="sm" color="orange" checked={state.on} aria-label={`${embedding.name} trigger words on`}
+          onChange={(ev) => onChange({ ...state, on: ev.currentTarget.checked })} />
+      </Group>
+      <Text size="xs" ff="monospace" px={8} py={6}
+        style={{ borderRadius: 'var(--mantine-radius-sm)', background: 'var(--mantine-color-dark-7)', opacity: state.on ? 1 : 0.5, wordBreak: 'break-word' }}>
+        {words.join(', ')}
+      </Text>
+      {state.on && (
+        <StrengthControl label="Trigger word strength" value={state.weight} min={0} max={2} step={0.05} chips={EMBEDDING_CHIPS} color="orange"
+          onChange={(weight) => onChange({ ...state, weight })} />
+      )}
+    </Stack>
+  );
+}
+
+const NO_EMBEDDINGS: WorkflowEmbedding[] = Object.freeze([]) as unknown as WorkflowEmbedding[];
+
 const BUILT_IN_VAE = '__builtin__';
 
 export function VaeField() {
@@ -321,12 +435,13 @@ export function VaeField() {
   );
 }
 
-/** Checkpoints, LoRAs, and VAE, in v1's order. */
+/** Checkpoints, LoRAs, embeddings, and VAE. */
 export function ModelFields() {
   return (
     <Stack gap="md">
       <CheckpointsField />
       <LorasField />
+      <EmbeddingsField />
       <VaeField />
     </Stack>
   );

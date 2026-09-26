@@ -41,6 +41,11 @@ export function readModelInfo(fileName: string): ModelInfo {
   };
 }
 
+/** A model's CivitAI trigger words, or none while its metadata is unknown. */
+export function modelTrainedWords(fileName: string): string[] {
+  return readModelInfo(fileName).trainedWords;
+}
+
 /** Re-reads whenever hashes or CivitAI entries change. */
 export function useModelInfo(fileName: string): ModelInfo {
   useStore((s) => s.modelHashes);

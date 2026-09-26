@@ -203,6 +203,19 @@ export type InputImageState = {
 };
 
 /** One ordered refinement or finishing step. Missing kind means a saved sampling pass. */
+/** Loopback values that can move from a start value (first round) to an end value (last round). */
+export type LoopbackRampKey = 'steps' | 'cfg' | 'upscale' | 'noise';
+
+/**
+ * A crop of the base image: centre (x, y) and size (w, h), all as fractions of the image's width and
+ * height, so any aspect ratio can be drawn. Frames saved before sizes existed have only `zoom`
+ * (w = h = 1 / zoom); read them through `frameRect`.
+ */
+export type LoopbackFrame = { x: number; y: number; w?: number; h?: number; zoom?: number };
+
+/** A pass's crop of the image it receives: left/top/width/height as fractions of that image. */
+export type PassCrop = { left: number; top: number; width: number; height: number };
+
 export type LoopbackSettings = {
   enabled: boolean;
   iterations: number;
@@ -214,6 +227,12 @@ export type LoopbackSettings = {
   autoDenoise?: boolean;
   denoiseStart?: number;
   denoiseEnd?: number;
+  /** Extra noise injected before each round samples (see `Pass.noise`). 0 / missing = none. */
+  noise?: number;
+  /** Values that auto-scale across the rounds instead of staying fixed (denoise uses `autoDenoise`). */
+  ramps?: Partial<Record<LoopbackRampKey, { start: number; end: number }>>;
+  /** Crop-and-zoom each round into a frame that moves from `start` (first round) to `end` (last). */
+  frame?: { enabled: boolean; start: LoopbackFrame; end: LoopbackFrame };
 };
 
 export type Pass = {
@@ -231,6 +250,12 @@ export type Pass = {
   /** Reroll this pass's seed at queue time. */
   randomizeSeed: boolean;
   denoise: number;
+  /** Refine only: strength of extra noise injected into the latent just before it samples, which
+   *  adds fresh detail the denoise alone would not. 0 / missing = none. */
+  noise?: number;
+  /** Refine only: crop the incoming image to this before sampling (Loopback's frame path). The
+   *  output keeps the pass's pixel area (× its scale) in the crop's shape. */
+  crop?: PassCrop;
   /** Multiplier on the previous pass's latent dimensions. Clamped down so
    *  the resulting long edge ≤ maxEdge. */
   scale: number;
@@ -253,6 +278,17 @@ export type Pass = {
    *  in the list, and downstream passes flow from the previous active pass.
    *  Undefined = on (back-compat with passes persisted before the toggle). */
   on?: boolean;
+};
+
+/** An embedding in the workflow: its ComfyUI name (no extension), which prompt it joins, and weight. */
+export type WorkflowEmbedding = {
+  id: string;
+  name: string;
+  target: 'positive' | 'negative';
+  strength: number;
+  on: boolean;
+  /** The embedding's own trigger words (from CivitAI metadata): on/off and weight. Missing = on at 1.0. */
+  words?: { on: boolean; weight: number };
 };
 
 export type WorkflowState = {
@@ -341,6 +377,12 @@ export type WorkflowState = {
   vae: string;
   /** LoRAs applied between the checkpoint and the sampler, in order. */
   loras: WorkflowLora[];
+  /** Embeddings (textual inversions), added to the prompt as `embedding:<name>` tokens.
+   *  Optional so workflows saved before they existed load unchanged. */
+  embeddings?: WorkflowEmbedding[];
+  /** On/off and weight of each model's trigger-word part, keyed by model file name. The words
+   *  themselves come from metadata (lib/modelKeywords). Missing entries mean on at 1.0. */
+  modelKeywords?: Record<string, { on: boolean; weight: number }>;
   /**
    * Ordered refinement, upscale, resize and background-removal steps.
    * Empty means only the base generation runs.
@@ -372,6 +414,8 @@ export type ServerInfo = {
   models: string[];
   vaes: string[];
   loras: string[];
+  /** Names as ComfyUI's `/embeddings` lists them: no extension. */
+  embeddings: string[];
   tagModels: string[];
   upscaleModels: string[];
   controlnets: string[];
