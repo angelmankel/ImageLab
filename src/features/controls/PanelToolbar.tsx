@@ -2,6 +2,8 @@ import type { ReactNode } from 'react';
 import { Tip } from '@/components/ui/Tooltip';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { cn } from '@/lib/cn';
+import { IconEraser } from '@tabler/icons-react';
+import { clearAllSettings } from './clearAll';
 import { PRESET_SLOTS, useParamPresets } from './paramPresets';
 
 const iconButton = 'flex h-7 w-7 items-center justify-center rounded-md text-fg-muted outline-none transition-colors hover:bg-bg-elev hover:text-fg-secondary focus-visible:ring-1 focus-visible:ring-accent disabled:pointer-events-none disabled:opacity-35';
@@ -16,8 +18,9 @@ function ToolButton({ label, children, ...rest }: { label: string; children: Rea
 
 /**
  * The strip across the top of the left panel, as in v1: what is being edited on the left (a
- * canvas layer's name), five preset slots on the right. An empty slot saves, a saved slot loads,
- * and the active slot saves again — the two saves ask first. Folding moved to the tab bar.
+ * canvas layer's name), then "Clear all" (settings to defaults, no models; Undo in a notification),
+ * then five preset slots. An empty slot saves, a saved slot loads, and the active slot saves
+ * again — the two saves ask first. Folding moved to the tab bar.
  */
 export function PanelToolbar({ note }: { note?: string }) {
   const slots = useParamPresets(s => s.slots);
@@ -41,6 +44,13 @@ export function PanelToolbar({ note }: { note?: string }) {
   return (
     <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border-default bg-bg-base/40 py-1.5 pl-3 pr-2.5">
       <span className="min-w-0 flex-1 truncate text-[11px] text-fg-muted">{note}</span>
+      <Tip label="Set every setting back to its default and remove all models. Prompts stay." side="bottom">
+        <button type="button" onClick={clearAllSettings}
+          className="flex h-7 shrink-0 items-center gap-1 rounded-md px-1.5 text-[11px] text-fg-muted outline-none transition-colors hover:bg-bg-elev hover:text-fg-secondary focus-visible:ring-1 focus-visible:ring-accent">
+          <IconEraser size={14} stroke={1.7} />
+          Clear all
+        </button>
+      </Tip>
       <div className="flex items-center gap-0.5">
         <span className="mr-1 text-[11px] text-fg-muted">Presets</span>
         {Array.from({ length: PRESET_SLOTS }, (_, i) => i + 1).map(slot => {
