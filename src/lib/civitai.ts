@@ -575,6 +575,8 @@ export async function fetchCivitaiImages(
     const params = new URLSearchParams({
       modelVersionId: String(modelVersionId),
       limit: String(IMAGE_PAGE_SIZE),
+      // Without this the API sends `meta: null` on every image (seen 2026-09).
+      withMeta: 'true',
     });
     if (cursor) params.set('cursor', cursor);
     if (nsfw === 'sfw') params.set('nsfw', 'false');
