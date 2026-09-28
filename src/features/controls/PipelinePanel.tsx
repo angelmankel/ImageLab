@@ -9,6 +9,7 @@ import {
 } from '@mantine/core';
 import { useState, type ReactNode } from 'react';
 import { useStore } from '@/lib/store';
+import { useTouchInput } from '@/hooks/useTouchInput';
 import { uid } from '@/lib/storage';
 import { createPass, listedPasses, withPipeline, PASS_LABELS, type PassKind } from '@/lib/pipeline';
 import type { Pass } from '@/lib/types';
@@ -143,8 +144,9 @@ function PassAction({ label, aria, onClick, disabled, color = 'gray', children }
 function PassSelect({ label, aria, value, options, onChange }: {
   label: string; aria: string; value: string; options: string[]; onChange: (v: string) => void;
 }) {
+  const touch = useTouchInput();
   return <FieldWrapper label={label}>
-    <Select data={options} value={value} onChange={v => { if (v != null) onChange(v); }} allowDeselect={false} searchable
+    <Select data={options} value={value} onChange={v => { if (v != null) onChange(v); }} allowDeselect={false} searchable={!touch}
       aria-label={aria} comboboxProps={{ withinPortal: true }} maxDropdownHeight={300} />
   </FieldWrapper>;
 }

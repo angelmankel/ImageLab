@@ -118,8 +118,9 @@ export function Content({
   }, [side, align, sideOffset, alignOffset, collisionPadding, setPlacement]);
   return (
     // `unstyled` drops Mantine's own `position: absolute`, without which floating-ui's
-    // top/left do nothing and the dropdown lands at the foot of <body>.
-    <MPopover.Dropdown className={className} style={{ position: 'absolute', ...style }} {...rest}>
+    // top/left do nothing and the dropdown lands at the foot of <body>. The max width keeps a
+    // fixed-width popover inside a phone screen, where shift alone cannot fit it.
+    <MPopover.Dropdown className={className} style={{ position: 'absolute', maxWidth: 'calc(100vw - 16px)', ...style }} {...rest}>
       {children}
     </MPopover.Dropdown>
   );

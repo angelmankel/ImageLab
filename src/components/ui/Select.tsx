@@ -1,5 +1,6 @@
 import { Select as MSelect, Tooltip } from '@mantine/core';
 import { cn } from '@/lib/cn';
+import { useTouchInput } from '@/hooks/useTouchInput';
 
 /** An option may be a bare string (value === label) or an explicit value/label pair. */
 type Option = string | { value: string; label: string };
@@ -27,11 +28,13 @@ type Props = {
 
 /**
  * The v1 select: Mantine's, so the dropdown is portalled, flips and shifts to stay on screen, and
- * sits above every panel and rail. Same props as before, so no caller changes.
+ * sits above every panel and rail. Same props as before, so no caller changes. Never searchable on
+ * a touch screen (see `useTouchInput`).
  */
 export function Select({
   value, onValueChange, options, placeholder, className, triggerClassName, ariaLabel, searchable, size = 'sm', getOptionState,
 }: Props) {
+  const touch = useTouchInput();
   const data = options
     .map(o => (typeof o === 'string' ? { value: o, label: o } : o))
     .filter(o => o.value !== '')
@@ -43,7 +46,7 @@ export function Select({
       data={data}
       placeholder={placeholder ?? 'Select...'}
       aria-label={ariaLabel}
-      searchable={searchable ?? data.length > 12}
+      searchable={!touch && (searchable ?? data.length > 12)}
       allowDeselect={false}
       size={size}
       comboboxProps={{ withinPortal: true, shadow: 'md' }}

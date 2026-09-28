@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { ActionIcon } from '@mantine/core';
+import { cloneElement, useEffect, useMemo, useRef, useState } from 'react';
+import { ActionIcon, Modal } from '@mantine/core';
+import { useMediaQuery } from '@mantine/hooks';
 import { IconSparkles } from '@tabler/icons-react';
 import * as Popover from '@/components/ui/popover';
 import { useStore } from '@/lib/store';
@@ -17,19 +18,20 @@ import { cn } from '@/lib/cn';
  * On success we wipe every positive layer and install the generated set in
  * their place. Negative layers are untouched (they're usually quality
  * boilerplate the user wants to keep across regenerations).
+ *
+ * Phones (under 48em) get a full-screen window instead: a 340px popover beside a button has no room
+ * there, went off the screen, and jumped around while the keyboard opened and closed.
  */
 export function PromptGeneratorButton({ variant = 'text' }: { variant?: 'text' | 'icon' }) {
   const [open, setOpen] = useState(false);
+  const narrow = useMediaQuery('(max-width: 48em)') ?? false;
   const venice = useStore(s => s.venice);
   const disabled = !venice.apiKey;
   const title = disabled
     ? 'Set a Venice API key in Settings → AI to enable prompt generation'
     : 'Prompt Studio — draft prompt parts with AI';
 
-  return (
-    <Popover.Root open={open} onOpenChange={setOpen}>
-      <Popover.Trigger asChild>
-        {variant === 'icon' ? (
+  const trigger = variant === 'icon' ? (
           <ActionIcon size="sm" variant="subtle" color="violet" disabled={disabled} title={title} aria-label="Generate prompt with AI">
             <IconSparkles size="1rem" />
           </ActionIcon>
@@ -48,7 +50,37 @@ export function PromptGeneratorButton({ variant = 'text' }: { variant?: 'text' |
             <SparkleIcon size={12} />
             Draft with AI
           </button>
-        )}
+        );
+
+  if (narrow) {
+    return (
+      <>
+        {cloneElement(trigger, { onClick: () => setOpen(true) })}
+        <Modal
+          opened={open}
+          onClose={() => setOpen(false)}
+          fullScreen
+          withCloseButton={false}
+          padding={0}
+          transitionProps={{ transition: 'fade', duration: 120 }}
+          styles={{
+            content: { display: 'flex', flexDirection: 'column', height: '100dvh', backgroundColor: 'var(--mantine-color-dark-7)' },
+            body: {
+              flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column',
+              paddingTop: 'env(safe-area-inset-top, 0px)', paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+            },
+          }}
+        >
+          {open && <PromptGeneratorPopover onClose={() => setOpen(false)} phone />}
+        </Modal>
+      </>
+    );
+  }
+
+  return (
+    <Popover.Root open={open} onOpenChange={setOpen}>
+      <Popover.Trigger asChild>
+        {trigger}
       </Popover.Trigger>
       <Popover.Content
         side="right"
@@ -62,7 +94,9 @@ export function PromptGeneratorButton({ variant = 'text' }: { variant?: 'text' |
   );
 }
 
-function PromptGeneratorPopover({ onClose }: { onClose: () => void }) {
+/** `phone`: bigger text and touch targets, and the idea box does not grab focus (the keyboard
+ *  would cover the window the moment it opens). */
+function PromptGeneratorPopover({ onClose, phone = false }: { onClose: () => void; phone?: boolean }) {
   const layers = useStore(s => s.layers);
   const venice = useStore(s => s.venice);
   const replaceLayers = useStore(s => s.replaceLayers);
@@ -114,22 +148,22 @@ function PromptGeneratorPopover({ onClose }: { onClose: () => void }) {
 
   return (
     <>
-      <header className="flex shrink-0 items-center gap-2 border-b border-border-subtle px-3 py-2">
-        <SparkleIcon size={13} className="text-accent-fg" />
-        <span className="text-[11px] font-semibold uppercase tracking-section text-fg-secondary">
+      <header className={cn('flex shrink-0 items-center gap-2 border-b border-border-subtle', phone ? 'px-4 py-3' : 'px-3 py-2')}>
+        <SparkleIcon size={phone ? 16 : 13} className="text-accent-fg" />
+        <span className={cn('font-semibold uppercase tracking-section text-fg-secondary', phone ? 'text-[13px]' : 'text-[11px]')}>
           Generate prompt
         </span>
         <button
           type="button"
           onClick={onClose}
           aria-label="Close"
-          className="ml-auto flex h-6 w-6 items-center justify-center rounded-md text-fg-dim hover:bg-bg-card hover:text-fg-secondary"
+          className={cn('ml-auto flex items-center justify-center rounded-md text-fg-dim hover:bg-bg-card hover:text-fg-secondary', phone ? 'h-10 w-10' : 'h-6 w-6')}
         >
-          <CloseIcon size={12} />
+          <CloseIcon size={phone ? 18 : 12} />
         </button>
       </header>
 
-      <div className="scroll-y flex min-h-0 flex-1 flex-col gap-3 p-3">
+      <div className={cn('scroll-y flex min-h-0 flex-1 flex-col', phone ? 'gap-4 p-4 [&_*]:!text-[14px]' : 'gap-3 p-3')}>
         <div role="tablist" className="flex rounded-md border border-border-default bg-bg-input p-0.5">
           <SourceTab active={source === 'idea'} onClick={() => setSource('idea')}>
             From idea
@@ -151,8 +185,8 @@ function PromptGeneratorPopover({ onClose }: { onClose: () => void }) {
               value={idea}
               onChange={(e) => setIdea(e.target.value)}
               placeholder="cyberpunk sphinx at dusk, neon rain, …"
-              rows={3}
-              autoFocus
+              rows={phone ? 5 : 3}
+              autoFocus={!phone}
               className="w-full resize-none rounded-md border border-border-default bg-bg-input px-2.5 py-2 text-[12px] text-fg-secondary outline-none placeholder:text-fg-dim focus:border-accent"
             />
           </label>
@@ -177,7 +211,7 @@ function PromptGeneratorPopover({ onClose }: { onClose: () => void }) {
         )}
       </div>
 
-      <footer className="flex shrink-0 items-center justify-end gap-2 border-t border-border-subtle px-3 py-2">
+      <footer className={cn('flex shrink-0 items-center justify-end gap-2 border-t border-border-subtle', phone ? 'px-4 py-3 [&>button]:px-4 [&>button]:py-2 [&>button]:!text-[14px]' : 'px-3 py-2')}>
         <button
           type="button"
           onClick={onClose}
