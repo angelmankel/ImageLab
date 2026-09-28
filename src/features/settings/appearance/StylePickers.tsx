@@ -1,4 +1,5 @@
 import { SegmentedControl, Text, Stack } from '@mantine/core';
+import { useMediaQuery } from '@mantine/hooks';
 import {
   useThemeStore,
   GRADIENT_STYLE_OPTIONS, BORDER_RADIUS_OPTIONS, SHADOW_INTENSITY_OPTIONS, UI_BORDER_STYLE_OPTIONS,
@@ -9,7 +10,8 @@ import { ICON_STYLES, resolveTheme, type IconStyle } from '@/lib/themes';
 
 type Option<T extends string> = { value: T; label: string; description: string };
 
-/** v1's option picker: a full-width segmented control with the chosen option's description under it. */
+/** v1's option picker: a full-width segmented control with the chosen option's description under it.
+ *  On a phone, many or long options stack vertically instead of running off the edge. */
 function OptionPicker<T extends string>({ value, options, onChange, ariaLabel }: {
   value: T;
   options: Option<T>[];
@@ -17,6 +19,7 @@ function OptionPicker<T extends string>({ value, options, onChange, ariaLabel }:
   ariaLabel: string;
 }) {
   const current = options.find(o => o.value === value);
+  const narrow = useMediaQuery('(max-width: 48em)') ?? false;
   return (
     <Stack gap="xs">
       <SegmentedControl
@@ -24,6 +27,8 @@ function OptionPicker<T extends string>({ value, options, onChange, ariaLabel }:
         onChange={(v) => onChange(v as T)}
         data={options.map(o => ({ value: o.value, label: o.label }))}
         fullWidth
+        orientation={narrow && (options.length > 4 || options.reduce((n, o) => n + o.label.length, 0) > 30) ? 'vertical' : 'horizontal'}
+        size={narrow ? 'md' : 'sm'}
         aria-label={ariaLabel}
       />
       {current && <Text size="xs" c="dimmed">{current.description}</Text>}

@@ -38,7 +38,7 @@ export function ThemeSelector() {
         />
       </Group>
 
-      <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="md">
+      <SimpleGrid cols={{ base: themeViewMode === 'preview' ? 1 : 2, sm: 2, md: 3 }} spacing={{ base: 'xs', sm: 'md' }}>
         {allThemes.map(theme => (
           <CardComponent
             key={theme.id}

@@ -2,11 +2,12 @@ import { useEffect, useMemo, useState } from 'react';
 import type { ComponentType } from 'react';
 import {
   Modal, Box, Stack, Group, Text, Title, TextInput, CloseButton, NavLink, ScrollArea,
-  Highlight, UnstyledButton,
+  Highlight, UnstyledButton, ActionIcon,
 } from '@mantine/core';
+import { useMediaQuery } from '@mantine/hooks';
 import {
   IconSearch, IconServer, IconSparkles, IconKey, IconPhoto, IconPalette, IconVolume,
-  IconChevronRight,
+  IconChevronRight, IconChevronLeft,
   type Icon as TablerIcon,
 } from '@tabler/icons-react';
 import { ServersTab } from './ServersTab';
@@ -75,15 +76,21 @@ const categoryById = (id: string) => SETTINGS_CATEGORIES.find(c => c.id === id) 
 /**
  * Settings — v1's settings page (category sidebar with search, a titled pane of section
  * cards) inside a large centred modal. Only the content pane scrolls; the chrome stays put.
+ *
+ * Phones (under 48em) get the whole screen and two levels instead of two columns: the search box
+ * and the category list first, then one category at full width with a Back button in the header.
  */
 export function SettingsModal({ open, onOpenChange }: Props) {
+  const narrow = useMediaQuery('(max-width: 48em)') ?? false;
   const [activeId, setActiveId] = useState<string>(SETTINGS_CATEGORIES[0].id);
   const [query, setQuery] = useState('');
+  /** Phones only: showing one category (true) or the category list (false). */
+  const [phoneDetail, setPhoneDetail] = useState(false);
 
   // Reset to a clean state every time the modal is reopened so users don't
   // land on a stale section (or a search query from last time).
   useEffect(() => {
-    if (open) { setActiveId(SETTINGS_CATEGORIES[0].id); setQuery(''); }
+    if (open) { setActiveId(SETTINGS_CATEGORIES[0].id); setQuery(''); setPhoneDetail(false); }
   }, [open]);
 
   const isSearching = query.trim().length > 0;
@@ -103,57 +110,79 @@ export function SettingsModal({ open, onOpenChange }: Props) {
     if (results.length > 0 && !highlighted.has(activeId)) setActiveId(results[0].categoryId);
   }, [results, highlighted, activeId]);
 
-  const openCategory = (id: string) => { setActiveId(id); setQuery(''); };
+  const openCategory = (id: string) => { setActiveId(id); setQuery(''); setPhoneDetail(true); };
   const active = categoryById(activeId);
   const ActiveComponent = active.Component;
+  // Phones show one of the two columns: the list (with search results) or one category.
+  const showSidebar = !narrow || !phoneDetail;
+  const showContent = !narrow || phoneDetail;
+
+  const title = narrow && phoneDetail ? (
+    <Group gap={6} wrap="nowrap">
+      <ActionIcon variant="subtle" color="gray" size="lg" onClick={() => setPhoneDetail(false)} aria-label="Back to all settings">
+        <IconChevronLeft size={20} />
+      </ActionIcon>
+      <span>{active.label}</span>
+    </Group>
+  ) : 'Settings';
 
   return (
     <Modal
       opened={open}
       onClose={() => onOpenChange(false)}
-      title="Settings"
+      title={title}
       centered
+      fullScreen={narrow}
       size="80vw"
       padding={0}
-      closeButtonProps={{ 'aria-label': 'Close' }}
+      closeButtonProps={{ 'aria-label': 'Close', size: narrow ? 'lg' : 'md' }}
       overlayProps={{ backgroundOpacity: 0.7, blur: 3 }}
+      transitionProps={narrow ? { transition: 'fade', duration: 120 } : undefined}
       styles={{
         content: {
-          height: '80vh',
+          height: narrow ? '100dvh' : '80vh',
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
           backgroundColor: 'var(--mantine-color-dark-7)',
         },
-        header: { paddingInline: 'var(--mantine-spacing-lg)' },
-        title: { fontWeight: 600 },
-        body: { flex: 1, minHeight: 0, display: 'flex', padding: 0 },
+        header: {
+          paddingInline: narrow ? 'var(--mantine-spacing-sm)' : 'var(--mantine-spacing-lg)',
+          paddingTop: narrow ? 'calc(env(safe-area-inset-top, 0px) + var(--mantine-spacing-xs))' : undefined,
+          minHeight: narrow ? 56 : undefined,
+          borderBottom: narrow ? '1px solid var(--mantine-color-dark-4)' : undefined,
+        },
+        title: { fontWeight: 600, fontSize: narrow ? 'var(--mantine-font-size-lg)' : undefined, minWidth: 0 },
+        body: { flex: 1, minHeight: 0, display: 'flex', padding: 0, paddingBottom: narrow ? 'env(safe-area-inset-bottom, 0px)' : 0 },
       }}
     >
       <Group gap={0} align="stretch" wrap="nowrap" style={{ flex: 1, minHeight: 0, width: '100%' }}>
-        {/* Sidebar — search + categories */}
-        <Box
+        {/* Sidebar — search + categories (the whole screen on a phone's first level) */}
+        {showSidebar && <Box
           p="md"
           style={{
-            width: 240,
+            width: narrow ? '100%' : 240,
             flexShrink: 0,
             display: 'flex',
             flexDirection: 'column',
             gap: 'var(--mantine-spacing-md)',
-            backgroundColor: 'var(--mantine-color-dark-6)',
-            borderRight: '1px solid var(--mantine-color-dark-4)',
+            backgroundColor: narrow ? undefined : 'var(--mantine-color-dark-6)',
+            borderRight: narrow ? undefined : '1px solid var(--mantine-color-dark-4)',
           }}
         >
           <TextInput
             placeholder="Search settings..."
             aria-label="Search settings"
+            size={narrow ? 'md' : 'sm'}
             leftSection={<IconSearch size={16} />}
             rightSection={query ? <CloseButton size="sm" onClick={() => setQuery('')} aria-label="Clear search" /> : null}
             value={query}
             onChange={(e) => setQuery(e.currentTarget.value)}
-            data-autofocus
+            // A phone's keyboard would cover half the list the moment Settings opens.
+            data-autofocus={narrow ? undefined : true}
           />
           <ScrollArea scrollbars="y" style={{ flex: 1, minHeight: 0 }} type="auto" offsetScrollbars>
+            {narrow && isSearching ? <SearchResults results={results} query={query} onOpen={openCategory} /> : <>
             <Text size="xs" fw={600} c="dimmed" mb="sm" tt="uppercase">Categories</Text>
             <Stack gap={4} role="tablist" aria-orientation="vertical">
               {SETTINGS_CATEGORIES.map(c => {
@@ -169,7 +198,9 @@ export function SettingsModal({ open, onOpenChange }: Props) {
                     label={c.label}
                     description={c.description}
                     leftSection={<c.Icon size={18} />}
-                    active={isActive}
+                    rightSection={narrow ? <IconChevronRight size={16} style={{ opacity: 0.5 }} /> : undefined}
+                    py={narrow ? 'sm' : undefined}
+                    active={isActive && !narrow}
                     variant="filled"
                     onClick={() => openCategory(c.id)}
                     style={{
@@ -183,25 +214,28 @@ export function SettingsModal({ open, onOpenChange }: Props) {
                 );
               })}
             </Stack>
+            </>}
           </ScrollArea>
-        </Box>
+        </Box>}
 
         {/* Content pane — keyed so each category (or the results list) opens scrolled to the top. */}
-        <ScrollArea scrollbars="y" key={isSearching ? 'search' : active.id} style={{ flex: 1, minWidth: 0 }} type="auto">
-          <Box p="lg">
-            {isSearching ? (
+        {showContent && <ScrollArea scrollbars="y" key={isSearching ? 'search' : active.id} style={{ flex: 1, minWidth: 0 }} type="auto">
+          <Box p={narrow ? 'sm' : 'lg'}>
+            {isSearching && !narrow ? (
               <SearchResults results={results} query={query} onOpen={openCategory} />
             ) : (
               <>
-                <Box mb="lg">
-                  <Title order={2} size="h3">{active.label}</Title>
-                  <Text size="sm" c="dimmed" mt={4}>{active.description}</Text>
-                </Box>
+                {narrow
+                  ? <Text size="sm" c="dimmed" mb="sm" px={4}>{active.description}</Text>
+                  : <Box mb="lg">
+                    <Title order={2} size="h3">{active.label}</Title>
+                    <Text size="sm" c="dimmed" mt={4}>{active.description}</Text>
+                  </Box>}
                 <ActiveComponent />
               </>
             )}
           </Box>
-        </ScrollArea>
+        </ScrollArea>}
       </Group>
     </Modal>
   );

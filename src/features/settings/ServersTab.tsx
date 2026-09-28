@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Stack, Group, Paper, TextInput, Switch, ActionIcon, Button, Badge, Tooltip } from '@mantine/core';
+import { Stack, Group, Paper, TextInput, Switch, ActionIcon, Button, Badge, Tooltip, SimpleGrid } from '@mantine/core';
 import { IconServer, IconPlus, IconTrash } from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
 import type { Server } from '@/lib/storage';
@@ -48,7 +48,7 @@ export function ServersTab() {
       </SettingsSection>
 
       <SettingsSection title="Add Server" description="Connect another ComfyUI endpoint on your network or a pod.">
-        <Group grow align="flex-start">
+        <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
           <TextInput
             label="Name"
             placeholder="Name (e.g. Server 3)"
@@ -67,7 +67,7 @@ export function ServersTab() {
             autoComplete="off"
             styles={{ input: { fontFamily: 'var(--mantine-font-family-monospace)' } }}
           />
-        </Group>
+        </SimpleGrid>
         <Group justify="flex-end">
           <Button leftSection={<IconPlus size={16} />} onClick={add} disabled={!newHost.trim()}>
             Add server
