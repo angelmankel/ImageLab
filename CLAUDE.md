@@ -1,5 +1,9 @@
 # ImageLab — the web front end
 
+**Every change Donny asks for ships at once, without asking:** push it to the running pod, then
+commit + push here, then move the pin in ImageLabDocker. Full rule: `../ImageLabDocker/CLAUDE.md`,
+rule 6.
+
 React + Vite. Built to `dist/`, which is **committed** because ImageLabDocker bakes it into the
 pod image at a pinned commit.
 
