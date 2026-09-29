@@ -93,3 +93,28 @@ test('fast mode: the lightx2v LoRA of the mode first on each expert, 4 steps, sw
   assert.deepEqual([g['11'].inputs.steps, g['11'].inputs.end_at_step, g['11'].inputs.cfg], [4, 2, 1]);
   assert.deepEqual([g['12'].inputs.start_at_step, g['12'].inputs.cfg], [2, 1]);
 });
+
+test('upscale: off adds nothing; a model runs then lands on the exact even size; resize alone', () => {
+  const base = { ...defaultVideoSettings(), positive: 'x' };
+  assert.equal(plain(buildWanGraph(base))['16'], undefined);
+  const m = plain(buildWanGraph({ ...base, upscale: { ...base.upscale, on: true, scale: 1.5 } }));
+  assert.equal(m['16m'].inputs.model_name, '2xNomosUni_span_multijpg.safetensors');
+  assert.deepEqual(m['16x'].inputs.image, ['13', 0]);
+  assert.deepEqual([m['16'].inputs.width, m['16'].inputs.height, m['16'].inputs.image], [1248, 720, ['16x', 0]]);
+  assert.deepEqual(m['14'].inputs.images, ['16', 0]);
+  const r = plain(buildWanGraph({ ...base, width: 830, upscale: { ...base.upscale, on: true, method: 'resize', scale: 2, resizeMethod: 'bicubic' } }));
+  assert.equal(r['16m'], undefined);
+  assert.deepEqual([r['16'].inputs.upscale_method, r['16'].inputs.width, r['16'].inputs.image], ['bicubic', 1664, ['13', 0]]);
+});
+
+test('run shape and timing come from the graph: fast, upscale, parts', () => {
+  const { wanRunShape, wanRunTiming } = load('wanGraph');
+  const g = plain(buildWanGraph({ ...defaultVideoSettings(), positive: 'x', length: 33, upscale: { ...defaultVideoSettings().upscale, on: true } }));
+  const shape = plain(wanRunShape(g));
+  assert.deepEqual([shape.width, shape.height, shape.frames, shape.steps, shape.cfg, shape.outWidth, shape.outHeight, shape.upscaleModel],
+    [832, 480, 33, 4, 1, 1664, 960, '2xNomosUni_span_multijpg.safetensors']);
+  assert.ok(shape.modelsKey.includes('wan2.2_t2v_lightx2v_4steps_lora_v1.1_high_noise.safetensors'));
+  const t = plain(wanRunTiming(g, { '1': 3000, '3': 2000, '11': 5000, '12': 4000, '13': 1000, '16x': 2500, '16': 300, '14': 100, '15': 1500 }, 1));
+  assert.deepEqual([t.samplingMs, t.upscaleMs, t.finishMs, t.loadMs], [9000, 2500, 2900, 5000]);
+  assert.equal(t.sampleUnits, 832 * 480 * 33 * 4 / 1e9);
+});

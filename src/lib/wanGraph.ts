@@ -52,7 +52,26 @@ export type VideoSettings = {
   fast: boolean;
   /** The lightx2v 4-step LoRAs per mode and expert. */
   fastLoras: Record<VideoMode, { high: string; low: string }>;
+  /** Optional upscale of the finished frames, before the MP4 is written. */
+  upscale: VideoUpscale;
 };
+
+export type VideoUpscale = {
+  on: boolean;
+  /** `model`: an upscale model, then an exact resize to the target; `resize`: interpolation only. */
+  method: 'model' | 'resize';
+  model: string;
+  /** Output size relative to the generated video. */
+  scale: number;
+  /** Interpolation for the resize (and for landing a model's output on the exact size). */
+  resizeMethod: 'lanczos' | 'bicubic' | 'bilinear' | 'area' | 'nearest-exact';
+};
+
+/** The size an upscaled video comes out at: H.264 wants even sides. */
+export function upscaledSize(width: number, height: number, scale: number): [number, number] {
+  const even = (n: number) => Math.max(2, Math.round(n / 2) * 2);
+  return [even(width * scale), even(height * scale)];
+}
 
 /** What fast mode runs with. */
 export const FAST = { steps: 4, switchStep: 2, cfg: 1 } as const;
@@ -89,6 +108,9 @@ export function defaultVideoSettings(): VideoSettings {
       t2v: { high: 'wan2.2_t2v_lightx2v_4steps_lora_v1.1_high_noise.safetensors', low: 'wan2.2_t2v_lightx2v_4steps_lora_v1.1_low_noise.safetensors' },
       i2v: { high: 'wan2.2_i2v_lightx2v_4steps_lora_v1_high_noise.safetensors', low: 'wan2.2_i2v_lightx2v_4steps_lora_v1_low_noise.safetensors' },
     },
+    // Off by default. The SPAN 2x model is the fast one: on the A100, 81 frames 832x480 -> 2x took
+    // ~5 s more than a plain resize.
+    upscale: { on: false, method: 'model', model: '2xNomosUni_span_multijpg.safetensors', scale: 2, resizeMethod: 'lanczos' },
   };
 }
 
@@ -160,7 +182,19 @@ export function buildWanGraph(s: VideoSettings, startImage: string | null = null
   const noisy = sample('11', high, true, latent, 'High noise');
   const done = sample('12', low, false, noisy, 'Low noise');
 
-  const frames = node('13', 'VAEDecode', { samples: done, vae });
+  let frames = node('13', 'VAEDecode', { samples: done, vae });
+  const up = s.upscale;
+  if (up?.on && Number(up.scale) > 0 && Number(up.scale) !== 1) {
+    const [tw, th] = upscaledSize(width, height, Number(up.scale));
+    if (up.method === 'model' && up.model) {
+      // The model scales by its own factor (2x, 4x); an exact resize then lands on the target.
+      const model = node('16m', 'UpscaleModelLoader', { model_name: up.model }, 'Upscale model');
+      const big = node('16x', 'ImageUpscaleWithModel', { upscale_model: model, image: frames });
+      frames = node('16', 'ImageScale', { image: big, upscale_method: up.resizeMethod, width: tw, height: th, crop: 'disabled' }, 'Upscale');
+    } else {
+      frames = node('16', 'ImageScale', { image: frames, upscale_method: up.resizeMethod, width: tw, height: th, crop: 'disabled' }, 'Upscale');
+    }
+  }
   const video = node('14', 'CreateVideo', { images: frames, fps: Number(s.fps) });
   node('15', 'SaveVideo', { video, filename_prefix: `video/ImageLab_${s.mode.toUpperCase()}`, format: 'mp4', codec: 'h264' });
   return g;
@@ -206,4 +240,49 @@ export function pickInstalledWanFiles(
     if (vae) patch.vae = vae;
   }
   return patch;
+}
+
+type AnyGraph = Record<string, { class_type: string; inputs: Record<string, unknown> }>;
+const num = (v: unknown) => Number(v) || 0;
+
+/**
+ * What a Wan graph will do, for the time estimate (lib/videoEstimate). Read from the graph itself
+ * so an estimate and a measured run are described the same way.
+ */
+export function wanRunShape(graph: AnyGraph): import('./videoEstimate').RunShape {
+  const latent = graph['10']?.inputs ?? {};
+  const sampler = graph['11']?.inputs ?? {};
+  const out = graph['16']?.inputs;
+  const width = num(latent.width), height = num(latent.height);
+  const models = Object.values(graph)
+    .filter((n) => ['UNETLoader', 'CLIPLoader', 'VAELoader', 'LoraLoaderModelOnly', 'UpscaleModelLoader'].includes(n.class_type))
+    .map((n) => String(n.inputs.unet_name ?? n.inputs.clip_name ?? n.inputs.vae_name ?? n.inputs.lora_name ?? n.inputs.model_name ?? ''))
+    .sort();
+  return {
+    width, height, frames: num(latent.length), steps: num(sampler.steps), cfg: num(sampler.cfg),
+    outWidth: out ? num(out.width) : width, outHeight: out ? num(out.height) : height,
+    upscaleModel: graph['16m'] ? String(graph['16m'].inputs.model_name) : null,
+    modelsKey: models.join('|'),
+  };
+}
+
+/** A finished run's timing, split into the parts the estimate learns separately. */
+export function wanRunTiming(graph: AnyGraph, nodeMs: Record<string, number>, at = Date.now()): import('./videoEstimate').RunTiming {
+  const shape = wanRunShape(graph);
+  const sum = (ids: string[]) => ids.reduce((t, id) => t + (nodeMs[id] ?? 0), 0);
+  const sampling = sum(['11', '12']);
+  const upscale = sum(['16m', '16x']);
+  const finish = sum(['13', '16', '14', '15']);
+  const all = Object.values(nodeMs).reduce((t, ms) => t + ms, 0);
+  return {
+    at,
+    sampleUnits: (shape.width * shape.height * shape.frames * shape.steps * (shape.cfg > 1 ? 2 : 1)) / 1e9,
+    samplingMs: sampling,
+    outUnits: (shape.outWidth * shape.outHeight * shape.frames) / 1e9,
+    finishMs: finish,
+    upscaleModel: shape.upscaleModel,
+    upscaleMs: upscale,
+    loadMs: Math.max(0, all - sampling - upscale - finish),
+    modelsKey: shape.modelsKey,
+  };
 }

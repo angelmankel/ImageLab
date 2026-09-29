@@ -122,7 +122,13 @@ npm run build
   The Wan models are not in models.txt yet: the page lists what the server lacks, and fills in
   installed stand-ins (`pickInstalledWanFiles`). **Fast mode** (default on) adds the mode's
   lightx2v 4-step LoRA to each expert, 4 steps, switch at 2, CFG 1: ~6x faster (A100, 832x480x33:
-  18.6 s vs 117 s). Phones get `components/VideoFullscreen` (tap, drag to seek, rotate).
+  18.6 s vs 117 s). Phones get `components/VideoFullscreen` (tap, drag to seek, rotate; never the
+  Fullscreen API — Chrome's Android banner cannot be hidden). **Upscale** (off by default): an
+  upscale model (fast SPAN 2xNomosUni first) then an exact even-sized `ImageScale`, or a plain
+  resize, before the MP4. **Time estimate** (`lib/videoEstimate.ts`, tested): `useComfyRun` times
+  each node from `executing` events (`onFinished`); `wanRunTiming` splits a run into sampling /
+  upscale / finish / load; rates are medians of warm runs per server (`videoTimings.ts`,
+  `imagelab.video.timings.v1`), cold runs (models changed) give the loading cost.
 
 **The seed trap.** The ComfyUI editor gives any INT named `seed` / `noise_seed` a
 `control_after_generate` slot even when `/object_info` does not declare one, and saves the extra

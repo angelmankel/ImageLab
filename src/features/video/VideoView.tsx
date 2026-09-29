@@ -9,7 +9,7 @@
  * Desktop: controls on the left, the video on the right. Phone: the video on top, the controls
  * under it, Generate pinned to the bottom.
  */
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   ActionIcon, Alert, Badge, Button, Collapse, Group, Loader, Paper, SegmentedControl, Stack, Switch, Text, Textarea, Tooltip, UnstyledButton,
 } from '@mantine/core';
@@ -18,7 +18,9 @@ import {
 } from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
 import { useIsDesktop } from '@/hooks/useIsDesktop';
-import { FAST, buildWanGraph, isVideoName, pickInstalledWanFiles, wanLength, type VideoMode, type VideoSettings } from '@/lib/wanGraph';
+import { FAST, buildWanGraph, isVideoName, pickInstalledWanFiles, upscaledSize, wanLength, wanRunShape, wanRunTiming, type VideoMode, type VideoSettings, type VideoUpscale } from '@/lib/wanGraph';
+import { estimateRun, formatDuration } from '@/lib/videoEstimate';
+import { useHostTimings, useVideoTimings } from './videoTimings';
 import type { ServerInfo } from '@/lib/types';
 import { DimensionsField, FieldWrapper, SeedField, SelectField, SliderField, StrengthControl } from '@/components/fields';
 import type { PresetGroup } from '@/components/fields/DimensionsField';
@@ -67,7 +69,22 @@ function useVideoRun(host: string | null): StudioRun {
     },
     // Only videos: the same server's images belong to the other views.
     keep: (img) => isVideoName(img.filename),
+    // Every finished run teaches the time estimate.
+    onFinished: ({ graph, nodeMs }) => {
+      if (host) useVideoTimings.getState().record(host, wanRunTiming(graph as Parameters<typeof wanRunTiming>[0], nodeMs));
+    },
   });
+}
+
+/** The estimate for the current settings on this server, from its past runs. */
+function useVideoEstimate(host: string | null) {
+  const v = useVideo();
+  const runs = useHostTimings(host);
+  return useMemo(() => {
+    const shape = wanRunShape(buildWanGraph(v, v.startImage || 'x'));
+    const last = runs.length ? runs[runs.length - 1].modelsKey : null;
+    return estimateRun(runs, shape, last);
+  }, [v, runs]);
 }
 
 /** When a chosen Wan file is not on the server but one installed file clearly is its stand-in
@@ -123,7 +140,7 @@ export function VideoView() {
             <VideoControls host={host} />
           </div>
           <footer className="shrink-0 border-t border-border-subtle p-3">
-            <VideoGenerateBar run={run} />
+            <VideoGenerateBar run={run} host={host} />
           </footer>
         </aside>
         <main className="flex min-w-0 flex-1 flex-col gap-3 p-3">
@@ -142,14 +159,40 @@ export function VideoView() {
         <VideoControls host={host} />
       </div>
       <footer className="shrink-0 border-t border-border-subtle p-3" style={{ paddingBottom: 'calc(12px + env(safe-area-inset-bottom))' }}>
-        <VideoGenerateBar run={run} />
+        <VideoGenerateBar run={run} host={host} />
       </footer>
     </div>
   );
 }
 
-function VideoGenerateBar({ run }: { run: StudioRun }) {
+function VideoGenerateBar({ run, host }: { run: StudioRun; host: string }) {
+  const estimate = useVideoEstimate(host);
+  // While a run goes: the estimate made when it started, counted down.
+  const [started, setStarted] = useState<{ at: number; ms: number } | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!run.busy) { setStarted(null); return; }
+    setStarted((s) => s ?? (estimate ? { at: Date.now(), ms: estimate.ms } : null));
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [run.busy]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  let line: string;
+  if (run.busy) {
+    if (!started) line = 'Timing this run to estimate the next ones';
+    else {
+      const left = started.ms - (now - started.at);
+      line = left > 0 ? `About ${formatDuration(left)} left` : 'Taking longer than the estimate';
+    }
+  } else if (estimate) {
+    line = `About ${formatDuration(estimate.ms)}${estimate.parts.load > 0 ? ' (incl. loading models)' : ''} · from ${estimate.runs} run${estimate.runs === 1 ? '' : 's'}`
+      + (estimate.partial ? ' · upscale time learned after its first run' : '');
+  } else {
+    line = 'Time estimate after your first video on this server';
+  }
+
   return (
+    <Stack gap={6}>
     <Group gap="xs" wrap="nowrap">
       <Button
         aria-label="Generate video"
@@ -168,6 +211,8 @@ function VideoGenerateBar({ run }: { run: StudioRun }) {
         </Button>
       )}
     </Group>
+    <Text size="xs" c="dimmed" ta="center" className="tabular-nums">{line}</Text>
+    </Stack>
   );
 }
 
@@ -237,7 +282,47 @@ function VideoControls({ host }: { host: string }) {
       <ModelsSection />
 
       <SamplingSection />
+
+      <UpscaleSection />
     </Stack>
+  );
+}
+
+/** Fast upscale models first; measured on the A100 (81 frames 832x480 -> 2x, incl. writing the
+ *  MP4): resize 7 s, 2xNomosUni SPAN 12 s, 2x-AnimeSharpV4 Fast 20 s, 4x-ClearReality 33 s,
+  *  RealESRGAN x4 anime 6B 57 s, 4x-UltraSharp 102 s. */
+const FAST_UPSCALERS = ['2xNomosUni_span_multijpg.safetensors', '2x-AnimeSharpV4_Fast_RCAN_PU.safetensors', '4x-ClearRealityV1.safetensors'];
+
+function UpscaleSection() {
+  const v = useVideo();
+  const models = useStore((s) => s.server.upscaleModels);
+  const up = v.upscale;
+  const set = (p: Partial<VideoUpscale>) => v.set({ upscale: { ...up, ...p } });
+  const [w, h] = upscaledSize(v.width, v.height, up.scale);
+  const ordered = [...FAST_UPSCALERS.filter((m) => models.includes(m)), ...models.filter((m) => !FAST_UPSCALERS.includes(m))];
+  const data = ordered.map((m) => ({ value: m, label: `${modelLabel(m)}${FAST_UPSCALERS.includes(m) ? ' (fast)' : ''}` }));
+  if (up.model && !models.includes(up.model)) data.unshift({ value: up.model, label: `${modelLabel(up.model)} (not installed)` });
+  return (
+    <Section title="Upscale" right={
+      <Switch size="sm" checked={up.on} onChange={(e) => set({ on: e.currentTarget.checked })} aria-label="Upscale the video"
+        label={<Text size="xs" c="dimmed">{up.on ? `${w} × ${h}` : 'Off'}</Text>} labelPosition="left" />
+    }>
+      {up.on && (
+        <>
+          <SegmentedControl fullWidth size="xs" value={up.method} onChange={(m) => set({ method: m as VideoUpscale['method'] })}
+            data={[{ value: 'model', label: 'Upscale model' }, { value: 'resize', label: 'Plain resize' }]} />
+          {up.method === 'model' && (
+            <SelectField label="Model" value={up.model} onChange={(model) => set({ model })} data={data}
+              description="SPAN 2x is the quickest; 4x models are sharper and much slower on 81 frames." />
+          )}
+          <SliderField label="Scale" value={up.scale} min={1.25} max={4} step={0.25} defaultValue={2} presets={[1.5, 2, 3, 4]}
+            onChange={(scale) => set({ scale })} description={`${v.width} × ${v.height} → ${w} × ${h}`} />
+          <SelectField label={up.method === 'model' ? 'Resize to exact size with' : 'Interpolation'} value={up.resizeMethod}
+            onChange={(resizeMethod) => set({ resizeMethod: resizeMethod as VideoUpscale['resizeMethod'] })}
+            data={['lanczos', 'bicubic', 'bilinear', 'area', 'nearest-exact']} />
+        </>
+      )}
+    </Section>
   );
 }
 
@@ -344,6 +429,7 @@ function missingVideoFiles(v: VideoSettings, server: ServerInfo): string[] {
     ...(server.textEncoders.includes(v.textEncoder) ? [] : [v.textEncoder]),
     ...(server.vaes.includes(v.vae) ? [] : [v.vae]),
     ...(v.fast ? [v.fastLoras[v.mode].high, v.fastLoras[v.mode].low].filter((f) => !server.loras.includes(f)) : []),
+    ...(v.upscale.on && v.upscale.method === 'model' && !server.upscaleModels.includes(v.upscale.model) ? [v.upscale.model] : []),
   ];
 }
 

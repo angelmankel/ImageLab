@@ -122,7 +122,11 @@ export interface RunSource {
   /** The graph to queue, or why there is none. Called on Generate. */
   build: () => Promise<{ graph: ApiGraph; warnings?: string[] } | { error: string }>;
   keep?: KeepResult;
+  /** A run of ours finished: the graph it ran, and how long each node took (cached nodes: none). */
+  onFinished?: (run: FinishedRun) => void;
 }
+
+export interface FinishedRun { graph: ApiGraph; nodeMs: Record<string, number>; totalMs: number }
 
 const keepAll: KeepResult = () => true;
 
@@ -163,6 +167,8 @@ export function useComfyRun(host: string | null, source: RunSource): StudioRun {
   const nodeNames = useRef<Record<string, string>>({});
   /** Object URLs made for preview frames, revoked as they are replaced. */
   const previewUrl = useRef<string | null>(null);
+  /** Per-node timing of the run being waited on, from the `executing` events. */
+  const timing = useRef<{ graph: ApiGraph; start: number; node: string | null; since: number; nodeMs: Record<string, number> } | null>(null);
 
   const clearPreview = useCallback(() => {
     if (previewUrl.current) { URL.revokeObjectURL(previewUrl.current); previewUrl.current = null; }
@@ -194,10 +200,22 @@ export function useComfyRun(host: string | null, source: RunSource): StudioRun {
           return setQueueRemaining(ev.queueRemaining);
 
         case 'execution_start':
+          if (timing.current && ev.promptId === waitingFor.current) {
+            timing.current.start = timing.current.since = performance.now();
+          }
           setStatus('Running');
           return setProgress(null);
 
-        case 'executing':
+        case 'executing': {
+          // Time each node: from its `executing` to the next one (null = the prompt is done).
+          const t = timing.current;
+          if (t && ev.promptId === waitingFor.current) {
+            const now = performance.now();
+            if (t.node) t.nodeMs[t.node] = (t.nodeMs[t.node] ?? 0) + (now - t.since);
+            t.node = ev.node ?? null;
+            t.since = now;
+          }
+        }
           if (ev.node == null) return;           // null means "this prompt is done"
           setCurrentNode(nodeNames.current[ev.node] ?? `node ${ev.node}`);
           return setProgress(null);
@@ -218,7 +236,17 @@ export function useComfyRun(host: string | null, source: RunSource): StudioRun {
           // `executed` only fires for nodes that produced an output, so a workflow ending in a
           // node that saves nothing would leave the button spinning until the watchdog. This is
           // ComfyUI saying the whole prompt is done, which is the signal to trust.
-          if (ev.promptId === waitingFor.current) { playCompleteSound(); finish(); }
+          if (ev.promptId === waitingFor.current) {
+            const t = timing.current;
+            if (t) {
+              const now = performance.now();
+              if (t.node) t.nodeMs[t.node] = (t.nodeMs[t.node] ?? 0) + (now - t.since);
+              timing.current = null;
+              try { sourceRef.current.onFinished?.({ graph: t.graph, nodeMs: t.nodeMs, totalMs: now - t.start }); } catch { /* timing is best effort */ }
+            }
+            playCompleteSound();
+            finish();
+          }
           return;
 
         case 'executed': {
@@ -289,6 +317,7 @@ export function useComfyRun(host: string | null, source: RunSource): StudioRun {
       const queued = await queueGraph(host, graph);
       if (!queued.ok) { setError(queued.error); setBusy(false); setStatus(null); return; }
       waitingFor.current = queued.promptId;
+      timing.current = { graph, start: performance.now(), node: null, since: performance.now(), nodeMs: {} };
       playSubmitSound();
 
       // Watchdog. The socket should deliver everything, but a connection that drops mid-run would

@@ -15,7 +15,7 @@ function load(): VideoState {
   const base = { ...defaultVideoSettings(), startImage: '' };
   try {
     const raw = JSON.parse(localStorage.getItem(KEY) || 'null');
-    if (raw && typeof raw === 'object') return { ...base, ...raw, models: { ...base.models, ...raw.models }, fastLoras: { ...base.fastLoras, ...raw.fastLoras } };
+    if (raw && typeof raw === 'object') return { ...base, ...raw, models: { ...base.models, ...raw.models }, fastLoras: { ...base.fastLoras, ...raw.fastLoras }, upscale: { ...base.upscale, ...raw.upscale } };
   } catch { /* fall back to defaults */ }
   return base;
 }
