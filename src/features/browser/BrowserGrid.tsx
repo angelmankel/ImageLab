@@ -2,7 +2,7 @@ import { TileDownload } from './TileDownload';
 import { Button } from '@mantine/core';
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import type { CivitaiSearchHit, CivitaiImage } from '@/lib/civitai';
-import { civitaiThumbUrl } from '@/lib/civitai';
+import { civitaiThumbUrl, isCivitaiVideo } from '@/lib/civitai';
 import { cn } from '@/lib/cn';
 import { formatCount, formatDate } from '@/features/model-metadata/civitai';
 import { IconBolt, IconDownload, IconMessageCircle, IconThumbUp } from '@tabler/icons-react';
@@ -301,7 +301,7 @@ function ModelCard({ model, blurNsfw, nsfwFirst, onClick, installed, compact, on
   const hero = images[heroIdx];
   const nsfw = (hero?.nsfwLevel ?? 0) > 1;
   const shouldBlur = blurNsfw && nsfw && !revealed;
-  const heroThumb = hero ? civitaiThumbUrl(hero.url, TILE_THUMB_WIDTH) : '';
+  const heroThumb = hero ? civitaiThumbUrl(hero.url, TILE_THUMB_WIDTH, { video: isCivitaiVideo(hero) }) : '';
   const heroLoaded = heroThumb ? !!loaded[heroThumb] : true;
 
   const versions = model.modelVersions ?? [];
@@ -333,7 +333,7 @@ function ModelCard({ model, blurNsfw, nsfwFirst, onClick, installed, compact, on
         {n === 0 ? (
           <div className="absolute inset-0 flex items-center justify-center text-[11px] italic text-fg-muted">no preview</div>
         ) : prefetchArmed && images.map((img, i) => {
-          const src = civitaiThumbUrl(img.url, TILE_THUMB_WIDTH);
+          const src = civitaiThumbUrl(img.url, TILE_THUMB_WIDTH, { video: isCivitaiVideo(img) });
           if (i !== heroIdx && !hoverArmed) return null;
           const isLoaded = !!loaded[src];
           return (
@@ -344,6 +344,8 @@ function ModelCard({ model, blurNsfw, nsfwFirst, onClick, installed, compact, on
               loading="eager"
               decoding="async"
               onLoad={() => setLoaded((m) => (m[src] ? m : { ...m, [src]: true }))}
+              // A failed fetch ends the shimmer too, so a dead link never looks like it is still loading.
+              onError={() => setLoaded((m) => (m[src] ? m : { ...m, [src]: true }))}
               className={cn(
                 'absolute inset-0 h-full w-full object-cover transition-opacity duration-500 ease-out',
                 !isLoaded ? 'opacity-0' : i === heroIdx ? 'opacity-100' : 'opacity-0',

@@ -123,25 +123,33 @@ export async function fetchCivitaiModelIdForVersion(
   }
 }
 
+/** True when a CivitAI gallery entry is a video (WAN and other video models post mostly these). */
+export function isCivitaiVideo(img: { url?: string; type?: string }): boolean {
+  return img.type === 'video' || /\.(mp4|webm|mov)(\?|$)/i.test(img.url ?? '');
+}
+
 /**
- * CivitAI's image CDN encodes the requested width as a path segment
- * (e.g. `.../width=450/foo.jpeg`). Swap that segment to request a smaller
- * (or larger) variant — the CDN re-encodes server-side and the resulting
- * image is dramatically smaller for grid thumbnails.
+ * CivitAI's image CDN takes its options as one path segment before the filename
+ * (`.../width=450/foo.jpeg`, `.../original=true/foo.mp4`). Swap that segment to request a smaller
+ * variant — the CDN re-encodes server-side and the result is far smaller for grid thumbnails.
+ * The API often hands out `original=true` links, which would otherwise pull the full-size file.
+ *
+ * A video (by `.mp4`/`.webm`/`.mov` name, or `video: true`) comes back as a still JPEG of its first
+ * frame (`anim=false,transcode=true`), because an <img> cannot play a video and would never load.
  *
  * When the URL doesn't match the expected pattern we return it untouched
- * (covers external host overrides, signed URLs, the rare full-size link).
+ * (covers external host overrides, signed URLs).
  */
-export function civitaiThumbUrl(url: string, width: number): string {
+export function civitaiThumbUrl(url: string, width: number, opts: { video?: boolean } = {}): string {
   if (!url) return url;
   const w = Math.max(64, Math.round(width));
-  const replaced = url.replace(/\/width=\d+\//, `/width=${w}/`);
-  if (replaced !== url) return replaced;
-  // No `width=N` segment yet — insert one before the filename so the CDN
-  // still sizes the response. Matches the CivitAI Next/Image transform shape.
-  const m = url.match(/^(https?:\/\/[^/]+\/[^/]+\/[^/]+)\/([^/?#]+)(\?.*)?$/);
-  if (m) return `${m[1]}/width=${w}/${m[2]}${m[3] ?? ''}`;
-  return url;
+  const m = url.match(/^(https?:\/\/[^/]+\/[^/]+\/[^/]+)\/(?:([^/?#]*=[^/?#]*)\/)?([^/?#]+)(\?.*)?$/);
+  if (!m) return url;
+  const [, prefix, , file, query = ''] = m;
+  if (opts.video || isCivitaiVideo({ url })) {
+    return `${prefix}/anim=false,transcode=true,width=${w}/${file.replace(/\.[^.]+$/, '')}.jpeg${query}`;
+  }
+  return `${prefix}/width=${w}/${file}${query}`;
 }
 
 const FOUND_TTL = 24 * 60 * 60 * 1000;
@@ -294,6 +302,8 @@ export type CivitaiImage = {
   height: number;
   nsfwLevel: number;
   hash?: string;
+  /** 'video' for clips (an .mp4 url); absent or 'image' for stills. */
+  type?: string;
   meta: CivitaiImageMeta | null;
 };
 
