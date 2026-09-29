@@ -2,6 +2,8 @@ import { Stack } from '@mantine/core';
 import { useStore } from '@/lib/store';
 import { SelectField, SliderField, DimensionsField, LoopbackField } from '@/components/fields';
 import { DEFAULT_CLIP_SKIP, DEFAULT_LOOPBACK } from '@/lib/pipeline';
+import { SD15_DIMENSION_PRESETS } from '@/components/fields/DimensionsField';
+import { useModelProfile } from '@/hooks/useModelProfileSync';
 
 const CLIP_SKIP_OPTIONS = [-1, -2, -3, -4].map(n => ({ value: String(n), label: n === -1 ? '-1 (off)' : String(n) }));
 
@@ -32,9 +34,11 @@ export function GenerationSettings({ layerScope, showDenoise }: { layerScope: bo
 export function CompositionSettings() {
   const w = useStore(s => s.workflow);
   const set = useStore(s => s.setWorkflow);
+  const { profile } = useModelProfile();
   return (
     <Stack gap="md">
-      <DimensionsField value={{ width: w.width, height: w.height }} onChange={({ width, height }) => set({ width, height })} />
+      <DimensionsField value={{ width: w.width, height: w.height }} onChange={({ width, height }) => set({ width, height })}
+        presets={profile?.family === 'sd15' ? SD15_DIMENSION_PRESETS : undefined} />
       <SliderField label="Batch Size" value={w.batch} min={1} max={16} step={1} defaultValue={1} presets={[1, 2, 4, 8, 16]} onChange={batch => set({ batch })} />
     </Stack>
   );

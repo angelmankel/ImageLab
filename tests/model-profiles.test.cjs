@@ -38,20 +38,34 @@ test('resolveProfile: override, then CivitAI bucket, then a name guess once the 
   assert.equal(guessProfileFromName('realisticVision_sd15.safetensors'), 'SD 1.5');
 });
 
-test('a type change moves only values still at the old type\'s default', () => {
-  // Pony → SD 1.5 at the SDXL size: the size follows.
-  assert.deepEqual(plain(profileTransition(wf({ modelProfile: 'Pony' }), 'Pony', 'SD 1.5')),
-    { modelProfile: 'SD 1.5', width: 512, height: 512 });
-  // A hand-set width stays; the untouched height follows.
-  assert.deepEqual(plain(profileTransition(wf({ width: 832 }), 'Pony', 'SD 1.5')),
-    { modelProfile: 'SD 1.5', height: 512 });
-  // SD 1.5 → Illustrious from 512² goes back to 1024².
-  assert.deepEqual(plain(profileTransition(wf({ width: 512, height: 512 }), 'SD 1.5', 'Illustrious')),
-    { modelProfile: 'Illustrious', width: 1024, height: 1024 });
+test('within the SDXL types only values still at the old default move', () => {
+  const full = (extra = {}) => wf({ sampler: 'euler_ancestral', scheduler: 'normal', vae: 'sdxl_vae.safetensors', ...extra });
+  // Pony → Illustrious: nothing to change (same defaults), hand-set values stay.
+  assert.deepEqual(plain(profileTransition(full({ width: 832, cfg: 5 }), 'Pony', 'Illustrious')), { modelProfile: 'Illustrious' });
   // To a type with no profile: only the type is cleared.
-  assert.deepEqual(plain(profileTransition(wf(), 'Pony', null)), {});
-  // First sync of an old workflow (no type yet) leaves a hand-set SD 1.5 size alone.
-  assert.deepEqual(plain(profileTransition(wf({ width: 512, height: 768 }), undefined, 'SD 1.5')), { modelProfile: 'SD 1.5' });
+  assert.deepEqual(plain(profileTransition(full(), 'Pony', null)), { modelProfile: '' });
+});
+
+test('SD 1.5 is its own side: SDXL values are kept for the way back, never carried over', () => {
+  const pony = wf({ width: 832, height: 1216, sampler: 'euler_ancestral', scheduler: 'normal', vae: 'sdxl_vae.safetensors', modelProfile: 'Pony' });
+  const to15 = plain(profileTransition(pony, 'Pony', 'SD 1.5'));
+  assert.deepEqual({ ...to15, typeSettings: undefined }, {
+    modelProfile: 'SD 1.5', width: 512, height: 512, steps: 25, cfg: 7, sampler: 'dpmpp_2m', scheduler: 'karras', vae: '', typeSettings: undefined,
+  });
+  assert.equal(to15.typeSettings.sd.vae, 'sdxl_vae.safetensors');
+  // Hand-set on SD 1.5, then to Illustrious and back: each side as it was left.
+  const sd15 = { ...pony, ...to15, width: 512, height: 768, cfg: 6 };
+  const toIl = plain(profileTransition(sd15, 'SD 1.5', 'Illustrious'));
+  assert.equal(toIl.width, 832); assert.equal(toIl.height, 1216); assert.equal(toIl.vae, 'sdxl_vae.safetensors'); assert.equal(toIl.cfg, 8.6);
+  const back = plain(profileTransition({ ...sd15, ...toIl }, 'Illustrious', 'SD 1.5'));
+  assert.equal(back.height, 768); assert.equal(back.cfg, 6); assert.equal(back.vae, '');
+});
+
+test('first check of an old workflow is not a switch (except to Anima)', () => {
+  const old = wf({ width: 512, height: 768, steps: 30, cfg: 7.5, sampler: 'euler', scheduler: 'karras', vae: 'vae-ft-mse.safetensors' });
+  assert.deepEqual(plain(profileTransition(old, undefined, 'SD 1.5')), { modelProfile: 'SD 1.5' });
+  const anima = plain(profileTransition(old, undefined, 'Anima'));
+  assert.equal(anima.cfg, 4); assert.equal(anima.vae, 'qwen_image_vae.safetensors'); assert.equal(anima.typeSettings.sd.cfg, 7.5);
 });
 
 test('Pony: every score tag on, source and rating tags off, BREAK after them', () => {

@@ -14,7 +14,9 @@ export interface Dimensions { width: number; height: number }
 
 type InputMode = 'presets' | 'sliders';
 
-const DIMENSION_PRESETS = [
+type PresetGroup = { group: string; items: Array<{ value: string; label: string }> };
+
+const DIMENSION_PRESETS: PresetGroup[] = [
   { group: 'Square', items: [
     { value: '512x512', label: '512 × 512' },
     { value: '768x768', label: '768 × 768' },
@@ -34,7 +36,23 @@ const DIMENSION_PRESETS = [
     { value: '640x1536', label: '640 × 1536 (9:21)' },
   ] },
 ];
-const ALL_PRESET_VALUES = DIMENSION_PRESETS.flatMap((g) => g.items.map((i) => i.value));
+/** SD 1.5 buckets: around 512², multiples of 64. */
+export const SD15_DIMENSION_PRESETS: PresetGroup[] = [
+  { group: 'Square', items: [
+    { value: '512x512', label: '512 × 512' },
+    { value: '768x768', label: '768 × 768' },
+  ] },
+  { group: 'Landscape', items: [
+    { value: '640x512', label: '640 × 512 (5:4)' },
+    { value: '768x512', label: '768 × 512 (3:2)' },
+    { value: '896x512', label: '896 × 512 (16:9)' },
+  ] },
+  { group: 'Portrait', items: [
+    { value: '512x640', label: '512 × 640 (4:5)' },
+    { value: '512x768', label: '512 × 768 (2:3)' },
+    { value: '512x896', label: '512 × 896 (9:16)' },
+  ] },
+];
 const SLIDER_MARKS = [
   { value: 512, label: '512' },
   { value: 1024, label: '1024' },
@@ -48,9 +66,11 @@ export interface DimensionsFieldProps {
   onChange: (v: Dimensions) => void;
   label?: string;
   disabled?: boolean;
+  /** The size list; defaults to the SDXL buckets. */
+  presets?: PresetGroup[];
 }
 
-export function DimensionsField({ value, onChange, label = 'Dimensions', disabled }: DimensionsFieldProps) {
+export function DimensionsField({ value, onChange, label = 'Dimensions', disabled, presets = DIMENSION_PRESETS }: DimensionsFieldProps) {
   const [inputMode, setInputModeRaw] = useState<InputMode>(() => {
     try { return localStorage.getItem(MODE_KEY) === 'sliders' ? 'sliders' : 'presets'; } catch { return 'presets'; }
   });
@@ -60,9 +80,9 @@ export function DimensionsField({ value, onChange, label = 'Dimensions', disable
   const { width, height } = value;
   const current = useMemo(() => {
     const f = `${width}x${height}`;
-    return ALL_PRESET_VALUES.includes(f) ? f : null;
-  }, [width, height]);
-  const presetData = current ? DIMENSION_PRESETS : [...DIMENSION_PRESETS, { group: 'Current', items: [{ value: `${width}x${height}`, label: `${width} × ${height}` }] }];
+    return presets.some((g) => g.items.some((i) => i.value === f)) ? f : null;
+  }, [width, height, presets]);
+  const presetData = current ? presets : [...presets, { group: 'Current', items: [{ value: `${width}x${height}`, label: `${width} × ${height}` }] }];
 
   const megapixels = ((width * height) / 1_000_000).toFixed(2);
 

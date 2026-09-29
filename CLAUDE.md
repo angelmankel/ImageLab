@@ -92,9 +92,12 @@ npm run build
   in the checkpoint picker; the type picks the loader. A *profile* is a CivitAI base-model type
   (SD 1.5, SDXL, Pony, Illustrious, NoobAI, Anima, Anima Turbo by file name): its family, start
   values, quality tags and which LoRA/embedding types fit. `hooks/useModelProfileSync` (mounted
-  in App) keeps `workflow.modelProfile` in step with the base checkpoint. Within the SD types a
-  change moves only values still at the old type's default; SD ↔ Anima saves the sampler
-  settings, size and VAE per side (`workflow.typeSettings`) and brings the other side's back. Quality tags are pills (cog on the checkpoint tile, or the "Model
+  in App) keeps `workflow.modelProfile` in step with the base checkpoint ('' = checked, no
+  known type; undefined = never checked). Within the SDXL types a change moves only values still
+  at the old type's default; across settings groups (SD 1.5 · SDXL types · Anima) the sampler
+  settings, size and VAE are saved per group (`workflow.typeSettings`) and the other group's come
+  back. An old workflow's first check is not a switch, except to Anima. SD 1.5 gets its own size
+  presets (`SD15_DIMENSION_PRESETS`) and inpaints at 512² when the size is auto. Quality tags are pills (cog on the checkpoint tile, or the "Model
   type" row under the snippets), never text; they lead the prompt at generate time. Pony adds
   `BREAK` after them — `applyBreaks` (pipeline.ts) turns BREAK into separate CLIPTextEncodes
   joined by ConditioningConcat, since ComfyUI's encoder would read it as a word. Trigger words

@@ -20,8 +20,8 @@ export function useModelProfileSync() {
   const next = resolveProfile(base, info?.bucket ?? 'Unknown', !!info && !info.resolved, override);
 
   useEffect(() => {
-    // Still waiting for CivitAI, or nothing changed.
-    if (next === undefined || (next ?? undefined) === current) return;
+    // Still waiting for CivitAI, or nothing changed ('' = checked, no known type).
+    if (next === undefined || (next ?? '') === (current ?? '')) return;
     const st = useStore.getState();
     st.setWorkflow(profileTransition(st.workflow, st.workflow.modelProfile, next));
   }, [next, current]);

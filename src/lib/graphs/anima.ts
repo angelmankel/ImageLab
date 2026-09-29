@@ -26,4 +26,4 @@ const loadAnima: BaseLoader = (graph, workflow) => {
 };
 
 export const buildAnimaGraph: GraphBuilder = (workflow, layers, inputImageRef, inpaint) =>
-  buildSampledGraph(workflow, layers, inputImageRef, inpaint, loadAnima, { inpaintControlnet: false });
+  buildSampledGraph(workflow, layers, inputImageRef, inpaint, loadAnima, { inpaintControlnet: false, inpaintSize: 1024 });

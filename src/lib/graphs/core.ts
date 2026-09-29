@@ -17,6 +17,8 @@ export type BaseLoader = (graph: Graph, workflow: WorkflowState) => { model: Ref
 export type CoreOptions = {
   /** The inpaint ControlNet models are SD ones; a family without them skips that step. */
   inpaintControlnet: boolean;
+  /** Square side the inpaint crop samples at when its size is 'auto': the model's native size. */
+  inpaintSize: number;
 };
 
 /**
@@ -29,7 +31,7 @@ export function buildSampledGraph(
   inputImageRef: string | null,
   inpaint: InpaintConfig | null,
   load: BaseLoader,
-  options: CoreOptions = { inpaintControlnet: true },
+  options: CoreOptions = { inpaintControlnet: true, inpaintSize: 1024 },
 ): BuildGraphResult {
   // Seeds can be up to 0xFFFFFFFF (4.29e9), which overflows the signed 32-bit
   // range that `| 0` truncates to — ComfyUI then rejects the resulting negative
@@ -148,11 +150,11 @@ export function buildSampledGraph(
       // (= the natural cropped resolution)". That's fine for huge masks
       // but disastrous for small ones — the sampler would run at, say,
       // 200×200 and produce noise. Always resize to a model-friendly
-      // resolution. 1024² is the sweet spot for SDXL-class checkpoints
-      // and still works well for SD1.5; users wanting finer control pick
-      // an explicit number from the dropdown.
+      // resolution: the family's native size (1024² for SDXL-class and
+      // Anima, 512² for SD 1.5); users wanting finer control pick an
+      // explicit number from the dropdown.
       const targetSize = inpaint.targetSize === 'auto'
-        ? 1024
+        ? options.inpaintSize
         : Math.max(64, Math.round(inpaint.targetSize as number));
 
       graph["iCrop"] = { class_type: "InpaintCropImproved", inputs: {

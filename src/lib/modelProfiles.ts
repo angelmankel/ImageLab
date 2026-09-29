@@ -13,8 +13,9 @@ import type { Layer, WorkflowState } from './types';
  *
  * Defaults apply only when the base checkpoint's type changes (`profileTransition`). Within one
  * settings group (all SD types) only values still at the previous type's default move — a value
- * changed by hand stays. Across groups (SD ↔ Anima) the sampler settings are saved for the group
- * being left and the other group's saved values (or its defaults) come back.
+ * changed by hand stays. Across groups (SD 1.5 ↔ SDXL types ↔ Anima) the sampler settings, size
+ * and VAE are saved for the group being left and the other group's saved values (or its defaults)
+ * come back. SD 1.5 is a group of its own: an SDXL VAE or 1024² size would break it.
  *
  * No runtime imports: the tests load this file on its own.
  */
@@ -28,7 +29,7 @@ export type ProfileDefaults = Partial<Pick<WorkflowState,
   'width' | 'height' | 'steps' | 'cfg' | 'sampler' | 'scheduler' | 'clipSkip' | 'vae' | 'textEncoder'>>;
 
 /** Families whose sampler settings are shared. The key is `workflow.typeSettings`' key. */
-const SETTINGS_GROUP: Record<GraphFamily, string> = { sd15: 'sd', sdxl: 'sd', anima: 'anima' };
+const SETTINGS_GROUP: Record<GraphFamily, string> = { sd15: 'sd15', sdxl: 'sd', anima: 'anima' };
 
 /** What is saved and restored per settings group. */
 const GROUP_KEYS = ['width', 'height', 'steps', 'cfg', 'sampler', 'scheduler', 'vae'] as const;
@@ -79,10 +80,15 @@ function animaTags(turbo: boolean): ProfileTag[] {
 }
 
 export const MODEL_PROFILES: Record<ProfileId, ModelProfile> = {
+  // SD 1.5: 512² native, the checkpoint's own VAE (an SDXL VAE ruins it). Quality tags suit the
+  // anime merges only, so they start off.
   'SD 1.5': {
     id: 'SD 1.5', family: 'sd15',
-    defaults: { width: 512, height: 512 },
-    tags: [],
+    defaults: { width: 512, height: 512, steps: 25, cfg: 7, sampler: 'dpmpp_2m', scheduler: 'karras', vae: '' },
+    tags: [
+      ...tags('positive', 'masterpiece, best quality', true, 'Quality'),
+      ...tags('negative', 'worst quality, low quality, lowres', true),
+    ],
     compatible: ['SD 1.5'],
   },
   SDXL: {
@@ -181,8 +187,8 @@ export function resolveProfile(
   if (fromBucket) return fromBucket.variants?.find((v) => v.pattern.test(fileName))?.id ?? fromBucket.id;
   if (bucket !== 'Unknown') return null; // a known type with no profile yet (Flux, …)
   const guess = guessProfileFromName(fileName);
-  // A non-SD guess cannot be an SD file (Anima files are not checkpoints): no need to wait.
-  if (pending) return guess && SETTINGS_GROUP[MODEL_PROFILES[guess].family] !== 'sd' ? guess : undefined;
+  // An Anima guess cannot be a checkpoint (Anima files are diffusion models): no need to wait.
+  if (pending) return guess && MODEL_PROFILES[guess].family === 'anima' ? guess : undefined;
   return guess;
 }
 
@@ -207,15 +213,18 @@ export function profileTransition(
   to: ProfileId | null,
   baseline: ProfileDefaults = SDXL_SIZE,
 ): Partial<WorkflowState> {
-  const patch: Partial<WorkflowState> = { modelProfile: to ?? undefined };
+  // '' = checked, no known type; undefined = never checked (a workflow saved before types).
+  const patch: Partial<WorkflowState> = { modelProfile: to ?? '' };
   const next = profileById(to)?.defaults ?? {};
   const prev = profileById(from)?.defaults ?? baseline;
   const w = workflow as unknown as Record<string, unknown>;
   const p = patch as Record<string, unknown>;
   const n = next as Record<string, unknown>;
   const o = prev as Record<string, unknown>;
-  const fromGroup = settingsGroup(from);
   const toGroup = settingsGroup(to);
+  // A workflow saved before types existed was set up by hand for its model, so its first check
+  // is not a switch — unless the model is Anima, which SD settings would ruin.
+  const fromGroup = from === undefined && toGroup !== 'anima' ? toGroup : settingsGroup(from);
   const handled = new Set<string>();
   if (fromGroup !== toGroup) {
     // Leaving a group: keep its values for the way back, then bring the other group's back.
