@@ -16,7 +16,7 @@ const plain = (v) => JSON.parse(JSON.stringify(v));
 const classes = (g) => Object.fromEntries(Object.entries(g).map(([k, v]) => [k, v.class_type]));
 
 test('text to video: two experts hand over at the switch step, saved as MP4', () => {
-  const g = plain(buildWanGraph({ ...defaultVideoSettings(), positive: 'a fox', seed: 7 }));
+  const g = plain(buildWanGraph({ ...defaultVideoSettings(), fast: false, positive: 'a fox', seed: 7 }));
   assert.equal(g['1'].inputs.unet_name, 'wan2.2_t2v_high_noise_14B_fp8_scaled.safetensors');
   assert.equal(g['2'].inputs.unet_name, 'wan2.2_t2v_low_noise_14B_fp8_scaled.safetensors');
   assert.equal(g['10'].class_type, 'EmptyHunyuanLatentVideo');
@@ -30,7 +30,7 @@ test('text to video: two experts hand over at the switch step, saved as MP4', ()
 });
 
 test('image to video: the start image feeds WanImageToVideo, whose outputs drive both samplers', () => {
-  const g = plain(buildWanGraph({ ...defaultVideoSettings(), mode: 'i2v', positive: 'she smiles' }, 'imagelab/start.png'));
+  const g = plain(buildWanGraph({ ...defaultVideoSettings(), fast: false, mode: 'i2v', positive: 'she smiles' }, 'imagelab/start.png'));
   assert.equal(g['1'].inputs.unet_name, 'wan2.2_i2v_high_noise_14B_fp8_scaled.safetensors');
   assert.equal(g['9'].inputs.image, 'imagelab/start.png');
   assert.deepEqual(g['10'].inputs.start_image, ['9', 0]);
@@ -41,7 +41,7 @@ test('image to video: the start image feeds WanImageToVideo, whose outputs drive
 });
 
 test('LoRAs patch the expert they belong to; sizes and lengths snap to what Wan takes', () => {
-  const s = { ...defaultVideoSettings(), positive: 'x', steps: 8, switchStep: 20, width: 830, length: 80, loras: [
+  const s = { ...defaultVideoSettings(), fast: false, positive: 'x', steps: 8, switchStep: 20, width: 830, length: 80, loras: [
     { id: 'a', name: 'motion_high.safetensors', strength: 1, on: true, expert: 'high' },
     { id: 'b', name: 'motion_low.safetensors', strength: 0.8, on: true, expert: 'low' },
     { id: 'c', name: 'style.safetensors', strength: 1, on: true, expert: 'both' },
@@ -79,4 +79,17 @@ test('installed Wan files fill in for missing ones, only when the choice is clea
   // Two candidates for one slot: leave the choice to the person.
   const two = { ...server, diffusionModels: [...server.diffusionModels, 'wan2.2_t2v_high_noise_14B_fp16.safetensors'] };
   assert.equal(plain(pickInstalledWanFiles(s, two)).models.t2v.high, s.models.t2v.high);
+});
+
+test('fast mode: the lightx2v LoRA of the mode first on each expert, 4 steps, switch at 2, CFG 1', () => {
+  const s = { ...defaultVideoSettings(), mode: 'i2v', positive: 'x', steps: 30, cfg: 5, switchStep: 15, loras: [
+    { id: 'a', name: 'style_high.safetensors', strength: 1, on: true, expert: 'high' },
+  ] };
+  const g = plain(buildWanGraph(s, 'start.png'));
+  assert.equal(g['1f'].inputs.lora_name, 'wan2.2_i2v_lightx2v_4steps_lora_v1_high_noise.safetensors');
+  assert.equal(g['2f'].inputs.lora_name, 'wan2.2_i2v_lightx2v_4steps_lora_v1_low_noise.safetensors');
+  assert.deepEqual(g['1l0'].inputs.model, ['1f', 0]);      // the person's LoRA after the speed one
+  assert.deepEqual(g['2s'].inputs.model, ['2f', 0]);
+  assert.deepEqual([g['11'].inputs.steps, g['11'].inputs.end_at_step, g['11'].inputs.cfg], [4, 2, 1]);
+  assert.deepEqual([g['12'].inputs.start_at_step, g['12'].inputs.cfg], [2, 1]);
 });

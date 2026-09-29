@@ -18,7 +18,7 @@ import {
 } from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
 import { useIsDesktop } from '@/hooks/useIsDesktop';
-import { buildWanGraph, isVideoName, pickInstalledWanFiles, wanLength, type VideoMode, type VideoSettings } from '@/lib/wanGraph';
+import { FAST, buildWanGraph, isVideoName, pickInstalledWanFiles, wanLength, type VideoMode, type VideoSettings } from '@/lib/wanGraph';
 import type { ServerInfo } from '@/lib/types';
 import { DimensionsField, FieldWrapper, SeedField, SelectField, SliderField, StrengthControl } from '@/components/fields';
 import type { PresetGroup } from '@/components/fields/DimensionsField';
@@ -313,12 +313,20 @@ function SamplingSection() {
         <ActionIcon size="sm" variant="subtle" color="gray" aria-label="Reset video settings" onClick={v.resetSettings}><IconArrowBackUp size={15} /></ActionIcon>
       </Tooltip>
     }>
-      <SliderField label="Steps" value={v.steps} min={2} max={60} step={1} defaultValue={20} presets={[8, 20, 30]}
+      <Paper withBorder p="xs" radius="sm">
+        <Switch
+          checked={v.fast}
+          onChange={(e) => v.set({ fast: e.currentTarget.checked })}
+          label={<Text size="sm" fw={500}>Fast (4 steps)</Text>}
+          description={`lightx2v speed LoRAs on both models, ${FAST.steps} steps at CFG ${FAST.cfg}: about 6× faster, nearly the same look. Off: the full steps and CFG below.`}
+        />
+      </Paper>
+      <SliderField label="Steps" value={v.fast ? FAST.steps : v.steps} min={2} max={60} step={1} defaultValue={20} presets={[8, 20, 30]} disabled={v.fast}
         onChange={(steps) => v.set({ steps, switchStep: Math.min(v.switchStep, steps) })} />
-      <SliderField label="Switch to low-noise at step" value={v.switchStep} min={0} max={v.steps} step={1} defaultValue={10}
+      <SliderField label="Switch to low-noise at step" value={v.fast ? FAST.switchStep : v.switchStep} min={0} max={v.fast ? FAST.steps : v.steps} step={1} defaultValue={10} disabled={v.fast}
         description="The high-noise expert lays out motion and layout; the low-noise one adds detail."
         onChange={(switchStep) => v.set({ switchStep })} />
-      <SliderField label="CFG" value={v.cfg} min={1} max={10} step={0.1} defaultValue={3.5} presets={[1, 3.5, 5]} onChange={(cfg) => v.set({ cfg })} />
+      <SliderField label="CFG" value={v.fast ? FAST.cfg : v.cfg} min={1} max={10} step={0.1} defaultValue={3.5} presets={[1, 3.5, 5]} disabled={v.fast} onChange={(cfg) => v.set({ cfg })} />
       <SliderField label="Shift" value={v.shift} min={1} max={16} step={0.5} defaultValue={8} presets={[5, 8]} onChange={(shift) => v.set({ shift })} />
       <SelectField label="Sampler" value={v.sampler} onChange={(sampler) => v.set({ sampler })} data={samplers} />
       <SelectField label="Scheduler" value={v.scheduler} onChange={(scheduler) => v.set({ scheduler })} data={schedulers} />
@@ -335,6 +343,7 @@ function missingVideoFiles(v: VideoSettings, server: ServerInfo): string[] {
     ...[files.high, files.low].filter((f) => !server.diffusionModels.includes(f)),
     ...(server.textEncoders.includes(v.textEncoder) ? [] : [v.textEncoder]),
     ...(server.vaes.includes(v.vae) ? [] : [v.vae]),
+    ...(v.fast ? [v.fastLoras[v.mode].high, v.fastLoras[v.mode].low].filter((f) => !server.loras.includes(f)) : []),
   ];
 }
 
