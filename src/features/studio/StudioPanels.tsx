@@ -5,6 +5,8 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { isVideoName } from '@/lib/wanGraph';
+import { VideoFullscreen } from '@/components/VideoFullscreen';
+import { useTouchInput } from '@/hooks/useTouchInput';
 import type { SavedWorkflow } from '@/lib/comfy';
 import { useCanvasStore } from '@/lib/canvasStore';
 import { useShortcut, ShortcutPriority } from '@/hooks/useShortcut';
@@ -297,6 +299,11 @@ export function ResultView({
   const livePreview = busy && preview ? preview : null;
   const shown = livePreview ?? current?.url ?? null;
   const shownIsVideo = !livePreview && !!current && isVideoName(current.filename);
+  // Phones: one tap on the video opens the full-screen player (drag to seek, rotate), one tap there
+  // comes back to the same moment.
+  const touch = useTouchInput();
+  const [videoFs, setVideoFs] = useState<{ url: string; time: number } | null>(null);
+  const resumeAt = useRef<number | null>(null);
 
   // ← older, → newer: the same direction as the generate view's history.
   const step = (dir: 1 | -1) => {
@@ -322,12 +329,17 @@ export function ResultView({
           <video
             key={shown}
             src={shown}
-            controls
+            controls={!touch}
             autoPlay
             loop
             muted
             playsInline
-            onDoubleClick={() => setFullscreen(index)}
+            onClick={touch ? (e) => setVideoFs({ url: shown, time: e.currentTarget.currentTime }) : undefined}
+            onDoubleClick={touch ? undefined : () => setFullscreen(index)}
+            onLoadedMetadata={(e) => {
+              if (resumeAt.current != null) { e.currentTarget.currentTime = resumeAt.current; resumeAt.current = null; }
+            }}
+            ref={(el) => { if (el && resumeAt.current != null && el.readyState >= 1) { el.currentTime = resumeAt.current; resumeAt.current = null; } }}
             className="h-full w-full object-contain"
           />
         ) : shown ? (
@@ -396,6 +408,14 @@ export function ResultView({
             </UnstyledButton>
           ))}
         </div>
+      )}
+
+      {videoFs && (
+        <VideoFullscreen
+          url={videoFs.url}
+          startTime={videoFs.time}
+          onClose={(t) => { resumeAt.current = t; setVideoFs(null); }}
+        />
       )}
 
       {fullscreen !== null && (
