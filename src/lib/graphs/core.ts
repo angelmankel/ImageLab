@@ -19,6 +19,8 @@ export type CoreOptions = {
   inpaintControlnet: boolean;
   /** Square side the inpaint crop samples at when its size is 'auto': the model's native size. */
   inpaintSize: number;
+  /** Flux's distilled guidance: a `FluxGuidance` on the positive prompt. */
+  positiveGuidance?: number;
 };
 
 /**
@@ -91,6 +93,11 @@ export function buildSampledGraph(
   graph["7"].inputs.clip = clipRef;
   applyBreaks(graph, "6");
   applyBreaks(graph, "7");
+  if (options.positiveGuidance !== undefined) {
+    // The guidance takes id "6", so every [6, 0] reference (sampler, passes, ControlNet) gets it.
+    graph["6t"] = graph["6"];
+    graph["6"] = { class_type: "FluxGuidance", inputs: { conditioning: ["6t", 0], guidance: options.positiveGuidance }};
+  }
 
   const vaeRef: Ref = base.vae;
 

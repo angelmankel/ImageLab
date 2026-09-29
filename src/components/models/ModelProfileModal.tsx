@@ -8,11 +8,10 @@ import { Badge, Chip, Group, Modal, Stack, Text } from '@mantine/core';
 import { useStore } from '@/lib/store';
 import { Select } from '@/components/ui/Select';
 import { useModelProfile } from '@/hooks/useModelProfileSync';
-import { PROFILE_IDS, profileTagOn, withProfileTag, type ModelProfile, type ProfileTag } from '@/lib/modelProfiles';
+import { FAMILY_LABELS, PROFILE_IDS, profileTagOn, withProfileTag, type ModelProfile, type ProfileTag } from '@/lib/modelProfiles';
 import { modelLabel } from './modelInfo';
 
 const AUTO = '__auto__';
-const FAMILY_LABELS = { sd15: 'Stable Diffusion 1.5', sdxl: 'SDXL', anima: 'Anima' } as const;
 
 export function ModelProfileModal({ opened, onClose, fileName }: { opened: boolean; onClose: () => void; fileName: string }) {
   const narrow = useMediaQuery('(max-width: 48em)') ?? false;

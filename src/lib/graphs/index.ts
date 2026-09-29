@@ -2,6 +2,9 @@ import type { Layer, WorkflowState } from '../types';
 import { workflowFamily, type GraphFamily } from '../modelProfiles';
 import { buildSdGraph } from './sd';
 import { buildAnimaGraph } from './anima';
+import { buildFluxGraph } from './flux';
+import { buildZImageGraph } from './zimage';
+import { buildQwenGraph } from './qwen';
 import type { BuildGraphResult, GraphBuilder, InpaintConfig } from './types';
 
 export type { BuildGraphResult, GraphBuilder, InpaintConfig } from './types';
@@ -11,6 +14,9 @@ const BUILDERS: Record<GraphFamily, GraphBuilder> = {
   sd15: buildSdGraph,
   sdxl: buildSdGraph,
   anima: buildAnimaGraph,
+  flux: buildFluxGraph,
+  zimage: buildZImageGraph,
+  qwen: buildQwenGraph,
 };
 
 /**

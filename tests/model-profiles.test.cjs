@@ -22,7 +22,7 @@ test('every SD type runs an SD graph; unknown types keep the SDXL graph', () => 
   assert.equal(workflowFamily({ modelProfile: 'SD 1.5' }), 'sd15');
   for (const id of ['SDXL', 'Pony', 'Illustrious', 'NoobAI']) assert.equal(workflowFamily({ modelProfile: id }), 'sdxl');
   assert.equal(workflowFamily({}), 'sdxl');
-  assert.equal(workflowFamily({ modelProfile: 'Flux' }), 'sdxl');
+  assert.equal(workflowFamily({ modelProfile: 'Cascade' }), 'sdxl');
 });
 
 test('resolveProfile: override, then CivitAI bucket, then a name guess once the lookup is done', () => {
@@ -31,7 +31,7 @@ test('resolveProfile: override, then CivitAI bucket, then a name guess once the 
   assert.equal(resolveProfile('ponyDiffusion.safetensors', 'Unknown', true), undefined);
   assert.equal(resolveProfile('ponyDiffusion.safetensors', 'Unknown', false), 'Pony');
   assert.equal(resolveProfile('mystery.safetensors', 'Unknown', false), null);
-  assert.equal(resolveProfile('flux1-dev.safetensors', 'Flux', false), null);
+  assert.equal(resolveProfile('stable_cascade.safetensors', 'Cascade', false), null);
   assert.equal(resolveProfile(undefined, 'Unknown', false), null);
   assert.equal(guessProfileFromName('noobaiXL_v11.safetensors'), 'NoobAI');
   assert.equal(guessProfileFromName('juggernautXL_v9.safetensors'), 'SDXL');
@@ -142,6 +142,26 @@ test('SD <-> Anima: each side keeps its own sampler settings', () => {
   assert.equal(back.width, 832); assert.equal(back.height, 1216); assert.equal(back.steps, 12); assert.equal(back.cfg, 8.6);
   assert.equal(back.sampler, 'euler_ancestral'); assert.equal(back.vae, 'sdxl_vae.safetensors');
   assert.equal(back.typeSettings.anima.cfg, 1.5);
+});
+
+test('Flux, Z-Image Turbo and Qwen: own families, found from the name, own settings side', () => {
+  assert.equal(workflowFamily({ modelProfile: 'Flux' }), 'flux');
+  assert.equal(workflowFamily({ modelProfile: 'Z-Image Turbo' }), 'zimage');
+  assert.equal(workflowFamily({ modelProfile: 'Qwen' }), 'qwen');
+  assert.equal(resolveProfile('flux1-schnell.safetensors', 'Flux', false), 'Flux Schnell');
+  assert.equal(resolveProfile('flux1-dev.safetensors', 'Unknown', true), 'Flux');
+  assert.equal(resolveProfile('z_image_turbo_bf16.safetensors', 'Unknown', true), 'Z-Image Turbo');
+  assert.equal(resolveProfile('qwen_image_fp8_e4m3fn.safetensors', 'Unknown', true), 'Qwen');
+  assert.equal(resolveProfile('whatever.safetensors', 'Qwen', false), 'Qwen');
+  const pony = wf({ sampler: 'euler_ancestral', scheduler: 'normal', vae: 'sdxl_vae.safetensors', modelProfile: 'Pony' });
+  const q = plain(profileTransition(pony, 'Pony', 'Qwen'));
+  assert.equal(q.width, 1328); assert.equal(q.cfg, 2.5); assert.equal(q.textEncoder, 'qwen_2.5_vl_7b_fp8_scaled.safetensors');
+  assert.equal(q.typeSettings.sd.cfg, 8.6);
+  // Qwen -> Z-Image is a switch between two sides too.
+  const z = plain(profileTransition({ ...pony, ...q }, 'Qwen', 'Z-Image Turbo'));
+  assert.equal(z.steps, 9); assert.equal(z.sampler, 'res_multistep'); assert.equal(z.vae, 'ae.safetensors'); assert.equal(z.typeSettings.qwen.width, 1328);
+  // An old workflow on a Flux file: Flux settings, not the SD ones.
+  assert.equal(plain(profileTransition(pony, undefined, 'Flux')).cfg, 1);
 });
 
 test('LoRA / embedding / VAE fit', () => {

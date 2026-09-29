@@ -23,7 +23,7 @@ import { StrengthControl } from '@/components/fields/StrengthControl';
 import { ModelSelectorModal } from './ModelSelectorModal';
 import { modelLabel, modelTrainedWords, plainDescription, readModelInfo, useModelInfo } from './modelInfo';
 import { embeddingWords } from '@/lib/embeddings';
-import { bucketFits, vaeFits } from '@/lib/modelProfiles';
+import { FAMILY_LABELS, bucketFits, vaeFits } from '@/lib/modelProfiles';
 import { useModelProfile } from '@/hooks/useModelProfileSync';
 import { ModelProfileModal } from './ModelProfileModal';
 
@@ -447,7 +447,7 @@ export function VaeField() {
   useStore((s) => s.civitaiByHash);
   // Only VAEs of the checkpoint's graph family, unless "All" is on. The chosen one always shows.
   const shown = profile && !showAll ? vaes.filter((v) => vaeFits(profile, readModelInfo(v).bucket)) : vaes;
-  const familyLabel = profile?.family === 'sd15' ? 'SD 1.5' : profile?.family === 'anima' ? 'Anima' : 'SDXL';
+  const familyLabel = FAMILY_LABELS[profile?.family ?? 'sdxl'];
   // A type with no built-in VAE (Anima) uses its own default file for the empty choice.
   const builtInLabel = profile?.defaults.vae ? `${modelLabel(profile.defaults.vae)} (type default)` : "Checkpoint's built-in VAE";
   const options = [{ value: BUILT_IN_VAE, label: builtInLabel }, ...[...new Set([...(vae ? [vae] : []), ...shown])].map((v) => ({ value: v, label: modelLabel(v) }))];

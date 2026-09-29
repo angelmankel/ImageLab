@@ -66,7 +66,7 @@ export function modelPreviewUrls(
 /** Stable bucket ids — `Unknown` is for models that have no CivitAI hit. */
 export const BASE_MODEL_BUCKETS = [
   'SD 1.5', 'SD 2.x', 'SD 3.x', 'SDXL', 'Pony', 'Illustrious', 'NoobAI',
-  'Anima', 'Flux', 'Cascade', 'PixArt', 'AuraFlow', 'Other', 'Unknown',
+  'Anima', 'Flux', 'Z-Image Turbo', 'Qwen', 'Wan Video', 'Cascade', 'PixArt', 'AuraFlow', 'Other', 'Unknown',
 ] as const;
 export type BaseModelBucket = typeof BASE_MODEL_BUCKETS[number];
 
@@ -80,6 +80,9 @@ export function bucketForBaseModel(raw: string | undefined | null): BaseModelBuc
   if (s.includes('illustrious')) return 'Illustrious';
   if (s.includes('noobai') || s.includes('noob ai')) return 'NoobAI';
   if (s.includes('anima')) return 'Anima';
+  if (s.includes('wan video') || s.startsWith('wan ')) return 'Wan Video';
+  if (s.includes('zimage') || s.includes('z-image') || s.includes('z image')) return 'Z-Image Turbo';
+  if (s.includes('qwen')) return 'Qwen';
   if (s.includes('flux')) return 'Flux';
   if (s.includes('cascade')) return 'Cascade';
   if (s.includes('pixart')) return 'PixArt';

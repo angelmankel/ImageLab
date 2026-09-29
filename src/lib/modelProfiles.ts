@@ -4,8 +4,8 @@ import type { Layer, WorkflowState } from './types';
  * Model types ("profiles") and the graph families they run on.
  *
  * A *family* is how `buildGraph` wires the nodes. SD 1.5 and every SDXL-derived model (Pony,
- * Illustrious, NoobAI) share the checkpoint graph; Anima loads a diffusion model, its own text
- * encoder and VAE (`graphs/anima.ts`).
+ * Illustrious, NoobAI) share the checkpoint graph; Anima, Flux, Z-Image Turbo and Qwen-Image load a
+ * diffusion model with its own text encoder and VAE (`graphs/diffusion.ts`).
  *
  * A *profile* is one model type as CivitAI labels it. It names its family, the settings a fresh
  * pick of that type starts from, the quality tags it expects in the prompt (shown as toggle pills,
@@ -20,16 +20,24 @@ import type { Layer, WorkflowState } from './types';
  * No runtime imports: the tests load this file on its own.
  */
 
-export type GraphFamily = 'sd15' | 'sdxl' | 'anima';
+export type GraphFamily = 'sd15' | 'sdxl' | 'anima' | 'flux' | 'zimage' | 'qwen';
 
-export type ProfileId = 'SD 1.5' | 'SDXL' | 'Pony' | 'Illustrious' | 'NoobAI' | 'Anima' | 'Anima Turbo';
+export type ProfileId = 'SD 1.5' | 'SDXL' | 'Pony' | 'Illustrious' | 'NoobAI' | 'Anima' | 'Anima Turbo'
+  | 'Flux' | 'Flux Schnell' | 'Z-Image Turbo' | 'Qwen';
 
 /** Settings a fresh pick of the type starts from. Unset fields are left alone. */
 export type ProfileDefaults = Partial<Pick<WorkflowState,
   'width' | 'height' | 'steps' | 'cfg' | 'sampler' | 'scheduler' | 'clipSkip' | 'vae' | 'textEncoder'>>;
 
 /** Families whose sampler settings are shared. The key is `workflow.typeSettings`' key. */
-const SETTINGS_GROUP: Record<GraphFamily, string> = { sd15: 'sd15', sdxl: 'sd', anima: 'anima' };
+const SETTINGS_GROUP: Record<GraphFamily, string> = { sd15: 'sd15', sdxl: 'sd', anima: 'anima', flux: 'flux', zimage: 'zimage', qwen: 'qwen' };
+
+/** Families that load a checkpoint file; the rest load a diffusion model (`UNETLoader`). */
+const CHECKPOINT_FAMILIES: GraphFamily[] = ['sd15', 'sdxl'];
+
+export const FAMILY_LABELS: Record<GraphFamily, string> = {
+  sd15: 'SD 1.5', sdxl: 'SDXL', anima: 'Anima', flux: 'Flux', zimage: 'Z-Image', qwen: 'Qwen-Image',
+};
 
 /** What is saved and restored per settings group. */
 const GROUP_KEYS = ['width', 'height', 'steps', 'cfg', 'sampler', 'scheduler', 'vae'] as const;
@@ -145,6 +153,35 @@ export const MODEL_PROFILES: Record<ProfileId, ModelProfile> = {
     tags: animaTags(true),
     compatible: ['Anima'],
   },
+  // The rest follow ComfyUI's own templates (ImageLabDocker workflows/*.json); file names are
+  // Comfy-Org's repackaged ones. Flux dev: CFG 1, guidance 3.5 in the graph (FluxGuidance).
+  Flux: {
+    id: 'Flux', family: 'flux',
+    defaults: { ...SDXL_SIZE, steps: 20, cfg: 1, sampler: 'euler', scheduler: 'simple', vae: 'ae.safetensors', textEncoder: 't5xxl_fp8_e4m3fn.safetensors' },
+    tags: [],
+    compatible: ['Flux'],
+    variants: [{ pattern: /schnell/i, id: 'Flux Schnell' }],
+  },
+  'Flux Schnell': {
+    id: 'Flux Schnell', family: 'flux',
+    defaults: { ...SDXL_SIZE, steps: 4, cfg: 1, sampler: 'euler', scheduler: 'simple', vae: 'ae.safetensors', textEncoder: 't5xxl_fp8_e4m3fn.safetensors' },
+    tags: [],
+    compatible: ['Flux'],
+  },
+  // Z-Image Turbo: Qwen 3 4B text encoder (CLIPLoader type lumina2), the Flux VAE, AuraFlow shift 3.
+  'Z-Image Turbo': {
+    id: 'Z-Image Turbo', family: 'zimage',
+    defaults: { ...SDXL_SIZE, steps: 9, cfg: 1, sampler: 'res_multistep', scheduler: 'simple', vae: 'ae.safetensors', textEncoder: 'qwen_3_4b.safetensors' },
+    tags: [],
+    compatible: ['Z-Image Turbo'],
+  },
+  // Qwen-Image: Qwen 2.5 VL 7B text encoder, the Qwen Image VAE, AuraFlow shift 3.1, 1328² native.
+  Qwen: {
+    id: 'Qwen', family: 'qwen',
+    defaults: { width: 1328, height: 1328, steps: 20, cfg: 2.5, sampler: 'euler', scheduler: 'simple', vae: 'qwen_image_vae.safetensors', textEncoder: 'qwen_2.5_vl_7b_fp8_scaled.safetensors' },
+    tags: [],
+    compatible: ['Qwen'],
+  },
 };
 
 export const PROFILE_IDS = Object.keys(MODEL_PROFILES) as ProfileId[];
@@ -162,6 +199,9 @@ export function profileForBucket(bucket: string | null | undefined): ModelProfil
 export function guessProfileFromName(fileName: string): ProfileId | null {
   const n = fileName.toLowerCase();
   if (/anima/.test(n)) return /turbo/.test(n) ? 'Anima Turbo' : 'Anima';
+  if (/flux/.test(n)) return /schnell/.test(n) ? 'Flux Schnell' : 'Flux';
+  if (/z[-_ ]?image/.test(n)) return 'Z-Image Turbo';
+  if (/qwen[-_ ]?image/.test(n)) return 'Qwen';
   if (/pony|pdxl|autismmix/.test(n)) return 'Pony';
   if (/noob/.test(n)) return 'NoobAI';
   if (/illustrious|illu[-_ ]|wai[-_ ]|hassaku/.test(n)) return 'Illustrious';
@@ -187,8 +227,8 @@ export function resolveProfile(
   if (fromBucket) return fromBucket.variants?.find((v) => v.pattern.test(fileName))?.id ?? fromBucket.id;
   if (bucket !== 'Unknown') return null; // a known type with no profile yet (Flux, …)
   const guess = guessProfileFromName(fileName);
-  // An Anima guess cannot be a checkpoint (Anima files are diffusion models): no need to wait.
-  if (pending) return guess && MODEL_PROFILES[guess].family === 'anima' ? guess : undefined;
+  // A diffusion-model guess (Anima, Flux…) cannot be an SD checkpoint: no need to wait.
+  if (pending) return guess && !CHECKPOINT_FAMILIES.includes(MODEL_PROFILES[guess].family) ? guess : undefined;
   return guess;
 }
 
@@ -222,9 +262,10 @@ export function profileTransition(
   const n = next as Record<string, unknown>;
   const o = prev as Record<string, unknown>;
   const toGroup = settingsGroup(to);
-  // A workflow saved before types existed was set up by hand for its model, so its first check
-  // is not a switch — unless the model is Anima, which SD settings would ruin.
-  const fromGroup = from === undefined && toGroup !== 'anima' ? toGroup : settingsGroup(from);
+  // A workflow saved before types existed was set up by hand for an SD checkpoint, so its first
+  // check is not a switch — unless the model is a diffusion model, which SD settings would ruin.
+  const toFamily = profileById(to)?.family ?? 'sdxl';
+  const fromGroup = from === undefined && CHECKPOINT_FAMILIES.includes(toFamily) ? toGroup : settingsGroup(from);
   const handled = new Set<string>();
   if (fromGroup !== toGroup) {
     // Leaving a group: keep its values for the way back, then bring the other group's back.

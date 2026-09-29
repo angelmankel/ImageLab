@@ -86,11 +86,15 @@ npm run build
 - **Model types and graph families** (`lib/modelProfiles.ts`, pure + tested). A *family* is how
   the graph is wired: `lib/graphs/index.ts` picks a builder per family. `graphs/core.ts` is the
   shared part (prompts, LoRAs, img2img, inpaint, Loopback, Passes); each family file only adds
-  its loaders — `sd.ts` (`sd15`, `sdxl`: CheckpointLoaderSimple) and `anima.ts` (UNETLoader +
-  CLIPLoader qwen_3_06b_base + VAELoader qwen_image_vae; no clip skip, no inpaint ControlNet).
+  its loaders — `sd.ts` (`sd15`, `sdxl`: CheckpointLoaderSimple) and, through `diffusion.ts`
+  (UNETLoader + own text encoder + VAELoader; no clip skip, no inpaint ControlNet), `anima.ts`,
+  `flux.ts` (DualCLIPLoader clip_l + T5, FluxGuidance 3.5 as node "6"), `zimage.ts` and `qwen.ts`
+  (CLIPLoader lumina2 / qwen_image + ModelSamplingAuraFlow). Flux, Z-Image and Qwen were checked
+  against the pod's `/prompt` only (models not downloaded): no render yet.
   Diffusion-model-only files (`UNETLoader`'s list) are folded into `server.models`, so they show
   in the checkpoint picker; the type picks the loader. A *profile* is a CivitAI base-model type
-  (SD 1.5, SDXL, Pony, Illustrious, NoobAI, Anima, Anima Turbo by file name): its family, start
+  (SD 1.5, SDXL, Pony, Illustrious, NoobAI, Anima / Anima Turbo, Flux / Flux Schnell, Z-Image
+  Turbo, Qwen; the second of each pair by file name): its family, start
   values, quality tags and which LoRA/embedding types fit. `hooks/useModelProfileSync` (mounted
   in App) keeps `workflow.modelProfile` in step with the base checkpoint ('' = checked, no
   known type; undefined = never checked). Within the SDXL types a change moves only values still
