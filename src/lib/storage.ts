@@ -70,6 +70,8 @@ export const FALLBACKS = {
              'dpmpp_sde', 'heun', 'lms', 'ddim', 'uni_pc'],
   schedulers: ['normal', 'karras', 'exponential', 'sgm_uniform', 'simple', 'ddim_uniform'],
   models: [] as string[],
+  diffusionModels: [] as string[],
+  textEncoders: [] as string[],
   vaes: [] as string[],
   loras: [] as string[],
   embeddings: [] as string[],

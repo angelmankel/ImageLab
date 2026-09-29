@@ -388,6 +388,10 @@ export type WorkflowState = {
   modelProfile?: string;
   /** Model type chosen by hand per checkpoint file, over what CivitAI says. */
   modelProfileOverrides?: Record<string, string>;
+  /** Sampler settings saved per settings group ('sd', 'anima') while the other group is in use. */
+  typeSettings?: Record<string, Partial<Pick<WorkflowState, 'width' | 'height' | 'steps' | 'cfg' | 'sampler' | 'scheduler' | 'vae'>>>;
+  /** Text encoder file for types that load one apart from the model (Anima). '' = the type's own. */
+  textEncoder?: string;
   /** On/off of each type's quality tags: profile id → tag id → on. Missing = the tag's default. */
   profileTags?: Record<string, Record<string, boolean>>;
   /**
@@ -418,7 +422,12 @@ export type WorkflowState = {
 export type ServerInfo = {
   samplers: string[];
   schedulers: string[];
+  /** Base models to pick from: checkpoints, then diffusion models (listed in `diffusionModels` too). */
   models: string[];
+  /** Diffusion-model-only files (`UNETLoader`, e.g. Anima), which need their own text encoder + VAE. */
+  diffusionModels: string[];
+  /** Text encoders for `CLIPLoader`. */
+  textEncoders: string[];
   vaes: string[];
   loras: string[];
   /** Names as ComfyUI's `/embeddings` lists them: no extension. */

@@ -4,25 +4,34 @@ import type { Layer, WorkflowState } from './types';
  * Model types ("profiles") and the graph families they run on.
  *
  * A *family* is how `buildGraph` wires the nodes. SD 1.5 and every SDXL-derived model (Pony,
- * Illustrious, NoobAI) share one graph; Flux, Anima and the like will each get their own.
+ * Illustrious, NoobAI) share the checkpoint graph; Anima loads a diffusion model, its own text
+ * encoder and VAE (`graphs/anima.ts`).
  *
  * A *profile* is one model type as CivitAI labels it. It names its family, the settings a fresh
  * pick of that type starts from, the quality tags it expects in the prompt (shown as toggle pills,
  * never as editable text), and which LoRA / embedding types fit it.
  *
- * Defaults apply only when the base checkpoint's type changes, and only to values still at the
- * previous type's default — a value changed by hand is never overwritten (`profileTransition`).
+ * Defaults apply only when the base checkpoint's type changes (`profileTransition`). Within one
+ * settings group (all SD types) only values still at the previous type's default move — a value
+ * changed by hand stays. Across groups (SD ↔ Anima) the sampler settings are saved for the group
+ * being left and the other group's saved values (or its defaults) come back.
  *
  * No runtime imports: the tests load this file on its own.
  */
 
-export type GraphFamily = 'sd15' | 'sdxl';
+export type GraphFamily = 'sd15' | 'sdxl' | 'anima';
 
-export type ProfileId = 'SD 1.5' | 'SDXL' | 'Pony' | 'Illustrious' | 'NoobAI';
+export type ProfileId = 'SD 1.5' | 'SDXL' | 'Pony' | 'Illustrious' | 'NoobAI' | 'Anima' | 'Anima Turbo';
 
 /** Settings a fresh pick of the type starts from. Unset fields are left alone. */
 export type ProfileDefaults = Partial<Pick<WorkflowState,
-  'width' | 'height' | 'steps' | 'cfg' | 'sampler' | 'scheduler' | 'clipSkip'>>;
+  'width' | 'height' | 'steps' | 'cfg' | 'sampler' | 'scheduler' | 'clipSkip' | 'vae' | 'textEncoder'>>;
+
+/** Families whose sampler settings are shared. The key is `workflow.typeSettings`' key. */
+const SETTINGS_GROUP: Record<GraphFamily, string> = { sd15: 'sd', sdxl: 'sd', anima: 'anima' };
+
+/** What is saved and restored per settings group. */
+const GROUP_KEYS = ['width', 'height', 'steps', 'cfg', 'sampler', 'scheduler', 'vae'] as const;
 
 export type ProfileTag = {
   /** Stable id: the key of its on/off in `workflow.profileTags`. */
@@ -44,6 +53,8 @@ export type ModelProfile = {
   separator?: string;
   /** Base-model buckets (see `BASE_MODEL_BUCKETS`) whose LoRAs and embeddings fit this type. */
   compatible: string[];
+  /** Files of this type whose name matches run as another type (Anima → Anima Turbo). */
+  variants?: Array<{ pattern: RegExp; id: ProfileId }>;
 };
 
 const tags = (kind: ProfileTag['kind'], words: string, off: string[] | true = [], group?: string): ProfileTag[] =>
@@ -55,6 +66,17 @@ const tags = (kind: ProfileTag['kind'], words: string, off: string[] | true = []
     }));
 
 const SDXL_SIZE = { width: 1024, height: 1024 };
+
+const ANIMA_FILES = { vae: 'qwen_image_vae.safetensors', textEncoder: 'qwen_3_06b_base.safetensors' };
+
+/** Anima's tag header: quality, then safety (off, as Pony's ratings are). Turbo adds scores. */
+function animaTags(turbo: boolean): ProfileTag[] {
+  return [
+    ...tags('positive', `masterpiece, best quality${turbo ? ', score_7' : ''}`, [], 'Quality'),
+    ...tags('positive', 'safe, sensitive, nsfw, explicit', true, 'Safety'),
+    ...tags('negative', `worst quality, low quality${turbo ? ', score_1, score_2, score_3' : ''}, artist name, blurry, jpeg artifacts, chromatic aberration`),
+  ];
+}
 
 export const MODEL_PROFILES: Record<ProfileId, ModelProfile> = {
   'SD 1.5': {
@@ -101,6 +123,22 @@ export const MODEL_PROFILES: Record<ProfileId, ModelProfile> = {
     ],
     compatible: ['NoobAI', 'Illustrious'],
   },
+  // Anima: a diffusion model (diffusion_models/, UNETLoader) with the Qwen 3 0.6B text encoder and
+  // the Qwen Image VAE. Settings from ImageLabDocker's workflows/Anima Aesthetic.json.
+  Anima: {
+    id: 'Anima', family: 'anima',
+    defaults: { ...SDXL_SIZE, steps: 30, cfg: 4, sampler: 'er_sde', scheduler: 'simple', ...ANIMA_FILES },
+    tags: animaTags(false),
+    compatible: ['Anima'],
+    variants: [{ pattern: /turbo/i, id: 'Anima Turbo' }],
+  },
+  // workflows/Anima Turbo.json: few steps, no CFG.
+  'Anima Turbo': {
+    id: 'Anima Turbo', family: 'anima',
+    defaults: { ...SDXL_SIZE, steps: 10, cfg: 1, sampler: 'er_sde', scheduler: 'simple', ...ANIMA_FILES },
+    tags: animaTags(true),
+    compatible: ['Anima'],
+  },
 };
 
 export const PROFILE_IDS = Object.keys(MODEL_PROFILES) as ProfileId[];
@@ -117,6 +155,7 @@ export function profileForBucket(bucket: string | null | undefined): ModelProfil
 /** Guess from a file name when CivitAI does not know the file. Null when nothing matches. */
 export function guessProfileFromName(fileName: string): ProfileId | null {
   const n = fileName.toLowerCase();
+  if (/anima/.test(n)) return /turbo/.test(n) ? 'Anima Turbo' : 'Anima';
   if (/pony|pdxl|autismmix/.test(n)) return 'Pony';
   if (/noob/.test(n)) return 'NoobAI';
   if (/illustrious|illu[-_ ]|wai[-_ ]|hassaku/.test(n)) return 'Illustrious';
@@ -139,10 +178,17 @@ export function resolveProfile(
   if (!fileName) return null;
   if (override && profileById(override)) return override as ProfileId;
   const fromBucket = profileForBucket(bucket);
-  if (fromBucket) return fromBucket.id;
+  if (fromBucket) return fromBucket.variants?.find((v) => v.pattern.test(fileName))?.id ?? fromBucket.id;
   if (bucket !== 'Unknown') return null; // a known type with no profile yet (Flux, …)
-  if (pending) return undefined;
-  return guessProfileFromName(fileName);
+  const guess = guessProfileFromName(fileName);
+  // A non-SD guess cannot be an SD file (Anima files are not checkpoints): no need to wait.
+  if (pending) return guess && SETTINGS_GROUP[MODEL_PROFILES[guess].family] !== 'sd' ? guess : undefined;
+  return guess;
+}
+
+/** The settings group of a type; an unknown type runs the SDXL graph, so it is SD. */
+function settingsGroup(id: string | null | undefined): string {
+  return SETTINGS_GROUP[profileById(id)?.family ?? 'sdxl'];
 }
 
 /** The graph family for a workflow. Workflows with no known type run the SDXL graph, as before. */
@@ -168,8 +214,24 @@ export function profileTransition(
   const p = patch as Record<string, unknown>;
   const n = next as Record<string, unknown>;
   const o = prev as Record<string, unknown>;
+  const fromGroup = settingsGroup(from);
+  const toGroup = settingsGroup(to);
+  const handled = new Set<string>();
+  if (fromGroup !== toGroup) {
+    // Leaving a group: keep its values for the way back, then bring the other group's back.
+    const kept: Record<string, unknown> = {};
+    for (const key of GROUP_KEYS) if (w[key] !== undefined) kept[key] = w[key];
+    const saved = { ...workflow.typeSettings, [fromGroup]: kept };
+    patch.typeSettings = saved;
+    const back = saved[toGroup] as Record<string, unknown> | undefined;
+    for (const key of GROUP_KEYS) {
+      handled.add(key);
+      const value = back?.[key] ?? n[key];
+      if (value !== undefined) p[key] = value;
+    }
+  }
   for (const key of Object.keys(n)) {
-    if (n[key] === undefined) continue;
+    if (n[key] === undefined || handled.has(key) || w[key] === n[key]) continue;
     if (w[key] === undefined || w[key] === o[key]) p[key] = n[key];
   }
   return patch;

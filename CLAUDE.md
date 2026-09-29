@@ -84,12 +84,17 @@ npm run build
   `/history`, so it survives a reload and shows other clients' runs too.
 
 - **Model types and graph families** (`lib/modelProfiles.ts`, pure + tested). A *family* is how
-  the graph is wired: `lib/graphs/index.ts` picks a builder per family (`graphs/sd.ts` serves
-  `sd15` and `sdxl`; Flux/Anima get their own file). A *profile* is a CivitAI base-model type
-  (SD 1.5, SDXL, Pony, Illustrious, NoobAI): its family, start values (size), quality tags and
-  which LoRA/embedding types fit. `hooks/useModelProfileSync` (mounted in App) keeps
-  `workflow.modelProfile` in step with the base checkpoint; a type change moves only values still
-  at the old type's default. Quality tags are pills (cog on the checkpoint tile, or the "Model
+  the graph is wired: `lib/graphs/index.ts` picks a builder per family. `graphs/core.ts` is the
+  shared part (prompts, LoRAs, img2img, inpaint, Loopback, Passes); each family file only adds
+  its loaders — `sd.ts` (`sd15`, `sdxl`: CheckpointLoaderSimple) and `anima.ts` (UNETLoader +
+  CLIPLoader qwen_3_06b_base + VAELoader qwen_image_vae; no clip skip, no inpaint ControlNet).
+  Diffusion-model-only files (`UNETLoader`'s list) are folded into `server.models`, so they show
+  in the checkpoint picker; the type picks the loader. A *profile* is a CivitAI base-model type
+  (SD 1.5, SDXL, Pony, Illustrious, NoobAI, Anima, Anima Turbo by file name): its family, start
+  values, quality tags and which LoRA/embedding types fit. `hooks/useModelProfileSync` (mounted
+  in App) keeps `workflow.modelProfile` in step with the base checkpoint. Within the SD types a
+  change moves only values still at the old type's default; SD ↔ Anima saves the sampler
+  settings, size and VAE per side (`workflow.typeSettings`) and brings the other side's back. Quality tags are pills (cog on the checkpoint tile, or the "Model
   type" row under the snippets), never text; they lead the prompt at generate time. Pony adds
   `BREAK` after them — `applyBreaks` (pipeline.ts) turns BREAK into separate CLIPTextEncodes
   joined by ConditioningConcat, since ComfyUI's encoder would read it as a word. Trigger words

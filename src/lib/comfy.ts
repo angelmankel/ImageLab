@@ -70,10 +70,14 @@ export async function fetchServerInfo(host: string): Promise<ServerInfo> {
   // Embeddings are not a node input, so /object_info does not list them.
   const embeddings = await fetch(`${comfyHttpFor(host)}/embeddings`)
     .then((r) => (r.ok ? r.json() : null)).catch(() => null);
+  // Diffusion-model-only files (Anima) are picked like checkpoints; their type decides the loader.
+  const diffusionModels = get('UNETLoader', 'unet_name') ?? FALLBACKS.diffusionModels;
   return {
     samplers:      get('KSampler', 'sampler_name')              ?? FALLBACKS.samplers,
     schedulers:    get('KSampler', 'scheduler')                 ?? FALLBACKS.schedulers,
-    models:        get('CheckpointLoaderSimple', 'ckpt_name')   ?? FALLBACKS.models,
+    models:        [...(get('CheckpointLoaderSimple', 'ckpt_name') ?? FALLBACKS.models), ...diffusionModels],
+    diffusionModels,
+    textEncoders:  get('CLIPLoader', 'clip_name')               ?? FALLBACKS.textEncoders,
     vaes:          get('VAELoader', 'vae_name')                 ?? FALLBACKS.vaes,
     loras:         get('LoraLoader', 'lora_name')               ?? FALLBACKS.loras,
     embeddings:    Array.isArray(embeddings) ? embeddings.map(String) : FALLBACKS.embeddings,

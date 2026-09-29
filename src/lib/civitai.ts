@@ -152,6 +152,17 @@ export function civitaiThumbUrl(url: string, width: number, opts: { video?: bool
   return `${prefix}/width=${w}/${file}${query}`;
 }
 
+/**
+ * A small MP4 of a CivitAI video (`transcode=true,width=N`), for playing in a tile or rail. The
+ * original is often several times larger. Non-CivitAI URLs come back untouched.
+ */
+export function civitaiVideoUrl(url: string, width: number): string {
+  const m = url?.match(/^(https?:\/\/[^/]+\/[^/]+\/[^/]+)\/(?:[^/?#]*=[^/?#]*\/)?([^/?#]+)(\?.*)?$/);
+  if (!m) return url;
+  const [, prefix, file, query = ''] = m;
+  return `${prefix}/transcode=true,width=${Math.max(64, Math.round(width))}/${file.replace(/\.[^.]+$/, '')}.mp4${query}`;
+}
+
 const FOUND_TTL = 24 * 60 * 60 * 1000;
 const EMPTY_IMAGES_TTL = 5 * 60 * 1000;
 const NOT_FOUND_TTL = 60 * 60 * 1000;

@@ -447,11 +447,14 @@ export function VaeField() {
   useStore((s) => s.civitaiByHash);
   // Only VAEs of the checkpoint's graph family, unless "All" is on. The chosen one always shows.
   const shown = profile && !showAll ? vaes.filter((v) => vaeFits(profile, readModelInfo(v).bucket)) : vaes;
-  const options = [{ value: BUILT_IN_VAE, label: "Checkpoint's built-in VAE" }, ...[...new Set([...(vae ? [vae] : []), ...shown])].map((v) => ({ value: v, label: modelLabel(v) }))];
+  const familyLabel = profile?.family === 'sd15' ? 'SD 1.5' : profile?.family === 'anima' ? 'Anima' : 'SDXL';
+  // A type with no built-in VAE (Anima) uses its own default file for the empty choice.
+  const builtInLabel = profile?.defaults.vae ? `${modelLabel(profile.defaults.vae)} (type default)` : "Checkpoint's built-in VAE";
+  const options = [{ value: BUILT_IN_VAE, label: builtInLabel }, ...[...new Set([...(vae ? [vae] : []), ...shown])].map((v) => ({ value: v, label: modelLabel(v) }))];
   return (
     <FieldWrapper label="VAE" rightSection={profile && (
       <Switch size="xs" checked={showAll} onChange={(e) => setShowAll(e.currentTarget.checked)}
-        label={<Text size="xs" c="dimmed">{showAll ? 'All VAEs' : `${profile.family === 'sd15' ? 'SD 1.5' : 'SDXL'} only`}</Text>} />
+        label={<Text size="xs" c="dimmed">{showAll ? 'All VAEs' : `${familyLabel} only`}</Text>} />
     )}>
       <Select
         value={vae || BUILT_IN_VAE}
@@ -468,7 +471,33 @@ export function VaeField() {
   );
 }
 
-/** Checkpoints, LoRAs, embeddings, and VAE. */
+const TYPE_DEFAULT = '__type_default__';
+
+/** The text encoder, for types that load one apart from the model (Anima). Hidden otherwise. */
+export function TextEncoderField() {
+  const { profile } = useModelProfile();
+  const textEncoder = useStore((s) => s.workflow.textEncoder) ?? '';
+  const encoders = useStore((s) => s.server.textEncoders);
+  const setWorkflow = useStore((s) => s.setWorkflow);
+  const own = profile?.defaults.textEncoder;
+  if (!own) return null;
+  const options = [
+    { value: TYPE_DEFAULT, label: `${modelLabel(own)} (type default)` },
+    ...[...new Set([...(textEncoder ? [textEncoder] : []), ...encoders])].map((v) => ({ value: v, label: modelLabel(v) })),
+  ];
+  return (
+    <FieldWrapper label="Text encoder">
+      <Select
+        value={textEncoder || TYPE_DEFAULT}
+        options={options}
+        onValueChange={(v) => setWorkflow({ textEncoder: v === TYPE_DEFAULT ? '' : v })}
+        ariaLabel="Text encoder"
+      />
+    </FieldWrapper>
+  );
+}
+
+/** Checkpoints, LoRAs, embeddings, VAE, and the text encoder when the type needs one. */
 export function ModelFields() {
   return (
     <Stack gap="md">
@@ -476,6 +505,7 @@ export function ModelFields() {
       <LorasField />
       <EmbeddingsField />
       <VaeField />
+      <TextEncoderField />
     </Stack>
   );
 }

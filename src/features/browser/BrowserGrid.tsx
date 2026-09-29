@@ -2,7 +2,7 @@ import { TileDownload } from './TileDownload';
 import { Button } from '@mantine/core';
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import type { CivitaiSearchHit, CivitaiImage } from '@/lib/civitai';
-import { civitaiThumbUrl, isCivitaiVideo } from '@/lib/civitai';
+import { civitaiThumbUrl, civitaiVideoUrl, isCivitaiVideo } from '@/lib/civitai';
 import { cn } from '@/lib/cn';
 import { formatCount, formatDate } from '@/features/model-metadata/civitai';
 import { IconBolt, IconDownload, IconMessageCircle, IconThumbUp } from '@tabler/icons-react';
@@ -259,6 +259,16 @@ function ModelCard({ model, blurNsfw, nsfwFirst, onClick, installed, compact, on
     return () => io.disconnect();
   }, [prefetchArmed]);
 
+  /** True while the tile is on screen; a video hero plays only then, so off-screen tiles fetch no MP4. */
+  const [inView, setInView] = useState(false);
+  useEffect(() => {
+    const el = cardRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver((entries) => setInView(entries.some((e) => e.isIntersecting)));
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
   // Auto-seek while hovered and not frozen. Re-entering re-runs this effect, so the timer starts over.
   useEffect(() => {
     if (!hover || frozen || n <= 1) return;
@@ -354,6 +364,21 @@ function ModelCard({ model, blurNsfw, nsfwFirst, onClick, installed, compact, on
             />
           );
         })}
+
+        {/* A video sample plays over its still frame (the still stays as the poster and the fallback). */}
+        {hero && heroLoaded && inView && isCivitaiVideo(hero) && (
+          <video
+            key={hero.url}
+            src={civitaiVideoUrl(hero.url, TILE_THUMB_WIDTH)}
+            poster={heroThumb}
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="auto"
+            className={cn('pointer-events-none absolute inset-0 h-full w-full object-cover', shouldBlur && 'blur-2xl scale-110')}
+          />
+        )}
 
         {heroLoaded && (
           <>

@@ -101,6 +101,35 @@ test('BREAK splits the text encoder into joined chunks; no BREAK leaves it alone
   assert.deepEqual(plain(plainGraph), { 7: { class_type: 'CLIPTextEncode', inputs: { text: 'blurry', clip: ['4', 1] } } });
 });
 
+test('Anima: own family, Turbo by file name, found early from the name', () => {
+  assert.equal(workflowFamily({ modelProfile: 'Anima' }), 'anima');
+  assert.equal(workflowFamily({ modelProfile: 'Anima Turbo' }), 'anima');
+  assert.equal(resolveProfile('anima_turboV11.safetensors', 'Anima', false), 'Anima Turbo');
+  assert.equal(resolveProfile('anima_aestheticV11.safetensors', 'Anima', false), 'Anima');
+  // Still waiting for CivitAI: an Anima name is enough, an SD guess is not.
+  assert.equal(resolveProfile('anima-base-v1.0.safetensors', 'Unknown', true), 'Anima');
+  assert.equal(resolveProfile('ponyDiffusion.safetensors', 'Unknown', true), undefined);
+});
+
+test('SD <-> Anima: each side keeps its own sampler settings', () => {
+  const sd = { width: 832, height: 1216, steps: 12, cfg: 8.6, sampler: 'euler_ancestral', scheduler: 'normal', vae: 'sdxl_vae.safetensors', modelProfile: 'Pony' };
+  const toTurbo = plain(profileTransition(sd, 'Pony', 'Anima Turbo'));
+  assert.deepEqual(toTurbo, {
+    modelProfile: 'Anima Turbo',
+    typeSettings: { sd: { width: 832, height: 1216, steps: 12, cfg: 8.6, sampler: 'euler_ancestral', scheduler: 'normal', vae: 'sdxl_vae.safetensors' } },
+    width: 1024, height: 1024, steps: 10, cfg: 1, sampler: 'er_sde', scheduler: 'simple', vae: 'qwen_image_vae.safetensors',
+    textEncoder: 'qwen_3_06b_base.safetensors',
+  });
+  // Turbo -> Aesthetic stays in the group: untouched values follow, a hand-set cfg stays.
+  const anima = { ...sd, ...toTurbo, cfg: 1.5 };
+  assert.deepEqual(plain(profileTransition(anima, 'Anima Turbo', 'Anima')), { modelProfile: 'Anima', steps: 30 });
+  // Back to Pony: the SD values come back as they were; the Anima ones are kept for next time.
+  const back = plain(profileTransition({ ...anima, steps: 30 }, 'Anima', 'Pony'));
+  assert.equal(back.width, 832); assert.equal(back.height, 1216); assert.equal(back.steps, 12); assert.equal(back.cfg, 8.6);
+  assert.equal(back.sampler, 'euler_ancestral'); assert.equal(back.vae, 'sdxl_vae.safetensors');
+  assert.equal(back.typeSettings.anima.cfg, 1.5);
+});
+
 test('LoRA / embedding / VAE fit', () => {
   const pony = MODEL_PROFILES.Pony;
   assert.equal(bucketFits(pony, 'Pony'), true);

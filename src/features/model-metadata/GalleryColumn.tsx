@@ -14,6 +14,7 @@ import {
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { urlToImageState } from '@/features/inputImage/imageOps';
 import type { CivitaiImage, NsfwFilter } from './civitai';
+import { civitaiThumbUrl, isCivitaiVideo } from '@/lib/civitai';
 import { GenerationSettings } from './GenerationSettings';
 import { useModelMetadataStore, useSelectedVersion, type GallerySource } from './store';
 import { useLocalGalleryImages, type LocalGalleryImage } from './useLocalGalleryImages';
@@ -30,6 +31,13 @@ const SOURCE_OPTIONS: { value: GallerySource; label: string }[] = [
 ];
 
 const SLIDESHOW_MS = 3000;
+
+/** A still to show for a gallery item: the first frame for a CivitAI video (an <img> cannot play
+ *  one), else the image itself. `width` 0 keeps the video frame at full size. */
+function stillUrl(it: GalleryItem, width = 0): string {
+  if (it.kind !== 'civitai' || !isCivitaiVideo(it.image)) return it.url;
+  return civitaiThumbUrl(it.url, width || it.image.width || 1024, { video: true });
+}
 
 /** Normalised "thing the gallery is rendering". Civit images carry their meta;
  *  local ones carry their HistoryEntry so the hero-overlay actions can target
@@ -151,7 +159,8 @@ export function GalleryColumn() {
   // sources (Civit.ai CDN and ComfyUI `/view` URLs both serve images).
   const setAsInputImage = async (alsoClose: boolean) => {
     if (!hero || settingInput === 'busy') return;
-    const url = hero.url;
+    // A video goes in as its first frame.
+    const url = stillUrl(hero);
     // Derive a readable filename — Civit URLs end in a stable id; local
     // entries already carry a filename on the source HistoryEntry.
     const name = hero.kind === 'local'
@@ -277,7 +286,7 @@ export function GalleryColumn() {
                         : 'border-transparent opacity-70 hover:opacity-100',
                     )}
                   >
-                    <PreviewThumb src={it.url} className="h-full w-full" />
+                    <PreviewThumb src={stillUrl(it, 224)} className="h-full w-full" />
                   </UnstyledButton>
                 ))}
                 {hasMore && (
@@ -305,12 +314,25 @@ export function GalleryColumn() {
                 title="Open fullscreen (space)"
                 className="group relative aspect-square h-full max-w-full cursor-pointer overflow-hidden rounded-md outline-none focus-visible:ring-2 focus-visible:ring-[var(--mantine-primary-color-filled)] disabled:cursor-default"
               >
-                <PreviewThumb
-                  src={hero?.url}
-                  label="preview"
-                  fit="contain"
-                  className="h-full w-full"
-                />
+                {civitaiHero && isCivitaiVideo(civitaiHero) ? (
+                  <video
+                    key={civitaiHero.url}
+                    src={civitaiHero.url}
+                    poster={hero ? stillUrl(hero) : undefined}
+                    autoPlay
+                    muted
+                    loop
+                    playsInline
+                    className="h-full w-full bg-bg-input object-contain"
+                  />
+                ) : (
+                  <PreviewThumb
+                    src={hero?.url}
+                    label="preview"
+                    fit="contain"
+                    className="h-full w-full"
+                  />
+                )}
               </button>
               {localHero && (
                 <HeroActions

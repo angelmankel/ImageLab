@@ -227,6 +227,8 @@ function unionInfo(record: Record<string, ServerInfo>): ServerInfo {
     samplers: merge('samplers'),
     schedulers: merge('schedulers'),
     models: merge('models'),
+    diffusionModels: merge('diffusionModels'),
+    textEncoders: merge('textEncoders'),
     vaes: merge('vaes'),
     loras: merge('loras'),
     embeddings: merge('embeddings'),

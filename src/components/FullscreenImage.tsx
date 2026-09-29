@@ -32,6 +32,9 @@ import { cn } from '@/lib/cn';
  * `onPlayingChange`) for cross-component persistence, or left internal.
  */
 
+/** Video by file name (CivitAI galleries mix in .mp4 clips); shown in a <video>, not an <img>. */
+const isVideoUrl = (u: string) => /\.(mp4|webm|mov)(\?|$)/i.test(u);
+
 export type FullscreenItem = {
   /** Stable identity for React key + the pan/zoom reset trigger. */
   key: string;
@@ -196,12 +199,16 @@ export function FullscreenImage({
       <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
         {prevUrl && (
           <div key={`out-${animKey}`} className={cn('absolute', transitionClass(transition, 'out'))}>
-            <img
-              src={prevUrl}
-              alt=""
-              draggable={false}
-              className={IMAGE_BOX}
-            />
+            {isVideoUrl(prevUrl) ? (
+              <video src={prevUrl} muted playsInline className={IMAGE_BOX} />
+            ) : (
+              <img
+                src={prevUrl}
+                alt=""
+                draggable={false}
+                className={IMAGE_BOX}
+              />
+            )}
           </div>
         )}
         <div
@@ -209,17 +216,34 @@ export function FullscreenImage({
           className={cn('absolute', prevUrl && transitionClass(transition, 'in'))}
         >
           <KenBurnsWrap active={playing && transition === 'ken-burns'} durationMs={slideshowMs} animKey={animKey}>
-            <img
-              src={url}
-              alt=""
-              draggable={false}
-              onLoad={(e) => setSize({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight })}
-              className={IMAGE_BOX}
-              style={{
-                transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom})`,
-                transition: reframing ? 'transform 250ms cubic-bezier(0.22, 1, 0.36, 1)' : undefined,
-              }}
-            />
+            {isVideoUrl(url) ? (
+              <video
+                key={url}
+                src={url}
+                autoPlay
+                muted
+                loop
+                playsInline
+                onLoadedMetadata={(e) => setSize({ w: e.currentTarget.videoWidth, h: e.currentTarget.videoHeight })}
+                className={IMAGE_BOX}
+                style={{
+                  transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom})`,
+                  transition: reframing ? 'transform 250ms cubic-bezier(0.22, 1, 0.36, 1)' : undefined,
+                }}
+              />
+            ) : (
+              <img
+                src={url}
+                alt=""
+                draggable={false}
+                onLoad={(e) => setSize({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight })}
+                className={IMAGE_BOX}
+                style={{
+                  transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom})`,
+                  transition: reframing ? 'transform 250ms cubic-bezier(0.22, 1, 0.36, 1)' : undefined,
+                }}
+              />
+            )}
           </KenBurnsWrap>
         </div>
       </div>

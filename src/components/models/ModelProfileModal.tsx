@@ -12,7 +12,7 @@ import { PROFILE_IDS, profileTagOn, withProfileTag, type ModelProfile, type Prof
 import { modelLabel } from './modelInfo';
 
 const AUTO = '__auto__';
-const FAMILY_LABELS = { sd15: 'Stable Diffusion 1.5', sdxl: 'SDXL' } as const;
+const FAMILY_LABELS = { sd15: 'Stable Diffusion 1.5', sdxl: 'SDXL', anima: 'Anima' } as const;
 
 export function ModelProfileModal({ opened, onClose, fileName }: { opened: boolean; onClose: () => void; fileName: string }) {
   const narrow = useMediaQuery('(max-width: 48em)') ?? false;
@@ -43,7 +43,7 @@ export function ModelProfileModal({ opened, onClose, fileName }: { opened: boole
           />
           <Text size="xs" c="dimmed">
             {profile
-              ? `Runs the ${FAMILY_LABELS[profile.family]} graph. New picks of this type start at ${profile.defaults.width}×${profile.defaults.height}.`
+              ? `Runs the ${FAMILY_LABELS[profile.family]} graph. New picks of this type start at ${startValues(profile)}.`
               : 'No known type: runs the SDXL graph with no quality tags and no LoRA filter.'}
           </Text>
         </Stack>
@@ -55,6 +55,16 @@ export function ModelProfileModal({ opened, onClose, fileName }: { opened: boole
       </Stack>
     </Modal>
   );
+}
+
+function startValues(profile: ModelProfile): string {
+  const d = profile.defaults;
+  return [
+    `${d.width}×${d.height}`,
+    d.steps !== undefined && `${d.steps} steps`,
+    d.cfg !== undefined && `CFG ${d.cfg}`,
+    d.sampler && `${d.sampler} / ${d.scheduler}`,
+  ].filter(Boolean).join(', ');
 }
 
 /** Pills under a heading each: the tag's own group, else positive / negative quality tags. */
