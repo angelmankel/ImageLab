@@ -89,8 +89,12 @@ npm run build
   its loaders — `sd.ts` (`sd15`, `sdxl`: CheckpointLoaderSimple) and, through `diffusion.ts`
   (UNETLoader + own text encoder + VAELoader; no clip skip, no inpaint ControlNet), `anima.ts`,
   `flux.ts` (DualCLIPLoader clip_l + T5, FluxGuidance 3.5 as node "6"), `zimage.ts` and `qwen.ts`
-  (CLIPLoader lumina2 / qwen_image + ModelSamplingAuraFlow). Flux, Z-Image and Qwen were checked
-  against the pod's `/prompt` only (models not downloaded): no render yet.
+  (CLIPLoader lumina2 / qwen_image + ModelSamplingAuraFlow). Flux and Z-Image rendered on the pod
+  (lyhAnimeFlux + a Flux LoRA, moodyProMix); Qwen only checked against `/prompt`. An all-in-one
+  checkpoint of these types (in checkpoints/, e.g. a Qwen AIO) loads through
+  CheckpointLoaderSimple with its own text encoder and VAE: GenerateButton sets
+  `workflow.baseFile` from the target server's lists at queue time. Wan video models are kept
+  out of the Generate picker and quick search (`isWanName` / the 'Wan Video' bucket).
   Diffusion-model-only files (`UNETLoader`'s list) are folded into `server.models`, so they show
   in the checkpoint picker; the type picks the loader. A *profile* is a CivitAI base-model type
   (SD 1.5, SDXL, Pony, Illustrious, NoobAI, Anima / Anima Turbo, Flux / Flux Schnell, Z-Image

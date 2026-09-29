@@ -329,7 +329,14 @@ async function queueFromStore(newSeed: boolean) {
   // The model type's quality tags, model trigger words and embeddings join the prompt here only;
   // the saved layers stay the user's own parts.
   const promptLayers = withProfileTags(withEmbeddings(withModelKeywords(layers, workflow, modelTrainedWords, profileTagTexts(workflow)), workflow, modelTrainedWords), workflow);
-  const res = await queuePrompt(target.host, workflow, promptLayers, preUploadedRef, inpaintSource);
+  // An all-in-one checkpoint of a diffusion-model type (Qwen AIO, Flux fp8 "full") sits in
+  // checkpoints/; a bare diffusion model in diffusion_models/. The graph loads each its own way.
+  const baseName = workflow.checkpoints[0]?.name ?? '';
+  const targetInfo = useStore.getState().serverInfo[target.id];
+  // `models` is checkpoints then diffusion models; a checkpoint is in it but not in the second list.
+  const inCheckpoints = !!targetInfo && targetInfo.models.includes(baseName) && !targetInfo.diffusionModels.includes(baseName);
+  const baseFile: WorkflowState['baseFile'] = inCheckpoints ? 'checkpoint' : 'diffusion';
+  const res = await queuePrompt(target.host, { ...workflow, baseFile }, promptLayers, preUploadedRef, inpaintSource);
   if (!res.ok) {
     console.error('[queuePrompt] failed on', target.name, '→', res.error);
     setStatus(res.error, 'error');

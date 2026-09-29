@@ -392,6 +392,10 @@ export type WorkflowState = {
   typeSettings?: Record<string, Partial<Pick<WorkflowState, 'width' | 'height' | 'steps' | 'cfg' | 'sampler' | 'scheduler' | 'vae'>>>;
   /** Text encoder file for types that load one apart from the model (Anima). '' = the type's own. */
   textEncoder?: string;
+  /** Where the base model file lives on the server the job goes to, set at queue time: a
+   *  diffusion-model type (Flux, Qwen…) loads an all-in-one checkpoint with its own text encoder
+   *  and VAE, and a bare diffusion model with UNETLoader. Unset = diffusion model. */
+  baseFile?: 'checkpoint' | 'diffusion';
   /** On/off of each type's quality tags: profile id → tag id → on. Missing = the tag's default. */
   profileTags?: Record<string, Record<string, boolean>>;
   /**

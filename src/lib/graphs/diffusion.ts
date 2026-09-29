@@ -4,9 +4,11 @@ import { buildSampledGraph, type BaseLoader, type CoreOptions, type Graph, type 
 import type { GraphBuilder } from './types';
 
 /**
- * Loaders for families whose file is a diffusion model only (diffusion_models/, `UNETLoader`):
- * the text encoder and VAE load on their own, from the workflow or the type's defaults. Extra
- * base models merge in like checkpoints do. No clip skip; the inpaint ControlNets are SD ones.
+ * Loaders for families whose file is usually a diffusion model only (diffusion_models/,
+ * `UNETLoader`): the text encoder and VAE load on their own, from the workflow or the type's
+ * defaults. An all-in-one checkpoint of the type (`workflow.baseFile === 'checkpoint'`, e.g. a
+ * Qwen AIO) loads through `CheckpointLoaderSimple` with its own text encoder and VAE instead.
+ * Extra base models merge in like checkpoints do. No clip skip; the inpaint ControlNets are SD ones.
  */
 export type DiffusionSpec = {
   /** Adds the text encoder node(s) and returns the CLIP. `file` is the chosen or default encoder. */
@@ -20,17 +22,27 @@ export type DiffusionSpec = {
 function loader(spec: DiffusionSpec): BaseLoader {
   return (graph, workflow: WorkflowState) => {
     const defaults = profileById(workflow.modelProfile)?.defaults ?? {};
-    graph["4"] = { class_type: "UNETLoader", inputs: { unet_name: workflow.checkpoints[0]?.name ?? '', weight_dtype: "default" }};
+    const aio = workflow.baseFile === 'checkpoint';
+    const load = (name: string) => (aio
+      ? { class_type: "CheckpointLoaderSimple", inputs: { ckpt_name: name } }
+      : { class_type: "UNETLoader", inputs: { unet_name: name, weight_dtype: "default" } });
+    graph["4"] = load(workflow.checkpoints[0]?.name ?? '');
     let model: Ref = ["4", 0];
     workflow.checkpoints.slice(1).forEach((ckpt, i) => {
       if (!ckpt.name) return;
-      graph[`m${i}`] = { class_type: "UNETLoader", inputs: { unet_name: ckpt.name, weight_dtype: "default" }};
+      graph[`m${i}`] = load(ckpt.name);
       graph[`mm${i}`] = { class_type: "ModelMergeSimple", inputs: { model1: model, model2: [`m${i}`, 0], ratio: Number(ckpt.ratio) }};
       model = [`mm${i}`, 0];
     });
     if (spec.auraFlowShift !== undefined) {
       graph["4s"] = { class_type: "ModelSamplingAuraFlow", inputs: { model, shift: spec.auraFlowShift }};
       model = ["4s", 0];
+    }
+    if (aio) {
+      // The checkpoint's own text encoder; its own VAE unless one was picked apart from the type's.
+      const ownVae = !workflow.vae || workflow.vae === defaults.vae;
+      if (!ownVae) graph["4v"] = { class_type: "VAELoader", inputs: { vae_name: workflow.vae }};
+      return { model, clip: ["4", 1], vae: ownVae ? ["4", 2] : ["4v", 0] };
     }
     const clip = spec.clip(graph, workflow.textEncoder || defaults.textEncoder || '');
     graph["4v"] = { class_type: "VAELoader", inputs: { vae_name: workflow.vae || defaults.vae || '' }};
