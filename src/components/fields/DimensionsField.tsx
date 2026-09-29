@@ -14,7 +14,7 @@ export interface Dimensions { width: number; height: number }
 
 type InputMode = 'presets' | 'sliders';
 
-type PresetGroup = { group: string; items: Array<{ value: string; label: string }> };
+export type PresetGroup = { group: string; items: Array<{ value: string; label: string }> };
 
 const DIMENSION_PRESETS: PresetGroup[] = [
   { group: 'Square', items: [

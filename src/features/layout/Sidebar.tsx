@@ -3,6 +3,7 @@ import {
   IconBoxModel,
   IconFolders,
   IconInfinity,
+  IconMovie,
   IconPalette,
   IconSettings,
   IconWand, IconSearch } from '@tabler/icons-react';
@@ -68,6 +69,7 @@ export function Sidebar({
         <Divider w="100%" />
 
         <ViewButton view="generate" current={mainView} onSelect={setMainView} label="Generate" icon={<IconPalette size="1.2rem" />} />
+        <ViewButton view="video" current={mainView} onSelect={setMainView} label="Video" icon={<IconMovie size="1.2rem" />} />
         <ViewButton view="canvas" current={mainView} onSelect={setMainView} label="Infinite canvas" icon={<IconInfinity size="1.2rem" />} />
         <ViewButton view="collections" current={mainView} onSelect={setMainView} label="Collections" icon={<IconFolders size="1.2rem" />} />
         <ViewButton view="browser" current={mainView} onSelect={setMainView} label="Browse models" icon={<IconBoxModel size="1.2rem" />} />

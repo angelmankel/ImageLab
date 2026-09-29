@@ -32,8 +32,9 @@ import { cn } from '@/lib/cn';
  * `onPlayingChange`) for cross-component persistence, or left internal.
  */
 
-/** Video by file name (CivitAI galleries mix in .mp4 clips); shown in a <video>, not an <img>. */
-const isVideoUrl = (u: string) => /\.(mp4|webm|mov)(\?|$)/i.test(u);
+/** Video by file name (CivitAI galleries mix in .mp4 clips; ComfyUI's /view?filename=x.mp4&… too);
+ *  shown in a <video>, not an <img>. */
+const isVideoUrl = (u: string) => /\.(mp4|webm|mov)(\?|&|$)/i.test(u);
 
 export type FullscreenItem = {
   /** Stable identity for React key + the pan/zoom reset trigger. */

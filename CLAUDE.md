@@ -108,6 +108,15 @@ npm run build
   skip words the type's pills own. LoRA/embedding pickers show only fitting types until
   "Show all"; the VAE select shows only the family's VAEs until its switch is on.
 
+- **Video** (`features/video`, rail button under Generate) — Wan 2.2 A14B text→video and
+  image→video. Its own store (`videoStore.ts`, `imagelab.video.v1`); the graph is
+  `lib/wanGraph.ts` (pure + tested): two experts (high noise for steps 0..switch, low noise after),
+  each with its own LoRAs (`LoraLoaderModelOnly`) and `ModelSamplingSD3` shift, saved as MP4 via
+  `SaveVideo` (`format: "mp4", codec: "h264"` works in API format) to `output/video/`. It runs
+  through Studio's runner (`useComfyRun` in `studio/useStudioRun.ts`, which takes a graph source
+  and a `keep` filter — Video keeps only video files) and Studio's `ResultView`, which plays video.
+  The Wan models are not in models.txt yet: the page lists what the server lacks.
+
 **The seed trap.** The ComfyUI editor gives any INT named `seed` / `noise_seed` a
 `control_after_generate` slot even when `/object_info` does not declare one, and saves the extra
 `"randomize"` in `widgets_values`. `lib/workflowGraph.ts` mirrors that rule. Break it and every

@@ -6,6 +6,7 @@ import { CanvasToolbar } from '@/features/canvas/CanvasToolbar';
 import { CollectionsView } from '@/features/collections';
 import { ModelBrowserView } from '@/features/browser';
 import { StudioView } from '@/features/studio/StudioView';
+import { VideoView } from '@/features/video/VideoView';
 import { AppSidePanels } from './AppSidePanels';
 import { CanvasTopNav } from './CanvasTopNav';
 import { GenerateTopNav } from './GenerateTopNav';
@@ -56,6 +57,14 @@ export function MainView({
     return (
       <ErrorBoundary label="Studio">
         <StudioView />
+      </ErrorBoundary>
+    );
+  }
+  if (mainView === 'video') {
+    // Like Studio, a self-contained page with its own layout on desktop and phone.
+    return (
+      <ErrorBoundary label="Video">
+        <VideoView />
       </ErrorBoundary>
     );
   }

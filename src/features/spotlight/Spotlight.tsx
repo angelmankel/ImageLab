@@ -65,6 +65,7 @@ function buildItems(): SpotlightItem[] {
   // Go to
   const views: [string, MainView, string][] = [
     ['Generate', 'generate', 'home prompt create'],
+    ['Video', 'video', 'wan animate movie clip i2v t2v'],
     ['Infinite canvas', 'canvas', 'layers inpaint'],
     ['Collections', 'collections', 'albums gallery'],
     ['Browse models', 'browser', 'civitai download search'],

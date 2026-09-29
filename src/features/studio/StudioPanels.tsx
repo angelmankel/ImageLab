@@ -4,6 +4,7 @@
  * differently, rather than being two implementations that drift apart.
  */
 import { useEffect, useRef, useState } from 'react';
+import { isVideoName } from '@/lib/wanGraph';
 import type { SavedWorkflow } from '@/lib/comfy';
 import { useCanvasStore } from '@/lib/canvasStore';
 import { useShortcut, ShortcutPriority } from '@/hooks/useShortcut';
@@ -295,6 +296,7 @@ export function ResultView({
   // A live preview outranks everything: it is what is happening now.
   const livePreview = busy && preview ? preview : null;
   const shown = livePreview ?? current?.url ?? null;
+  const shownIsVideo = !livePreview && !!current && isVideoName(current.filename);
 
   // ← older, → newer: the same direction as the generate view's history.
   const step = (dir: 1 | -1) => {
@@ -302,7 +304,7 @@ export function ResultView({
     const next = Math.min(results.length - 1, Math.max(0, index + dir));
     setPicked(results[next].url);
   };
-  const inStudio = () => useCanvasStore.getState().mainView === 'studio' && fullscreen === null;
+  const inStudio = () => ['studio', 'video'].includes(useCanvasStore.getState().mainView) && fullscreen === null;
   useShortcut('ArrowLeft', () => step(1), { priority: ShortcutPriority.Panel + 10, when: inStudio });
   useShortcut('ArrowRight', () => step(-1), { priority: ShortcutPriority.Panel + 10, when: inStudio });
 
@@ -315,7 +317,20 @@ export function ResultView({
   return (
     <div className="flex h-full min-h-0 flex-col gap-3">
       <Paper withBorder radius="md" className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden" bg="dark.8">
-        {shown ? (
+        {shown && shownIsVideo ? (
+          // A finished video plays in place, looping, with controls; fullscreen is a button away.
+          <video
+            key={shown}
+            src={shown}
+            controls
+            autoPlay
+            loop
+            muted
+            playsInline
+            onDoubleClick={() => setFullscreen(index)}
+            className="h-full w-full object-contain"
+          />
+        ) : shown ? (
           <img
             src={shown}
             alt={livePreview ? 'Live preview' : current?.filename ?? 'Generation'}
@@ -375,7 +390,9 @@ export function ResultView({
                   : 'border-transparent opacity-70 hover:opacity-100',
               )}
             >
-              <img src={r.url} alt="" loading="lazy" className="h-full w-full object-cover" />
+              {isVideoName(r.filename)
+                ? <video src={r.url} muted playsInline preload="metadata" className="h-full w-full object-cover" />
+                : <img src={r.url} alt="" loading="lazy" className="h-full w-full object-cover" />}
             </UnstyledButton>
           ))}
         </div>

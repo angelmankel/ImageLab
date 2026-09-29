@@ -119,11 +119,11 @@ const persistDefaultLayerSize = (s: DefaultLayerSize) => {
   try { localStorage.setItem(DEFAULT_LAYER_SIZE_KEY, JSON.stringify(s)); } catch { /* ignore */ }
 };
 
-export type MainView = 'generate' | 'canvas' | 'collections' | 'browser' | 'comfy' | 'studio';
+export type MainView = 'generate' | 'video' | 'canvas' | 'collections' | 'browser' | 'comfy' | 'studio';
 const loadMainView = (): MainView => {
   try {
     const v = localStorage.getItem(MAIN_VIEW_KEY);
-    if (v === 'generate' || v === 'canvas' || v === 'collections' || v === 'browser' || v === 'comfy' || v === 'studio') return v;
+    if (v === 'generate' || v === 'video' || v === 'canvas' || v === 'collections' || v === 'browser' || v === 'comfy' || v === 'studio') return v;
     // Migrate from the old canvasViewMode key (infinite|stripped).
     const legacy = localStorage.getItem(LEGACY_VIEW_MODE_KEY);
     if (legacy === 'infinite') return 'canvas';

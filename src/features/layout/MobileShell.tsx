@@ -10,7 +10,7 @@
 import { memo, useEffect, useRef, useState, type ReactNode } from 'react';
 import { ActionIcon, Box, Group, Menu, RingProgress, Text, Title, Tooltip, UnstyledButton } from '@mantine/core';
 import {
-  IconAdjustments, IconBoxModel, IconDots, IconFolders, IconInfinity, IconLayoutGrid, IconPhoto, IconSearch,
+  IconAdjustments, IconBoxModel, IconDots, IconFolders, IconInfinity, IconMovie, IconLayoutGrid, IconPhoto, IconSearch,
   IconPlayerPlay, IconPlayerStop, IconPlus, IconSettings, IconWand,
 } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
@@ -125,6 +125,7 @@ export function MobileShell({ onOpenSettings }: { onOpenSettings: () => void }) 
 }
 
 const VIEWS: { view: MainView; label: string; icon: ReactNode }[] = [
+  { view: 'video', label: 'Video', icon: <IconMovie size={16} /> },
   { view: 'canvas', label: 'Infinite canvas', icon: <IconInfinity size={16} /> },
   { view: 'collections', label: 'Collections', icon: <IconFolders size={16} /> },
   { view: 'browser', label: 'Browse models', icon: <IconBoxModel size={16} /> },

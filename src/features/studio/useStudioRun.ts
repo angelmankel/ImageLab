@@ -5,6 +5,9 @@
  * its fixed pipeline needs. Studio needs the whole thing: it has to describe a node nobody
  * anticipated, so it holds the raw document and reads specs out of it on demand.
  *
+ * The runner itself (`useComfyRun`) takes where the graph comes from and which saved files count as
+ * its results, so the Video view drives its own graph through the same machinery.
+ *
  * Results are tracked here rather than through the generate view's history so the two can never
  * corrupt each other's state. On open, Studio reads the server's own `/history`, so every image the
  * server still holds is there after a reload or on another device; after that the socket adds each
@@ -14,7 +17,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { comfyHttpFor, queueGraph, viewUrl } from '@/lib/comfy';
 import { playCompleteSound, playSubmitSound } from '@/lib/sounds';
 import { subscribeComfy, type ComfyEvent } from '@/lib/comfyBus';
-import type { ObjectInfo } from '@/lib/workflowGraph';
+import type { ApiGraph, ObjectInfo } from '@/lib/workflowGraph';
 import { buildApiGraph } from './params';
 import { useStudio } from './studioStore';
 
@@ -90,7 +93,7 @@ type HistoryRecord = {
  * Ordered by the queue number ComfyUI gives each prompt, which only goes up. That includes other
  * clients' runs on the same server, which is what "history" should mean on a shared box.
  */
-async function loadServerHistory(host: string): Promise<StudioResult[]> {
+async function loadServerHistory(host: string, keep: KeepResult): Promise<StudioResult[]> {
   const res = await fetch(`${comfyHttpFor(host)}/history?max_items=${MAX_RESULTS}`);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const all = await res.json() as Record<string, HistoryRecord>;
@@ -101,6 +104,7 @@ async function loadServerHistory(host: string): Promise<StudioResult[]> {
   for (const [id, r] of runs) {
     for (const node of Object.values(r.outputs ?? {})) {
       for (const img of node.images ?? []) {
+        if (!keep(img)) continue;
         out.push({ url: viewUrl(img, host), filename: img.filename, promptId: id, createdAt: r.prompt?.[0] ?? 0 });
       }
     }
@@ -110,7 +114,39 @@ async function loadServerHistory(host: string): Promise<StudioResult[]> {
 /** Safety net only: the socket drives everything, but a missed `executed` should not hang forever. */
 const WATCHDOG_MS = 8000;
 
+/** Which saved files are a view's results. */
+export type KeepResult = (img: { filename: string; subfolder?: string }) => boolean;
+
+/** What a view runs: how to make the graph, and which saved files are its results. */
+export interface RunSource {
+  /** The graph to queue, or why there is none. Called on Generate. */
+  build: () => Promise<{ graph: ApiGraph; warnings?: string[] } | { error: string }>;
+  keep?: KeepResult;
+}
+
+const keepAll: KeepResult = () => true;
+
+/** Studio: the open workflow, with its knobs applied and a fresh seed. */
 export function useStudioRun(host: string | null, info: ObjectInfo | null): StudioRun {
+  return useComfyRun(host, {
+    build: async () => {
+      const { workflow, rerollSeeds } = useStudio.getState();
+      if (!info || !workflow) return { error: 'Nothing open' };
+      // A fresh seed per run is what anyone pressing Generate twice expects. ComfyUI's own
+      // control_after_generate does this inside the editor; nothing does it for us out here.
+      rerollSeeds();
+      return buildApiGraph(workflow, info, useStudio.getState().currentValues());
+    },
+  });
+}
+
+export function useComfyRun(host: string | null, source: RunSource): StudioRun {
+  // The latest source, read at run time: callers pass a fresh object every render.
+  const sourceRef = useRef(source);
+  sourceRef.current = source;
+  const keep = source.keep ?? keepAll;
+  const keepRef = useRef(keep);
+  keepRef.current = keep;
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -186,8 +222,9 @@ export function useStudioRun(host: string | null, info: ObjectInfo | null): Stud
           return;
 
         case 'executed': {
-          if (!ev.images.length) return;
-          const made = ev.images.map(img => ({
+          const saved = ev.images.filter(img => keepRef.current(img));
+          if (!saved.length) return;
+          const made = saved.map(img => ({
             url: viewUrl(img, host), filename: img.filename, promptId: ev.promptId, createdAt: Date.now(),
           }));
           // Images arrive per node as they are saved, so a workflow with several SaveImage nodes
@@ -216,7 +253,7 @@ export function useStudioRun(host: string | null, info: ObjectInfo | null): Stud
   useEffect(() => {
     if (!host) { setResults([]); return; }
     let cancelled = false;
-    void loadServerHistory(host).then(found => {
+    void loadServerHistory(host, keepRef.current).then(found => {
       if (cancelled) return;
       setResults(prev => {
         // Anything the socket delivered while this was loading stays on top.
@@ -231,18 +268,16 @@ export function useStudioRun(host: string | null, info: ObjectInfo | null): Stud
   useEffect(() => () => { if (previewUrl.current) URL.revokeObjectURL(previewUrl.current); }, []);
 
   const run = useCallback(async () => {
-    const { workflow, rerollSeeds } = useStudio.getState();
-    if (!host || !info || !workflow) return;
+    if (!host) return;
 
     setError(null);
     setBusy(true);
     setStatus('Queued');
     clearPreview();
     try {
-      // A fresh seed per run is what anyone pressing Generate twice expects. ComfyUI's own
-      // control_after_generate does this inside the editor; nothing does it for us out here.
-      rerollSeeds();
-      const { graph, warnings } = buildApiGraph(workflow, info, useStudio.getState().currentValues());
+      const built = await sourceRef.current.build();
+      if ('error' in built) { setError(built.error); setBusy(false); setStatus(null); return; }
+      const { graph, warnings = [] } = built;
       if (warnings.length) setStatus(warnings[0]);
 
       // Name the nodes before submitting, so the very first `executing` can be described.
@@ -268,6 +303,7 @@ export function useStudioRun(host: string | null, info: ObjectInfo | null): Stud
           const found: StudioResult[] = [];
           for (const out of Object.values(rec.outputs ?? {}) as Array<{ images?: Array<{ filename: string; subfolder?: string; type?: string }> }>) {
             for (const img of out.images ?? []) {
+              if (!keepRef.current(img)) continue;
               found.push({ url: viewUrl(img, host), filename: img.filename, promptId: id, createdAt: Date.now() });
             }
           }
@@ -287,7 +323,7 @@ export function useStudioRun(host: string | null, info: ObjectInfo | null): Stud
       setBusy(false);
       setStatus(null);
     }
-  }, [host, info, clearPreview, finish]);
+  }, [host, clearPreview, finish]);
 
   const cancel = useCallback(async () => {
     if (!host) return;
