@@ -4,8 +4,12 @@
  * One tap on the video in the page opens this; one tap here closes it, back at the same moment.
  * A drag left or right seeks (the whole screen width is the whole clip; see `lib/videoScrub`) and
  * leaves the video paused on that frame. The rotate button asks the browser for a real landscape
- * lock (Android, in fullscreen); where that is refused (iPhone) it turns the picture 90° with CSS,
- * and the drag then runs down the screen, along the picture.
+ * lock; where that is refused it turns the picture 90° with CSS, and the drag then runs down the
+ * screen, along the picture.
+ *
+ * It never uses the browser's Fullscreen API: on Android, Chrome answers every
+ * `requestFullscreen` with its own "drag from top to exit full screen" banner, which a page cannot
+ * hide. The overlay already covers the screen (and the installed app has no address bar).
  */
 import { useEffect, useRef, useState } from 'react';
 import { ActionIcon, Group, Text } from '@mantine/core';
@@ -31,10 +35,7 @@ export function VideoFullscreen({ url, startTime = 0, onClose }: {
   const [duration, setDuration] = useState(0);
   const [hint, setHint] = useState(true);
 
-  // Real fullscreen where the browser allows it (hides the address bar on Android). The tap that
-  // opened this still counts as the user's gesture.
   useEffect(() => {
-    overlay.current?.requestFullscreen?.().catch(() => { /* iPhone: the overlay alone covers the page */ });
     const t = setTimeout(() => setHint(false), 2500);
     return () => clearTimeout(t);
   }, []);
@@ -42,7 +43,6 @@ export function VideoFullscreen({ url, startTime = 0, onClose }: {
   const close = () => {
     const orientation = screen.orientation as Orientation | undefined;
     try { orientation?.unlock?.(); } catch { /* not locked */ }
-    if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
     onClose(video.current?.currentTime ?? time);
   };
 
@@ -55,7 +55,8 @@ export function VideoFullscreen({ url, startTime = 0, onClose }: {
       return;
     }
     try {
-      if (!document.fullscreenElement) await overlay.current?.requestFullscreen?.();
+      // No requestFullscreen here either (see above): the lock works without it in the installed
+      // app on some phones; elsewhere it is refused and the picture turns instead.
       if (!orientation?.lock) throw new Error('no orientation lock');
       await orientation.lock('landscape');
       setCssRotated(false);
