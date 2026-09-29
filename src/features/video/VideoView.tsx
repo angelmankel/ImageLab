@@ -18,7 +18,8 @@ import {
 } from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
 import { useIsDesktop } from '@/hooks/useIsDesktop';
-import { buildWanGraph, isVideoName, wanLength, type VideoMode } from '@/lib/wanGraph';
+import { buildWanGraph, isVideoName, wanLength, type VideoMode, type VideoSettings } from '@/lib/wanGraph';
+import type { ServerInfo } from '@/lib/types';
 import { DimensionsField, FieldWrapper, SeedField, SelectField, SliderField, StrengthControl } from '@/components/fields';
 import type { PresetGroup } from '@/components/fields/DimensionsField';
 import { ModelSelectorModal } from '@/components/models/ModelSelectorModal';
@@ -58,6 +59,8 @@ function useVideoRun(host: string | null): StudioRun {
       const st = useVideo.getState();
       if (!st.positive.trim()) return { error: 'Write a prompt first.' };
       if (st.mode === 'i2v' && !st.startImage) return { error: 'Choose a start image first.' };
+      const missing = missingVideoFiles(st, useStore.getState().server);
+      if (missing.length) return { error: `Not on the server: ${missing.map(modelLabel).join(', ')}. Pick installed files under Models, or download these first.` };
       let seed = st.seed;
       if (st.randomizeSeed) { seed = randomVideoSeed(); st.set({ seed }); }
       return { graph: buildWanGraph({ ...st, seed }, st.startImage || null) };
@@ -308,17 +311,23 @@ function SamplingSection() {
   );
 }
 
-/** Wan's files are not in the image's models.txt yet: say which ones the server lacks. */
-function MissingFiles() {
-  const v = useVideo();
-  const server = useStore((s) => s.server);
+/** The chosen files the server does not have (none while the server lists are still empty). */
+function missingVideoFiles(v: VideoSettings, server: ServerInfo): string[] {
+  if (!server.models.length) return [];
   const files = v.models[v.mode];
-  const missing = [
+  return [
     ...[files.high, files.low].filter((f) => !server.diffusionModels.includes(f)),
     ...(server.textEncoders.includes(v.textEncoder) ? [] : [v.textEncoder]),
     ...(server.vaes.includes(v.vae) ? [] : [v.vae]),
   ];
-  if (!missing.length || !server.models.length) return null;
+}
+
+/** Wan's files are not in the image's models.txt yet: say which ones the server lacks. */
+function MissingFiles() {
+  const v = useVideo();
+  const server = useStore((s) => s.server);
+  const missing = missingVideoFiles(v, server);
+  if (!missing.length) return null;
   return (
     <Alert variant="light" color="orange" icon={<IconAlertTriangle size={16} />} p="xs" title="Not on the server yet">
       <Text size="xs">{missing.map(modelLabel).join(', ')}</Text>
