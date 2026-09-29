@@ -1,4 +1,4 @@
-import { ActionIcon, Divider, Indicator, Stack, Tooltip } from '@mantine/core';
+import { ActionIcon, Divider, Group, Indicator, Stack, Tooltip } from '@mantine/core';
 import {
   IconBoxModel,
   IconFolders,
@@ -24,13 +24,18 @@ import type { Server } from '@/lib/storage';
  *
  * The rail sits at z-[70] so in-page layers never cover it; overlays (Mantine portals, z>=200)
  * still go above it.
+ *
+ * On phones (`placement="bottom"`) the same buttons run along the bottom edge instead, under the
+ * view's own Generate / Stop bar: the left rail took 56px off a 390px screen.
  */
 export function Sidebar({
   servers,
   onOpenSettings,
+  placement = 'left',
 }: {
   servers: Server[];
   onOpenSettings: () => void;
+  placement?: 'left' | 'bottom';
 }) {
   const mainView = useCanvasStore((s) => s.mainView);
   const setMainView = useCanvasStore((s) => s.setMainView);
@@ -44,6 +49,35 @@ export function Sidebar({
   // Focus mode is Studio's promise: no node graph unless you ask for one. It hides the per-server
   // ComfyUI buttons, and it is always on for a phone.
   const focusMode = useFocusMode();
+
+  if (placement === 'bottom') {
+    return (
+      <nav
+        className="relative z-[70] w-full shrink-0"
+        style={{
+          background: 'var(--mantine-color-dark-6)',
+          borderTop: '1px solid var(--mantine-color-dark-4)',
+          paddingBottom: 'env(safe-area-inset-bottom)',
+        }}
+        aria-label="Views"
+      >
+        <Group gap={0} justify="space-around" wrap="nowrap" h={52} px={4} className="scroll-x-thin">
+          <ActionIcon size="lg" variant="subtle" color="gray" aria-label="Quick search" onClick={() => emitApp('open-spotlight')}>
+            <IconSearch size="1.2rem" />
+          </ActionIcon>
+          <ViewButton view="generate" current={mainView} onSelect={setMainView} label="Generate" icon={<IconPalette size="1.2rem" />} tip="top" />
+          <ViewButton view="video" current={mainView} onSelect={setMainView} label="Video" icon={<IconMovie size="1.2rem" />} tip="top" />
+          <ViewButton view="canvas" current={mainView} onSelect={setMainView} label="Infinite canvas" icon={<IconInfinity size="1.2rem" />} tip="top" />
+          <ViewButton view="collections" current={mainView} onSelect={setMainView} label="Collections" icon={<IconFolders size="1.2rem" />} tip="top" />
+          <ViewButton view="browser" current={mainView} onSelect={setMainView} label="Browse models" icon={<IconBoxModel size="1.2rem" />} tip="top" />
+          <ViewButton view="studio" current={mainView} onSelect={setMainView} label="Studio" icon={<IconWand size="1.2rem" />} tip="top" />
+          <ActionIcon size="lg" variant="subtle" aria-label="Settings" onClick={onOpenSettings}>
+            <IconSettings size="1.2rem" />
+          </ActionIcon>
+        </Group>
+      </nav>
+    );
+  }
 
   return (
     <nav
@@ -119,16 +153,18 @@ function ViewButton({
   onSelect,
   label,
   icon,
+  tip = 'right',
 }: {
   view: MainView;
   current: MainView;
   onSelect: (v: MainView) => void;
   label: string;
   icon: React.ReactNode;
+  tip?: 'right' | 'top';
 }) {
   const active = current === view;
   return (
-    <Tooltip label={label} position="right" withArrow>
+    <Tooltip label={label} position={tip} withArrow>
       <ActionIcon
         size="lg"
         variant={active ? 'filled' : 'subtle'}

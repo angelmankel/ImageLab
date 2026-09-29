@@ -1,3 +1,4 @@
+import { cn } from '@/lib/cn';
 import { useEffect, useState } from 'react';
 import { Sidebar } from '@/features/layout/Sidebar';
 import { SettingsModal } from '@/features/settings/SettingsModal';
@@ -62,15 +63,17 @@ export default function App() {
       <ConfirmProvider>
       <TooltipProvider>
         {mobileShell ? <MobileShell onOpenSettings={() => setSettingsOpen(true)} /> : <div
-          className="relative flex h-[100dvh] w-screen overflow-hidden bg-bg-base text-fg-secondary touch-pan-y"
+          // Phones: the view on top, the nav along the bottom edge (under the view's own
+          // Generate / Stop bar). Desktop: the rail on the left.
+          className={cn('relative flex h-[100dvh] w-screen overflow-hidden bg-bg-base text-fg-secondary touch-pan-y', !isDesktop && 'flex-col')}
           style={{ overscrollBehavior: 'none' }}
         >
-          <Sidebar servers={servers} onOpenSettings={() => setSettingsOpen(true)} />
+          {isDesktop && <Sidebar servers={servers} onOpenSettings={() => setSettingsOpen(true)} />}
 
           {/* CENTER — canvas fills all remaining width. Side panels are
               absolutely-positioned overlays inside this <main>, so toggling
               them never resizes the canvas. */}
-          <main className="relative h-[100dvh] flex-1 overflow-hidden bg-bg-base">
+          <main className={cn('relative flex-1 overflow-hidden bg-bg-base', isDesktop ? 'h-[100dvh]' : 'min-h-0 w-full')}>
             {/* Indeterminate progress sweep — only visible briefly after a
                 view switch. Sits above the fading content so the user gets
                 feedback that something is in motion even before the new
@@ -96,6 +99,8 @@ export default function App() {
               />
             </div>
           </main>
+
+          {!isDesktop && <Sidebar servers={servers} onOpenSettings={() => setSettingsOpen(true)} placement="bottom" />}
 
           {/* The mobile backdrop used to live here, outside <main>. It could never work from
               here: the panels render inside MainView's `animate-view-in` wrapper, whose
