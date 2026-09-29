@@ -36,8 +36,6 @@ export const SLIDESHOW_PLAYING_KEY = 'imagelab.slideshowPlaying.v1';
 export const VENICE_KEY = 'imagelab.venice.v1';
 export const CIVITAI_KEY = 'imagelab.civitai.v1';
 export const PREVIEW_SOURCE_KEY = 'imagelab.previewSource.v1';
-export const MODEL_PICKER_FILTER_KEY = 'imagelab.modelPickerFilter.v1';
-export const MODEL_PICKER_SERVERS_KEY = 'imagelab.modelPickerServers.v1';
 /** When true (default), a completed job jumps the canvas to the new image and
  *  fits it to view. Toggled from the floating top-nav button. */
 export const AUTO_FRAME_KEY = 'imagelab.autoFrameOnComplete.v1';
@@ -820,54 +818,6 @@ export function loadModelPreviewSource(): ModelPreviewSource {
 
 export function saveModelPreviewSource(src: ModelPreviewSource) {
   try { localStorage.setItem(PREVIEW_SOURCE_KEY, src); } catch { /* ignore */ }
-}
-
-// ---------------------------------------------------------------------------
-// Model-picker filter — the base-model bucket the user last selected, persisted
-// per kind so the popover comes back the same way they left it. Stored as a
-// flat `{ checkpoint, lora, vae }` map.
-// ---------------------------------------------------------------------------
-
-export type ModelPickerFilters = Record<string, string>;
-
-export function loadModelPickerFilters(): ModelPickerFilters {
-  try {
-    const raw = JSON.parse(localStorage.getItem(MODEL_PICKER_FILTER_KEY) || 'null');
-    if (raw && typeof raw === 'object') {
-      const out: ModelPickerFilters = {};
-      for (const [k, v] of Object.entries(raw)) {
-        if (typeof v === 'string' && v) out[k] = v;
-      }
-      return out;
-    }
-  } catch { /* ignore */ }
-  return {};
-}
-
-export function saveModelPickerFilters(f: ModelPickerFilters) {
-  try { localStorage.setItem(MODEL_PICKER_FILTER_KEY, JSON.stringify(f)); } catch { /* ignore */ }
-}
-
-/** Per-kind list of server IDs the user has narrowed the picker to. Empty
- *  array (or missing kind) = no server filter (show models from any server). */
-export type ServerPickerFilters = Record<string, string[]>;
-
-export function loadServerPickerFilters(): ServerPickerFilters {
-  try {
-    const raw = JSON.parse(localStorage.getItem(MODEL_PICKER_SERVERS_KEY) || 'null');
-    if (raw && typeof raw === 'object') {
-      const out: ServerPickerFilters = {};
-      for (const [k, v] of Object.entries(raw)) {
-        if (Array.isArray(v)) out[k] = v.filter((x) => typeof x === 'string');
-      }
-      return out;
-    }
-  } catch { /* ignore */ }
-  return {};
-}
-
-export function saveServerPickerFilters(f: ServerPickerFilters) {
-  try { localStorage.setItem(MODEL_PICKER_SERVERS_KEY, JSON.stringify(f)); } catch { /* ignore */ }
 }
 
 // ── Model browser filters — persist the in-app browser's filter chips. ──

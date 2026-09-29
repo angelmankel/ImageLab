@@ -11,7 +11,7 @@ import { memo, useState, type ReactNode } from 'react';
 import {
   ActionIcon, Badge, Box, Button, Group, Image, Paper, ScrollArea, SegmentedControl, SimpleGrid, Stack, Switch, Text,
 } from '@mantine/core';
-import { IconPlus, IconX } from '@tabler/icons-react';
+import { IconPlus, IconSettings, IconX } from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
 import type { WorkflowEmbedding } from '@/lib/types';
 import { TileHover } from '@/components/ui/TileHover';
@@ -21,8 +21,11 @@ import { Select } from '@/components/ui/Select';
 import { FieldWrapper } from '@/components/fields/FieldWrapper';
 import { StrengthControl } from '@/components/fields/StrengthControl';
 import { ModelSelectorModal } from './ModelSelectorModal';
-import { modelLabel, modelTrainedWords, plainDescription, useModelInfo } from './modelInfo';
+import { modelLabel, modelTrainedWords, plainDescription, readModelInfo, useModelInfo } from './modelInfo';
 import { embeddingWords } from '@/lib/embeddings';
+import { bucketFits, vaeFits } from '@/lib/modelProfiles';
+import { useModelProfile } from '@/hooks/useModelProfileSync';
+import { ModelProfileModal } from './ModelProfileModal';
 
 async function refreshAllServers() {
   const st = useStore.getState();
@@ -39,12 +42,14 @@ interface SelectedModelCardProps {
   badge?: string;
   onRemove: () => void;
   onOpen: () => void;
+  /** Shows a cog that opens the model type window (base checkpoint only). */
+  onSettings?: () => void;
   /** Bottom-strip controls under the name (LoRA on/off switch). */
   footer?: ReactNode;
 }
 
 const SelectedModelCard = memo(function SelectedModelCard({
-  fileName, isDisabled, badge, onRemove, onOpen, footer,
+  fileName, isDisabled, badge, onRemove, onOpen, onSettings, footer,
 }: SelectedModelCardProps) {
   const info = useModelInfo(fileName);
   const [imageIndex, setImageIndex] = useState(0);
@@ -110,9 +115,22 @@ const SelectedModelCard = memo(function SelectedModelCard({
             >
               <IconX size={14} />
             </ActionIcon>
+            {onSettings && (
+              <ActionIcon
+                size="sm"
+                variant="filled"
+                color="dark"
+                aria-label={`Model type and quality tags for ${label}`}
+                title="Model type and quality tags"
+                style={{ position: 'absolute', top: 6, right: 34, opacity: 0.9 }}
+                onClick={(e) => { e.stopPropagation(); onSettings(); }}
+              >
+                <IconSettings size={14} />
+              </ActionIcon>
+            )}
 
             {(badge || info.baseModel) && (
-              <Badge size="xs" variant="filled" color="dark" style={{ position: 'absolute', top: 6, left: 6, opacity: 0.9, maxWidth: 'calc(100% - 40px)' }}>
+              <Badge size="xs" variant="filled" color="dark" style={{ position: 'absolute', top: 6, left: 6, opacity: 0.9, maxWidth: onSettings ? 'calc(100% - 68px)' : 'calc(100% - 40px)' }}>
                 {badge ?? info.baseModel}
               </Badge>
             )}
@@ -182,6 +200,7 @@ export function CheckpointsField() {
   const openForFile = useModelMetadataStore((s) => s.openForFile);
   const availability = useResourceAvailability('checkpoint');
   const [open, setOpen] = useState(false);
+  const [typeFor, setTypeFor] = useState<string | null>(null);
 
   const toggle = (name: string) => {
     const existing = checkpoints.find((c) => c.name === name);
@@ -212,6 +231,7 @@ export function CheckpointsField() {
             badge={checkpoints.length > 1 ? (i === 0 ? 'Base' : `Merge ${Math.round(c.ratio * 100)}%`) : undefined}
             onRemove={() => removeCheckpoint(c.id)}
             onOpen={() => openForFile(c.id, c.name)}
+            onSettings={i === 0 ? () => setTypeFor(c.name) : undefined}
           />
         ))}
       </PickerBlock>
@@ -226,6 +246,7 @@ export function CheckpointsField() {
         availability={availability}
         onRefresh={refreshAllServers}
       />
+      {typeFor && <ModelProfileModal opened onClose={() => setTypeFor(null)} fileName={typeFor} />}
     </>
   );
 }
@@ -239,6 +260,7 @@ export function LorasField() {
   const openForFile = useModelMetadataStore((s) => s.openForFile);
   const availability = useResourceAvailability('lora');
   const [open, setOpen] = useState(false);
+  const { profile } = useModelProfile();
 
   const toggle = (name: string) => {
     const existing = loras.find((l) => l.name === name);
@@ -288,6 +310,7 @@ export function LorasField() {
         onClose={() => setOpen(false)}
         kind="lora"
         models={models}
+        fitsType={profile ? { label: profile.id, fits: (bucket) => bucketFits(profile, bucket) } : undefined}
         selectedModels={loras.map((l) => l.name)}
         onToggleModel={toggle}
         onClearSelection={() => loras.forEach((l) => removeLora(l.id))}
@@ -314,6 +337,7 @@ export function EmbeddingsField() {
   const openForFile = useModelMetadataStore((s) => s.openForFile);
   const availability = useResourceAvailability('embedding');
   const [open, setOpen] = useState(false);
+  const { profile } = useModelProfile();
 
   const toggle = (name: string) => {
     const existing = embeddings.find((e) => e.name === name);
@@ -367,6 +391,7 @@ export function EmbeddingsField() {
         onClose={() => setOpen(false)}
         kind="embedding"
         models={models}
+        fitsType={profile ? { label: profile.id, fits: (bucket) => bucketFits(profile, bucket) } : undefined}
         selectedModels={embeddings.map((e) => e.name)}
         onToggleModel={toggle}
         onClearSelection={() => embeddings.forEach((e) => removeEmbedding(e.id))}
@@ -417,9 +442,17 @@ export function VaeField() {
   const vaes = useStore((s) => s.server.vaes);
   const setWorkflow = useStore((s) => s.setWorkflow);
   const availability = useResourceAvailability('vae');
-  const options = [{ value: BUILT_IN_VAE, label: "Checkpoint's built-in VAE" }, ...[...new Set([...(vae ? [vae] : []), ...vaes])].map((v) => ({ value: v, label: modelLabel(v) }))];
+  const { profile } = useModelProfile();
+  const [showAll, setShowAll] = useState(false);
+  useStore((s) => s.civitaiByHash);
+  // Only VAEs of the checkpoint's graph family, unless "All" is on. The chosen one always shows.
+  const shown = profile && !showAll ? vaes.filter((v) => vaeFits(profile, readModelInfo(v).bucket)) : vaes;
+  const options = [{ value: BUILT_IN_VAE, label: "Checkpoint's built-in VAE" }, ...[...new Set([...(vae ? [vae] : []), ...shown])].map((v) => ({ value: v, label: modelLabel(v) }))];
   return (
-    <FieldWrapper label="VAE">
+    <FieldWrapper label="VAE" rightSection={profile && (
+      <Switch size="xs" checked={showAll} onChange={(e) => setShowAll(e.currentTarget.checked)}
+        label={<Text size="xs" c="dimmed">{showAll ? 'All VAEs' : `${profile.family === 'sd15' ? 'SD 1.5' : 'SDXL'} only`}</Text>} />
+    )}>
       <Select
         value={vae || BUILT_IN_VAE}
         options={options}

@@ -4,7 +4,8 @@
  * so one preset works on every checkpoint.
  */
 
-export type ModelFamily = 'plain' | 'pony' | 'illustrious';
+/** `none`: the checkpoint's model type already adds its quality tags (lib/modelProfiles). */
+export type ModelFamily = 'plain' | 'pony' | 'illustrious' | 'none';
 
 export type PromptPreset = {
   id: string;
@@ -19,22 +20,28 @@ export type PromptPreset = {
 
 export type NegativePreset = { id: string; name: string; text: string; tip?: string };
 
-export const FAMILY_LABELS: Record<ModelFamily, string> = { plain: 'Plain SDXL', pony: 'Pony', illustrious: 'Illustrious' };
+export const FAMILY_LABELS: Record<ModelFamily, string> = { plain: 'Plain SDXL', pony: 'Pony', illustrious: 'Illustrious', none: 'No tags' };
 
 const FAMILY_POSITIVE: Record<ModelFamily, string> = {
   plain: 'masterpiece, best quality, highly detailed',
   pony: 'score_9, score_8_up, score_7_up',
   illustrious: 'masterpiece, best quality, amazing quality, very aesthetic, absurdres',
+  none: '',
 };
 
 const FAMILY_NEGATIVE: Record<ModelFamily, string> = {
   plain: 'worst quality, low quality, blurry, bad anatomy, bad hands, watermark, text',
   pony: 'score_6, score_5, score_4, bad anatomy, bad hands, watermark, text',
   illustrious: 'worst quality, low quality, lowres, bad anatomy, bad hands, jpeg artifacts, signature, watermark',
+  none: 'bad anatomy, bad hands, watermark, text',
 };
 
-/** Guess the family from a checkpoint file name; plain SDXL when nothing matches. */
-export function familyForCheckpoint(name: string | undefined): ModelFamily {
+/**
+ * Guess the family from a checkpoint file name; plain SDXL when nothing matches. `typeHasTags`:
+ * the checkpoint's model type adds quality tags itself, so presets add none.
+ */
+export function familyForCheckpoint(name: string | undefined, typeHasTags = false): ModelFamily {
+  if (typeHasTags) return 'none';
   const n = (name ?? '').toLowerCase();
   if (/pony|pdxl|autismmix/.test(n)) return 'pony';
   if (/illustrious|noob|wai|citron|hassaku/.test(n)) return 'illustrious';
@@ -44,7 +51,7 @@ export function familyForCheckpoint(name: string | undefined): ModelFamily {
 /** The ready-to-use text for a preset on a family: quality tags first, then the scene. */
 export function presetPrompt(preset: PromptPreset, family: ModelFamily): { positive: string; negative: string } {
   return {
-    positive: `${FAMILY_POSITIVE[family]}, ${preset.positive}`,
+    positive: [FAMILY_POSITIVE[family], preset.positive].filter(Boolean).join(', '),
     negative: preset.negative ? `${FAMILY_NEGATIVE[family]}, ${preset.negative}` : FAMILY_NEGATIVE[family],
   };
 }

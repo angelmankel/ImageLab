@@ -383,6 +383,13 @@ export type WorkflowState = {
   /** On/off and weight of each model's trigger-word part, keyed by model file name. The words
    *  themselves come from metadata (lib/modelKeywords). Missing entries mean on at 1.0. */
   modelKeywords?: Record<string, { on: boolean; weight: number }>;
+  /** The base checkpoint's model type (lib/modelProfiles `ProfileId`): picks the graph family and
+   *  the quality tags. Kept in step with the checkpoint by `useModelProfileSync`. */
+  modelProfile?: string;
+  /** Model type chosen by hand per checkpoint file, over what CivitAI says. */
+  modelProfileOverrides?: Record<string, string>;
+  /** On/off of each type's quality tags: profile id → tag id → on. Missing = the tag's default. */
+  profileTags?: Record<string, Record<string, boolean>>;
   /**
    * Ordered refinement, upscale, resize and background-removal steps.
    * Empty means only the base generation runs.

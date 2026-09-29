@@ -2,7 +2,7 @@ import type { useStore } from './store';
 import { useCanvasStore } from './canvasStore';
 import {
   saveWorkflow, saveLayers, saveSnippets, saveSnippetCategories, saveHistory,
-  saveVeniceSettings, saveCivitaiSettings, saveModelPreviewSource, saveModelPickerFilters, saveServerPickerFilters,
+  saveVeniceSettings, saveCivitaiSettings, saveModelPreviewSource,
   saveAutoFrameOnComplete, saveSlideshowPlaying, saveCollectionsTileSize,
   saveCollections, saveImportedImages,
   saveServers, saveRouting, saveThemeState,
@@ -71,8 +71,6 @@ const persisters: Persister[] = [
   { key: 'venice',             fingerprint: s => s.venice,             flush: s => saveVeniceSettings(s.venice) },
   { key: 'civitai',            fingerprint: s => s.civitai,            flush: s => saveCivitaiSettings(s.civitai) },
   { key: 'modelPreviewSource', fingerprint: s => s.modelPreviewSource, flush: s => saveModelPreviewSource(s.modelPreviewSource) },
-  { key: 'modelPickerFilters', fingerprint: s => s.modelPickerFilters, flush: s => saveModelPickerFilters(s.modelPickerFilters) },
-  { key: 'serverPickerFilters',fingerprint: s => s.serverPickerFilters,flush: s => saveServerPickerFilters(s.serverPickerFilters) },
   { key: 'autoFrame',          fingerprint: s => s.autoFrameOnComplete,flush: s => saveAutoFrameOnComplete(s.autoFrameOnComplete) },
   { key: 'slideshowPlaying',   fingerprint: s => s.slideshowPlaying,   flush: s => saveSlideshowPlaying(s.slideshowPlaying) },
   { key: 'collectionsTileSize',fingerprint: s => s.collectionsTileSize,flush: s => saveCollectionsTileSize(s.collectionsTileSize) },

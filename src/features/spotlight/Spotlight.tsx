@@ -17,6 +17,7 @@ import { useShortcut, ShortcutPriority } from '@/hooks/useShortcut';
 import { rankSpotlight, type SpotlightItem } from '@/lib/spotlight';
 import { emitApp, onApp } from '@/lib/appEvents';
 import { useStore } from '@/lib/store';
+import { profileById } from '@/lib/modelProfiles';
 import { useCanvasStore, type MainView } from '@/lib/canvasStore';
 import { uid } from '@/lib/storage';
 import { applyPromptPreset } from '@/lib/promptPresets';
@@ -136,7 +137,7 @@ function buildItems(): SpotlightItem[] {
   }
 
   // Prompt presets, with the quality tags for the current checkpoint's family.
-  const family = familyForCheckpoint(base?.name);
+  const family = familyForCheckpoint(base?.name, !!profileById(st.workflow.modelProfile)?.tags.length);
   for (const p of PROMPT_PRESETS) {
     out.push({
       id: `preset:${p.id}`, group: 'Prompt presets', label: p.name, description: `${p.category} · replaces the prompt`, keywords: p.positive,

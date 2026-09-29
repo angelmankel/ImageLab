@@ -37,6 +37,7 @@ import { IconDice, IconPlayerPlay } from '@tabler/icons-react';
 import { playSubmitSound } from '@/lib/sounds';
 import { withModelKeywords } from '@/lib/modelKeywords';
 import { withEmbeddings } from '@/lib/embeddings';
+import { profileTagTexts, withProfileTags } from '@/lib/modelProfiles';
 import { modelTrainedWords } from '@/components/models/modelInfo';
 
 /**
@@ -325,9 +326,9 @@ async function queueFromStore(newSeed: boolean) {
   }
 
   setStatus(`Queueing on ${target.name}…`, 'busy');
-  // Model trigger words and embeddings join the prompt here only; the saved layers stay the
-  // user's own parts.
-  const promptLayers = withEmbeddings(withModelKeywords(layers, workflow, modelTrainedWords), workflow, modelTrainedWords);
+  // The model type's quality tags, model trigger words and embeddings join the prompt here only;
+  // the saved layers stay the user's own parts.
+  const promptLayers = withProfileTags(withEmbeddings(withModelKeywords(layers, workflow, modelTrainedWords, profileTagTexts(workflow)), workflow, modelTrainedWords), workflow);
   const res = await queuePrompt(target.host, workflow, promptLayers, preUploadedRef, inpaintSource);
   if (!res.ok) {
     console.error('[queuePrompt] failed on', target.name, '→', res.error);

@@ -13,6 +13,7 @@ import {
 import { notifications } from '@mantine/notifications';
 import { IconSearch } from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
+import { profileById } from '@/lib/modelProfiles';
 import {
   FAMILY_LABELS, NEGATIVE_PRESETS, PRESET_CATEGORIES, PROMPT_PRESETS, familyForCheckpoint, presetPrompt,
   type ModelFamily,
@@ -52,7 +53,8 @@ export function applyWithUndo(changes: Partial<Record<LayerKind, string>>, name:
 export function PresetLibraryModal({ opened, onClose, kind }: { opened: boolean; onClose: () => void; kind: LayerKind }) {
   const checkpoint = useStore((s) => s.workflow.checkpoints[0]?.name);
   const [family, setFamily] = useState<ModelFamily | null>(null);
-  const fam = family ?? familyForCheckpoint(checkpoint);
+  const typeHasTags = useStore((s) => !!profileById(s.workflow.modelProfile)?.tags.length);
+  const fam = family ?? familyForCheckpoint(checkpoint, typeHasTags);
   const [category, setCategory] = useState(ALL);
   const [search, setSearch] = useState('');
   const [withNegative, setWithNegative] = useState(true);

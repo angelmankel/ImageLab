@@ -22,6 +22,7 @@ import { useModelHashes } from '@/hooks/useModelHashes';
 import { useDownloads } from '@/hooks/useDownloads';
 import { useServerFavorites } from '@/hooks/useServerFavorites';
 import { useThemeEffect } from '@/hooks/useThemeEffect';
+import { useModelProfileSync } from '@/hooks/useModelProfileSync';
 import { useViewSwitching } from '@/hooks/useViewSwitching';
 import { useCanvasControllerProvider } from '@/hooks/useCanvasControllerProvider';
 
@@ -42,6 +43,7 @@ export default function App() {
   useDownloads();
   useServerFavorites();
   useThemeEffect();
+  useModelProfileSync();
 
   const { mainView, viewKey, isSwitching } = useViewSwitching();
 

@@ -10,11 +10,11 @@
 import { StepperInput } from '@/components/fields/StepperInput';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActionIcon, Badge, Button, Collapse, Group, Slider, Stack, Switch, Text, Textarea, Tooltip,
+  ActionIcon, Badge, Button, Collapse, Group, Slider, Stack, Switch, Text, Textarea, Tooltip, UnstyledButton,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
-  IconBooks, IconBox, IconChevronDown, IconChevronUp, IconDeviceFloppy, IconEye, IconEyeOff, IconPencil, IconPlus, IconTrash, IconX,
+  IconBooks, IconBox, IconChevronDown, IconChevronUp, IconDeviceFloppy, IconEye, IconEyeOff, IconPencil, IconPlus, IconSettings, IconTrash, IconX,
 } from '@tabler/icons-react';
 import * as Popover from '@/components/ui/popover';
 import { FieldWrapper } from '@/components/fields/FieldWrapper';
@@ -27,6 +27,9 @@ import { SnippetsModal, categoryColor } from './SnippetsModal';
 import { modelKeywordSources, modelKeywordState, withModelKeywords, type ModelKeywordSource } from '@/lib/modelKeywords';
 import { modelLabel, modelTrainedWords } from '@/components/models/modelInfo';
 import { withEmbeddings } from '@/lib/embeddings';
+import { profileTagOn, profileTagTexts, withProfileTags } from '@/lib/modelProfiles';
+import { useModelProfile } from '@/hooks/useModelProfileSync';
+import { ModelProfileModal } from '@/components/models/ModelProfileModal';
 import { PresetLibraryModal } from './PresetLibraryModal';
 
 /** Weights run 0–2 here (v1 stopped at 1); the bar shows the whole range. */
@@ -171,7 +174,7 @@ function SnippetsRow({ kind, compact }: { kind: LayerKind; compact?: boolean }) 
   const [browsing, setBrowsing] = useState(false);
   const workflow = useStore((s) => s.workflow);
   useStore((s) => s.civitaiByHash);
-  const preview = compileLayers(withEmbeddings(kind === 'positive' ? withModelKeywords(layers, workflow, modelTrainedWords) : layers, workflow, modelTrainedWords), kind);
+  const preview = compileLayers(withProfileTags(withEmbeddings(kind === 'positive' ? withModelKeywords(layers, workflow, modelTrainedWords, profileTagTexts(workflow)) : layers, workflow, modelTrainedWords), workflow), kind);
 
   // The negative side only shows its row once there is something in it — v1 had no negative snippets.
   if (compact && extras.length === 0) {
@@ -220,6 +223,7 @@ function SnippetsRow({ kind, compact }: { kind: LayerKind; compact?: boolean }) 
               {extras.map((l) => <SnippetRow key={l.id} layer={l} />)}
             </Stack>
           )}
+          {kind === 'positive' && <ModelTypeRow />}
           {kind === 'positive' && <ModelKeywordRows />}
         </Stack>
       </Collapse>
@@ -333,13 +337,43 @@ function ModelKeywordRows() {
   // Re-read when model metadata lands.
   useStore((s) => s.modelHashes);
   useStore((s) => s.civitaiByHash);
-  const sources = modelKeywordSources({ checkpoints, loras }, modelTrainedWords);
+  const modelProfile = useStore((s) => s.workflow.modelProfile);
+  const sources = modelKeywordSources({ checkpoints, loras }, modelTrainedWords, profileTagTexts({ modelProfile }));
   if (!sources.length) return null;
   return (
     <Stack gap={4}>
       <Text size="xs" fw={600} c="dimmed" mt={4}>Model trigger words</Text>
       {sources.map((src) => <ModelKeywordRow key={src.file} source={src} />)}
     </Stack>
+  );
+}
+
+/**
+ * The base checkpoint's model type and how many of its quality tags are on. The tags themselves are
+ * switched in the model type window (also the cog on the checkpoint tile); this row opens it.
+ */
+function ModelTypeRow() {
+  const { profile } = useModelProfile();
+  const base = useStore((s) => s.workflow.checkpoints[0]?.name);
+  const profileTags = useStore((s) => s.workflow.profileTags);
+  const [open, setOpen] = useState(false);
+  if (!profile || !base || !profile.tags.length) return null;
+  const on = profile.tags.filter((t) => profileTagOn({ profileTags }, profile, t));
+  const text = on.map((t) => `${t.kind === 'negative' ? '−' : ''}${t.text}`).join(', ');
+  return (
+    <>
+      <Text size="xs" fw={600} c="dimmed" mt={4}>Model type</Text>
+      <UnstyledButton onClick={() => setOpen(true)} px="xs" py={6} aria-label={`${profile.id} quality tags`}
+        style={{ borderRadius: 'var(--mantine-radius-sm)', borderLeft: '3px solid var(--mantine-color-teal-6)', backgroundColor: 'var(--mantine-color-dark-6)' }}>
+        <Group gap="xs" wrap="nowrap">
+          <IconSettings size={16} style={{ flexShrink: 0, color: 'var(--mantine-color-teal-4)' }} />
+          <Text size="sm" style={{ flexShrink: 0 }}>{profile.id} quality tags</Text>
+          <Text size="xs" c="dimmed" truncate style={{ flex: 1, minWidth: 0 }}>{text || 'all off'}</Text>
+          <Badge size="xs" variant="light" color="teal" style={{ flexShrink: 0 }}>{on.length}/{profile.tags.length}</Badge>
+        </Group>
+      </UnstyledButton>
+      {open && <ModelProfileModal opened onClose={() => setOpen(false)} fileName={base} />}
+    </>
   );
 }
 

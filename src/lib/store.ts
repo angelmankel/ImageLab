@@ -19,14 +19,14 @@ import type { CivitaiCacheEntry } from './civitai';
 import {
   loadLayers, loadSnippets, loadSnippetCategories,
   loadHistory, loadWorkflow, loadVeniceSettings, loadCivitaiSettings,
-  loadModelPreviewSource, loadModelPickerFilters, loadServerPickerFilters,
+  loadModelPreviewSource,
   loadAutoFrameOnComplete,
   loadSlideshowPlaying, loadCollectionsTileSize,
   loadThemeState, loadCollections, loadImportedImages,
   getServers, loadRouting, ROUND_ROBIN,
   FALLBACKS, HISTORY_MAX, uid, DEFAULT_COMFY_HOST, DEFAULT_CATEGORY_ID,
 } from './storage';
-import type { Server, VeniceSettings, CivitaiSettings, ModelPreviewSource, ModelPickerFilters, ServerPickerFilters } from './storage';
+import type { Server, VeniceSettings, CivitaiSettings, ModelPreviewSource } from './storage';
 import { putImportedBlob, deleteImportedBlob } from './importedDb';
 import type { Theme } from './themes';
 import { resolveTheme } from './themes';
@@ -252,11 +252,6 @@ type Store = {
   civitai: CivitaiSettings;
   /** Where the model picker's hover slideshow pulls its starting image from. */
   modelPreviewSource: ModelPreviewSource;
-  /** Persisted base-model filter per model kind (checkpoint/lora/vae). */
-  modelPickerFilters: ModelPickerFilters;
-  /** Persisted per-server filter — list of server IDs the picker is scoped
-   *  to. Empty array (or missing kind) = no filter (show all servers). */
-  serverPickerFilters: ServerPickerFilters;
   /** When true (default), a completed job jumps the canvas to its image and
    *  fits to view; when false the canvas stays put. */
   autoFrameOnComplete: boolean;
@@ -427,8 +422,6 @@ type Store = {
 
   // Model-preview source / model-picker filter persistence
   setModelPreviewSource: (src: ModelPreviewSource) => void;
-  setModelPickerFilter: (kind: string, bucket: string) => void;
-  setServerPickerFilter: (kind: string, serverIds: string[]) => void;
   setAutoFrameOnComplete: (on: boolean) => void;
   setCollectionsTileSize: (px: number) => void;
 
@@ -506,8 +499,6 @@ export const useStore = create<Store>((set, get) => {
     venice: loadVeniceSettings(),
     civitai: loadCivitaiSettings(),
     modelPreviewSource: loadModelPreviewSource(),
-    modelPickerFilters: loadModelPickerFilters(),
-    serverPickerFilters: loadServerPickerFilters(),
     autoFrameOnComplete: loadAutoFrameOnComplete(),
     collectionsTileSize: loadCollectionsTileSize(),
     history: dedupeHistory(loadHistory()),
@@ -1062,14 +1053,6 @@ export const useStore = create<Store>((set, get) => {
 
     setModelPreviewSource: (src) => {
       set({ modelPreviewSource: src });
-    },
-    setModelPickerFilter: (kind, bucket) => {
-      const next = { ...get().modelPickerFilters, [kind]: bucket };
-      set({ modelPickerFilters: next });
-    },
-    setServerPickerFilter: (kind, serverIds) => {
-      const next = { ...get().serverPickerFilters, [kind]: serverIds };
-      set({ serverPickerFilters: next });
     },
     setAutoFrameOnComplete: (on) => {
       set({ autoFrameOnComplete: on });

@@ -38,6 +38,36 @@ export function applyClipSkip(
   return ['clipskip', 0];
 }
 
+/** A prompt cut at each `BREAK` (upper case, a word on its own), with stray commas trimmed. */
+export function breakParts(text: string): string[] {
+  return text.split(/\bBREAK\b/).map((p) => p.trim().replace(/^,\s*/, '').replace(/,\s*$/, '').trim()).filter(Boolean);
+}
+
+/**
+ * `BREAK` (A1111 syntax; Pony's quality tags end with one) starts a new CLIP chunk. ComfyUI's
+ * CLIPTextEncode reads it as a plain word, so each part is encoded on its own and the parts are
+ * joined with ConditioningConcat. The last join takes the encoder's id, so every `[id, 0]`
+ * reference keeps working. A prompt with no BREAK is left as it is.
+ */
+export function applyBreaks(
+  graph: Record<string, { class_type: string; inputs: Record<string, unknown> }>,
+  id: string,
+): void {
+  const node = graph[id];
+  const text = String(node?.inputs.text ?? '');
+  if (!/\bBREAK\b/.test(text)) return;
+  const parts = breakParts(text);
+  if (parts.length < 2) { node.inputs.text = parts[0] ?? ''; return; }
+  const clip = node.inputs.clip;
+  parts.forEach((part, i) => { graph[`${id}b${i}`] = { class_type: 'CLIPTextEncode', inputs: { text: part, clip } }; });
+  let ref: [string, number] = [`${id}b0`, 0];
+  for (let i = 1; i < parts.length; i++) {
+    const joinId = i === parts.length - 1 ? id : `${id}j${i}`;
+    graph[joinId] = { class_type: 'ConditioningConcat', inputs: { conditioning_to: ref, conditioning_from: [`${id}b${i}`, 0] } };
+    ref = [joinId, 0];
+  }
+}
+
 export const DEFAULT_FRAME: LoopbackFrame = { x: 0.5, y: 0.5, w: 1, h: 1 };
 
 /** A frame with its size filled in: centre and size as fractions of the base image. */

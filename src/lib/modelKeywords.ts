@@ -24,9 +24,11 @@ export const DEFAULT_MODEL_KEYWORD: ModelKeywordState = { on: true, weight: 1 };
 export function modelKeywordSources(
   workflow: Pick<WorkflowState, 'checkpoints' | 'loras'>,
   wordsFor: (file: string) => string[] | null | undefined,
+  /** Words owned elsewhere — the model type's quality tags (lib/modelProfiles). */
+  exclude: string[] = [],
 ): ModelKeywordSource[] {
   const clean = (file: string) => {
-    const seen = new Set<string>();
+    const seen = new Set<string>(exclude.map((w) => w.toLowerCase()));
     return (wordsFor(file) ?? [])
       .map((w) => String(w ?? '').trim().replace(/,\s*$/, ''))
       .filter((w) => w && !seen.has(w.toLowerCase()) && seen.add(w.toLowerCase()));
@@ -50,8 +52,9 @@ export function modelKeywordState(workflow: Pick<WorkflowState, 'modelKeywords'>
 export function modelKeywordLayers(
   workflow: Pick<WorkflowState, 'checkpoints' | 'loras' | 'modelKeywords'>,
   wordsFor: (file: string) => string[] | null | undefined,
+  exclude: string[] = [],
 ): Layer[] {
-  return modelKeywordSources(workflow, wordsFor)
+  return modelKeywordSources(workflow, wordsFor, exclude)
     .filter((s) => s.active)
     .map((s) => {
       const st = modelKeywordState(workflow, s.file);
@@ -64,7 +67,8 @@ export function withModelKeywords(
   layers: Layer[],
   workflow: Pick<WorkflowState, 'checkpoints' | 'loras' | 'modelKeywords'>,
   wordsFor: (file: string) => string[] | null | undefined,
+  exclude: string[] = [],
 ): Layer[] {
-  const extra = modelKeywordLayers(workflow, wordsFor);
+  const extra = modelKeywordLayers(workflow, wordsFor, exclude);
   return extra.length ? [...layers, ...extra] : layers;
 }

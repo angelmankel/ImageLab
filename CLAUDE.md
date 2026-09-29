@@ -83,6 +83,19 @@ npm run build
   positive text box, which is auto-detected and can be re-pointed. History comes from the server's
   `/history`, so it survives a reload and shows other clients' runs too.
 
+- **Model types and graph families** (`lib/modelProfiles.ts`, pure + tested). A *family* is how
+  the graph is wired: `lib/graphs/index.ts` picks a builder per family (`graphs/sd.ts` serves
+  `sd15` and `sdxl`; Flux/Anima get their own file). A *profile* is a CivitAI base-model type
+  (SD 1.5, SDXL, Pony, Illustrious, NoobAI): its family, start values (size), quality tags and
+  which LoRA/embedding types fit. `hooks/useModelProfileSync` (mounted in App) keeps
+  `workflow.modelProfile` in step with the base checkpoint; a type change moves only values still
+  at the old type's default. Quality tags are pills (cog on the checkpoint tile, or the "Model
+  type" row under the snippets), never text; they lead the prompt at generate time. Pony adds
+  `BREAK` after them — `applyBreaks` (pipeline.ts) turns BREAK into separate CLIPTextEncodes
+  joined by ConditioningConcat, since ComfyUI's encoder would read it as a word. Trigger words
+  skip words the type's pills own. LoRA/embedding pickers show only fitting types until
+  "Show all"; the VAE select shows only the family's VAEs until its switch is on.
+
 **The seed trap.** The ComfyUI editor gives any INT named `seed` / `noise_seed` a
 `control_after_generate` slot even when `/object_info` does not declare one, and saves the extra
 `"randomize"` in `widgets_values`. `lib/workflowGraph.ts` mirrors that rule. Break it and every

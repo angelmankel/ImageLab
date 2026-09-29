@@ -9,7 +9,7 @@ import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useMediaQuery } from '@mantine/hooks';
 import {
   ActionIcon, Badge, Box, Card, Center, Checkbox, Chip, Divider, Group, Image,
-  Modal, ScrollArea, Skeleton, Slider, Stack, Text, TextInput, Tooltip,
+  Modal, ScrollArea, Skeleton, Slider, Stack, Switch, Text, TextInput, Tooltip,
 } from '@mantine/core';
 import { IconHash, IconRefresh, IconSearch, IconServer, IconX, IconZoomIn, IconZoomOut } from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
@@ -31,13 +31,15 @@ export interface ModelSelectorModalProps {
   /** Availability on the current routing target; unavailable models show dimmed with a hint. */
   availability?: (name: string) => { servers: string[]; enabled: boolean };
   onRefresh?: () => Promise<void> | void;
+  /** The checkpoint's model type. Only files that fit it show, until "Show all" is on. */
+  fitsType?: { label: string; fits: (bucket: string) => boolean };
 }
 
 const TITLES: Record<ModelSelectorKind, string> = { checkpoint: 'Checkpoints', lora: 'LoRAs', embedding: 'Embeddings', vae: 'VAEs' };
 const SCALE_KEY = 'imagelab.modelSelectorScale.v1';
 
 export function ModelSelectorModal({
-  opened, onClose, kind, models, selectedModels, onToggleModel, onClearSelection, availability, onRefresh,
+  opened, onClose, kind, models, selectedModels, onToggleModel, onClearSelection, availability, onRefresh, fitsType,
 }: ModelSelectorModalProps) {
   const [search, setSearch] = useState('');
   const [baseModelFilter, setBaseModelFilter] = useState<string | null>(null);
@@ -47,6 +49,9 @@ export function ModelSelectorModal({
   const [refreshing, setRefreshing] = useState(false);
   useEffect(() => { try { localStorage.setItem(SCALE_KEY, String(scale)); } catch { /* ignore */ } }, [scale]);
   useEffect(() => { if (!opened) setSearch(''); }, [opened]);
+  // Every opening starts on the files that fit the checkpoint.
+  const [showAll, setShowAll] = useState(false);
+  useEffect(() => { if (opened) setShowAll(false); }, [opened]);
 
   // Re-read metadata whenever the CivitAI cache fills in.
   const hashes = useStore((s) => s.modelHashes);
@@ -58,21 +63,31 @@ export function ModelSelectorModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [models, hashes, civitai]);
 
+  const typeFiltered = !!fitsType && !showAll;
+  const fitting = useMemo(() => (
+    typeFiltered ? models.filter((f) => fitsType!.fits(infoMap.get(f)?.bucket ?? 'Unknown')) : models
+  ), [models, infoMap, typeFiltered, fitsType]);
+  const hiddenByType = models.length - fitting.length;
+
   const baseModels = useMemo(() => {
     const present = new Set<string>();
-    for (const i of infoMap.values()) present.add(i.bucket);
+    for (const f of fitting) present.add(infoMap.get(f)?.bucket ?? 'Unknown');
     return BASE_MODEL_BUCKETS.filter((b) => present.has(b));
-  }, [infoMap]);
+  }, [fitting, infoMap]);
+  // A chip for a type that the filter just hid would show nothing.
+  useEffect(() => {
+    if (baseModelFilter && !baseModels.includes(baseModelFilter as typeof baseModels[number])) setBaseModelFilter(null);
+  }, [baseModels, baseModelFilter]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return models.filter((f) => {
+    return fitting.filter((f) => {
       const info = infoMap.get(f);
       if (baseModelFilter && info?.bucket !== baseModelFilter) return false;
       if (!q) return true;
       return f.toLowerCase().includes(q) || (info?.name ?? '').toLowerCase().includes(q);
     });
-  }, [models, search, baseModelFilter, infoMap]);
+  }, [fitting, search, baseModelFilter, infoMap]);
 
   // Selected first, then alphabetical — as v1 sorted. "Selected" is read once when the modal opens,
   // so ticking a tile never moves it (or its neighbours) out from under the pointer.
@@ -119,6 +134,12 @@ export function ModelSelectorModal({
       </Chip.Group>
     </ScrollArea>
   );
+  const typeSwitch = fitsType && (
+    <Tooltip label={showAll ? `Showing every ${TITLES[kind].toLowerCase().replace(/s$/, '')}` : `Only ones made for ${fitsType.label}${hiddenByType ? ` · ${hiddenByType} hidden` : ''}`} position="bottom">
+      <Switch size="xs" checked={showAll} onChange={(e) => setShowAll(e.currentTarget.checked)} style={{ flexShrink: 0 }}
+        label={<Text size="xs" c="dimmed" style={{ whiteSpace: 'nowrap' }}>{showAll ? 'Show all' : `${fitsType.label} only`}</Text>} />
+    </Tooltip>
+  );
   const sizeSlider = (
     <Group gap={6} style={narrow ? { flex: 1 } : { flexShrink: 0 }} wrap="nowrap">
       <IconZoomOut size={14} style={{ opacity: 0.4 }} />
@@ -144,7 +165,8 @@ export function ModelSelectorModal({
       {narrow ? (
         <Stack gap={8} mb={6}>
           {searchBox}
-          {chips}
+          {typeSwitch}
+          {!typeFiltered && chips}
         </Stack>
       ) : null}
       <Group gap="md" mb={6} wrap="nowrap" align="center">
@@ -152,7 +174,9 @@ export function ModelSelectorModal({
           <Box style={{ flex: 1, minWidth: 0 }}>
             <Group gap="sm" wrap="nowrap" align="center">
               {searchBox}
-              <Box style={{ flex: 1, minHeight: 28, minWidth: 0 }}>{chips}</Box>
+              {typeSwitch}
+              {/* The base-model chips narrow further once "Show all" is on; the type switch does it before. */}
+              <Box style={{ flex: 1, minHeight: 28, minWidth: 0 }}>{!typeFiltered && chips}</Box>
             </Group>
           </Box>
         )}
@@ -181,7 +205,7 @@ export function ModelSelectorModal({
       </Group>
 
       {sorted.length === 0 ? (
-        <Center h={200}><Text c="dimmed">{models.length === 0 ? 'No models on the connected servers' : 'No models found'}</Text></Center>
+        <Center h={200}><Text c="dimmed">{models.length === 0 ? 'No models on the connected servers' : typeFiltered && fitting.length === 0 ? `None made for ${fitsType!.label} — turn on "Show all"` : 'No models found'}</Text></Center>
       ) : (
         <ScrollArea scrollbars="y" style={{ flex: 1 }} type="auto" offsetScrollbars>
           <div style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fill, minmax(min(${tileMin}px, 100%), 1fr))`, gap: 8, padding: narrow ? 2 : 8 }}>
