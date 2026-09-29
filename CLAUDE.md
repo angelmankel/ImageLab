@@ -119,7 +119,10 @@ npm run build
   `SaveVideo` (`format: "mp4", codec: "h264"` works in API format) to `output/video/`. It runs
   through Studio's runner (`useComfyRun` in `studio/useStudioRun.ts`, which takes a graph source
   and a `keep` filter — Video keeps only video files) and Studio's `ResultView`, which plays video.
-  The Wan models are not in models.txt yet: the page lists what the server lacks.
+  The Wan models are not in models.txt yet: the page lists what the server lacks, and fills in
+  installed stand-ins (`pickInstalledWanFiles`). **Fast mode** (default on) adds the mode's
+  lightx2v 4-step LoRA to each expert, 4 steps, switch at 2, CFG 1: ~6x faster (A100, 832x480x33:
+  18.6 s vs 117 s). Phones get `components/VideoFullscreen` (tap, drag to seek, rotate).
 
 **The seed trap.** The ComfyUI editor gives any INT named `seed` / `noise_seed` a
 `control_after_generate` slot even when `/object_info` does not declare one, and saves the extra
