@@ -1,17 +1,22 @@
 /**
  * ModelSelectorModal — v1's full-screen model browser, ported onto this app's data.
  *
- * Search, base-model chips, a tile-size slider, a refresh button, and a grid of preview tiles
- * with a checkbox each. It is a full-screen modal, so it can never be clipped by a panel or the
- * side rail the way an anchored popover could.
+ * Search, base-model chips, a tile-size slider, a refresh button, and a grid of preview tiles.
+ * It is a full-screen modal, so it can never be clipped by a panel or the side rail the way an
+ * anchored popover could.
+ *
+ * Picking: a click picks one model and closes the modal (a checkpoint replaces the current one;
+ * a LoRA or embedding is added). To pick several, hold Shift — the tiles show checkboxes and a
+ * click ticks or unticks without closing. On a phone, a long press (or the "Select multiple"
+ * button) turns on multi-select until the modal closes.
  */
-import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMediaQuery } from '@mantine/hooks';
 import {
-  ActionIcon, Badge, Box, Card, Center, Checkbox, Chip, Divider, Group, Image,
+  ActionIcon, Badge, Box, Button, Card, Center, Checkbox, Chip, Divider, Group, Image,
   Modal, ScrollArea, Skeleton, Slider, Stack, Switch, Text, TextInput, Tooltip,
 } from '@mantine/core';
-import { IconHash, IconRefresh, IconSearch, IconServer, IconX, IconZoomIn, IconZoomOut } from '@tabler/icons-react';
+import { IconCheck, IconHash, IconListCheck, IconRefresh, IconSearch, IconServer, IconX, IconZoomIn, IconZoomOut } from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
 import { TileHover } from '@/components/ui/TileHover';
 import { BASE_MODEL_BUCKETS } from '@/lib/modelHash';
@@ -47,6 +52,20 @@ export function ModelSelectorModal({
     try { const v = Number(localStorage.getItem(SCALE_KEY)); return Number.isFinite(v) && v > 0 ? v : 0.4; } catch { return 0.4; }
   });
   const [refreshing, setRefreshing] = useState(false);
+  /** Multi-select: on while Shift is held, or (phones, or the header button) until the modal closes. */
+  const [shiftHeld, setShiftHeld] = useState(false);
+  const [multiMode, setMultiMode] = useState(false);
+  const multi = shiftHeld || multiMode;
+  useEffect(() => {
+    if (!opened) { setMultiMode(false); setShiftHeld(false); return; }
+    const down = (e: KeyboardEvent) => { if (e.key === 'Shift') setShiftHeld(true); };
+    const up = (e: KeyboardEvent) => { if (e.key === 'Shift') setShiftHeld(false); };
+    const blur = () => setShiftHeld(false);
+    window.addEventListener('keydown', down);
+    window.addEventListener('keyup', up);
+    window.addEventListener('blur', blur);
+    return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); window.removeEventListener('blur', blur); };
+  }, [opened]);
   useEffect(() => { try { localStorage.setItem(SCALE_KEY, String(scale)); } catch { /* ignore */ } }, [scale]);
   useEffect(() => { if (!opened) setSearch(''); }, [opened]);
   // Every opening starts on the files that fit the checkpoint.
@@ -96,6 +115,22 @@ export function ModelSelectorModal({
   const sorted = useMemo(() => (
     [...filtered].sort((a, b) => Number(pinned.has(b)) - Number(pinned.has(a)) || modelLabel(a).localeCompare(modelLabel(b)))
   ), [filtered, pinned]);
+
+  // A plain click picks this one model and closes. Shift (or multi mode) ticks and stays open.
+  const selectedRef = useRef(selectedModels);
+  selectedRef.current = selectedModels;
+  const pick = useCallback((fileName: string, additive: boolean) => {
+    const selected = selectedRef.current;
+    if (additive || multiMode) { onToggleModel(fileName); return; }
+    // A checkpoint picked on its own replaces the current one(s); LoRAs and embeddings stack.
+    if (kind === 'checkpoint') selected.filter((f) => f !== fileName).forEach(onToggleModel);
+    if (!selected.includes(fileName)) onToggleModel(fileName);
+    onClose();
+  }, [multiMode, kind, onToggleModel, onClose]);
+  const longPress = useCallback((fileName: string) => {
+    setMultiMode(true);
+    onToggleModel(fileName);
+  }, [onToggleModel]);
 
   const handleRefresh = async () => {
     if (!onRefresh) return;
@@ -192,6 +227,15 @@ export function ModelSelectorModal({
         )}
 
         <Group gap="xs" style={{ flexShrink: 0 }}>
+          {multiMode ? (
+            <Button size="compact-sm" leftSection={<IconCheck size={14} />} onClick={onClose}>Done</Button>
+          ) : (
+            <Tooltip label={narrow ? 'Or long-press a model' : 'Or hold Shift and click'} position="bottom">
+              <Button size="compact-sm" variant="default" leftSection={<IconListCheck size={14} />} onClick={() => setMultiMode(true)}>
+                {narrow ? 'Multiple' : 'Select multiple'}
+              </Button>
+            </Tooltip>
+          )}
           <Text size="xs" c="dimmed">{filtered.length}</Text>
           <Badge variant="light" size="sm">{selectedModels.length} selected</Badge>
           {selectedModels.length > 0 && onClearSelection && (
@@ -216,7 +260,9 @@ export function ModelSelectorModal({
                 info={infoMap.get(f)}
                 isSelected={selectedModels.includes(f)}
                 availability={availability?.(f)}
-                onToggle={onToggleModel}
+                multi={multi}
+                onPick={pick}
+                onLongPress={longPress}
               />
             ))}
           </div>
@@ -231,17 +277,42 @@ interface ModelGridItemProps {
   info?: ModelInfo;
   isSelected: boolean;
   availability?: { servers: string[]; enabled: boolean };
-  onToggle: (fileName: string) => void;
+  /** Checkboxes show only in multi-select. */
+  multi: boolean;
+  /** `additive` = Shift-click or a checkbox click: tick without closing. */
+  onPick: (fileName: string, additive: boolean) => void;
+  onLongPress: (fileName: string) => void;
 }
 
-const ModelGridItem = memo(function ModelGridItem({ fileName, info, isSelected, availability, onToggle }: ModelGridItemProps) {
+const LONG_PRESS_MS = 450;
+
+const ModelGridItem = memo(function ModelGridItem({ fileName, info, isSelected, availability, multi, onPick, onLongPress }: ModelGridItemProps) {
   const [attempt, setAttempt] = useState(0);
   const [imageLoaded, setImageLoaded] = useState(false);
   const urls = info?.images ?? [];
   useEffect(() => { setAttempt(0); setImageLoaded(false); }, [urls.join('|')]); // eslint-disable-line react-hooks/exhaustive-deps
   const thumbnailUrl = urls[attempt];
   const allFailed = urls.length > 0 && attempt >= urls.length;
-  const toggle = useCallback(() => onToggle(fileName), [onToggle, fileName]);
+  // Touch long press → multi-select. The click that follows the press is swallowed.
+  const press = useRef<{ timer: number; x: number; y: number; fired: boolean } | null>(null);
+  const cancelPress = () => { if (press.current) window.clearTimeout(press.current.timer); };
+  const onPointerDown = (e: React.PointerEvent) => {
+    if (e.pointerType !== 'touch') return;
+    cancelPress();
+    const p = { x: e.clientX, y: e.clientY, fired: false, timer: 0 };
+    p.timer = window.setTimeout(() => { p.fired = true; navigator.vibrate?.(15); onLongPress(fileName); }, LONG_PRESS_MS);
+    press.current = p;
+  };
+  const onPointerMove = (e: React.PointerEvent) => {
+    const p = press.current;
+    if (p && Math.hypot(e.clientX - p.x, e.clientY - p.y) > 10) cancelPress();
+  };
+  const onClick = (e: React.MouseEvent) => {
+    const fired = press.current?.fired;
+    press.current = null;
+    if (fired) return;
+    onPick(fileName, e.shiftKey);
+  };
   const displayName = modelLabel(fileName);
   const unavailable = availability && !availability.enabled;
   const description = plainDescription(info?.description);
@@ -257,8 +328,16 @@ const ModelGridItem = memo(function ModelGridItem({ fileName, info, isSelected, 
         transition: 'border-color 0.15s ease',
         overflow: 'hidden',
         opacity: unavailable ? 0.45 : 1,
+        userSelect: 'none',
+        WebkitTouchCallout: 'none',
       }}
-      onClick={toggle}
+      onClick={onClick}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={cancelPress}
+      onPointerCancel={cancelPress}
+      // A touch long press would also open the browser's context menu.
+      onContextMenu={(e) => { if (press.current) e.preventDefault(); }}
     >
       <Box style={{ position: 'relative', aspectRatio: '1', backgroundColor: 'var(--mantine-color-dark-6)', overflow: 'hidden' }}>
         {thumbnailUrl && !allFailed ? (
@@ -284,15 +363,17 @@ const ModelGridItem = memo(function ModelGridItem({ fileName, info, isSelected, 
           </Box>
         )}
 
-        <Checkbox
-          checked={isSelected}
-          readOnly
-          size="md"
-          aria-label={`Select ${displayName}`}
-          style={{ position: 'absolute', top: 6, right: 6, zIndex: 10 }}
-          styles={{ input: { backgroundColor: 'rgba(0, 0, 0, 0.5)', borderColor: 'rgba(255, 255, 255, 0.3)', cursor: 'pointer' } }}
-          onClick={(e) => { e.stopPropagation(); toggle(); }}
-        />
+        {multi && (
+          <Checkbox
+            checked={isSelected}
+            readOnly
+            size="md"
+            aria-label={`Select ${displayName}`}
+            style={{ position: 'absolute', top: 6, right: 6, zIndex: 10 }}
+            styles={{ input: { backgroundColor: 'rgba(0, 0, 0, 0.5)', borderColor: 'rgba(255, 255, 255, 0.3)', cursor: 'pointer' } }}
+            onClick={(e) => { e.stopPropagation(); onPick(fileName, true); }}
+          />
+        )}
 
         {info?.baseModel && (
           <Badge size="xs" variant="filled" color="dark" style={{ position: 'absolute', top: 6, left: 6, zIndex: 10 }}>
