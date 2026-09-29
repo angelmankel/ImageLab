@@ -60,3 +60,23 @@ test('LoRAs patch the expert they belong to; sizes and lengths snap to what Wan 
   assert.equal(wanLength(2), 5); assert.equal(wanLength(50), 49); assert.equal(wanSide(470), 464);
   assert.equal(isVideoName('ImageLab_T2V_00001_.mp4'), true); assert.equal(isVideoName('x.png'), false);
 });
+
+test('installed Wan files fill in for missing ones, only when the choice is clear', () => {
+  const { pickInstalledWanFiles } = load('wanGraph');
+  const s = defaultVideoSettings();
+  const server = {
+    diffusionModels: ['anima_turboV11.safetensors', 'smoothMixWan2214BI2V_t2vHighV40.safetensors', 'smoothMixWan2214BI2V_t2vLowV40.safetensors', 'flux1-dev.safetensors'],
+    textEncoders: ['qwen_3_06b_base.safetensors', 'umt5_xxl_fp8_e4m3fn_scaled.safetensors'],
+    vaes: ['qwen_image_vae.safetensors', 'wan_2.1_vae.safetensors'],
+  };
+  const p = plain(pickInstalledWanFiles({ ...s, textEncoder: 'umt5_xxl_fp16.safetensors', vae: 'gone.safetensors' }, server));
+  assert.deepEqual(p.models.t2v, { high: 'smoothMixWan2214BI2V_t2vHighV40.safetensors', low: 'smoothMixWan2214BI2V_t2vLowV40.safetensors' });
+  assert.deepEqual(p.models.i2v, plain(s.models.i2v));
+  assert.equal(p.textEncoder, 'umt5_xxl_fp8_e4m3fn_scaled.safetensors');
+  assert.equal(p.vae, 'wan_2.1_vae.safetensors');
+  // I2V: no i2v files installed, nothing changes.
+  assert.deepEqual(plain(pickInstalledWanFiles({ ...s, mode: 'i2v', textEncoder: server.textEncoders[1], vae: server.vaes[1] }, server)), {});
+  // Two candidates for one slot: leave the choice to the person.
+  const two = { ...server, diffusionModels: [...server.diffusionModels, 'wan2.2_t2v_high_noise_14B_fp16.safetensors'] };
+  assert.equal(plain(pickInstalledWanFiles(s, two)).models.t2v.high, s.models.t2v.high);
+});

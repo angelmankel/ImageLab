@@ -24,6 +24,9 @@ import { ModelSelectorModal } from './ModelSelectorModal';
 import { modelLabel, modelTrainedWords, plainDescription, readModelInfo, useModelInfo } from './modelInfo';
 import { embeddingWords } from '@/lib/embeddings';
 import { FAMILY_LABELS, bucketFits, vaeFits } from '@/lib/modelProfiles';
+import { isWanName } from '@/lib/wanGraph';
+
+const isVideoModel = (file: string, bucket: string) => bucket === 'Wan Video' || isWanName(file);
 import { useModelProfile } from '@/hooks/useModelProfileSync';
 import { ModelProfileModal } from './ModelProfileModal';
 
@@ -193,7 +196,10 @@ function PickerBlock({ label, count, color, addLabel, emptyLabel, onAdd, childre
 
 export function CheckpointsField() {
   const checkpoints = useStore((s) => s.workflow.checkpoints);
-  const models = useStore((s) => s.server.models);
+  const allModels = useStore((s) => s.server.models);
+  useStore((s) => s.civitaiByHash);
+  // Wan video models belong to the Video view; this graph makes images and cannot run them.
+  const models = allModels.filter((f) => !isVideoModel(f, readModelInfo(f).bucket) || checkpoints.some((c) => c.name === f));
   const addCheckpoint = useStore((s) => s.addCheckpoint);
   const removeCheckpoint = useStore((s) => s.removeCheckpoint);
   const updateCheckpoint = useStore((s) => s.updateCheckpoint);

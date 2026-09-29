@@ -9,7 +9,7 @@
  * Desktop: controls on the left, the video on the right. Phone: the video on top, the controls
  * under it, Generate pinned to the bottom.
  */
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import {
   ActionIcon, Alert, Badge, Button, Collapse, Group, Loader, Paper, SegmentedControl, Stack, Switch, Text, Textarea, Tooltip, UnstyledButton,
 } from '@mantine/core';
@@ -18,7 +18,7 @@ import {
 } from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
 import { useIsDesktop } from '@/hooks/useIsDesktop';
-import { buildWanGraph, isVideoName, wanLength, type VideoMode, type VideoSettings } from '@/lib/wanGraph';
+import { buildWanGraph, isVideoName, pickInstalledWanFiles, wanLength, type VideoMode, type VideoSettings } from '@/lib/wanGraph';
 import type { ServerInfo } from '@/lib/types';
 import { DimensionsField, FieldWrapper, SeedField, SelectField, SliderField, StrengthControl } from '@/components/fields';
 import type { PresetGroup } from '@/components/fields/DimensionsField';
@@ -70,10 +70,26 @@ function useVideoRun(host: string | null): StudioRun {
   });
 }
 
+/** When a chosen Wan file is not on the server but one installed file clearly is its stand-in
+ *  (SmoothMix's t2v High / Low, the umt5 encoder…), use that one. */
+function useInstalledWanFiles() {
+  const mode = useVideo((s) => s.mode);
+  const diffusionModels = useStore((s) => s.server.diffusionModels);
+  const textEncoders = useStore((s) => s.server.textEncoders);
+  const vaes = useStore((s) => s.server.vaes);
+  useEffect(() => {
+    if (!diffusionModels.length) return;
+    const st = useVideo.getState();
+    const patch = pickInstalledWanFiles(st, { diffusionModels, textEncoders, vaes });
+    if (Object.keys(patch).length) st.set(patch);
+  }, [mode, diffusionModels, textEncoders, vaes]);
+}
+
 export function VideoView() {
   const host = useStudioHost();
   const isDesktop = useIsDesktop();
   const run = useVideoRun(host);
+  useInstalledWanFiles();
 
   if (!host) {
     return (

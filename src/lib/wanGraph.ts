@@ -150,3 +150,40 @@ export function buildWanGraph(s: VideoSettings, startImage: string | null = null
 export function isVideoName(name: string): boolean {
   return /\.(mp4|webm|mov|mkv)$/i.test(name);
 }
+
+/** A Wan file by name (CivitAI mixes like SmoothMix keep "wan" in the name). */
+export const isWanName = (name: string) => /wan[-_ .]?2|smoothmixwan/i.test(name);
+
+/**
+ * Installed files for the chosen ones that are missing: for each expert, the one Wan file of the
+ * mode (t2v / i2v) whose name says high or low; the umt5 text encoder; the Wan 2.1 VAE (A14B
+ * uses it, not the 2.2 one). Only fills what is missing and has exactly one clear candidate.
+ */
+export function pickInstalledWanFiles(
+  s: Pick<VideoSettings, 'mode' | 'models' | 'textEncoder' | 'vae'>,
+  server: { diffusionModels: string[]; textEncoders: string[]; vaes: string[] },
+): Partial<Pick<VideoSettings, 'models' | 'textEncoder' | 'vae'>> {
+  const patch: Partial<Pick<VideoSettings, 'models' | 'textEncoder' | 'vae'>> = {};
+  const only = (list: string[]) => (list.length === 1 ? list[0] : undefined);
+  // A T2V file says t2v. An I2V file says i2v and not t2v: SmoothMix's family name is "…I2V", so
+  // its T2V versions carry both.
+  const ofMode = (f: string) => (s.mode === 't2v' ? /t2v/i.test(f) : /i2v/i.test(f) && !/t2v/i.test(f));
+  const wan = server.diffusionModels.filter((f) => isWanName(f) && ofMode(f));
+  const current = s.models[s.mode];
+  const next = { ...current };
+  for (const which of ['high', 'low'] as const) {
+    if (server.diffusionModels.includes(current[which])) continue;
+    const found = only(wan.filter((f) => new RegExp(which, 'i').test(f)));
+    if (found) next[which] = found;
+  }
+  if (next.high !== current.high || next.low !== current.low) patch.models = { ...s.models, [s.mode]: next };
+  if (!server.textEncoders.includes(s.textEncoder)) {
+    const te = only(server.textEncoders.filter((f) => /umt5/i.test(f)));
+    if (te) patch.textEncoder = te;
+  }
+  if (!server.vaes.includes(s.vae)) {
+    const vae = only(server.vaes.filter((f) => /wan[-_ ]?2[._]1.*vae|wan.*2\.1/i.test(f)));
+    if (vae) patch.vae = vae;
+  }
+  return patch;
+}
