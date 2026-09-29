@@ -24,7 +24,7 @@ const PREFETCH_ROOT_MARGIN = '1200px 0px';
 
 /**
  * Center grid of CivitAI model cards. Each card hero-images one of the model's gallery samples;
- * hover auto-seeks through the rest and the scroll wheel seeks by hand. Infinite-scrolls via a
+ * hover auto-seeks through the rest. Infinite-scrolls via a
  * sentinel the parent observes. Two filters the API lacks — hide Early Access, installed or not —
  * are applied here, on the loaded page.
  */
@@ -59,7 +59,7 @@ export function BrowserGrid({
   [items, installedHashes, earlyFilter, installedFilter]);
   const hiddenHere = items.length - shown.length;
   return (
-    <div className={`scroll-y min-h-0 flex-1 overflow-x-hidden ${compact ? 'p-2' : 'p-4'}`} onScroll={noteGridScroll}>
+    <div className={`scroll-y min-h-0 flex-1 overflow-x-hidden ${compact ? 'p-2' : 'p-4'}`}>
       {loading && items.length === 0 ? (
         <SkeletonGrid cols={cols} />
       ) : shown.length === 0 && !hiddenHere ? (
@@ -135,13 +135,6 @@ function EmptyState({ error, onRetry }: { error: string | null; onRetry: () => v
 
 /** How often hover auto-seek moves to the next image. */
 const AUTO_SEEK_MS = 1400;
-/** Wheel travel per image step: one mouse notch (~100) is one step; a trackpad needs a short swipe. */
-const WHEEL_STEP = 60;
-/** A wheel event this soon after the grid scrolled belongs to that scroll, not to the tile under it. */
-const SCROLL_GUARD_MS = 350;
-let lastGridScrollAt = 0;
-/** Called by the grid's scroll handler. */
-export function noteGridScroll() { lastGridScrollAt = Date.now(); }
 
 function relativeDate(iso?: string | null): string {
   if (!iso) return '';
@@ -186,10 +179,8 @@ export function isInstalled(model: CivitaiSearchHit, installed: Set<string>): bo
  * One model tile: a hero image, then name, creator, stats, the version's facts, tags, and the
  * download control.
  *
- * Image seeking: hovering auto-seeks through the model's samples. A scroll-wheel turn over the
- * image steps through them by hand and freezes auto-seek on this tile; leaving and coming back
- * starts the auto-seek timer over, until the next wheel turn. A wheel turn that arrives while the
- * grid is still scrolling is left to the scroll, so scrolling past tiles never hijacks it.
+ * Image seeking: hovering auto-seeks through the model's samples; leaving and coming back starts
+ * the timer over. There is no manual seeking — the wheel always scrolls the grid.
  *
  * `blurNsfw` blurs the hero when the SFW toggle is on and the rendered image carries
  * `nsfwLevel > 1`; a click on the blur reveals this one tile.
@@ -232,15 +223,12 @@ function ModelCard({ model, blurNsfw, nsfwFirst, onClick, installed, compact, on
   const n = images.length;
 
   const [hover, setHover] = useState(false);
-  /** A wheel turn froze auto-seek; cleared when the pointer leaves. */
-  const [frozen, setFrozen] = useState(false);
   const [idx, setIdx] = useState(0);
   /** Gallery images past the hero load only once the tile has been hovered or seeked. */
   const [hoverArmed, setHoverArmed] = useState(false);
   /** Sticky once the tile is near the viewport; gates the hero <img> so far-off tiles fetch nothing. */
   const [prefetchArmed, setPrefetchArmed] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
-  const imageRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (prefetchArmed) return;
@@ -269,39 +257,12 @@ function ModelCard({ model, blurNsfw, nsfwFirst, onClick, installed, compact, on
     return () => io.disconnect();
   }, []);
 
-  // Auto-seek while hovered and not frozen. Re-entering re-runs this effect, so the timer starts over.
+  // Auto-seek while hovered. Re-entering re-runs this effect, so the timer starts over.
   useEffect(() => {
-    if (!hover || frozen || n <= 1) return;
+    if (!hover || n <= 1) return;
     const id = setInterval(() => setIdx((i) => (i + 1) % n), AUTO_SEEK_MS);
     return () => clearInterval(id);
-  }, [hover, frozen, n]);
-
-  // Wheel seeking. A native listener, because React's wheel handler is passive and could not stop
-  // the page from scrolling underneath.
-  useEffect(() => {
-    const el = imageRef.current;
-    if (!el || n <= 1) return;
-    let acc = 0;
-    let lastAt = 0;
-    const onWheel = (e: WheelEvent) => {
-      if (e.ctrlKey || Date.now() - lastGridScrollAt < SCROLL_GUARD_MS) return;
-      e.preventDefault();
-      setFrozen(true);
-      setHoverArmed(true);
-      const now = Date.now();
-      if (now - lastAt > 250) acc = 0;
-      lastAt = now;
-      const unit = e.deltaMode === 1 ? 40 : e.deltaMode === 2 ? 400 : 1;
-      acc += (Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY) * unit;
-      if (Math.abs(acc) >= WHEEL_STEP) {
-        const dir = acc > 0 ? 1 : -1;
-        acc -= dir * WHEEL_STEP;
-        setIdx((i) => (i + dir + n) % n);
-      }
-    };
-    el.addEventListener('wheel', onWheel, { passive: false });
-    return () => el.removeEventListener('wheel', onWheel);
-  }, [n]);
+  }, [hover, n]);
 
   /** Per-URL loaded flag so each image fades in only after its bytes arrive. */
   const [loaded, setLoaded] = useState<Record<string, boolean>>({});
@@ -320,7 +281,6 @@ function ModelCard({ model, blurNsfw, nsfwFirst, onClick, installed, compact, on
   const file = version?.files?.find((f) => f.primary) ?? version?.files?.[0];
   const early = earlyAccessUntil(model);
   const stats = model.stats ?? ({} as CivitaiSearchHit['stats']);
-  const seekTo = (i: number) => { setIdx(i); setFrozen(true); setHoverArmed(true); };
 
   return (
     // A div, not a button: the tile holds its own buttons, and buttons cannot nest.
@@ -330,14 +290,14 @@ function ModelCard({ model, blurNsfw, nsfwFirst, onClick, installed, compact, on
       tabIndex={0}
       onClick={onClick}
       onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onClick(); } }}
-      onMouseEnter={() => { setHover(true); setFrozen(false); setHoverArmed(true); }}
-      onMouseLeave={() => { setHover(false); setFrozen(false); }}
+      onMouseEnter={() => { setHover(true); setHoverArmed(true); }}
+      onMouseLeave={() => setHover(false)}
       // content-visibility skips layout/paint of offscreen tiles, which keeps long grids smooth;
       // the intrinsic size hint keeps the scrollbar from jumping as tiles swap in.
       style={{ contentVisibility: 'auto', containIntrinsicSize: compact ? '160px 330px' : '240px 470px' }}
       className="group flex cursor-pointer flex-col overflow-hidden rounded-lg border border-border-subtle bg-bg-elev/40 text-left outline-none transition-transform hover:-translate-y-0.5 hover:border-accent/60 hover:shadow-lg focus-visible:border-accent"
     >
-      <div ref={imageRef} className="relative aspect-[3/4] w-full overflow-hidden bg-bg-elev">
+      <div className="relative aspect-[3/4] w-full overflow-hidden bg-bg-elev">
         {!heroLoaded && <div aria-hidden className="skeleton-shimmer absolute inset-0" />}
 
         {n === 0 ? (
@@ -393,9 +353,9 @@ function ModelCard({ model, blurNsfw, nsfwFirst, onClick, installed, compact, on
               )}
               {nsfw && <Pill tone="err">NSFW</Pill>}
             </div>
-            {(hover || frozen) && n > 1 && (
+            {hover && n > 1 && (
               <span className="pointer-events-none absolute right-2 bottom-5 rounded bg-black/60 px-1.5 py-0.5 font-mono text-[10px] text-white/90">
-                {heroIdx + 1}/{n}{frozen ? ' ⏸' : ''}
+                {heroIdx + 1}/{n}
               </span>
             )}
           </>
@@ -410,17 +370,11 @@ function ModelCard({ model, blurNsfw, nsfwFirst, onClick, installed, compact, on
             Tap to reveal
           </span>
         )}
-        {(hover || frozen) && n > 1 && (
-          // Dots double as a seek bar: a click jumps there and freezes auto-seek, like the wheel.
-          <div className="absolute inset-x-0 bottom-1 flex justify-center gap-0.5 px-2">
+        {hover && n > 1 && (
+          // Position dots only; a click goes through to the tile.
+          <div className="pointer-events-none absolute inset-x-0 bottom-1 flex justify-center gap-0.5 px-2">
             {images.map((_, i) => (
-              <span
-                key={i}
-                role="button"
-                aria-label={`Image ${i + 1}`}
-                onClick={(e) => { e.stopPropagation(); seekTo(i); }}
-                className="flex h-3 flex-1 max-w-[18px] items-center"
-              >
+              <span key={i} className="flex h-3 flex-1 max-w-[18px] items-center">
                 <span className={cn('h-1 w-full rounded-full transition-colors', i === heroIdx ? 'bg-white/90' : 'bg-white/35')} />
               </span>
             ))}
