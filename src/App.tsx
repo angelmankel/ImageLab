@@ -12,6 +12,7 @@ import { ConfirmProvider } from '@/components/ui/ConfirmDialog';
 import { CanvasContext } from '@/lib/canvasContext';
 import { MainView } from '@/features/layout/MainView';
 import { MobileShell } from '@/features/layout/MobileShell';
+import { MobileNav } from '@/features/layout/MobileNav';
 import { ComfyLayer } from '@/features/comfy/ComfyLayer';
 import { usePanelLayout } from '@/features/layout/panelLayout';
 import { useStore } from '@/lib/store';
@@ -62,17 +63,18 @@ export default function App() {
     <CanvasContext.Provider value={canvas.value}>
       <ConfirmProvider>
       <TooltipProvider>
-        {mobileShell ? <MobileShell onOpenSettings={() => setSettingsOpen(true)} /> : <div
-          // Phones: the view on top, the nav along the bottom edge (under the view's own
-          // Generate / Stop bar). Desktop: the rail on the left.
+        <div
+          // Phones: the view on top, one bottom bar (MobileNav) for every view under it. Desktop:
+          // the rail on the left.
           className={cn('relative flex h-[100dvh] w-screen overflow-hidden bg-bg-base text-fg-secondary touch-pan-y', !isDesktop && 'flex-col')}
           style={{ overscrollBehavior: 'none' }}
         >
           {isDesktop && <Sidebar servers={servers} onOpenSettings={() => setSettingsOpen(true)} />}
-
-          {/* CENTER — canvas fills all remaining width. Side panels are
-              absolutely-positioned overlays inside this <main>, so toggling
-              them never resizes the canvas. */}
+          {mobileShell ? (
+            <div className="relative min-h-0 w-full flex-1"><MobileShell /></div>
+          ) : (
+          // CENTER — canvas fills all remaining width. Side panels are absolutely-positioned
+          // overlays inside this <main>, so toggling them never resizes the canvas.
           <main className={cn('relative flex-1 overflow-hidden bg-bg-base', isDesktop ? 'h-[100dvh]' : 'min-h-0 w-full')}>
             {/* Indeterminate progress sweep — only visible briefly after a
                 view switch. Sits above the fading content so the user gets
@@ -99,8 +101,9 @@ export default function App() {
               />
             </div>
           </main>
+          )}
 
-          {!isDesktop && <Sidebar servers={servers} onOpenSettings={() => setSettingsOpen(true)} placement="bottom" />}
+          {!isDesktop && <MobileNav onOpenSettings={() => setSettingsOpen(true)} />}
 
           {/* The mobile backdrop used to live here, outside <main>. It could never work from
               here: the panels render inside MainView's `animate-view-in` wrapper, whose
@@ -108,7 +111,7 @@ export default function App() {
               z-20 sibling of <main> paints above the whole subtree. The backdrop covered the
               open drawer, and every tap on a control closed the drawer instead. It now lives
               in AppSidePanels, next to the panels it belongs to, where the z-order is real. */}
-        </div>}
+        </div>
         <SettingsModal open={settingsOpen} onOpenChange={setSettingsOpen} />
         <ErrorBoundary label="Model metadata">
           <ModelMetadataModal />

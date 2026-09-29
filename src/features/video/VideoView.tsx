@@ -30,6 +30,7 @@ import { useResourceAvailability } from '@/hooks/useResourceAvailability';
 import { ImageInput } from '@/features/studio/ImageInput';
 import { ResultView } from '@/features/studio/StudioPanels';
 import { useStudioHost } from '@/features/studio/StudioView';
+import { ViewTabs } from '@/features/layout/MobileNav';
 import { useComfyRun, type StudioRun } from '@/features/studio/useStudioRun';
 import type { WorkflowParam } from '@/features/studio/params';
 import { randomVideoSeed, useVideo } from './videoStore';
@@ -151,14 +152,35 @@ export function VideoView() {
     );
   }
 
+  return <VideoMobile run={run} host={host} result={result} error={error} />;
+}
+
+type VideoPane = 'settings' | 'video';
+
+/** Phones: Settings / Video tabs at the top (like Generate's and Studio's), Generate pinned above
+ *  the app's bottom bar. A run starting shows the Video tab, as Generate shows its Image tab. */
+function VideoMobile({ run, host, result, error }: { run: StudioRun; host: string; result: ReactNode; error: ReactNode }) {
+  const [pane, setPane] = useState<VideoPane>('settings');
+  useEffect(() => { if (run.busy) setPane('video'); }, [run.busy]);
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex h-[42vh] shrink-0 flex-col gap-2 p-2">{result}</div>
-      <div className="scroll-y min-h-0 flex-1 border-t border-border-subtle px-3 py-3">
-        {error}
-        <VideoControls host={host} />
-      </div>
-      <footer className="shrink-0 border-t border-border-subtle p-3" style={{ paddingBottom: 'calc(12px + env(safe-area-inset-bottom))' }}>
+      <ViewTabs<VideoPane>
+        value={pane}
+        onChange={setPane}
+        tabs={[
+          { value: 'settings', label: 'Settings' },
+          { value: 'video', label: 'Video' },
+        ]}
+      />
+      {pane === 'video' ? (
+        <div className="flex min-h-0 flex-1 flex-col gap-2 p-2">{result}{error}</div>
+      ) : (
+        <div className="scroll-y min-h-0 flex-1 px-3 py-3">
+          {error}
+          <VideoControls host={host} />
+        </div>
+      )}
+      <footer className="shrink-0 border-t border-border-subtle p-3">
         <VideoGenerateBar run={run} host={host} />
       </footer>
     </div>
