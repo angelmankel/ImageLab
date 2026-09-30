@@ -18,7 +18,7 @@ import {
 } from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
 import { useIsDesktop } from '@/hooks/useIsDesktop';
-import { FAST, buildWanGraph, isVideoName, pickInstalledWanFiles, upscaledSize, wanLength, wanRunShape, wanRunTiming, type VideoMode, type VideoSettings, type VideoUpscale } from '@/lib/wanGraph';
+import { FAST, buildWanGraph, hasSpeedInside, isVideoName, pickInstalledWanFiles, upscaledSize, wanLength, wanRunShape, wanRunTiming, type VideoMode, type VideoSettings, type VideoUpscale } from '@/lib/wanGraph';
 import { estimateRun, formatDuration } from '@/lib/videoEstimate';
 import { useHostTimings, useVideoTimings } from './videoTimings';
 import type { ServerInfo } from '@/lib/types';
@@ -373,6 +373,18 @@ function ModelsSection() {
     <Section title="Models">
       <FileSelect label="High-noise model" value={files.high} files={server.diffusionModels} onChange={(f) => v.setModel(v.mode, 'high', f)} />
       <FileSelect label="Low-noise model" value={files.low} files={server.diffusionModels} onChange={(f) => v.setModel(v.mode, 'low', f)} />
+      {v.fast && (
+        <Paper withBorder p="xs" radius="sm">
+          <Stack gap={6}>
+            {(['high', 'low'] as const).map((which) => (
+              <Switch key={which} size="xs" checked={hasSpeedInside(v, files[which])}
+                onChange={(e) => v.set({ speedInside: { ...v.speedInside, [files[which]]: e.currentTarget.checked } })}
+                label={<Text size="xs">{which === 'high' ? 'High-noise' : 'Low-noise'} model has the speed LoRA inside</Text>} />
+            ))}
+            <Text size="xs" c="dimmed">Fast then adds no lightx2v LoRA to it: a second one makes the video worse. Guessed from the name (SmoothMix T2V, Lightning mixes).</Text>
+          </Stack>
+        </Paper>
+      )}
       <FileSelect label="Text encoder" value={v.textEncoder} files={server.textEncoders} onChange={(textEncoder) => v.set({ textEncoder })} />
       <FileSelect label="VAE" value={v.vae} files={server.vaes} onChange={(vae) => v.set({ vae })} />
 
@@ -425,7 +437,7 @@ function SamplingSection() {
           checked={v.fast}
           onChange={(e) => v.set({ fast: e.currentTarget.checked })}
           label={<Text size="sm" fw={500}>Fast (4 steps)</Text>}
-          description={`lightx2v speed LoRAs on both models, ${FAST.steps} steps at CFG ${FAST.cfg}: about 6× faster, nearly the same look. Off: the full steps and CFG below.`}
+          description={`lightx2v speed LoRAs on both models (none on a model that has one inside), ${FAST.steps} steps at CFG ${FAST.cfg}: about 6× faster, nearly the same look. Off: the full steps and CFG below.`}
         />
       </Paper>
       <SliderField label="Steps" value={v.fast ? FAST.steps : v.steps} min={2} max={60} step={1} defaultValue={20} presets={[8, 20, 30]} disabled={v.fast}
@@ -450,7 +462,7 @@ function missingVideoFiles(v: VideoSettings, server: ServerInfo): string[] {
     ...[files.high, files.low].filter((f) => !server.diffusionModels.includes(f)),
     ...(server.textEncoders.includes(v.textEncoder) ? [] : [v.textEncoder]),
     ...(server.vaes.includes(v.vae) ? [] : [v.vae]),
-    ...(v.fast ? [v.fastLoras[v.mode].high, v.fastLoras[v.mode].low].filter((f) => !server.loras.includes(f)) : []),
+    ...(v.fast ? (['high', 'low'] as const).filter((w) => !hasSpeedInside(v, files[w])).map((w) => v.fastLoras[v.mode][w]).filter((f) => !server.loras.includes(f)) : []),
     ...(v.upscale.on && v.upscale.method === 'model' && !server.upscaleModels.includes(v.upscale.model) ? [v.upscale.model] : []),
   ];
 }

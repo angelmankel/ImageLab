@@ -118,3 +118,23 @@ test('run shape and timing come from the graph: fast, upscale, parts', () => {
   assert.deepEqual([t.samplingMs, t.upscaleMs, t.finishMs, t.loadMs], [9000, 2500, 2900, 5000]);
   assert.equal(t.sampleUnits, 832 * 480 * 33 * 4 / 1e9);
 });
+
+test('GGUF models load through UnetLoaderGGUF; a model with the speed LoRA inside gets no second one', () => {
+  const { speedLoraBuiltIn } = load('wanGraph');
+  const s = defaultVideoSettings();
+  s.mode = 'i2v';
+  s.models.i2v = { high: 'wan22EnhancedNSFWSVICamera_nsfwFASTMOVEV2Q8H.gguf', low: 'smoothMixWan2214BI2V_i2vV20Low.safetensors' };
+  const g = plain(buildWanGraph({ ...s, fast: true, positive: 'x' }, 'a.png'));
+  assert.deepEqual(g['1'], { class_type: 'UnetLoaderGGUF', inputs: { unet_name: s.models.i2v.high }, _meta: { title: 'High-noise model' } });
+  assert.equal(g['2'].class_type, 'UNETLoader');
+  assert.equal(g['1f'], undefined);                       // Lightning is merged into this one
+  assert.equal(g['1s'].inputs.model[0], '1');
+  assert.equal(g['2f'].inputs.lora_name, s.fastLoras.i2v.low);
+  // The user's mark wins over the name.
+  const marked = plain(buildWanGraph({ ...s, fast: true, speedInside: { [s.models.i2v.high]: false } }, 'a.png'));
+  assert.equal(marked['1f'].inputs.lora_name, s.fastLoras.i2v.high);
+  assert.equal(speedLoraBuiltIn('smoothMixWan2214BI2V_t2vHighV40.safetensors'), true);
+  assert.equal(speedLoraBuiltIn('smoothMixWan2214BI2V_i2vV20High.safetensors'), false);
+  assert.equal(speedLoraBuiltIn('wan22EnhancedNSFWSVICamera_nolightningSVICfQ8H.gguf'), false);
+  assert.equal(speedLoraBuiltIn('wan2.2_t2v_high_noise_14B_fp8_scaled.safetensors'), false);
+});

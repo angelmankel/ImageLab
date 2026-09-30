@@ -71,7 +71,9 @@ export async function fetchServerInfo(host: string): Promise<ServerInfo> {
   const embeddings = await fetch(`${comfyHttpFor(host)}/embeddings`)
     .then((r) => (r.ok ? r.json() : null)).catch(() => null);
   // Diffusion-model-only files (Anima) are picked like checkpoints; their type decides the loader.
-  const diffusionModels = get('UNETLoader', 'unet_name') ?? FALLBACKS.diffusionModels;
+  // GGUF (quantized) ones are listed by ComfyUI-GGUF's loader; the graphs pick the loader by extension.
+  const unets = get('UNETLoader', 'unet_name') ?? FALLBACKS.diffusionModels;
+  const diffusionModels = [...unets, ...(get('UnetLoaderGGUF', 'unet_name') ?? []).filter((f) => !unets.includes(f))];
   return {
     samplers:      get('KSampler', 'sampler_name')              ?? FALLBACKS.samplers,
     schedulers:    get('KSampler', 'scheduler')                 ?? FALLBACKS.schedulers,

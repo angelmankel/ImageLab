@@ -5,7 +5,7 @@ import type { GraphBuilder } from './types';
 
 /**
  * Loaders for families whose file is usually a diffusion model only (diffusion_models/,
- * `UNETLoader`): the text encoder and VAE load on their own, from the workflow or the type's
+ * `UNETLoader`, or `UnetLoaderGGUF` for a .gguf): the text encoder and VAE load on their own, from the workflow or the type's
  * defaults. An all-in-one checkpoint of the type (`workflow.baseFile === 'checkpoint'`, e.g. a
  * Qwen AIO) loads through `CheckpointLoaderSimple` with its own text encoder and VAE instead.
  * Extra base models merge in like checkpoints do. No clip skip; the inpaint ControlNets are SD ones.
@@ -25,7 +25,9 @@ function loader(spec: DiffusionSpec): BaseLoader {
     const aio = workflow.baseFile === 'checkpoint';
     const load = (name: string) => (aio
       ? { class_type: "CheckpointLoaderSimple", inputs: { ckpt_name: name } }
-      : { class_type: "UNETLoader", inputs: { unet_name: name, weight_dtype: "default" } });
+      : /\.gguf$/i.test(name)
+        ? { class_type: "UnetLoaderGGUF", inputs: { unet_name: name } }
+        : { class_type: "UNETLoader", inputs: { unet_name: name, weight_dtype: "default" } });
     graph["4"] = load(workflow.checkpoints[0]?.name ?? '');
     let model: Ref = ["4", 0];
     workflow.checkpoints.slice(1).forEach((ckpt, i) => {

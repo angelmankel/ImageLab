@@ -15,7 +15,7 @@ function load(): VideoState {
   const base = { ...defaultVideoSettings(), startImage: '' };
   try {
     const raw = JSON.parse(localStorage.getItem(KEY) || 'null');
-    if (raw && typeof raw === 'object') return { ...base, ...raw, models: { ...base.models, ...raw.models }, fastLoras: { ...base.fastLoras, ...raw.fastLoras }, upscale: { ...base.upscale, ...raw.upscale } };
+    if (raw && typeof raw === 'object') return { ...base, ...raw, models: { ...base.models, ...raw.models }, fastLoras: { ...base.fastLoras, ...raw.fastLoras }, speedInside: { ...base.speedInside, ...raw.speedInside }, upscale: { ...base.upscale, ...raw.upscale } };
   } catch { /* fall back to defaults */ }
   return base;
 }
@@ -26,7 +26,7 @@ type Store = VideoState & {
   addLora: (name: string) => void;
   updateLora: (id: string, patch: Partial<Omit<VideoLora, 'id'>>) => void;
   removeLora: (id: string) => void;
-  /** Settings back to Wan's defaults; the prompt and start image stay. */
+  /** Settings back to Wan's defaults; the prompt, start image, LoRAs and speed-LoRA marks stay. */
   resetSettings: () => void;
 };
 
@@ -52,8 +52,8 @@ export const useVideo = create<Store>((set, get) => {
     updateLora: (id, p) => patch({ loras: get().loras.map((l) => (l.id === id ? { ...l, ...p } : l)) }),
     removeLora: (id) => patch({ loras: get().loras.filter((l) => l.id !== id) }),
     resetSettings: () => {
-      const { positive, startImage, mode, loras } = get();
-      patch({ ...defaultVideoSettings(), positive, startImage, mode, loras });
+      const { positive, startImage, mode, loras, speedInside } = get();
+      patch({ ...defaultVideoSettings(), positive, startImage, mode, loras, speedInside });
     },
   };
 });

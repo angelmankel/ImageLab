@@ -52,6 +52,9 @@ export type VideoSettings = {
   fast: boolean;
   /** The lightx2v 4-step LoRAs per mode and expert. */
   fastLoras: Record<VideoMode, { high: string; low: string }>;
+  /** Per model file: the speed LoRA is already merged in, so Fast adds none (unset: guessed by
+   *  name, `speedLoraBuiltIn`). */
+  speedInside: Record<string, boolean>;
   /** Optional upscale of the finished frames, before the MP4 is written. */
   upscale: VideoUpscale;
 };
@@ -108,11 +111,33 @@ export function defaultVideoSettings(): VideoSettings {
       t2v: { high: 'wan2.2_t2v_lightx2v_4steps_lora_v1.1_high_noise.safetensors', low: 'wan2.2_t2v_lightx2v_4steps_lora_v1.1_low_noise.safetensors' },
       i2v: { high: 'wan2.2_i2v_lightx2v_4steps_lora_v1_high_noise.safetensors', low: 'wan2.2_i2v_lightx2v_4steps_lora_v1_low_noise.safetensors' },
     },
+    speedInside: {},
     // Off by default. The SPAN 2x model is the fast one: on the A100, 81 frames 832x480 -> 2x took
     // ~5 s more than a plain resize.
     upscale: { on: false, method: 'model', model: '2xNomosUni_span_multijpg.safetensors', scale: 2, resizeMethod: 'lanczos' },
   };
 }
+
+/** A GGUF (quantized) model: it loads through ComfyUI-GGUF's `UnetLoaderGGUF`, not `UNETLoader`. */
+export const isGgufName = (name: string) => /\.gguf$/i.test(name);
+
+/**
+ * Whether a Wan mix already has the lightx2v / Lightning speed LoRA merged in, by its name. Adding
+ * the LoRA again degrades the video (the makers say so). SmoothMix's T2V versions have it
+ * ("light2xv baked in"), its I2V v2.0 does not; "WAN 2.2 Enhanced NSFW" has it in every version
+ * except the ones named "nolightning".
+ */
+export function speedLoraBuiltIn(name: string): boolean {
+  const n = name.replace(/^.*[\\/]/, '');
+  if (/no[-_ ]?light/i.test(n)) return false;
+  if (/smoothmixwan/i.test(n)) return /t2v/i.test(n);
+  if (/wan22EnhancedNSFW/i.test(n)) return true;
+  return /lightning|lightx2v|light2xv/i.test(n);
+}
+
+/** Whether Fast should skip the speed LoRA for this file: the user's choice, else the name's. */
+export const hasSpeedInside = (s: Pick<VideoSettings, 'speedInside'>, file: string) =>
+  s.speedInside?.[file] ?? speedLoraBuiltIn(file);
 
 /** Round a frame count to Wan's 4n + 1 (5, 9, … 81 …). */
 export function wanLength(frames: number): number {
@@ -145,9 +170,12 @@ export function buildWanGraph(s: VideoSettings, startImage: string | null = null
 
   // Each expert: its model, its LoRAs, then the shift.
   const expert = (which: 'high' | 'low', id: string): Ref => {
-    let model = node(id, 'UNETLoader', { unet_name: which === 'high' ? files.high : files.low, weight_dtype: 'default' },
-      which === 'high' ? 'High-noise model' : 'Low-noise model');
-    if (s.fast) {
+    const file = which === 'high' ? files.high : files.low;
+    const title = which === 'high' ? 'High-noise model' : 'Low-noise model';
+    let model = isGgufName(file)
+      ? node(id, 'UnetLoaderGGUF', { unet_name: file }, title)
+      : node(id, 'UNETLoader', { unet_name: file, weight_dtype: 'default' }, title);
+    if (s.fast && !hasSpeedInside(s, file)) {
       model = node(`${id}f`, 'LoraLoaderModelOnly', { model, lora_name: s.fastLoras[s.mode][which], strength_model: 1 }, 'lightx2v 4-step');
     }
     s.loras.forEach((l, i) => {
@@ -255,7 +283,7 @@ export function wanRunShape(graph: AnyGraph): import('./videoEstimate').RunShape
   const out = graph['16']?.inputs;
   const width = num(latent.width), height = num(latent.height);
   const models = Object.values(graph)
-    .filter((n) => ['UNETLoader', 'CLIPLoader', 'VAELoader', 'LoraLoaderModelOnly', 'UpscaleModelLoader'].includes(n.class_type))
+    .filter((n) => ['UNETLoader', 'UnetLoaderGGUF', 'CLIPLoader', 'VAELoader', 'LoraLoaderModelOnly', 'UpscaleModelLoader'].includes(n.class_type))
     .map((n) => String(n.inputs.unet_name ?? n.inputs.clip_name ?? n.inputs.vae_name ?? n.inputs.lora_name ?? n.inputs.model_name ?? ''))
     .sort();
   return {
