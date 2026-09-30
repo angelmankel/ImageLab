@@ -6,7 +6,9 @@
  * value on the first round to an end value on the last). The frame path crops and zooms each
  * round along a path dragged out on a small canvas. A round-by-round table shows what will run.
  */
-import { Badge, Collapse, Group, Paper, Slider, Stack, Switch, Text } from '@mantine/core';
+import { useState } from 'react';
+import { ActionIcon, Badge, Collapse, Group, Paper, RangeSlider, Slider, Stack, Switch, Text, Tooltip } from '@mantine/core';
+import { IconArrowsExchange } from '@tabler/icons-react';
 import { DEFAULT_LOOPBACK, frameZoom, loopbackRounds, loopbackSizes } from '@/lib/pipeline';
 import type { LoopbackRampKey, LoopbackSettings } from '@/lib/types';
 import { DEFAULT_FRAME_PATH, FramePathField } from './FramePathField';
@@ -127,14 +129,19 @@ export function LoopbackField({ value, onChange, label = 'Loopback (Hires Fix)',
 }
 
 /**
- * One setting: a single slider, or — with Auto-scale on — a Start and an End slider that the
- * rounds move between. Turning Auto-scale on starts both ends at the current value.
+ * One setting: a single slider, or — with Auto-scale on — one dual slider whose two thumbs are the
+ * start and end values the rounds move between. A two-thumb slider keeps its thumbs in order, so
+ * the direction (rising or falling, e.g. denoise going down) is a separate swap button.
+ * Turning Auto-scale on starts both ends at the current value.
  */
 function RampRow({ label, value, ramp, min, max, step, marks, format, onValue, onRamp, disabled }: {
   label: string; value: number; ramp?: Ramp; min: number; max: number; step: number; marks: number[];
   format: (v: number) => string; onValue: (v: number) => void; onRamp: (r: Ramp | undefined) => void; disabled?: boolean;
 }) {
   const markList = marks.map((m) => ({ value: m, label: format(m).replace(/\.00?(?=×|$)/, '') }));
+  // Equal ends have no direction of their own; remember the last one chosen.
+  const [fallingPick, setFalling] = useState(false);
+  const falling = ramp ? (ramp.start === ramp.end ? fallingPick : ramp.start > ramp.end) : false;
   const slider = (v: number, on: (v: number) => void, aria: string) => (
     // The tick labels hang below the track; the padding keeps the next row clear of them.
     <div style={{ paddingBottom: 14 }}>
@@ -155,10 +162,25 @@ function RampRow({ label, value, ramp, min, max, step, marks, format, onValue, o
       </Group>
       {ramp ? (
         <Stack gap={2}>
-          <Group justify="space-between"><Text size="xs" c="dimmed">Start</Text><Text size="xs" fw={500}>{format(ramp.start)}</Text></Group>
-          {slider(ramp.start, (v) => onRamp({ ...ramp, start: v }), `${label} start`)}
-          <Group justify="space-between"><Text size="xs" c="dimmed">End</Text><Text size="xs" fw={500}>{format(ramp.end)}</Text></Group>
-          {slider(ramp.end, (v) => onRamp({ ...ramp, end: v }), `${label} end`)}
+          <Group justify="space-between" wrap="nowrap">
+            <Text size="xs" fw={500} style={{ fontVariantNumeric: 'tabular-nums' }}>
+              {format(ramp.start)} → {format(ramp.end)}
+              <Text span size="xs" c="dimmed"> ({falling ? 'falling' : 'rising'})</Text>
+            </Text>
+            <Tooltip label={falling ? 'Rise instead: low on the first round, high on the last' : 'Fall instead: high on the first round, low on the last'} withArrow>
+              <ActionIcon size="sm" variant="subtle" color="gray" disabled={disabled} aria-label={`Swap ${label.toLowerCase()} direction`}
+                onClick={() => { setFalling(!falling); onRamp({ start: ramp.end, end: ramp.start }); }}>
+                <IconArrowsExchange size={14} />
+              </ActionIcon>
+            </Tooltip>
+          </Group>
+          <div style={{ paddingBottom: 14 }}>
+            <RangeSlider min={min} max={max} step={step} minRange={0} marks={markList} disabled={disabled} label={null}
+              value={[Math.min(ramp.start, ramp.end), Math.max(ramp.start, ramp.end)]}
+              onChange={([lo, hi]) => onRamp(falling ? { start: hi, end: lo } : { start: lo, end: hi })}
+              thumbFromLabel={`${label} ${falling ? 'end' : 'start'}`} thumbToLabel={`${label} ${falling ? 'start' : 'end'}`}
+              className="touch-pan-y" />
+          </div>
         </Stack>
       ) : slider(value, onValue, label)}
     </div>
