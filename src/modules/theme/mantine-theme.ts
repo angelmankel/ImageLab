@@ -151,6 +151,9 @@ export function createMantineTheme(
 
   return {
     primaryColor: themeConfig.primaryColorName,
+    // OLED: filled buttons, active tabs and badges use a deeper shade of the accent, so the big
+    // coloured areas (Generate, the selected nav item) glow less on a black screen.
+    ...(surface === "oled" ? { primaryShade: { light: 6, dark: 8 } } : {}),
     fontFamily: fontFamily,
     headings: fontFamily ? { fontFamily } : undefined,
     colors: {

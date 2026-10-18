@@ -59,10 +59,10 @@ export function createOledPalette(primaryColor: string): MantineColorsTuple {
     "#a6a7ab", // 1 - text
     "#909296", // 2 - dimmed text
     "#5c5f66", // 3 - placeholder text
-    blendColors("#222327", primaryColor, 0.04), // 4 - borders
-    blendColors("#141416", primaryColor, 0.03), // 5 - panels/cards
-    blendColors("#0b0b0c", primaryColor, 0.02), // 6 - header/footer/inputs
-    blendColors("#050505", primaryColor, 0.01), // 7 - panels
+    blendColors("#1a1a1d", primaryColor, 0.04), // 4 - borders, tooltips
+    blendColors("#09090a", primaryColor, 0.02), // 5 - cards, papers, dialogs
+    "#040404", // 6 - inputs, navbar, elevated
+    "#020202", // 7 - header, side panels
     "#000000", // 8 - main background
     "#000000", // 9 - darkest
   ];
