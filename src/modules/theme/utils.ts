@@ -50,6 +50,25 @@ export function createDarkPalette(primaryColor: string): MantineColorsTuple {
 }
 
 /**
+ * The OLED variant of `createDarkPalette`: same text shades (soft gray, never pure white, so text
+ * does not glare at high brightness), surfaces pushed to black. Background (8, 9) is #000.
+ */
+export function createOledPalette(primaryColor: string): MantineColorsTuple {
+  return [
+    "#c1c2c5", // 0 - lightest text
+    "#a6a7ab", // 1 - text
+    "#909296", // 2 - dimmed text
+    "#5c5f66", // 3 - placeholder text
+    blendColors("#222327", primaryColor, 0.04), // 4 - borders
+    blendColors("#141416", primaryColor, 0.03), // 5 - panels/cards
+    blendColors("#0b0b0c", primaryColor, 0.02), // 6 - header/footer/inputs
+    blendColors("#050505", primaryColor, 0.01), // 7 - panels
+    "#000000", // 8 - main background
+    "#000000", // 9 - darkest
+  ];
+}
+
+/**
  * Lightens a color by a percentage
  */
 function lighten(color: string, amount: number): string {

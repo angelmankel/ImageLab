@@ -2,9 +2,9 @@ import { SegmentedControl, Text, Stack } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 import {
   useThemeStore,
-  GRADIENT_STYLE_OPTIONS, BORDER_RADIUS_OPTIONS, SHADOW_INTENSITY_OPTIONS, UI_BORDER_STYLE_OPTIONS,
+  GRADIENT_STYLE_OPTIONS, BORDER_RADIUS_OPTIONS, SHADOW_INTENSITY_OPTIONS, SURFACE_STYLE_OPTIONS, UI_BORDER_STYLE_OPTIONS,
 } from '@/modules/theme';
-import type { GradientStyle, BorderRadiusStyle, ShadowIntensity, UIBorderStyle } from '@/modules/theme';
+import type { GradientStyle, BorderRadiusStyle, ShadowIntensity, SurfaceStyle, UIBorderStyle } from '@/modules/theme';
 import { useStore } from '@/lib/store';
 import { ICON_STYLES, resolveTheme, type IconStyle } from '@/lib/themes';
 
@@ -34,6 +34,12 @@ function OptionPicker<T extends string>({ value, options, onChange, ariaLabel }:
       {current && <Text size="xs" c="dimmed">{current.description}</Text>}
     </Stack>
   );
+}
+
+export function SurfaceStylePicker() {
+  const value = useThemeStore(s => s.surfaceStyle);
+  const set = useThemeStore(s => s.setSurfaceStyle);
+  return <OptionPicker<SurfaceStyle> value={value} options={SURFACE_STYLE_OPTIONS} onChange={set} ariaLabel="Darkness" />;
 }
 
 export function GradientStylePicker() {

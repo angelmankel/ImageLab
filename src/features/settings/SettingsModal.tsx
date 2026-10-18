@@ -66,6 +66,7 @@ const SEARCHABLE_SETTINGS: SearchableSetting[] = [
   { categoryId: 'appearance', settingId: 'theme', label: 'Theme', description: 'Choose application color theme', keywords: ['theme', 'color', 'dark', 'appearance', 'style', 'palette'] },
   { categoryId: 'appearance', settingId: 'customTheme', label: 'Custom Theme', description: 'Create and manage custom color themes', keywords: ['custom', 'theme', 'color', 'create', 'picker'] },
   { categoryId: 'appearance', settingId: 'iconStyle', label: 'Icon Style', description: 'Stroke weight of the interface icons', keywords: ['icon', 'weight', 'thin', 'bold', 'solid', 'outline', 'fill'] },
+  { categoryId: 'appearance', settingId: 'surfaceStyle', label: 'Darkness', description: 'OLED black or the original dark gray', keywords: ['oled', 'black', 'dark', 'amoled', 'power', 'battery', 'brightness', 'background', 'gray'] },
   { categoryId: 'appearance', settingId: 'gradientStyle', label: 'Background Style', description: 'Choose background gradient style for the main content area', keywords: ['background', 'gradient', 'flat', 'radial', 'mesh', 'glow', 'style'] },
   { categoryId: 'appearance', settingId: 'borderRadius', label: 'Border Radius', description: 'Control the roundness of corners throughout the interface', keywords: ['border', 'radius', 'corners', 'rounded', 'sharp', 'pill'] },
   { categoryId: 'appearance', settingId: 'shadows', label: 'Shadows', description: 'Adjust shadow depth for cards and panels', keywords: ['shadow', 'depth', 'elevation', 'flat', 'dramatic'] },

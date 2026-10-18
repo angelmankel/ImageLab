@@ -16,6 +16,7 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
   const currentTheme = useThemeStore((state) => state.currentTheme);
   const fontWeight = useThemeStore((state) => state.fontWeight);
   const gradientStyle = useThemeStore((state) => state.gradientStyle);
+  const surfaceStyle = useThemeStore((state) => state.surfaceStyle);
   const borderRadiusStyle = useThemeStore((state) => state.borderRadiusStyle);
   const shadowIntensity = useThemeStore((state) => state.shadowIntensity);
   const uiBorderStyle = useThemeStore((state) => state.uiBorderStyle);
@@ -25,10 +26,16 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
     const themeConfig = getTheme(currentTheme, customThemes);
     const mantineThemeConfig = createMantineTheme(
       themeConfig, APP_FONT, gradientStyle,
-      borderRadiusStyle, shadowIntensity, uiBorderStyle,
+      borderRadiusStyle, shadowIntensity, uiBorderStyle, surfaceStyle,
     );
     return createTheme(mantineThemeConfig);
-  }, [currentTheme, gradientStyle, borderRadiusStyle, shadowIntensity, uiBorderStyle, customThemes]);
+  }, [currentTheme, gradientStyle, borderRadiusStyle, shadowIntensity, uiBorderStyle, surfaceStyle, customThemes]);
+
+  // The browser / PWA title bar follows the page background.
+  useEffect(() => {
+    const bg = (theme.colors?.dark as readonly string[] | undefined)?.[8];
+    if (bg) document.querySelector('meta[name="theme-color"]')?.setAttribute('content', bg);
+  }, [theme]);
 
   useEffect(() => {
     document.documentElement.style.setProperty('--app-font-weight', String(fontWeight));

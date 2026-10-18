@@ -2,7 +2,7 @@ import { Stack } from '@mantine/core';
 import { SettingsSection } from './SettingsSection';
 import { ThemeSelector } from './appearance/ThemeSelector';
 import {
-  GradientStylePicker, BorderRadiusPicker, ShadowStylePicker, BorderStylePicker, IconStylePicker,
+  SurfaceStylePicker, GradientStylePicker, BorderRadiusPicker, ShadowStylePicker, BorderStylePicker, IconStylePicker,
 } from './appearance/StylePickers';
 
 /**
@@ -18,7 +18,10 @@ export function ThemeTab() {
       >
         <ThemeSelector />
       </SettingsSection>
-      <SettingsSection title="Background" description="Choose a background gradient style for the main content area">
+      <SettingsSection title="Darkness" description="OLED black or the original dark gray, under any color theme">
+        <SurfaceStylePicker />
+      </SettingsSection>
+      <SettingsSection title="Background" description="Choose a background gradient style for the main content area (Dark Gray only)">
         <GradientStylePicker />
       </SettingsSection>
       <SettingsSection title="Border Radius" description="Control the roundness of corners throughout the interface">

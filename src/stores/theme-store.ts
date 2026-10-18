@@ -1,12 +1,14 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { ThemeId, FontId, FontWeight, GradientStyle, ThemeViewMode, CustomThemeConfig, BorderRadiusStyle, ShadowIntensity, UIBorderStyle } from "@/modules/theme/types";
+import { ThemeId, FontId, FontWeight, GradientStyle, ThemeViewMode, CustomThemeConfig, BorderRadiusStyle, ShadowIntensity, SurfaceStyle, UIBorderStyle } from "@/modules/theme/types";
 
 interface ThemeState {
   currentTheme: ThemeId;
   currentFont: FontId;
   fontWeight: FontWeight;
   gradientStyle: GradientStyle;
+  /** Saved settings from before this existed get the default (OLED) on load: persist merges. */
+  surfaceStyle: SurfaceStyle;
   borderRadiusStyle: BorderRadiusStyle;
   shadowIntensity: ShadowIntensity;
   uiBorderStyle: UIBorderStyle;
@@ -16,6 +18,7 @@ interface ThemeState {
   setFont: (fontId: FontId) => void;
   setFontWeight: (weight: FontWeight) => void;
   setGradientStyle: (style: GradientStyle) => void;
+  setSurfaceStyle: (style: SurfaceStyle) => void;
   setBorderRadiusStyle: (style: BorderRadiusStyle) => void;
   setShadowIntensity: (intensity: ShadowIntensity) => void;
   setUIBorderStyle: (style: UIBorderStyle) => void;
@@ -31,6 +34,7 @@ export const useThemeStore = create<ThemeState>()(
       currentFont: "inter",
       fontWeight: 400,
       gradientStyle: "default",
+      surfaceStyle: "oled",
       borderRadiusStyle: "subtle",
       shadowIntensity: "normal",
       uiBorderStyle: "visible",
@@ -40,6 +44,7 @@ export const useThemeStore = create<ThemeState>()(
       setFont: (fontId) => set({ currentFont: fontId }),
       setFontWeight: (weight) => set({ fontWeight: weight }),
       setGradientStyle: (style) => set({ gradientStyle: style }),
+      setSurfaceStyle: (style) => set({ surfaceStyle: style }),
       setBorderRadiusStyle: (style) => set({ borderRadiusStyle: style }),
       setShadowIntensity: (intensity) => set({ shadowIntensity: intensity }),
       setUIBorderStyle: (style) => set({ uiBorderStyle: style }),

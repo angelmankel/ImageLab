@@ -1,11 +1,13 @@
 import { MantineThemeOverride, MantineColorsTuple, MantineShadow, MantineSize } from "@mantine/core";
-import { ThemeConfig, GradientStyle, BorderRadiusStyle, ShadowIntensity, UIBorderStyle } from "./types";
-import { createDarkPalette } from "./utils";
+import { ThemeConfig, GradientStyle, BorderRadiusStyle, ShadowIntensity, SurfaceStyle, UIBorderStyle } from "./types";
+import { createDarkPalette, createOledPalette } from "./utils";
 
 /**
  * Returns the CSS background string for the AppShell.Main based on gradient style
  */
-export function getMainBackground(gradientStyle: GradientStyle): string {
+export function getMainBackground(gradientStyle: GradientStyle, surface: SurfaceStyle = "gray"): string {
+  // A gradient lifts black pixels to gray, which is what OLED black is there to avoid.
+  if (surface === "oled") return "var(--mantine-color-dark-8)";
   switch (gradientStyle) {
     case "flat":
       return "var(--mantine-color-dark-8)";
@@ -139,8 +141,11 @@ export function createMantineTheme(
   borderRadiusStyle: BorderRadiusStyle = "subtle",
   shadowIntensity: ShadowIntensity = "normal",
   uiBorderStyle: UIBorderStyle = "visible",
+  surface: SurfaceStyle = "gray",
 ): MantineThemeOverride {
-  const dark = createDarkPalette(themeConfig.primaryColor[6]);
+  const dark = surface === "oled"
+    ? createOledPalette(themeConfig.primaryColor[6])
+    : createDarkPalette(themeConfig.primaryColor[6]);
   const shadows = getShadows(shadowIntensity);
   const border = getBorderStyles(uiBorderStyle);
 
@@ -180,7 +185,7 @@ export function createMantineTheme(
             borderTop: `${border.width} solid ${border.color}`,
           },
           main: {
-            background: getMainBackground(gradientStyle),
+            background: getMainBackground(gradientStyle, surface),
           },
         },
       },

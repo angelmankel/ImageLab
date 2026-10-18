@@ -110,6 +110,15 @@ export interface CustomThemeConfig extends ThemeConfig {
 
 export type AnyThemeConfig = ThemeConfig | CustomThemeConfig;
 
+/** How dark the surfaces are. `oled` is true black (pixels off on an OLED screen) with near-black
+ *  panels; `gray` is the original charcoal. */
+export type SurfaceStyle = "oled" | "gray";
+
+export const SURFACE_STYLE_OPTIONS: { value: SurfaceStyle; label: string; description: string }[] = [
+  { value: "oled", label: "OLED Black", description: "True black background and near-black panels. Saves power on OLED screens and is easier on the eyes at high brightness. The background gradient is not used." },
+  { value: "gray", label: "Dark Gray", description: "The original charcoal surfaces" },
+];
+
 export type GradientStyle = "default" | "flat" | "radial-glow" | "subtle-mesh";
 
 export const GRADIENT_STYLE_OPTIONS: { value: GradientStyle; label: string; description: string }[] = [
