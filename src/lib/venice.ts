@@ -17,6 +17,8 @@
  */
 import type { LayerKind } from './types';
 import { VENICE_DEFAULT_BASE_URL, VENICE_DEFAULT_MODEL, type PromptStyle, type VeniceSettings } from './storage';
+import { modelLabel, stripThinking } from './llmModels';
+import { ollamaRoot } from './localLlm';
 
 /** One slice of a vision-capable user message — either a text run or an
  *  inline image. The `image_url.url` can be `https://…` (publicly fetchable)
@@ -63,45 +65,86 @@ function resolveBaseUrl(s: VeniceSettings): string {
   return raw;
 }
 
+/** Can the active provider take a call? Venice needs a key; local needs a server and a model. */
+export function aiReady(s: VeniceSettings): boolean {
+  return s.provider === 'local' ? !!(s.localBaseUrl.trim() && s.localModel) : !!s.apiKey;
+}
+
+/** Why `aiReady` is false, for disabled buttons' titles. */
+export function aiNotReadyHint(s: VeniceSettings): string {
+  return s.provider === 'local'
+    ? 'Pick a local model in Settings → AI'
+    : 'Set a Venice API key in Settings → AI';
+}
+
+/** Short name of the active provider + model, for status lines ("Tagged 20 tags from …"). */
+export function aiSourceLabel(s: VeniceSettings): string {
+  return s.provider === 'local' ? modelLabel(s.localModel) : 'Venice';
+}
+
+/** The settings with `model` as the chat model of whichever provider is active. */
+export function withChatModel(s: VeniceSettings, model: string): VeniceSettings {
+  if (!model) return s;
+  return s.provider === 'local' ? { ...s, localModel: model } : { ...s, model };
+}
+
+/** The model the image helpers use on the active provider. */
+export function visionModelOf(s: VeniceSettings): string {
+  return s.provider === 'local' ? (s.localVisionModel || s.localModel) : s.model;
+}
+
 /** Low-level chat-completion call. Throws on non-2xx with a useful message. */
 export async function veniceChat(opts: VeniceChatOptions): Promise<string> {
   const { settings, messages, temperature = 0.85, maxTokens = 400, veniceParams, signal } = opts;
-  if (!settings.apiKey) throw new Error('Venice API key is not set. Open Settings to add one.');
+  const local = settings.provider === 'local';
+  const who = local ? 'Local LLM' : 'Venice';
+  if (!aiReady(settings)) throw new Error(`${aiNotReadyHint(settings)}.`);
 
-  const url = `${resolveBaseUrl(settings)}/chat/completions`;
-  const body = {
-    model: opts.model || settings.model || VENICE_DEFAULT_MODEL,
-    messages,
-    temperature,
-    max_tokens: maxTokens,
-    // Venice-specific knobs — disable web search (we want the model's own
-    // output, no scraped links) and Venice's prepended system prompt (which
-    // occasionally nudges uncensored models toward refusing explicit content).
-    // Vision callers stack `disable_thinking` / `strip_thinking_response` on
-    // top of these so reasoning models emit clean tag lists.
-    venice_parameters: {
-      enable_web_search: 'off',
-      include_venice_system_prompt: false,
-      ...(veniceParams ?? {}),
-    },
-  };
+  const url = local
+    ? `${ollamaRoot(settings.localBaseUrl)}/v1/chat/completions`
+    : `${resolveBaseUrl(settings)}/chat/completions`;
+  const body = local
+    ? {
+        model: opts.model || settings.localModel,
+        messages,
+        temperature,
+        max_tokens: maxTokens,
+        // Ollama maps this to `think: false`: reasoning models (Qwen3…) answer
+        // straight away instead of spending the token budget on a trace.
+        reasoning_effort: 'none',
+      }
+    : {
+        model: opts.model || settings.model || VENICE_DEFAULT_MODEL,
+        messages,
+        temperature,
+        max_tokens: maxTokens,
+        // Venice-specific knobs — disable web search (we want the model's own
+        // output, no scraped links) and Venice's prepended system prompt (which
+        // occasionally nudges uncensored models toward refusing explicit content).
+        // Vision callers stack `disable_thinking` / `strip_thinking_response` on
+        // top of these so reasoning models emit clean tag lists.
+        venice_parameters: {
+          enable_web_search: 'off',
+          include_venice_system_prompt: false,
+          ...(veniceParams ?? {}),
+        },
+      };
 
   let res: Response;
   try {
     res = await fetch(url, {
       method: 'POST',
       signal,
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${settings.apiKey}`,
-      },
+      headers: local
+        ? { 'Content-Type': 'application/json' }
+        : { 'Content-Type': 'application/json', Authorization: `Bearer ${settings.apiKey}` },
       body: JSON.stringify(body),
     });
   } catch (e) {
     // Network errors come through as TypeError ("Failed to fetch") — surface
     // them as a recognisable string.
     const msg = e instanceof Error ? e.message : String(e);
-    throw new Error(`Venice unreachable: ${msg}`);
+    throw new Error(`${who} unreachable: ${msg}`);
   }
 
   let data: ChatResponse | null = null;
@@ -111,11 +154,11 @@ export async function veniceChat(opts: VeniceChatOptions): Promise<string> {
     const apiMsg = typeof data?.error === 'string'
       ? data?.error
       : data?.error?.message || `HTTP ${res.status}`;
-    throw new Error(`Venice: ${apiMsg}`);
+    throw new Error(`${who}: ${apiMsg}`);
   }
 
-  const out = data?.choices?.[0]?.message?.content?.trim();
-  if (!out) throw new Error('Venice returned an empty response');
+  const out = stripThinking(data?.choices?.[0]?.message?.content ?? '');
+  if (!out) throw new Error(`${who} returned an empty response`);
   return out;
 }
 
@@ -517,7 +560,8 @@ export async function tagImage(
     .replace(/^[-*•\d.)\s]+/gm, '')
     .split(/[,\n]/)
     .map((t) => t.trim().replace(/^["']|["']$/g, ''))
-    .filter((t) => t && t.length < 80);
+    // A heading some local models put first ("danbooru tags:") is not a tag.
+    .filter((t) => t && t.length < 80 && !t.endsWith(':'));
   // Case- and separator-insensitive dedup so 'cat's eyes' / "cat's_eyes" /
   // 'Cats Eyes' collapse to one entry.
   const seen = new Set<string>();

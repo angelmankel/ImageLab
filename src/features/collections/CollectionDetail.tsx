@@ -17,9 +17,16 @@ import {
   tagImage,
   TAG_COUNT_DEFAULT, TAG_COUNT_MIN, TAG_COUNT_MAX,
   VENICE_VISION_MODELS,
+  aiNotReadyHint,
+  aiReady,
+  aiSourceLabel,
+  visionModelOf,
+  withChatModel,
   type DescribeLength,
   type TagStyle,
 } from '@/lib/venice';
+import { modelLabel } from '@/lib/llmModels';
+import { useLocalModels, useLocalModelsFor } from '@/features/ai/localModelsStore';
 import type { Tile } from './useCollectionTiles';
 import { useCopyToClipboard } from '@/hooks/useCopyToClipboard';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
@@ -177,7 +184,7 @@ function EmptyState() {
       <IconPhoto size={36} className="text-[var(--mantine-color-dimmed)]" />
       <Text size="sm" fw={500}>No image selected</Text>
       <Text size="xs" c="dimmed" lh={1.5}>
-        Click any tile to load metadata and Venice AI tools here.
+        Click any tile to load metadata and AI tools here.
         Click it again to open the fullscreen viewer.
       </Text>
     </Stack>
@@ -197,6 +204,13 @@ function DetailBody({ tile }: { tile: Tile }) {
   const [tagCount, setTagCount] = useState<number>(TAG_COUNT_DEFAULT);
   const [descLength, setDescLength] = useState<DescribeLength>('detailed');
   const [visionModel, setVisionModel] = useState<string>(VENICE_VISION_MODELS[0].id);
+  // Local provider: the image model picked here for this session; '' = the one set in Settings.
+  const [localVision, setLocalVision] = useState('');
+  const local = venice.provider === 'local';
+  useLocalModelsFor(venice.localBaseUrl, local);
+  const localModels = useLocalModels((s) => s.models);
+  const localVisionModels = localModels.filter((m) => m.vision);
+  const localVisionPick = localVision || visionModelOf(venice);
 
   /** Tag <-> layer matching: when a tag is "added as a layer" we use
    *  tag='AI' + the tag text. To toggle a single tag back off we look for
@@ -231,16 +245,17 @@ function DetailBody({ tile }: { tile: Tile }) {
     return httpUrlToDataUrl(tile.thumbnailUrl);
   };
 
-  const settingsWithModel = { ...venice, model: visionModel || venice.model };
+  const settingsWithModel = withChatModel(venice, local ? localVisionPick : visionModel);
+  const source = aiSourceLabel(settingsWithModel);
 
   const runTag = async () => {
     setRunning('tag'); setError(null);
     try {
       const dataUrl = await resolveImageDataUrl();
       const { tags } = await tagImage(dataUrl, tagStyle, settingsWithModel, { maxTags: tagCount });
-      if (!tags.length) throw new Error('Venice returned no tags. Try a different style or model.');
+      if (!tags.length) throw new Error(`${source} returned no tags. Try a different style or model.`);
       setItemAi(tile.id, { tags });
-      setStatus(`Tagged ${tags.length} tags from Venice`, 'ok');
+      setStatus(`Tagged ${tags.length} tags from ${source}`, 'ok');
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -253,7 +268,7 @@ function DetailBody({ tile }: { tile: Tile }) {
     try {
       const dataUrl = await resolveImageDataUrl();
       const description = await describeImage(dataUrl, descLength, settingsWithModel);
-      if (!description) throw new Error('Venice returned an empty description.');
+      if (!description) throw new Error(`${source} returned an empty description.`);
       setItemAi(tile.id, { description });
       setStatus('Description ready', 'ok');
     } catch (e) {
@@ -268,7 +283,7 @@ function DetailBody({ tile }: { tile: Tile }) {
     try {
       const dataUrl = await resolveImageDataUrl();
       const aiPrompt = await promptFromImage(dataUrl, settingsWithModel);
-      if (!aiPrompt) throw new Error('Venice returned an empty prompt.');
+      if (!aiPrompt) throw new Error(`${source} returned an empty prompt.`);
       setItemAi(tile.id, { aiPrompt });
       setStatus('Prompt generated', 'ok');
     } catch (e) {
@@ -334,9 +349,9 @@ function DetailBody({ tile }: { tile: Tile }) {
 
       {/* Venice AI block — tabs replace the old three stacked Sections. */}
       <Paper withBorder radius="md" p="xs" className="flex flex-col gap-2">
-        {!venice.apiKey ? (
+        {!aiReady(venice) ? (
           <Text size="xs" c="dimmed">
-            Add a Venice API key in Settings → AI to enable tagging, descriptions, and image-to-prompt.
+            {aiNotReadyHint(venice)} to enable tagging, descriptions, and image-to-prompt.
           </Text>
         ) : (
           <>
@@ -352,17 +367,35 @@ function DetailBody({ tile }: { tile: Tile }) {
                   { value: 'prompt', label: 'Prompt' },
                 ]}
               />
-              <Select
-                size="xs"
-                w={120}
-                aria-label="Vision model"
-                value={visionModel}
-                onChange={(v) => { if (v) setVisionModel(v); }}
-                allowDeselect={false}
-                comboboxProps={{ withinPortal: true, shadow: 'md', width: 200, position: 'bottom-end' }}
-                title={VENICE_VISION_MODELS.find((m) => m.id === visionModel)?.note ?? ''}
-                data={VENICE_VISION_MODELS.map((m) => ({ value: m.id, label: m.label }))}
-              />
+              {local ? (
+                <Select
+                  size="xs"
+                  w={120}
+                  aria-label="Vision model"
+                  value={localVisionPick}
+                  onChange={(v) => { if (v) setLocalVision(v); }}
+                  allowDeselect={false}
+                  comboboxProps={{ withinPortal: true, shadow: 'md', width: 280, position: 'bottom-end' }}
+                  title={localVisionModels.some((m) => m.name === localVisionPick) ? localVisionPick : 'This model cannot see images — pick a vision model'}
+                  data={[
+                    ...(localVisionModels.some((m) => m.name === localVisionPick)
+                      ? [] : [{ value: localVisionPick, label: `${modelLabel(localVisionPick)} (no vision)` }]),
+                    ...localVisionModels.map((m) => ({ value: m.name, label: modelLabel(m.name) })),
+                  ]}
+                />
+              ) : (
+                <Select
+                  size="xs"
+                  w={120}
+                  aria-label="Vision model"
+                  value={visionModel}
+                  onChange={(v) => { if (v) setVisionModel(v); }}
+                  allowDeselect={false}
+                  comboboxProps={{ withinPortal: true, shadow: 'md', width: 200, position: 'bottom-end' }}
+                  title={VENICE_VISION_MODELS.find((m) => m.id === visionModel)?.note ?? ''}
+                  data={VENICE_VISION_MODELS.map((m) => ({ value: m.id, label: m.label }))}
+                />
+              )}
             </Group>
 
             {error && (
@@ -409,7 +442,7 @@ function DetailBody({ tile }: { tile: Tile }) {
                     className="flex-1"
                     leftSection={<IconSparkles size={13} />}
                     onClick={runTag}
-                    disabled={!venice.apiKey || running !== null}
+                    disabled={!aiReady(venice) || running !== null}
                   >
                     {running === 'tag' ? 'Tagging…' : tile.tags?.length ? 'Re-tag' : 'Tag image'}
                   </Button>
@@ -486,7 +519,7 @@ function DetailBody({ tile }: { tile: Tile }) {
                     className="flex-1"
                     leftSection={<IconSparkles size={13} />}
                     onClick={runDescribe}
-                    disabled={!venice.apiKey || running !== null}
+                    disabled={!aiReady(venice) || running !== null}
                   >
                     {running === 'describe' ? 'Describing…' : tile.description ? 'Re-describe' : 'Describe'}
                   </Button>
@@ -508,7 +541,7 @@ function DetailBody({ tile }: { tile: Tile }) {
                   fullWidth
                   leftSection={<IconSparkles size={13} />}
                   onClick={runPrompt}
-                  disabled={!venice.apiKey || running !== null}
+                  disabled={!aiReady(venice) || running !== null}
                 >
                   {running === 'prompt' ? 'Writing…' : tile.aiPrompt ? 'Re-generate prompt' : 'Generate prompt'}
                 </Button>

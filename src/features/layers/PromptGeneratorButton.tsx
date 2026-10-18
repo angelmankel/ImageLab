@@ -5,13 +5,14 @@ import { IconSparkles } from '@tabler/icons-react';
 import * as Popover from '@/components/ui/popover';
 import { useStore } from '@/lib/store';
 import { compileLayers } from '@/lib/prompt';
-import { generateLayerSet, type GenerateLayerSource } from '@/lib/venice';
+import { aiNotReadyHint, aiReady, generateLayerSet, type GenerateLayerSource } from '@/lib/venice';
+import { AiModelPicker } from '@/features/ai/AiModelPicker';
 import { CloseIcon, SparkleIcon } from '@/components/ui/icons';
 import { cn } from '@/lib/cn';
 
 /**
  * Header-level action in the Prompt tab: opens a popover with two modes for
- * synthesizing a fresh positive-layer set via Venice — "from an idea" (the
+ * synthesizing a fresh positive-layer set via the active AI model — "from an idea" (the
  * user types a theme) and "from the current final prompt" (we feed the
  * compiled positive string back to the model and ask for a richer breakdown).
  *
@@ -26,9 +27,9 @@ export function PromptGeneratorButton({ variant = 'text' }: { variant?: 'text' |
   const [open, setOpen] = useState(false);
   const narrow = useMediaQuery('(max-width: 48em)') ?? false;
   const venice = useStore(s => s.venice);
-  const disabled = !venice.apiKey;
+  const disabled = !aiReady(venice);
   const title = disabled
-    ? 'Set a Venice API key in Settings → AI to enable prompt generation'
+    ? `${aiNotReadyHint(venice)} to enable prompt generation`
     : 'Prompt Studio — draft prompt parts with AI';
 
   const trigger = variant === 'icon' ? (
@@ -177,6 +178,8 @@ function PromptGeneratorPopover({ onClose, phone = false }: { onClose: () => voi
             From final prompt
           </SourceTab>
         </div>
+
+        <AiModelPicker size="xs" />
 
         {source === 'idea' ? (
           <label className="flex flex-col gap-1">

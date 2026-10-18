@@ -540,6 +540,10 @@ export function saveSlideshowTransition(v: SlideshowTransition) {
  *  best quality opener, escaped parens, salient-first ordering). */
 export type PromptStyle = 'sdxl' | 'illustrious';
 
+/** Which chat backend the AI helpers call: Venice's cloud API, or a local
+ *  Ollama server (its OpenAI-compatible `/v1` routes). */
+export type AiProvider = 'venice' | 'local';
+
 export type VeniceSettings = {
   apiKey: string;
   /** Chat model id — see https://docs.venice.ai/. */
@@ -548,13 +552,27 @@ export type VeniceSettings = {
   baseUrl: string;
   /** Prompt-style ruleset applied to every AI helper. Defaults to `sdxl`. */
   promptStyle: PromptStyle;
+  /** Active backend. Old saved settings have none and stay on Venice. */
+  provider: AiProvider;
+  /** Ollama server root (no `/v1`), e.g. https://llm.blueoceanswim.com. */
+  localBaseUrl: string;
+  /** Ollama model name used for text helpers. */
+  localModel: string;
+  /** Ollama model for the image helpers; '' = same as `localModel`. */
+  localVisionModel: string;
+  /** GPU memory of the Ollama box, for the browser's "fits" hint. */
+  localVramGb: number;
 };
 
 export const VENICE_DEFAULT_MODEL = 'venice-uncensored';
 export const VENICE_DEFAULT_BASE_URL = 'https://api.venice.ai/api/v1';
+export const LOCAL_LLM_DEFAULT_BASE_URL = 'https://llm.blueoceanswim.com';
 
 export function defaultVeniceSettings(): VeniceSettings {
-  return { apiKey: '', model: VENICE_DEFAULT_MODEL, baseUrl: '', promptStyle: 'sdxl' };
+  return {
+    apiKey: '', model: VENICE_DEFAULT_MODEL, baseUrl: '', promptStyle: 'sdxl',
+    provider: 'venice', localBaseUrl: LOCAL_LLM_DEFAULT_BASE_URL, localModel: '', localVisionModel: '', localVramGb: 20,
+  };
 }
 
 export function loadVeniceSettings(): VeniceSettings {

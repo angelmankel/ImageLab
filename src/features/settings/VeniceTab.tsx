@@ -3,6 +3,8 @@ import { IconKey, IconSparkles, IconWorld } from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
 import { VENICE_DEFAULT_MODEL, VENICE_DEFAULT_BASE_URL, type PromptStyle } from '@/lib/storage';
 import { SettingsSection } from './SettingsSection';
+import { AiModelPicker } from '@/features/ai/AiModelPicker';
+import { LocalLlmSection } from '@/features/ai/LocalLlmSection';
 
 type StyleOption = { id: PromptStyle; label: string; blurb: string };
 
@@ -20,10 +22,9 @@ const STYLE_OPTIONS: StyleOption[] = [
 ];
 
 /**
- * Venice AI — uncensored chat-completion provider used by the Snippet
- * Library's "improve / expand / brainstorm" actions and the Collections
- * AI tools. Stored locally; never leaves the browser except via direct
- * calls to api.venice.ai.
+ * AI settings: which model every helper uses (Venice in the cloud, or a model on
+ * the local Ollama server), the prompt style, Venice's key, and the local model
+ * manager. Stored locally; calls go straight from this tab to the provider.
  */
 export function VeniceTab() {
   const venice = useStore(s => s.venice);
@@ -31,6 +32,13 @@ export function VeniceTab() {
 
   return (
     <Stack gap="lg">
+      <SettingsSection
+        title="Active model"
+        description="Used by every AI helper: Prompt Studio, expand / shorten / improve, brainstorm, per-layer tweak, and the Collections image tools."
+      >
+        <AiModelPicker />
+      </SettingsSection>
+
       <SettingsSection
         title="Venice AI"
         description="Venice AI provides uncensored, privacy-respecting chat completions. The Snippet Library uses it to brainstorm new ideas, expand or tighten prompts, and improve wording. Your API key is stored in this browser only — calls go directly to Venice from your tab."
@@ -77,7 +85,14 @@ export function VeniceTab() {
         </Radio.Group>
       </SettingsSection>
 
-      <SettingsSection title="Base URL" description="Advanced — leave empty to use the default.">
+      <SettingsSection
+        title="Local LLM"
+        description="Your own uncensored models on Ollama (winold's RTX A4500). Free, private, and no rate limits. Calls go from this tab straight to the server."
+      >
+        <LocalLlmSection />
+      </SettingsSection>
+
+      <SettingsSection title="Venice Base URL" description="Advanced — leave empty to use the default.">
         <TextInput
           placeholder={VENICE_DEFAULT_BASE_URL}
           aria-label="Base URL"

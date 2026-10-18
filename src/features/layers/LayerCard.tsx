@@ -10,7 +10,7 @@ import { cn } from '@/lib/cn';
 import {
   ArrowDownIcon, ArrowUpIcon, CheckIcon, CopyIcon, MinusIcon, MoreIcon, PlusIcon, SparkleIcon, StarIcon, TrashIcon,
 } from '@/components/ui/icons';
-import { tweakPromptFragment } from '@/lib/venice';
+import { aiNotReadyHint, aiReady, tweakPromptFragment } from '@/lib/venice';
 import { useShortcut, ShortcutPriority } from '@/hooks/useShortcut';
 
 /**
@@ -299,7 +299,7 @@ function OverflowMenu({
   const [open, setOpen] = useState(false);
   const [tweakOpen, setTweakOpen] = useState(false);
   const btnRef = useRef<HTMLButtonElement>(null);
-  const veniceReady = !!venice.apiKey;
+  const veniceReady = aiReady(venice);
 
   return (
     <>
@@ -327,7 +327,7 @@ function OverflowMenu({
               icon: <SparkleIcon size={13} />,
               onClick: () => setTweakOpen(true),
               disabled: !veniceReady,
-              disabledTitle: 'Set a Venice API key in Settings → AI',
+              disabledTitle: aiNotReadyHint(venice),
             },
             {
               label: saved ? 'Saved' : 'Save to library',

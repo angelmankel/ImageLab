@@ -130,6 +130,14 @@ npm run build
   upscale / finish / load; rates are medians of warm runs per server (`videoTimings.ts`,
   `imagelab.video.timings.v1`), cold runs (models changed) give the loading cost.
 
+- **AI helpers** (`lib/venice.ts`) call Venice or a local Ollama, per `settings.venice.provider`
+  (`aiReady` / `withChatModel` / `visionModelOf`; never test `apiKey` directly). Ollama runs on
+  winold (192.168.0.83:11434, RTX A4500) and is reached over HTTPS at `llm.blueoceanswim.com`
+  through Traefik — the page is HTTPS, so the plain-http address is mixed content. Local calls send
+  `reasoning_effort: "none"` (Ollama's think-off). The model manager (`features/ai`: list, pull with
+  progress, delete, unload, Hugging Face GGUF browser) uses `lib/localLlm.ts`; the pure parts are
+  `lib/llmModels.ts` (tested).
+
 **The seed trap.** The ComfyUI editor gives any INT named `seed` / `noise_seed` a
 `control_after_generate` slot even when `/object_info` does not declare one, and saves the extra
 `"randomize"` in `widgets_values`. `lib/workflowGraph.ts` mirrors that rule. Break it and every

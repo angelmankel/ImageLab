@@ -36,7 +36,7 @@ type CategoryDef = {
 
 const SETTINGS_CATEGORIES: CategoryDef[] = [
   { id: 'servers',    label: 'Servers',     description: 'ComfyUI endpoints and routing',          Icon: IconServer,   Component: ServersTab },
-  { id: 'ai',         label: 'AI / Venice', description: 'Prompt helpers and image-to-prompt',     Icon: IconSparkles, Component: VeniceTab },
+  { id: 'ai',         label: 'AI',          description: 'Venice or local LLM for prompt helpers',     Icon: IconSparkles, Component: VeniceTab },
   { id: 'civitai',    label: 'CivitAI',     description: 'Model browser credentials',              Icon: IconKey,      Component: CivitaiTab },
   { id: 'previews',   label: 'Previews',    description: 'Model picker hover slideshow',           Icon: IconPhoto,    Component: PreviewsTab },
   { id: 'appearance', label: 'Appearance',  description: 'Theme and visual customization',         Icon: IconPalette,  Component: ThemeTab },
@@ -55,6 +55,8 @@ type SearchableSetting = {
 const SEARCHABLE_SETTINGS: SearchableSetting[] = [
   { categoryId: 'servers', settingId: 'servers', label: 'Active Servers', description: 'Rename, re-point, pause, or remove ComfyUI endpoints', keywords: ['server', 'comfyui', 'endpoint', 'host', 'port', 'lan', 'enable', 'disable', 'remove'] },
   { categoryId: 'servers', settingId: 'addServer', label: 'Add Server', description: 'Connect another ComfyUI endpoint', keywords: ['server', 'add', 'new', 'comfyui', 'host', 'routing', 'round-robin'] },
+  { categoryId: 'ai', settingId: 'activeModel', label: 'Active AI Model', description: 'Switch between Venice and local models', keywords: ['ai', 'model', 'llm', 'local', 'ollama', 'venice', 'switch', 'provider', 'gemma', 'qwen'] },
+  { categoryId: 'ai', settingId: 'localLlm', label: 'Local LLM', description: 'Ollama server, installed models, download and browse models', keywords: ['local', 'ollama', 'llm', 'download', 'huggingface', 'gguf', 'abliterated', 'uncensored', 'browse', 'gpu'] },
   { categoryId: 'ai', settingId: 'apiKey', label: 'Venice API Key', description: 'Key for the snippet library, tagging, and image-to-prompt', keywords: ['venice', 'ai', 'api', 'key', 'llm', 'token'] },
   { categoryId: 'ai', settingId: 'model', label: 'Venice Model', description: 'Chat model used by every AI helper', keywords: ['venice', 'ai', 'model', 'llm', 'llama'] },
   { categoryId: 'ai', settingId: 'promptStyle', label: 'Prompt Style', description: 'Generic SDXL phrases or Illustrious / Danbooru tags', keywords: ['prompt', 'style', 'sdxl', 'illustrious', 'danbooru', 'tag', 'brainstorm'] },
