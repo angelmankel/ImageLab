@@ -7,6 +7,7 @@ import type { HistoryEntry } from '@/lib/types';
 import { FullscreenViewer, useLiveFrame } from './FullscreenViewer';
 import { useViewerPrefs } from './viewerPrefs';
 import { HistoryGridItem } from './HistoryGridItem';
+import { sendEntryToVideo } from '@/features/video/sendToVideo';
 import { JobQueue } from './JobQueue';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useShortcut, ShortcutPriority } from '@/hooks/useShortcut';
@@ -276,6 +277,7 @@ export function HistoryPanel({ tileClickMode = 'select-then-open' }: HistoryPane
                     selectEntry(entry);
                   }}
                   onInfo={() => { selectEntry(entry); openViewer({ withInfo: true }); }}
+                  onSendToVideo={() => { void sendEntryToVideo(entry); }}
                   onToggleLiked={() => toggleHistoryLiked(entry.id)}
                   onDelete={() => { void deleteEntry(entry); }}
                   onNaturalSize={(w, h) => setSizes(prev =>

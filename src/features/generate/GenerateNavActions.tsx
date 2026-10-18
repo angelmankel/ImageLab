@@ -1,12 +1,13 @@
 import { useCallback } from 'react';
 import { Divider, Group } from '@mantine/core';
 import {
-  IconInfinity, IconInfoCircle, IconMaximize, IconStar, IconStarFilled, IconTrash,
+  IconInfinity, IconInfoCircle, IconMaximize, IconMovie, IconStar, IconStarFilled, IconTrash,
 } from '@tabler/icons-react';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useShortcut, ShortcutPriority } from '@/hooks/useShortcut';
 import { useStore } from '@/lib/store';
 import { sendEntryToCanvas } from '@/features/canvas/sendEntryToCanvas';
+import { sendEntryToVideo } from '@/features/video/sendToVideo';
 import { RecallButton } from '@/features/layout/RecallButton';
 import { DownloadSelectedButton } from '@/features/layout/DownloadSelectedButton';
 import { ToolbarButton } from './ToolbarButton';
@@ -77,6 +78,13 @@ export function GenerateNavActions() {
         label="Send image to canvas"
         tooltip="Send this image to the infinite canvas as a new image layer"
         onClick={() => { if (entry) void sendEntryToCanvas(entry); }}
+        disabled={disabled}
+      />
+      <ToolbarButton
+        icon={<IconMovie size={16} />}
+        label="Send image to video"
+        tooltip="Send this image to Video as the image → video start frame"
+        onClick={() => { if (entry) void sendEntryToVideo(entry); }}
         disabled={disabled}
       />
       <ToolbarButton

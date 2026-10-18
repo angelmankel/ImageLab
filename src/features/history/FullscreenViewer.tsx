@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { ActionIcon, Tooltip } from '@mantine/core';
-import { IconBroadcast, IconBroadcastOff } from '@tabler/icons-react';
+import { IconBroadcast, IconBroadcastOff, IconMovie } from '@tabler/icons-react';
+import { sendEntryToVideo } from '@/features/video/sendToVideo';
 import { useCanvasStore } from '@/lib/canvasStore';
 import { useViewerPrefs } from './viewerPrefs';
 import { viewUrl } from '@/lib/comfy';
@@ -53,7 +54,26 @@ export function FullscreenViewer({ list, index, onIndexChange, onClose }: Props)
       initialInfoOpen={viewerInfoOpen}
       infoSlot={entry && !showLive ? <EntryInfo entry={entry} serverName={servers.find(s => s.id === entry.serverId)?.name || '—'} /> : undefined}
       liveUrl={showLive ? liveUrl : null}
-      toolbarExtra={
+      toolbarExtra={<>
+        {entry && !showLive && (
+          <Tooltip label="Send to video — image → video start frame" withArrow>
+            <ActionIcon
+              variant="filled"
+              color="dark"
+              size="lg"
+              radius="md"
+              style={{ opacity: 0.8 }}
+              aria-label="Send image to video"
+              onClick={(e) => {
+                e.stopPropagation();
+                onClose();
+                void sendEntryToVideo(entry);
+              }}
+            >
+              <IconMovie size="1.2rem" />
+            </ActionIcon>
+          </Tooltip>
+        )}
         <Tooltip label={livePreview ? 'Live preview on — showing frames while a job runs' : 'Live preview off'} withArrow>
           <ActionIcon
             variant="filled"
@@ -73,7 +93,7 @@ export function FullscreenViewer({ list, index, onIndexChange, onClose }: Props)
             {livePreview ? <IconBroadcast size="1.2rem" /> : <IconBroadcastOff size="1.2rem" />}
           </ActionIcon>
         </Tooltip>
-      }
+      </>}
     />
   );
 }

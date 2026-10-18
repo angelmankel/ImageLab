@@ -4,7 +4,7 @@ import {
   Text, Tooltip,
 } from '@mantine/core';
 import {
-  IconCheck, IconCopy, IconDownload, IconHeart, IconHeartFilled, IconPhoto, IconPlaylistAdd,
+  IconCheck, IconCopy, IconDownload, IconHeart, IconHeartFilled, IconMovie, IconPhoto, IconPlaylistAdd,
   IconPlus, IconSparkles, IconTrash, IconX,
 } from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
@@ -30,6 +30,7 @@ import { useLocalModels, useLocalModelsFor } from '@/features/ai/localModelsStor
 import type { Tile } from './useCollectionTiles';
 import { useCopyToClipboard } from '@/hooks/useCopyToClipboard';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
+import { sendBlobToVideo, sendUrlToVideo } from '@/features/video/sendToVideo';
 
 /**
  * Right-side detail drawer. Always mounted — when no tile is selected,
@@ -94,6 +95,13 @@ function TileActionRow({ tile }: { tile: Tile }) {
     else if (tile.source === 'favorite' && tile.favorite) removeServerFavorite(tile.favorite.serverId, tile.favorite.id);
   };
 
+  const sendToVideo = async () => {
+    // Imports live in IndexedDB; their thumbnail URL is a blob: URL that may have been revoked.
+    const blob = tile.source === 'import' ? await getImportedBlob(tile.id) : undefined;
+    if (blob) await sendBlobToVideo(blob, tile.title || 'image.png');
+    else if (tile.thumbnailUrl) await sendUrlToVideo(tile.thumbnailUrl, tile.title || 'image.png');
+  };
+
   return (
     <Group gap={6} wrap="nowrap" px="sm" py={8} className="shrink-0 border-b border-border-subtle bg-bg-panel/60">
       <Tooltip label={tile.liked ? 'Unfavorite' : 'Favorite'} withArrow>
@@ -109,6 +117,11 @@ function TileActionRow({ tile }: { tile: Tile }) {
         </ActionIcon>
       </Tooltip>
       <AddToCollectionButton tileId={tile.id} />
+      <Tooltip label="Send to video — image → video start frame" withArrow>
+        <ActionIcon size="lg" variant="default" onClick={sendToVideo} disabled={!tile.thumbnailUrl} aria-label="Send image to video">
+          <IconMovie size={16} />
+        </ActionIcon>
+      </Tooltip>
       <div className="flex-1" />
       <Tooltip label="Delete" withArrow>
         <ActionIcon size="lg" variant="default" onClick={deleteTile} aria-label="Delete image" className="hover:!text-[var(--mantine-color-red-5)]">

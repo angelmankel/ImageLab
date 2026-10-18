@@ -15,7 +15,8 @@ import { comfyHttpFor, loadImageRef, uploadImage } from '@/lib/comfy';
 import { Select } from '@/components/ui/Select';
 import { cn } from '@/lib/cn';
 import { Button, Group, LoadingOverlay, Text } from '@mantine/core';
-import { IconCamera, IconUpload } from '@tabler/icons-react';
+import { IconCamera, IconPhoto, IconUpload } from '@tabler/icons-react';
+import { InputImageBrowserModal } from '@/features/inputImage/InputImageBrowserModal';
 import { paramLabel, type WorkflowParam } from './params';
 
 /** A COMBO named `image` on an image-loading node is a picture, not a dropdown. */
@@ -36,6 +37,8 @@ export function ImageInput({
   const camera = useRef<HTMLInputElement | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [browserOpen, setBrowserOpen] = useState(false);
+  const [dragging, setDragging] = useState(false);
 
   const current = String(value ?? '');
   // ComfyUI serves an input image from the same /view endpoint as an output, with type=input.
@@ -64,6 +67,34 @@ export function ImageInput({
     }
   };
 
+  /** A past generation (or any image URL): fetched through the browser, then uploaded like a file. */
+  const acceptUrl = async (url: string, name: string) => {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`Couldn't fetch the image (HTTP ${res.status})`);
+      const blob = await res.blob();
+      setBusy(false);
+      await accept(new File([blob], name || 'image.png', { type: blob.type || 'image/png' }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+      setBusy(false);
+    }
+  };
+
+  /** A dropped file, or a history / Collections thumbnail (`application/x-imagelab-image`). */
+  const acceptDrop = async (dt: DataTransfer) => {
+    const f = dt.files?.[0];
+    if (f) { if (f.type.startsWith('image/')) await accept(f); return; }
+    try {
+      const parsed = JSON.parse(dt.getData('application/x-imagelab-image') || 'null') as { url?: string; name?: string } | null;
+      if (parsed?.url) { await acceptUrl(parsed.url, parsed.name || 'image.png'); return; }
+    } catch { /* not ours — try a plain URL */ }
+    const url = dt.getData('text/uri-list').split('\n').find(u => u.trim() && !u.startsWith('#'))?.trim();
+    if (url && /^https?:|^blob:|^data:/.test(url)) await acceptUrl(url, 'image.png');
+  };
+
   const options = (param.options ?? []).map(String);
 
   return (
@@ -72,10 +103,15 @@ export function ImageInput({
 
       <div
         onClick={() => file.current?.click()}
+        onDragEnter={(e) => { e.preventDefault(); setDragging(true); }}
+        onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={(e) => { e.preventDefault(); setDragging(false); void acceptDrop(e.dataTransfer); }}
         className={cn(
           'relative flex cursor-pointer items-center justify-center overflow-hidden rounded-md',
-          'border border-dashed border-[var(--mantine-color-dark-4)] bg-[var(--mantine-color-dark-7)]',
+          'border border-dashed bg-[var(--mantine-color-dark-7)]',
           'transition-colors hover:border-[var(--mantine-primary-color-filled)]',
+          dragging ? 'border-[var(--mantine-primary-color-filled)]' : 'border-[var(--mantine-color-dark-4)]',
           large ? 'h-44' : 'h-32',
         )}
       >
@@ -83,7 +119,7 @@ export function ImageInput({
           <img src={preview} alt={current} className="h-full w-full object-contain" />
         ) : (
           <Text size="xs" c="dimmed" ta="center" px="md">
-            {busy ? 'Uploading…' : 'Tap to choose an image'}
+            {busy ? 'Uploading…' : 'Tap to choose an image, or drop one here (a file or a history thumbnail)'}
           </Text>
         )}
         <LoadingOverlay visible={busy} overlayProps={{ backgroundOpacity: 0.4 }} loaderProps={{ size: 'sm' }} />
@@ -93,10 +129,19 @@ export function ImageInput({
         <Button variant="default" size={large ? 'lg' : 'sm'} leftSection={<IconUpload size={15} />} onClick={() => file.current?.click()}>
           Choose
         </Button>
+        <Button variant="default" size={large ? 'lg' : 'sm'} leftSection={<IconPhoto size={15} />} onClick={() => setBrowserOpen(true)} title="Pick one of your generations">
+          Gallery
+        </Button>
         <Button variant="default" size={large ? 'lg' : 'sm'} leftSection={<IconCamera size={15} />} onClick={() => camera.current?.click()}>
           Camera
         </Button>
       </Group>
+
+      <InputImageBrowserModal
+        opened={browserOpen}
+        onClose={() => setBrowserOpen(false)}
+        onSelect={(url, name) => { setBrowserOpen(false); void acceptUrl(url, name); }}
+      />
 
       {options.length > 0 && (
         <Select

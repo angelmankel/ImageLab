@@ -1,6 +1,6 @@
 import { memo, type DragEvent } from 'react';
 import { ActionIcon, Badge, Group, Tooltip } from '@mantine/core';
-import { IconInfoCircle, IconStar, IconStarFilled, IconTrash } from '@tabler/icons-react';
+import { IconInfoCircle, IconMovie, IconStar, IconStarFilled, IconTrash } from '@tabler/icons-react';
 import { cn } from '@/lib/cn';
 
 interface HistoryGridItemProps {
@@ -17,6 +17,8 @@ interface HistoryGridItemProps {
   onToggleLiked: () => void;
   onDelete: () => void;
   onInfo: () => void;
+  /** Make this the Video view's start image and open Video. */
+  onSendToVideo: () => void;
   onNaturalSize: (w: number, h: number) => void;
 }
 
@@ -34,7 +36,7 @@ const HOVER_ONLY = 'opacity-0 transition-opacity group-hover:opacity-100 group-f
  */
 export const HistoryGridItem = memo(function HistoryGridItem({
   id, url, filename, label, liked, selected, serverLabel, size,
-  onSelect, onToggleLiked, onDelete, onInfo, onNaturalSize,
+  onSelect, onToggleLiked, onDelete, onInfo, onSendToVideo, onNaturalSize,
 }: HistoryGridItemProps) {
   const onDragStart = (e: DragEvent<HTMLImageElement>) => {
     e.dataTransfer.effectAllowed = 'copy';
@@ -84,6 +86,18 @@ export const HistoryGridItem = memo(function HistoryGridItem({
             className={HOVER_ONLY}
           >
             <IconInfoCircle size={12} />
+          </ActionIcon>
+        </Tooltip>
+        <Tooltip label="Send to video" withinPortal openDelay={400} fz="xs">
+          <ActionIcon
+            size="xs"
+            variant="filled"
+            color="dark"
+            aria-label="Send image to video"
+            onClick={(e) => { e.stopPropagation(); onSendToVideo(); }}
+            className={HOVER_ONLY}
+          >
+            <IconMovie size={12} />
           </ActionIcon>
         </Tooltip>
         <Tooltip label={liked ? 'Unfavorite' : 'Favorite'} withinPortal openDelay={400} fz="xs">

@@ -11,6 +11,7 @@
  */
 import { useMemo } from 'react';
 import { useStore } from '@/lib/store';
+import type { Server } from '@/lib/storage';
 import { useCanvasStore } from '@/lib/canvasStore';
 import { useIsDesktop } from '@/hooks/useIsDesktop';
 import {
@@ -24,13 +25,22 @@ import { useWorkflowLibrary } from './useWorkflowLibrary';
 import { useStudio } from './studioStore';
 
 /** The host Studio talks to: the server the person last chose, else the first enabled one. */
-export function useStudioHost(): string | null {
-  const servers = useStore(s => s.servers);
-  const pinned = useCanvasStore(s => s.comfyServerId);
+function pickStudioHost(servers: Server[], pinned: string | null): string | null {
   const server = servers.find(s => s.id === pinned && s.enabled !== false)
     ?? servers.find(s => s.enabled !== false)
     ?? servers[0];
   return server?.host ?? null;
+}
+
+export function useStudioHost(): string | null {
+  const servers = useStore(s => s.servers);
+  const pinned = useCanvasStore(s => s.comfyServerId);
+  return pickStudioHost(servers, pinned);
+}
+
+/** `useStudioHost` outside React — the server Studio and Video run on right now. */
+export function studioHostNow(): string | null {
+  return pickStudioHost(useStore.getState().servers, useCanvasStore.getState().comfyServerId);
 }
 
 export function StudioView() {

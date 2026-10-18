@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import {
-  ActionIcon, Badge, Box, Group, Image, LoadingOverlay, Select, Stack, Text, Tooltip,
+  ActionIcon, Badge, Box, Button, Group, Image, LoadingOverlay, Select, Stack, Text, Tooltip,
 } from '@mantine/core';
 import { IconBrush, IconLink, IconPhoto, IconUnlink, IconUpload, IconX } from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
@@ -171,6 +171,15 @@ export function InputImageSection() {
           <Stack align="center" gap="xs" px="sm">
             <IconUpload size={32} style={{ opacity: 0.5 }} color={dragging ? 'var(--mantine-primary-color-5)' : undefined} />
             <Text size="xs" c="dimmed" ta="center">Drop image here or click to upload</Text>
+            <Button
+              size="compact-xs"
+              variant="light"
+              leftSection={<IconPhoto size={14} />}
+              onClick={(e) => { e.stopPropagation(); setBrowserOpen(true); }}
+              onKeyDown={(e) => e.stopPropagation()}
+            >
+              Pick a generation
+            </Button>
             <Text size="xs" c="dimmed" ta="center">Paste from clipboard (Ctrl+V) · drag a history thumbnail here</Text>
           </Stack>
         )}

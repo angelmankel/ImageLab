@@ -128,7 +128,11 @@ npm run build
   resize, before the MP4. **Time estimate** (`lib/videoEstimate.ts`, tested): `useComfyRun` times
   each node from `executing` events (`onFinished`); `wanRunTiming` splits a run into sampling /
   upscale / finish / load; rates are medians of warm runs per server (`videoTimings.ts`,
-  `imagelab.video.timings.v1`), cold runs (models changed) give the loading cost.
+  `imagelab.video.timings.v1`), cold runs (models changed) give the loading cost. **Send to video**
+  (`video/sendToVideo.ts`: top toolbar, history tiles, fullscreen viewer, Collections) fetches the
+  image, uploads it to the Video server and sets it as the i2v start frame; a portrait image flips a
+  landscape size. Both image drop zones (img2img and Studio/Video's `ImageInput`) pick from past
+  generations (`InputImageBrowserModal`) and take dropped history thumbnails.
 
 - **AI helpers** (`lib/venice.ts`) call Venice or a local Ollama, per `settings.venice.provider`
   (`aiReady` / `withChatModel` / `visionModelOf`; never test `apiKey` directly). Ollama runs on
