@@ -27,7 +27,9 @@ self.addEventListener('fetch', (event) => {
   if (req.mode === 'navigate' || rel === '' || rel === 'index.html') {
     event.respondWith((async () => {
       try {
-        const res = await fetch(req);
+        // `no-cache`: always ask the server (a 304 when unchanged). A plain fetch let the HTTP cache
+        // answer with a guessed freshness, so a push did not show up for hours.
+        const res = await fetch(req.url, { cache: 'no-cache' });
         if (res.ok) (await caches.open(CACHE)).put(scope.href, res.clone());
         return res;
       } catch {
