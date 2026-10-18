@@ -1,4 +1,4 @@
-import { Select as MSelect, Tooltip } from '@mantine/core';
+import { Select as MSelect, Tooltip, type ComboboxProps } from '@mantine/core';
 import { cn } from '@/lib/cn';
 import { useTouchInput } from '@/hooks/useTouchInput';
 
@@ -24,6 +24,8 @@ type Props = {
   size?: 'xs' | 'sm' | 'md';
   /** Per-option disabled/title state — used for resource availability. */
   getOptionState?: (value: string) => OptionState | undefined;
+  /** Extra Mantine combobox options, merged over the defaults (e.g. turn flip off inside a modal). */
+  comboboxProps?: ComboboxProps;
 };
 
 /**
@@ -32,7 +34,7 @@ type Props = {
  * a touch screen (see `useTouchInput`).
  */
 export function Select({
-  value, onValueChange, options, placeholder, className, triggerClassName, ariaLabel, searchable, size = 'sm', getOptionState,
+  value, onValueChange, options, placeholder, className, triggerClassName, ariaLabel, searchable, size = 'sm', getOptionState, comboboxProps,
 }: Props) {
   const touch = useTouchInput();
   const data = options
@@ -49,7 +51,7 @@ export function Select({
       searchable={!touch && (searchable ?? data.length > 12)}
       allowDeselect={false}
       size={size}
-      comboboxProps={{ withinPortal: true, shadow: 'md' }}
+      comboboxProps={{ withinPortal: true, shadow: 'md', ...comboboxProps }}
       maxDropdownHeight={300}
       className={cn('min-w-0 flex-1', className)}
       classNames={triggerClassName ? { input: triggerClassName } : undefined}
