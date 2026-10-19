@@ -6,6 +6,8 @@
  * Image results are the generate history (selection = `useStore.selectedEntry`, as the history
  * panel and the toolbar already use); Video and Workflow results come from their run stores. The
  * image hero's action toolbar is the old generate top-nav's (`GenerateNavActions`), unchanged.
+ * The image fullscreen viewer is the history panel's (it stays mounted in the folded column too),
+ * so `openViewer()` is all the hero does; rendering a second one here would stack two overlays.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Badge } from '@mantine/core';
@@ -19,7 +21,6 @@ import { jobActivity } from '@/lib/jobActivity';
 import { stepResult } from '@/lib/desktopLayout';
 import type { WorkspaceMode } from '@/lib/workspace';
 import type { RunStore } from '@/lib/comfyRunner';
-import { FullscreenViewer } from '@/features/history/FullscreenViewer';
 import { GenerateNavActions } from '@/features/generate/GenerateNavActions';
 import { useImageResults, useVideoResults, useWorkflowResults } from '@/features/workspace/results';
 import { useVideoRun } from '@/features/video/videoRun';
@@ -53,7 +54,6 @@ function ImageResults() {
   const selected = useStore(s => s.selectedEntry);
   const select = useStore(s => s.selectHistoryEntry);
   const openViewer = useStore(s => s.openViewer);
-  const closeViewer = useStore(s => s.closeViewer);
   const viewerOpen = useStore(s => s.viewerOpen);
   const jobs = useStore(s => s.jobs);
   const submitting = useStore(s => s.isSubmitting);
@@ -110,9 +110,6 @@ function ImageResults() {
           onPick={key => { const e = history.find(h => h.id === key); if (e) select(e); }}
           onOpen={key => { const e = history.find(h => h.id === key); if (e) { select(e); openViewer(); } }} />
       </div>
-      {viewerOpen && (
-        <FullscreenViewer list={history} index={Math.max(0, index)} onIndexChange={i => { if (history[i]) select(history[i]); }} onClose={closeViewer} />
-      )}
     </div>
   );
 }

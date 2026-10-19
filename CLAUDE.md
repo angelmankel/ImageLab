@@ -174,3 +174,36 @@ the LAN boxes are behind on ImageLabCore, so `/imagelab/api/*` only answers on a
 
 **The project rules — pods, money, pulling images before a terminate — live in
 `../ImageLabDocker/CLAUDE.md`.**
+
+## Desktop layout
+
+- **One workspace** (`features/desktop/DesktopWorkspace.tsx`, mounted by `workspace/WorkspaceView`
+  for `mainView` generate / video / studio) replaces the three desktop views. The mode *is*
+  `mainView` (`lib/workspace.ts`), so `setMainView('video')` and "Send to video" still work. The
+  rail (`layout/Sidebar.tsx`) shows one **Create** entry for all three; the mode switch sits in the
+  workspace's top bar beside Simple / Advanced (`workspaceStore.detail`), the status cluster
+  (connection · server · queue · downloads) and the job tray (one pill per running job in any mode,
+  so a video and an image render side by side).
+- **Three columns.** Left: the mode's sections as folding `SectionCard`s in one scroll
+  (`desktop/SettingsColumn.tsx`), the seed row and Generate pinned under them
+  (`WorkspaceFooter.tsx`; image keeps `GenerateButton`, video and workflow use `RunBar` on their
+  run stores). Simple shows the simple tier (`sectionTier` / `videoSectionTier`) plus Quick
+  tweaks and a "N more settings → Advanced" row; Advanced shows every card. Image cards follow the
+  user's tab order and hidden tabs (`panelTabsStore`; "Order and hide sections" opens
+  `CustomizeTabsModal`), so the phone and the desktop agree. Centre: `HeroResult` (latest result,
+  live preview and progress while busy, the old top-nav image actions floating over it) with a
+  `ResultsStrip` under it (Ctrl+wheel over the strip resizes the thumbnails). Right: `HistoryPanel`
+  in image mode, `desktop/ResultsGrid` (the run store's server history) in video and workflow.
+  The side columns are the canvas view's docked panels: widths in `layout/panelLayout.ts`,
+  `PanelResizeHandle` drags / folds / resets; open state, fold state per mode, strip size and grid
+  columns live in `desktop/desktopLayoutStore.ts` (`imagelab.desktopLayout.v1`; the old
+  `imagelab.video.folded.v1` seeds video's folds). Pure parts: `lib/desktopLayout.ts`, tested.
+- **The canvas view** keeps its own chrome (`AppSidePanels`, `CanvasTopNav`, layers), but its left
+  panel is the same card column in layer scope (`layout/LeftPanel.tsx`).
+- **Keyboard on desktop:** Ctrl/⌘+K quick search · Ctrl/⌘+Enter generate in the current mode (works
+  inside text boxes) · Alt+1…9 open and scroll to the Nth settings card · ←/→ previous / next
+  result (older / newer) · Space fullscreen on / off · Esc closes · Delete removes the shown image
+  (image mode) · F browser fullscreen · Tab cycles the image job's server · canvas-only: tool letters,
+  `[` `]` grid step. The fullscreen viewer keeps ←/→, S slideshow, Esc.
+- `features/panel/PanelTabs.tsx` and `SummaryStrip.tsx` are no longer used on desktop; the tab data
+  (`lib/panelTabs.ts`) still drives card order.
