@@ -4,10 +4,13 @@
  */
 import { Button, Group, Slider, Stack, Text } from '@mantine/core';
 import { StepperInput } from './StepperInput';
+import { RangeEnds, type Ends } from './RangeEnds';
 
-export function StrengthControl({ label, value, onChange, min, max, step, chips, color = 'grape' }: {
+export function StrengthControl({ label, value, onChange, min, max, step, chips, color = 'grape', ends }: {
   label: string; value: number; onChange: (v: number) => void;
   min: number; max: number; step: number; chips: number[]; color?: string;
+  /** What a low and a high value do, under the slider. */
+  ends?: Ends;
 }) {
   return (
     <Stack gap={4}>
@@ -30,6 +33,7 @@ export function StrengthControl({ label, value, onChange, min, max, step, chips,
         <StepperInput value={value} onChange={onChange} min={min} max={max} step={step} size="xs" w={104}
           aria-label={`${label} value`} styles={{ input: { textAlign: 'center', fontWeight: 600 } }} />
       </Group>
+      {ends && <RangeEnds ends={ends} />}
     </Stack>
   );
 }

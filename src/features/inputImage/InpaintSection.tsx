@@ -342,6 +342,7 @@ export function InpaintSection() {
         max={256}
         step={1}
         defaultValue={0}
+        ends={['Only the painted area', 'Repaints around it too']}
       />
 
       <SliderField
@@ -353,6 +354,7 @@ export function InpaintSection() {
         max={31}
         step={1}
         defaultValue={8}
+        ends={['Hard edge, may show a seam', 'Soft blend']}
       />
 
       {/* ControlNet inpaint bias — alternate mode. Adds a ControlNet
@@ -400,6 +402,7 @@ export function InpaintSection() {
             max={2}
             step={0.05}
             defaultValue={1}
+            ends={['Free to change the shape', 'Sticks to the surroundings']}
           />
         </>
       )}
@@ -473,6 +476,7 @@ export function InpaintSection() {
             max={3}
             step={0.1}
             defaultValue={1.5}
+            ends={['Tight crop, more detail', 'More context, better fit']}
           />
         </Stack>
       </Collapse>

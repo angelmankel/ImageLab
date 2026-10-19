@@ -12,6 +12,7 @@ import { IconArrowsExchange } from '@tabler/icons-react';
 import { DEFAULT_LOOPBACK, frameZoom, loopbackRounds, loopbackSizes } from '@/lib/pipeline';
 import type { LoopbackRampKey, LoopbackSettings } from '@/lib/types';
 import { DEFAULT_FRAME_PATH, FramePathField } from './FramePathField';
+import { RangeEnds, type Ends } from './RangeEnds';
 
 export interface LoopbackFieldProps {
   value: LoopbackSettings;
@@ -72,19 +73,24 @@ export function LoopbackField({ value, onChange, label = 'Loopback (Hires Fix)',
               {many ? 'Turn on Auto-scale to move a value from the first round to the last.' : 'Auto-scale needs 2 or more iterations; one round uses the start value.'}
             </Text>
             <RampRow label="Upscale factor" min={1} max={2} step={0.05} format={(v) => `${v.toFixed(2)}×`}
+              ends={['Grows a little each round', 'Grows a lot, slower']}
               marks={[1, 1.5, 2]} value={value.upscale} ramp={value.ramps?.upscale} disabled={disabled}
               onValue={(upscale) => set({ upscale })} onRamp={(r) => setRamp('upscale', r)} />
             <RampRow label="Denoise strength" min={0.1} max={1} step={0.05} format={(v) => v.toFixed(2)}
+              ends={['Keeps the picture', 'Repaints more']}
               marks={[0.1, 0.5, 1]} value={value.denoise} ramp={denoiseRamp} disabled={disabled}
               onValue={(denoise) => set({ denoise })}
               onRamp={(r) => set(r ? { autoDenoise: true, denoiseStart: r.start, denoiseEnd: r.end } : { autoDenoise: false })} />
             <RampRow label="Noise injection" min={0} max={2} step={0.05} format={(v) => (v > 0 ? v.toFixed(2) : 'Off')}
+              ends={['Clean', 'More new detail and grain']}
               marks={[0, 1, 2]} value={value.noise ?? 0} ramp={value.ramps?.noise} disabled={disabled}
               onValue={(noise) => set({ noise })} onRamp={(r) => setRamp('noise', r)} />
             <RampRow label="Steps" min={1} max={60} step={1} format={(v) => String(Math.round(v))}
+              ends={['Quicker, rougher', 'More detail, slower']}
               marks={[1, 30, 60]} value={value.steps} ramp={value.ramps?.steps} disabled={disabled}
               onValue={(steps) => set({ steps })} onRamp={(r) => setRamp('steps', r)} />
             <RampRow label="CFG scale" min={1} max={20} step={0.5} format={(v) => v.toFixed(1)}
+              ends={['Looser, softer', 'Follows the prompt, may burn']}
               marks={[1, 10, 20]} value={value.cfg} ramp={value.ramps?.cfg} disabled={disabled}
               onValue={(cfg) => set({ cfg })} onRamp={(r) => setRamp('cfg', r)} />
 
@@ -134,9 +140,10 @@ export function LoopbackField({ value, onChange, label = 'Loopback (Hires Fix)',
  * the direction (rising or falling, e.g. denoise going down) is a separate swap button.
  * Turning Auto-scale on starts both ends at the current value.
  */
-function RampRow({ label, value, ramp, min, max, step, marks, format, onValue, onRamp, disabled }: {
+function RampRow({ label, value, ramp, min, max, step, marks, format, onValue, onRamp, disabled, ends }: {
   label: string; value: number; ramp?: Ramp; min: number; max: number; step: number; marks: number[];
   format: (v: number) => string; onValue: (v: number) => void; onRamp: (r: Ramp | undefined) => void; disabled?: boolean;
+  ends?: Ends;
 }) {
   const markList = marks.map((m) => ({ value: m, label: format(m).replace(/\.00?(?=×|$)/, '') }));
   // Equal ends have no direction of their own; remember the last one chosen.
@@ -183,6 +190,7 @@ function RampRow({ label, value, ramp, min, max, step, marks, format, onValue, o
           </div>
         </Stack>
       ) : slider(value, onValue, label)}
+      {ends && <RangeEnds ends={ends} />}
     </div>
   );
 }

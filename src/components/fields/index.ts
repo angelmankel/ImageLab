@@ -8,3 +8,4 @@ export { DimensionsField } from './DimensionsField';
 export { LoopbackField } from './LoopbackField';
 export { StepperInput } from './StepperInput';
 export { StrengthControl } from './StrengthControl';
+export { RangeEnds, type Ends } from './RangeEnds';

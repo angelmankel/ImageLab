@@ -1,5 +1,6 @@
 import { useStore } from '@/lib/store';
 import { SliderField } from '@/components/fields/SliderField';
+import { DENOISE_ENDS } from './GenerationSettings';
 
 /**
  * Denoise slider for img2img / inpaint pipelines. Reads + writes
@@ -22,6 +23,7 @@ export function DenoiseField({ label = 'Denoise' }: { label?: string }) {
       max={1}
       step={0.01}
       defaultValue={0.6}
+      ends={DENOISE_ENDS}
     />
   );
 }

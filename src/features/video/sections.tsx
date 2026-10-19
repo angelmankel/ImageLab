@@ -152,9 +152,10 @@ function SizeSection() {
   return (
     <Stack gap="sm">
       <DimensionsField value={{ width: v.width, height: v.height }} onChange={({ width, height }) => v.set({ width, height })} presets={WAN_PRESETS} />
-      <SliderField label="Length (frames)" value={v.length} min={5} max={161} step={4} defaultValue={81} presets={[33, 49, 81, 121]}
+      <SliderField label="Length (frames)" value={v.length} min={5} max={161} step={4} defaultValue={81} presets={[33, 49, 81, 121]} ends={['Short clip, quick', 'Long clip, slow; may loop or drift']}
         onChange={(length) => v.set({ length: wanLength(length) })} description={`${videoSeconds(v)} s at ${v.fps} fps${v.interpolate.on ? ` · saved at ${outputFrames(v).fps} fps after interpolation` : ''}`} />
-      <SliderField label="Frame rate" value={v.fps} min={8} max={30} step={1} defaultValue={16} presets={[16, 24]} onChange={(fps) => v.set({ fps })} />
+      <SliderField label="Frame rate" value={v.fps} min={8} max={30} step={1} defaultValue={16} presets={[16, 24]} onChange={(fps) => v.set({ fps })}
+        ends={['Longer clip, slower motion', 'Shorter clip, faster motion']} />
     </Stack>
   );
 }
@@ -194,6 +195,8 @@ function ModelsSection() {
   );
 }
 
+const LORA_ENDS = ['Weaker effect', 'Stronger, may break the look'] as const;
+
 function LorasSection() {
   const v = useVideo();
   const loras = useStore((s) => s.server.loras);
@@ -216,14 +219,14 @@ function LorasSection() {
             </Group>
             <SegmentedControl size="xs" fullWidth value={l.expert} onChange={(expert) => v.updateLora(l.id, { expert: expert as typeof l.expert })}
               data={[{ value: 'high', label: 'High noise' }, { value: 'low', label: 'Low noise' }, { value: 'both', label: 'Both' }]} />
-            <StrengthControl label={l.expert === 'both' && l.strengthLow != null ? 'Strength (high)' : 'Strength'} value={l.strength} min={0} max={3} step={0.05} chips={[0.5, 1, 1.5]} color="grape"
+            <StrengthControl label={l.expert === 'both' && l.strengthLow != null ? 'Strength (high)' : 'Strength'} value={l.strength} min={0} max={3} step={0.05} chips={[0.5, 1, 1.5]} color="grape" ends={LORA_ENDS}
               onChange={(strength) => v.updateLora(l.id, { strength })} />
             {l.expert === 'both' && (
               <>
                 <Switch size="xs" checked={l.strengthLow != null} label={<Text size="xs">Own strength on the low-noise expert</Text>}
                   onChange={(e) => v.updateLora(l.id, { strengthLow: e.currentTarget.checked ? l.strength : null })} />
                 {l.strengthLow != null && (
-                  <StrengthControl label="Strength (low)" value={l.strengthLow} min={0} max={3} step={0.05} chips={[0.5, 1, 1.5]} color="grape"
+                  <StrengthControl label="Strength (low)" value={l.strengthLow} min={0} max={3} step={0.05} chips={[0.5, 1, 1.5]} color="grape" ends={LORA_ENDS}
                     onChange={(strengthLow) => v.updateLora(l.id, { strengthLow })} />
                 )}
               </>
@@ -246,6 +249,11 @@ function LorasSection() {
     </Stack>
   );
 }
+
+/** What the low and high end of the shared sliders do. */
+const STEPS_ENDS = ['Quicker, rougher', 'More detail, slower'] as const;
+const SWITCH_ENDS = ['Less motion, more detail', 'More motion, less detail'] as const;
+const CFG_ENDS = ['Looser, softer colours', 'Follows the prompt, may burn'] as const;
 
 function SpeedSection() {
   const v = useVideo();
@@ -280,20 +288,24 @@ function SpeedSection() {
               <Fold label="Fast recipe: steps, switch, LoRA strength, motion pass" open={recipeOpen} onToggle={() => setRecipeOpen((o) => !o)}>
                 <SliderField label="Fast steps" value={fr.steps} min={2} max={12} step={1} defaultValue={FAST.steps} presets={[4, 6, 8]}
                   onChange={(steps) => setFr({ steps, switchStep: Math.min(fr.switchStep, steps), motionSteps: Math.min(fr.motionSteps, steps) })}
-                  description="4 is what the LoRA was distilled for; 6–8 add detail at the cost of time." />
+                  description="4 is what the LoRA was distilled for; 6–8 add detail at the cost of time." ends={STEPS_ENDS} />
                 <SliderField label="Switch to low-noise at step" value={fr.switchStep} min={0} max={fr.steps} step={1} defaultValue={FAST.switchStep}
-                  onChange={(switchStep) => setFr({ switchStep, motionSteps: Math.min(fr.motionSteps, switchStep) })} />
+                  onChange={(switchStep) => setFr({ switchStep, motionSteps: Math.min(fr.motionSteps, switchStep) })} ends={SWITCH_ENDS} />
                 <SliderField label="Fast CFG" value={fr.cfg} min={1} max={3} step={0.1} defaultValue={FAST.cfg} presets={[1]} onChange={(cfg) => setFr({ cfg })}
-                  description="1 is the distilled value (and half the work per step). Above 1 the negative prompt starts to act." />
-                <StrengthControl label="lightx2v strength · high" value={fr.strengthHigh} min={0} max={1.5} step={0.05} chips={[0.6, 0.8, 1]} color="yellow" onChange={(strengthHigh) => setFr({ strengthHigh })} />
-                <StrengthControl label="lightx2v strength · low" value={fr.strengthLow} min={0} max={1.5} step={0.05} chips={[0.6, 0.8, 1]} color="yellow" onChange={(strengthLow) => setFr({ strengthLow })} />
+                  description="1 is the distilled value (and half the work per step). Above 1 the negative prompt starts to act."
+                  ends={['Fastest; negative ignored', 'Follows the prompt; 2× work, may burn']} />
+                <StrengthControl label="lightx2v strength · high" value={fr.strengthHigh} min={0} max={1.5} step={0.05} chips={[0.6, 0.8, 1]} color="yellow" onChange={(strengthHigh) => setFr({ strengthHigh })}
+                  ends={['More motion, noisier', 'Cleaner, stiffer motion']} />
+                <StrengthControl label="lightx2v strength · low" value={fr.strengthLow} min={0} max={1.5} step={0.05} chips={[0.6, 0.8, 1]} color="yellow" onChange={(strengthLow) => setFr({ strengthLow })}
+                  ends={['Softer, may be noisy', 'Cleaner detail']} />
                 <SliderField label="Motion pass (steps without the speed LoRA)" value={fr.motionSteps} min={0} max={Math.max(0, fr.switchStep)} step={1} defaultValue={0} presets={[0, 1, 2]}
-                  onChange={(motionSteps) => setFr({ motionSteps })}
+                  onChange={(motionSteps) => setFr({ motionSteps })} ends={['Off: fastest, calmer motion', 'More motion, slower']}
                   description={fr.motionSteps > 0
                     ? `Steps 0–${eff.motionSteps} run the high-noise model plain at CFG ${fr.motionCfg} (twice the work each), then lightx2v takes over: the community's fix for the LoRA's slow-motion look.`
                     : 'The speed LoRA on the high-noise expert flattens motion. A plain pass first lays out the movement; 1–2 steps is the usual dose.'} />
                 {fr.motionSteps > 0 && (
-                  <SliderField label="Motion pass CFG" value={fr.motionCfg} min={1} max={8} step={0.5} defaultValue={3.5} presets={[3, 3.5, 5]} onChange={(motionCfg) => setFr({ motionCfg })} />
+                  <SliderField label="Motion pass CFG" value={fr.motionCfg} min={1} max={8} step={0.5} defaultValue={3.5} presets={[3, 3.5, 5]} onChange={(motionCfg) => setFr({ motionCfg })}
+                    ends={['Gentle motion', 'Stronger motion, may burn']} />
                 )}
               </Fold>
               <Fold label="Speed LoRA files" open={speedLorasOpen} onToggle={() => setSpeedLorasOpen((o) => !o)}>
@@ -306,25 +318,28 @@ function SpeedSection() {
         </Stack>
       </Paper>
       <SliderField label="Steps" value={v.fast ? fr.steps : v.steps} min={2} max={60} step={1} defaultValue={20} presets={[8, 20, 30]} disabled={v.fast}
-        onChange={(steps) => v.set({ steps, switchStep: Math.min(v.switchStep, steps) })} />
+        onChange={(steps) => v.set({ steps, switchStep: Math.min(v.switchStep, steps) })} ends={STEPS_ENDS} />
       <SliderField label="Switch to low-noise at step" value={v.fast ? fr.switchStep : v.switchStep} min={0} max={v.fast ? fr.steps : v.steps} step={1} defaultValue={10} disabled={v.fast}
         description="The high-noise expert lays out motion and layout; the low-noise one adds detail."
-        onChange={(switchStep) => v.set({ switchStep })} />
-      <SliderField label={v.cfgLow == null ? 'CFG' : 'CFG · high noise'} value={v.fast ? fr.cfg : v.cfg} min={1} max={10} step={0.1} defaultValue={3.5} presets={[1, 3.5, 5]} disabled={v.fast} onChange={(cfg) => v.set({ cfg })} />
+        onChange={(switchStep) => v.set({ switchStep })} ends={SWITCH_ENDS} />
+      <SliderField label={v.cfgLow == null ? 'CFG' : 'CFG · high noise'} value={v.fast ? fr.cfg : v.cfg} min={1} max={10} step={0.1} defaultValue={3.5} presets={[1, 3.5, 5]} disabled={v.fast} onChange={(cfg) => v.set({ cfg })}
+        ends={CFG_ENDS} />
       {!v.fast && (
         <Switch size="xs" checked={v.cfgLow != null} label={<Text size="xs">Own CFG for the low-noise expert</Text>}
           onChange={(e) => v.set({ cfgLow: e.currentTarget.checked ? v.cfg : null })} />
       )}
       {!v.fast && v.cfgLow != null && (
         <SliderField label="CFG · low noise" value={v.cfgLow} min={1} max={10} step={0.1} defaultValue={3.5} presets={[1, 2, 3.5]} onChange={(cfgLow) => v.set({ cfgLow })}
-          description="A lower CFG on the detail pass keeps colours from burning." />
+          description="A lower CFG on the detail pass keeps colours from burning." ends={CFG_ENDS} />
       )}
       <SliderField label={v.shiftLow == null ? 'Shift' : 'Shift · high noise'} value={v.shift} min={1} max={16} step={0.5} defaultValue={8} presets={[5, 8]} onChange={(shift) => v.set({ shift })}
-        description="Higher pushes more steps into the noisy phase: bigger motion, looser detail. lightx2v was distilled at 5; 8 is ComfyUI's template." />
+        description="Higher pushes more steps into the noisy phase: bigger motion, looser detail. lightx2v was distilled at 5; 8 is ComfyUI's template."
+        ends={['Smaller motion, tighter detail', 'Bigger motion, looser detail']} />
       <Switch size="xs" checked={v.shiftLow != null} label={<Text size="xs">Own shift for the low-noise expert</Text>}
         onChange={(e) => v.set({ shiftLow: e.currentTarget.checked ? v.shift : null })} />
       {v.shiftLow != null && (
-        <SliderField label="Shift · low noise" value={v.shiftLow} min={1} max={16} step={0.5} defaultValue={8} presets={[3, 5, 8]} onChange={(shiftLow) => v.set({ shiftLow })} />
+        <SliderField label="Shift · low noise" value={v.shiftLow} min={1} max={16} step={0.5} defaultValue={8} presets={[3, 5, 8]} onChange={(shiftLow) => v.set({ shiftLow })}
+          ends={['Finer, crisper detail', 'Smoother, looser detail']} />
       )}
       <SelectField label="Sampler" value={v.sampler} onChange={(sampler) => v.set({ sampler })} data={samplers}
         description={v.fast ? 'euler / simple matches how lightx2v was distilled.' : 'euler, dpmpp_2m, res_multistep and uni_pc are the usual Wan picks.'} />
@@ -352,9 +367,12 @@ function GuidanceSection() {
           {g.nag.on && (
             <>
               <SliderField label="NAG scale" value={g.nag.scale} min={0} max={30} step={0.5} defaultValue={11} presets={[5, 8, 11, 15]} onChange={(scale) => setNag({ scale })}
-                description="How far from the negative. 11 is the node's default; 0 turns it off." />
-              <SliderField label="Alpha" value={g.nag.alpha} min={0} max={1} step={0.05} defaultValue={0.25} presets={[0.25, 0.5, 1]} onChange={(alpha) => setNag({ alpha })} description="Blend of the guided attention: 1 replaces it, 0 does nothing." />
-              <SliderField label="Tau" value={g.nag.tau} min={0} max={10} step={0.1} defaultValue={2.5} presets={[1.5, 2.5, 3.5]} onChange={(tau) => setNag({ tau })} description="Clamp on the guidance norm; higher lets it push harder." />
+                description="How far from the negative. 11 is the node's default; 0 turns it off."
+                ends={['Negative barely acts', 'Strong negative, may distort']} />
+              <SliderField label="Alpha" value={g.nag.alpha} min={0} max={1} step={0.05} defaultValue={0.25} presets={[0.25, 0.5, 1]} onChange={(alpha) => setNag({ alpha })} description="Blend of the guided attention: 1 replaces it, 0 does nothing."
+                ends={['Subtle', 'Full effect']} />
+              <SliderField label="Tau" value={g.nag.tau} min={0} max={10} step={0.1} defaultValue={2.5} presets={[1.5, 2.5, 3.5]} onChange={(tau) => setNag({ tau })} description="Clamp on the guidance norm; higher lets it push harder."
+                ends={['Held back, safer', 'Pushes harder']} />
             </>
           )}
         </Stack>
@@ -367,9 +385,12 @@ function GuidanceSection() {
             description={eff.steps <= 6 ? `Skips steps whose change is small. With ${eff.steps} steps there is nothing to skip; it pays at 15+ steps.` : 'Skips steps whose predicted change is under the threshold: 1.3–2× faster at 20 steps, slight softening.'} />
           {sp.easyCache.on && (
             <>
-              <SliderField label="Reuse threshold" value={sp.easyCache.threshold} min={0.05} max={1} step={0.05} defaultValue={0.2} presets={[0.1, 0.2, 0.3]} onChange={(threshold) => setCache({ threshold })} description="Higher skips more and loses more." />
-              <SliderField label="Active from" value={sp.easyCache.startPercent} min={0} max={1} step={0.05} defaultValue={0.15} presets={[0.1, 0.15, 0.3]} onChange={(startPercent) => setCache({ startPercent })} description="Fraction of the run; the first steps are never skipped." />
-              <SliderField label="Active until" value={sp.easyCache.endPercent} min={0} max={1} step={0.05} defaultValue={0.95} presets={[0.8, 0.95, 1]} onChange={(endPercent) => setCache({ endPercent })} />
+              <SliderField label="Reuse threshold" value={sp.easyCache.threshold} min={0.05} max={1} step={0.05} defaultValue={0.2} presets={[0.1, 0.2, 0.3]} onChange={(threshold) => setCache({ threshold })} description="Higher skips more and loses more."
+                ends={['Exact, slower', 'Faster, softer']} />
+              <SliderField label="Active from" value={sp.easyCache.startPercent} min={0} max={1} step={0.05} defaultValue={0.15} presets={[0.1, 0.15, 0.3]} onChange={(startPercent) => setCache({ startPercent })} description="Fraction of the run; the first steps are never skipped."
+                ends={['Starts sooner, faster', 'Starts later, safer']} />
+              <SliderField label="Active until" value={sp.easyCache.endPercent} min={0} max={1} step={0.05} defaultValue={0.95} presets={[0.8, 0.95, 1]} onChange={(endPercent) => setCache({ endPercent })}
+                ends={['Stops early, crisper finish', 'Runs to the end, faster']} />
             </>
           )}
         </Stack>
@@ -385,9 +406,11 @@ function GuidanceSection() {
           {v.longClip.on && (
             <>
               <SliderField label="Window (frames)" value={v.longClip.windowFrames} min={17} max={121} step={4} defaultValue={81} presets={[49, 81, 121]}
-                onChange={(windowFrames) => setLong({ windowFrames: wanLength(windowFrames) })} description={`Never more than the clip (${wanLength(v.length)} frames).`} />
+                onChange={(windowFrames) => setLong({ windowFrames: wanLength(windowFrames) })} description={`Never more than the clip (${wanLength(v.length)} frames).`}
+                ends={['Less VRAM, more drift', 'More coherent, more VRAM']} />
               <SliderField label="Overlap (frames)" value={v.longClip.overlapFrames} min={0} max={64} step={2} defaultValue={30} presets={[16, 30, 48]}
-                onChange={(overlapFrames) => setLong({ overlapFrames })} description="More overlap blends better and costs more." />
+                onChange={(overlapFrames) => setLong({ overlapFrames })} description="More overlap blends better and costs more."
+                ends={['Faster, visible seams', 'Smoother joins, slower']} />
             </>
           )}
         </Stack>
@@ -424,7 +447,8 @@ function UpscaleSection() {
               description="SPAN 2x is the quickest; 4x models are sharper and much slower on 81 frames." />
           )}
           <SliderField label="Scale" value={up.scale} min={1.25} max={4} step={0.25} defaultValue={2} presets={[1.5, 2, 3, 4]}
-            onChange={(scale) => set({ scale })} description={`${v.width} × ${v.height} → ${w} × ${h}`} />
+            onChange={(scale) => set({ scale })} description={`${v.width} × ${v.height} → ${w} × ${h}`}
+            ends={['Small file, quick', 'Big file, slow']} />
           <SelectField label={up.method === 'model' ? 'Resize to exact size with' : 'Interpolation'} value={up.resizeMethod}
             onChange={(resizeMethod) => set({ resizeMethod: resizeMethod as VideoUpscale['resizeMethod'] })}
             data={['lanczos', 'bicubic', 'bilinear', 'area', 'nearest-exact']} />
@@ -463,7 +487,8 @@ function FinishSection() {
               <>
                 <SelectField label="Method" value={cm.method} onChange={(method) => setCm({ method: method as ColorMatchMethod })} data={[...COLOR_MATCH_METHODS]} searchable={false}
                   description="mkl is the fast default; hm-mvgd-hm is the most faithful; reinhard_lab_gpu runs on the GPU." />
-                <StrengthControl label="Strength" value={cm.strength} min={0} max={1.5} step={0.05} chips={[0.5, 0.8, 1]} color="teal" onChange={(strength) => setCm({ strength })} />
+                <StrengthControl label="Strength" value={cm.strength} min={0} max={1.5} step={0.05} chips={[0.5, 0.8, 1]} color="teal" onChange={(strength) => setCm({ strength })}
+                  ends={['Light touch, colours may drift', 'Locks to the start colours']} />
               </>
             )}
           </Stack>
@@ -498,7 +523,8 @@ function FinishSection() {
             onChange={(e) => setEnc({ crf: e.currentTarget.checked ? (enc.codec === 'av1' ? 30 : 23) : null })} />
           {enc.crf != null && (
             <SliderField label="CRF" value={enc.crf} min={0} max={enc.codec === 'av1' ? 63 : 51} step={1} defaultValue={enc.codec === 'av1' ? 30 : 23} presets={enc.codec === 'av1' ? [20, 30, 40] : [15, 18, 23, 28]}
-              onChange={(crf) => setEnc({ crf })} description="Lower is better and bigger. H.264 18 is near lossless to the eye; the default is 23 (AV1: 30)." />
+              onChange={(crf) => setEnc({ crf })} description="Lower is better and bigger. H.264 18 is near lossless to the eye; the default is 23 (AV1: 30)."
+              ends={['Best quality, big file', 'Small file, blocky']} />
           )}
           <Text size="xs" c="dimmed">MP4 H.264 plays everywhere, the browser included. AV1 is half the size at the same look but slower to write; WebM is AV1 only.</Text>
         </Stack>

@@ -226,7 +226,7 @@ export function CheckpointsField() {
         settings={checkpoints.slice(1).map((c) => (
           <ModelSettings key={c.id} name={c.name}>
             <StrengthControl label="Merge ratio" value={c.ratio} min={0} max={1} step={0.01} chips={[0.25, 0.5, 0.75]} color="blue"
-              onChange={(ratio) => updateCheckpoint(c.id, { ratio })} />
+              onChange={(ratio) => updateCheckpoint(c.id, { ratio })} ends={['More of this model', 'More of the base']} />
           </ModelSettings>
         ))}
       >
@@ -286,9 +286,9 @@ export function LorasField() {
         settings={loras.map((l) => (
           <ModelSettings key={l.id} name={l.name} off={!l.on}>
             <StrengthControl label="Model strength" value={l.strength} min={0} max={LORA_MAX} step={0.05} chips={LORA_CHIPS}
-              onChange={(strength) => updateLora(l.id, { strength })} />
+              onChange={(strength) => updateLora(l.id, { strength })} ends={['Weaker effect', 'Stronger, may break the look']} />
             <StrengthControl label="Clip strength" value={l.clipStrength} min={0} max={LORA_MAX} step={0.05} chips={LORA_CHIPS}
-              onChange={(clipStrength) => updateLora(l.id, { clipStrength })} />
+              onChange={(clipStrength) => updateLora(l.id, { clipStrength })} ends={['Changes how words read less', 'Changes it more']} />
           </ModelSettings>
         ))}
       >
@@ -367,7 +367,7 @@ export function EmbeddingsField() {
               onChange={(v) => updateEmbedding(e.id, { target: v as WorkflowEmbedding['target'] })}
               data={[{ value: 'positive', label: 'Positive prompt' }, { value: 'negative', label: 'Negative prompt' }]} />
             <StrengthControl label="Strength" value={e.strength} min={0} max={2} step={0.05} chips={EMBEDDING_CHIPS} color="orange"
-              onChange={(strength) => updateEmbedding(e.id, { strength })} />
+              onChange={(strength) => updateEmbedding(e.id, { strength })} ends={['Weaker', 'Stronger']} />
             <EmbeddingWords embedding={e} onChange={(words) => updateEmbedding(e.id, { words })} />
           </ModelSettings>
         ))}
@@ -433,7 +433,7 @@ function EmbeddingWords({ embedding, onChange }: {
       </Text>
       {state.on && (
         <StrengthControl label="Trigger word strength" value={state.weight} min={0} max={2} step={0.05} chips={EMBEDDING_CHIPS} color="orange"
-          onChange={(weight) => onChange({ ...state, weight })} />
+          onChange={(weight) => onChange({ ...state, weight })} ends={['Weaker', 'Stronger']} />
       )}
     </Stack>
   );

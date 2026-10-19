@@ -5,6 +5,9 @@ import { DEFAULT_CLIP_SKIP, DEFAULT_LOOPBACK } from '@/lib/pipeline';
 import { SD15_DIMENSION_PRESETS } from '@/components/fields/DimensionsField';
 import { useModelProfile } from '@/hooks/useModelProfileSync';
 
+/** Denoise ends, shared with the img2img and canvas sliders. */
+export const DENOISE_ENDS = ['Stays close to the input', 'A new picture'] as const;
+
 const CLIP_SKIP_OPTIONS = [-1, -2, -3, -4].map(n => ({ value: String(n), label: n === -1 ? '-1 (off)' : String(n) }));
 
 /**
@@ -20,11 +23,14 @@ export function GenerationSettings({ layerScope, showDenoise }: { layerScope: bo
     <Stack gap="md">
       <SelectField label="Sampler" placeholder="Select sampler..." value={w.sampler} data={[...new Set([w.sampler, ...server.samplers])]} onChange={sampler => set({ sampler })} />
       <SelectField label="Scheduler" placeholder="Select scheduler..." value={w.scheduler} data={[...new Set([w.scheduler, ...server.schedulers])]} onChange={scheduler => set({ scheduler })} />
-      <SliderField label="Steps" value={w.steps} min={1} max={100} step={1} defaultValue={25} onChange={steps => set({ steps })} />
-      <SliderField label="CFG Scale" value={w.cfg} min={1} max={20} step={0.5} defaultValue={7} onChange={cfg => set({ cfg })} />
+      <SliderField label="Steps" value={w.steps} min={1} max={100} step={1} defaultValue={25} onChange={steps => set({ steps })}
+        ends={['Quicker, rougher', 'More detail, slower']} />
+      <SliderField label="CFG Scale" value={w.cfg} min={1} max={20} step={0.5} defaultValue={7} onChange={cfg => set({ cfg })}
+        ends={['Looser, softer colours', 'Follows the prompt, may burn']} />
       <SelectField label="Clip Skip" value={String(w.clipSkip ?? DEFAULT_CLIP_SKIP)} searchable={false} data={CLIP_SKIP_OPTIONS} onChange={v => set({ clipSkip: Number(v) })} />
       {showDenoise && (
-        <SliderField label="Denoise" value={denoise} min={0} max={1} step={0.05} defaultValue={1} onChange={v => set(layerScope ? { inputDenoise: v } : { denoise: v })} />
+        <SliderField label="Denoise" value={denoise} min={0} max={1} step={0.05} defaultValue={1} onChange={v => set(layerScope ? { inputDenoise: v } : { denoise: v })}
+          ends={DENOISE_ENDS} />
       )}
     </Stack>
   );

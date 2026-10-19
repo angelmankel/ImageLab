@@ -40,6 +40,9 @@ npm run build
   Layers: rail 70, modals 200, fullscreen viewer 250, popovers 300, confirm 400.
 - **Parameter UI comes from `components/fields`** (v1 SliderField, SelectField, SeedField,
   DimensionsField, LoopbackField…). `ParamRow` and `ui/Field` wrap them.
+  A slider can say what its two ends do: `ends={[low, high]}` on `SliderField`, `StrengthControl`,
+  `ParamRow` and Loopback's rows renders `fields/RangeEnds` under the track ("← quicker · more detail →").
+  Every advanced video and image slider has one; keep each side to a few words.
 - **Phones get `workspace/MobileWorkspace`** for every mode: the mode switch and job tray on top,
   Create / Result / Gallery tabs, the run bar pinned at the bottom (Stop while it runs), the seed row
   above it. Create is a settings list (`components/SettingsPager`; the rows per mode are in

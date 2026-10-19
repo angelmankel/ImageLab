@@ -8,6 +8,7 @@
 import type { ReactNode } from 'react';
 import { Stack, Text } from '@mantine/core';
 import { SliderField } from '@/components/fields/SliderField';
+import type { Ends } from '@/components/fields/RangeEnds';
 
 export interface ParamRowProps {
   label: string;
@@ -26,10 +27,12 @@ export interface ParamRowProps {
   disabled?: boolean;
   /** Preset buttons above the slider. Defaults to points along the range; [] hides them. */
   presets?: number[];
+  /** What a low and a high value do, under the slider. */
+  ends?: Ends;
 }
 
 export function ParamRow({
-  label, value, onChange, min, max, step = 1, format, defaultValue, hint, disabled, presets,
+  label, value, onChange, min, max, step = 1, format, defaultValue, hint, disabled, presets, ends,
 }: ParamRowProps) {
   const field = (
     <SliderField
@@ -42,6 +45,7 @@ export function ParamRow({
       defaultValue={defaultValue}
       disabled={disabled}
       presets={presets}
+      ends={ends}
       rightSection={format ? <Text size="sm" c="dimmed" className="tabular-nums">{format(value)}</Text> : undefined}
     />
   );

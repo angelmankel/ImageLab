@@ -9,6 +9,7 @@ import { Slider, Stack, Group, Button, ActionIcon, Tooltip } from '@mantine/core
 import { IconRefresh, IconArrowDown, IconArrowUp } from '@tabler/icons-react';
 import { FieldWrapper } from './FieldWrapper';
 import { StepperInput } from './StepperInput';
+import { RangeEnds, type Ends } from './RangeEnds';
 
 const DEBOUNCE_MS = 50;
 
@@ -38,10 +39,12 @@ export interface SliderFieldProps {
   presets?: number[];
   disabled?: boolean;
   rightSection?: ReactNode;
+  /** What a low and a high value do, shown under the slider's ends. */
+  ends?: Ends;
 }
 
 export function SliderField({
-  label, description, value, onChange, min, max, step = 1, defaultValue, presets: presetOverride, disabled, rightSection,
+  label, description, value, onChange, min, max, step = 1, defaultValue, presets: presetOverride, disabled, rightSection, ends,
 }: SliderFieldProps) {
   const defaultVal = defaultValue ?? min;
   const [localValue, setLocalValue] = useState(value);
@@ -103,6 +106,7 @@ export function SliderField({
           thumbProps={{ 'aria-label': label }}
           className="touch-pan-y"
         />
+        {ends && <RangeEnds ends={ends} />}
         {/* The number box with −/+ at its ends, then v1's Min / Max / Reset. */}
         <Group gap="xs" wrap="nowrap">
           <StepperInput

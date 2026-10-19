@@ -168,15 +168,17 @@ function PassFields({ pass, update }: { pass: Pass; update: (patch: Partial<Pass
         <FieldWrapper label="Width"><StepperInput value={pass.width || 1024} min={8} max={16384} step={8} onChange={width => update({ width })} aria-label="Pass width" styles={{ input: { textAlign: 'center' } }} /></FieldWrapper>
         <FieldWrapper label="Height"><StepperInput value={pass.height || 1024} min={8} max={16384} step={8} onChange={height => update({ height })} aria-label="Pass height" styles={{ input: { textAlign: 'center' } }} /></FieldWrapper>
       </SimpleGrid>
-      : <ParamRow label="Scale" value={pass.scale} min={0.1} max={4} step={0.05} presets={SCALE_PRESETS} defaultValue={kind === 'sample' ? 1 : 2} format={v => `${v}×`} onChange={scale => update({ scale })} />}
+      : <ParamRow label="Scale" value={pass.scale} min={0.1} max={4} step={0.05} presets={SCALE_PRESETS} defaultValue={kind === 'sample' ? 1 : 2} format={v => `${v}×`} onChange={scale => update({ scale })}
+        ends={['Smaller', 'Bigger, slower']} />}
     {kind !== 'resize' && <NumberField label="Max edge" description="Output long edge is capped here" value={pass.maxEdge} min={64} max={16384} step={64} onChange={maxEdge => update({ maxEdge })} />}
     {kind === 'resize' && <PassSelect label="Method" aria="Pass resize method" value={pass.resizeMethod || 'lanczos'} options={['lanczos', 'bicubic', 'bilinear', 'area', 'nearest-exact']} onChange={v => update({ resizeMethod: v as Pass['resizeMethod'] })} />}
     {kind === 'sample' && <>
-      <ParamRow label="Steps" value={pass.steps} min={1} max={200} defaultValue={12} onChange={steps => update({ steps })} />
-      <ParamRow label="CFG" value={pass.cfg} min={0} max={30} step={0.1} defaultValue={7} onChange={cfg => update({ cfg })} />
-      <ParamRow label="Denoise" value={pass.denoise} min={0} max={1} step={0.01} defaultValue={0.3} onChange={denoise => update({ denoise })} />
+      <ParamRow label="Steps" value={pass.steps} min={1} max={200} defaultValue={12} onChange={steps => update({ steps })} ends={['Quicker, rougher', 'More detail, slower']} />
+      <ParamRow label="CFG" value={pass.cfg} min={0} max={30} step={0.1} defaultValue={7} onChange={cfg => update({ cfg })} ends={['Looser, softer colours', 'Follows the prompt, may burn']} />
+      <ParamRow label="Denoise" value={pass.denoise} min={0} max={1} step={0.01} defaultValue={0.3} onChange={denoise => update({ denoise })} ends={['Light clean-up', 'Repaints more, may drift']} />
       <ParamRow label="Noise injection" value={pass.noise ?? 0} min={0} max={2} step={0.01} defaultValue={0}
         presets={[0, 0.1, 0.25, 0.5, 1]} hint="Adds fresh noise to the image before this pass samples, for more new detail. 0 = off."
+        ends={['Clean', 'More new detail and grain']}
         onChange={noise => update({ noise })} />
       <PassSelect label="Sampler" aria="Pass sampler" value={pass.sampler} options={[...new Set([pass.sampler, ...server.samplers])]} onChange={sampler => update({ sampler })} />
       <PassSelect label="Scheduler" aria="Pass scheduler" value={pass.scheduler} options={[...new Set([pass.scheduler, ...server.schedulers])]} onChange={scheduler => update({ scheduler })} />
