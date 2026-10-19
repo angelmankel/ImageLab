@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from 'react';
-import { ActionIcon, Alert, Badge, Button, Checkbox, CloseButton, Text, TextInput, Tooltip } from '@mantine/core';
+import { ActionIcon, Alert, Badge, Button, Checkbox, Chip, CloseButton, Text, TextInput, Tooltip } from '@mantine/core';
 import {
   IconBoxModel, IconDownload, IconFileExport, IconFileImport, IconSearch, IconTrash, IconUpload,
 } from '@tabler/icons-react';
@@ -228,10 +228,21 @@ export function LibraryView({ narrow }: { narrow: boolean }) {
         onChange={(ev) => setSearch(ev.currentTarget.value)} leftSection={<IconSearch size={14} />}
         rightSection={search ? <CloseButton size="xs" onClick={() => setSearch('')} aria-label="Clear search" /> : null}
         aria-label="Search my models" />
+      {/* Phones: the base models as one-tap chips (tap again for all), sideways when they overflow. */}
+      {narrow && bases.length > 1 && (
+        <div className="-mx-3 flex gap-1.5 overflow-x-auto px-3 pb-0.5 [scrollbar-width:none]" role="group" aria-label="Base model">
+          {bases.map((b) => (
+            <Chip key={b} size="sm" variant="outline" className="shrink-0" checked={baseFilter === b}
+              onChange={() => setBase(baseFilter === b ? ALL_BASES : b)}>
+              {b}
+            </Chip>
+          ))}
+        </div>
+      )}
       <div className={narrow ? 'grid grid-cols-2 gap-2' : 'flex items-center gap-2'}>
         <Select size="xs" className={narrow ? '' : 'w-36 flex-none'} value={typeFilter || ALL_TYPES} onValueChange={setType} options={typeOptions} ariaLabel="Filter by type" />
-        <Select size="xs" className={narrow ? '' : 'w-40 flex-none'} value={baseFilter || ALL_BASES} onValueChange={setBase} options={baseOptions} ariaLabel="Filter by base model" />
-        <Select size="xs" className={narrow ? 'col-span-2' : 'w-36 flex-none'} value={sort} onValueChange={(v) => setSort(v as LibrarySort)} options={SORTS} ariaLabel="Sort" />
+        {!narrow && <Select size="xs" className="w-40 flex-none" value={baseFilter || ALL_BASES} onValueChange={setBase} options={baseOptions} ariaLabel="Filter by base model" />}
+        <Select size="xs" className={narrow ? '' : 'w-36 flex-none'} value={sort} onValueChange={(v) => setSort(v as LibrarySort)} options={SORTS} ariaLabel="Sort" />
         <div className={narrow ? 'col-span-2 flex items-center gap-2' : 'flex items-center gap-2'}>
           <Text size="xs" c="dimmed" className="shrink-0">Download to</Text>
           <Select size="xs" className={narrow ? '' : 'w-48 flex-none'} value={target} onValueChange={setTarget} options={serverOptions} ariaLabel="Download to" />

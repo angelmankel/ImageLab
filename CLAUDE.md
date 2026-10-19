@@ -41,7 +41,13 @@ npm run build
 - **Parameter UI comes from `components/fields`** (v1 SliderField, SelectField, SeedField,
   DimensionsField, LoopbackField…). `ParamRow` and `ui/Field` wrap them.
 - **Phones get `layout/MobileShell`** for the Generate view: Parameters / Image / Gallery tabs and a
-  floating Generate button that switches to Image only once a job is really queued.
+  floating Generate button that switches to Image only once a job is really queued. Its Parameters
+  tab is `panel/MobileParameters`, a settings list (one row per section, live summary, the user's
+  tab order), not the desktop tab bar: a row slides its section in full screen with Back and
+  previous / next. Swipe right on a page = back (`hooks/useSwipe`, thresholds in `lib/swipe.ts`,
+  tested; a touch on a slider, text box, sortable or sideways scroller is never a swipe); the
+  phone's back button works too (the open page holds one history entry). Swipe left on the list
+  goes to Image. Every scroll container in there needs `touch-action: pan-y` of its own.
 - **It installs as a PWA** (`public/manifest.json`, `public/sw.js`). Install needs HTTPS — the
   Traefik domain, not the bare pod ip:port. The service worker fetches index.html network-first,
   so a push to the pod shows up on the next launch.

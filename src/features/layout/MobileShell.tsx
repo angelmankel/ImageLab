@@ -21,7 +21,7 @@ import { RightPanel } from '@/features/canvasLayers';
 import { fireFromStore } from '@/features/generate/GenerateButton';
 import { GenerateNavActions } from '@/features/generate/GenerateNavActions';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
-import { LeftPanel } from './LeftPanel';
+import { MobileParameters } from '@/features/panel/MobileParameters';
 import { ViewTabs } from './MobileNav';
 import { JobStatusCluster } from './JobStatusCluster';
 
@@ -79,9 +79,9 @@ export function MobileShell() {
 
       <Box style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
         {panel('parameters', (
-          // The panel's own Generate footer is hidden here; the floating button replaces it.
+          // A settings list instead of the desktop's tab bar; the floating button replaces Generate.
           <Box style={{ flex: 1, minHeight: 0 }}>
-            <LeftPanel hideGenerate />
+            <MobileParameters />
           </Box>
         ))}
         {panel('image', (
