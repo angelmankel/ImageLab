@@ -6,55 +6,31 @@
  * model picker for LoRAs. The graph is `lib/wanGraph.ts`, the same one as ImageLabDocker's
  * workflows/Wan 2.2 *.json. Its settings live in `videoStore`, apart from the generate view's.
  *
- * Desktop: controls on the left, the video on the right. Phone: the video on top, the controls
- * under it, Generate pinned to the bottom.
+ * The settings come in sections (`./sections.tsx`): Mode & input · Prompt · Models · LoRAs ·
+ * Size & length · Speed & sampling · Upscale, each with a live one-line summary. Desktop: the
+ * sections fold as cards in the left column, the video on the right. Phone: Settings / Video tabs;
+ * Settings is the same settings list as Generate's Parameters tab (`SettingsPager`). Both keep the
+ * seed, Generate and the time estimate pinned at the bottom.
  */
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import {
-  ActionIcon, Alert, Badge, Button, Collapse, Group, Loader, Paper, SegmentedControl, Stack, Switch, Text, Textarea, Tooltip, UnstyledButton,
-} from '@mantine/core';
-import {
-  IconAlertTriangle, IconArrowBackUp, IconChevronDown, IconChevronUp, IconPlayerPlay, IconPlayerStop, IconPlus, IconX,
-} from '@tabler/icons-react';
+import { ActionIcon, Button, Collapse, Group, Loader, Stack, Switch, Text, Tooltip } from '@mantine/core';
+import { IconArrowBackUp, IconChevronDown, IconDice5, IconPlayerPlay, IconPlayerStop } from '@tabler/icons-react';
+import { cn } from '@/lib/cn';
 import { useStore } from '@/lib/store';
 import { useIsDesktop } from '@/hooks/useIsDesktop';
-import { FAST, buildWanGraph, hasSpeedInside, isVideoName, pickInstalledWanFiles, upscaledSize, wanLength, wanRunShape, wanRunTiming, type VideoMode, type VideoSettings, type VideoUpscale } from '@/lib/wanGraph';
+import { buildWanGraph, isVideoName, pickInstalledWanFiles, wanRunShape, wanRunTiming } from '@/lib/wanGraph';
+import { VIDEO_SECTIONS, missingVideoFiles, type VideoSectionId, type VideoSectionStatus } from '@/lib/videoSections';
 import { estimateRun, formatDuration } from '@/lib/videoEstimate';
 import { useHostTimings, useVideoTimings } from './videoTimings';
-import type { ServerInfo } from '@/lib/types';
-import { DimensionsField, FieldWrapper, SeedField, SelectField, SliderField, StrengthControl } from '@/components/fields';
-import type { PresetGroup } from '@/components/fields/DimensionsField';
-import { ModelSelectorModal } from '@/components/models/ModelSelectorModal';
+import { StepperInput } from '@/components/fields';
 import { modelLabel } from '@/components/models/modelInfo';
-import { useResourceAvailability } from '@/hooks/useResourceAvailability';
-import { ImageInput } from '@/features/studio/ImageInput';
+import { SettingsPager, StatusBadge } from '@/components/SettingsPager';
 import { ResultView } from '@/features/studio/StudioPanels';
 import { useStudioHost } from '@/features/studio/StudioView';
 import { ViewTabs } from '@/features/layout/MobileNav';
 import { useComfyRun, type StudioRun } from '@/features/studio/useStudioRun';
-import type { WorkflowParam } from '@/features/studio/params';
 import { randomVideoSeed, useVideo } from './videoStore';
-
-/** Wan sizes: 480p and 720p buckets, multiples of 16. */
-const WAN_PRESETS: PresetGroup[] = [
-  { group: '480p', items: [
-    { value: '832x480', label: '832 × 480 (16:9)' },
-    { value: '480x832', label: '480 × 832 (9:16)' },
-    { value: '624x624', label: '624 × 624 (1:1)' },
-  ] },
-  { group: '720p', items: [
-    { value: '1280x720', label: '1280 × 720 (16:9)' },
-    { value: '720x1280', label: '720 × 1280 (9:16)' },
-    { value: '960x960', label: '960 × 960 (1:1)' },
-  ] },
-];
-
-/** The start image slot, described the way Studio's uploader expects a LoadImage widget. No
- *  name: the section heading already says what it is. */
-const START_IMAGE: WorkflowParam = {
-  id: 'video:start', nodeId: 9, nodeLabel: 'Start image', nodeType: 'LoadImage', name: '',
-  type: 'COMBO', value: '', default: '', options: [], multiline: false, seedLike: false,
-};
+import { MissingFiles, VIDEO_SECTION_META, VideoSectionBody, useVideoSectionStatus } from './sections';
 
 function useVideoRun(host: string | null): StudioRun {
   return useComfyRun(host, {
@@ -137,11 +113,11 @@ export function VideoView() {
       <div className="flex h-full min-h-0">
         <aside className="flex w-[380px] shrink-0 flex-col border-r border-border-subtle">
           {/* Block, not flex: a flex column would squash each section to fit instead of scrolling. */}
-          <div className="scroll-y min-h-0 flex-1 px-3 py-3">
-            <VideoControls host={host} />
+          <div className="scroll-y min-h-0 flex-1 px-2.5 py-2.5">
+            <VideoDesktopSections host={host} />
           </div>
           <footer className="shrink-0 border-t border-border-subtle p-3">
-            <VideoGenerateBar run={run} host={host} />
+            <VideoFooter run={run} host={host} />
           </footer>
         </aside>
         <main className="flex min-w-0 flex-1 flex-col gap-3 p-3">
@@ -155,13 +131,82 @@ export function VideoView() {
   return <VideoMobile run={run} host={host} result={result} error={error} />;
 }
 
+// ── Desktop ─────────────────────────────────────────────────────────────────
+
+/** Which cards are folded: a per-browser convenience, so storage may fail without harm. */
+const FOLDED_KEY = 'imagelab.video.folded.v1';
+/** The expert files are picked for you and rarely change, so Models starts folded. */
+const FOLDED_DEFAULT: VideoSectionId[] = ['models'];
+
+function loadFolded(): VideoSectionId[] {
+  try {
+    const raw = JSON.parse(localStorage.getItem(FOLDED_KEY) || 'null');
+    if (Array.isArray(raw)) return raw.filter((id): id is VideoSectionId => VIDEO_SECTIONS.includes(id));
+  } catch { /* blocked or broken: the default */ }
+  return FOLDED_DEFAULT;
+}
+
+function VideoDesktopSections({ host }: { host: string }) {
+  const status = useVideoSectionStatus();
+  const [folded, setFolded] = useState<VideoSectionId[]>(loadFolded);
+  const toggle = (id: VideoSectionId) => setFolded((prev) => {
+    const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
+    try { localStorage.setItem(FOLDED_KEY, JSON.stringify(next)); } catch { /* storage blocked */ }
+    return next;
+  });
+
+  return (
+    <Stack gap="xs">
+      <MissingFiles />
+      {VIDEO_SECTIONS.map((id) => (
+        <SectionCard key={id} id={id} status={status[id]} open={!folded.includes(id)} onToggle={() => toggle(id)}>
+          <VideoSectionBody id={id} host={host} />
+        </SectionCard>
+      ))}
+      <ResetRow />
+    </Stack>
+  );
+}
+
+/** One folding section: icon, name and live summary on the header, the controls under it. */
+function SectionCard({ id, status, open, onToggle, children }: {
+  id: VideoSectionId; status: VideoSectionStatus; open: boolean; onToggle: () => void; children: ReactNode;
+}) {
+  const { title, icon: Icon } = VIDEO_SECTION_META[id];
+  const warn = status.tone === 'warn';
+  return (
+    // `shrink-0`: a flex child shrinks by default and would clip its own controls.
+    <section aria-label={title} className="shrink-0 rounded-lg border border-border-default bg-bg-panel">
+      <button type="button" onClick={onToggle} aria-expanded={open} title={status.note}
+        className="flex min-h-10 w-full items-center gap-2 rounded-lg px-3 py-2 text-left outline-none transition-colors hover:bg-bg-elev focus-visible:ring-1 focus-visible:ring-accent">
+        <Icon size="1.05rem" stroke={1.5} className={cn('shrink-0', open ? 'text-accent-fg' : 'text-fg-muted')} />
+        <span className="shrink-0 text-[13px] font-medium text-fg-secondary">{title}</span>
+        <span className={cn('min-w-0 flex-1 truncate text-right text-[11px] tabular-nums', warn ? 'text-red-400' : 'text-fg-muted')}>
+          {warn && status.note ? status.note : status.summary}
+        </span>
+        {status.badge && <StatusBadge status={status} />}
+        <IconChevronDown size={15} stroke={1.6} className="shrink-0 text-fg-muted transition-transform" style={{ transform: open ? 'rotate(180deg)' : undefined }} />
+      </button>
+      <Collapse in={open}>
+        <div className="px-3 pb-3 pt-1">{children}</div>
+      </Collapse>
+    </section>
+  );
+}
+
+// ── Phone ───────────────────────────────────────────────────────────────────
+
 type VideoPane = 'settings' | 'video';
 
 /** Phones: Settings / Video tabs at the top (like Generate's and Studio's), Generate pinned above
- *  the app's bottom bar. A run starting shows the Video tab, as Generate shows its Image tab. */
+ *  the app's bottom bar. A run starting shows the Video tab, as Generate shows its Image tab.
+ *  Settings stays mounted, so an open page and its history entry survive a look at the video. */
 function VideoMobile({ run, host, result, error }: { run: StudioRun; host: string; result: ReactNode; error: ReactNode }) {
   const [pane, setPane] = useState<VideoPane>('settings');
   useEffect(() => { if (run.busy) setPane('video'); }, [run.busy]);
+  const status = useVideoSectionStatus();
+  const rows = VIDEO_SECTIONS.map((id) => ({ id, ...VIDEO_SECTION_META[id], status: status[id] }));
+
   return (
     <div className="flex h-full min-h-0 flex-col">
       <ViewTabs<VideoPane>
@@ -172,18 +217,77 @@ function VideoMobile({ run, host, result, error }: { run: StudioRun; host: strin
           { value: 'video', label: 'Video' },
         ]}
       />
-      {pane === 'video' ? (
-        <div className="flex min-h-0 flex-1 flex-col gap-2 p-2">{result}{error}</div>
-      ) : (
-        <div className="scroll-y min-h-0 flex-1 px-3 py-3">
-          {error}
-          <VideoControls host={host} />
-        </div>
-      )}
-      <footer className="shrink-0 border-t border-border-subtle p-3">
-        <VideoGenerateBar run={run} host={host} />
+      <div className={cn('min-h-0 flex-1 flex-col', pane === 'settings' ? 'flex' : 'hidden')}>
+        <SettingsPager
+          rows={rows}
+          renderPage={(id) => <VideoSectionBody id={id} host={host} />}
+          pageIdPrefix="video-section-"
+          onMenuSwipeLeft={() => setPane('video')}
+          menu={(nav) => (
+            <>
+              <div className="mb-3 empty:hidden"><MissingFiles /></div>
+              {nav}
+              <div className="mt-3 rounded-xl border border-border-default bg-bg-panel px-3 py-2"><ResetRow /></div>
+              <p className="mt-3 px-1 text-[11px] leading-relaxed text-fg-muted">
+                Swipe right on a page to come back here. Swipe left here for the video.
+              </p>
+            </>
+          )}
+        />
+      </div>
+      {pane === 'video' && <div className="flex min-h-0 flex-1 flex-col gap-2 p-2">{result}</div>}
+      <footer className="flex shrink-0 flex-col gap-2 border-t border-border-subtle p-3">
+        {error}
+        <VideoFooter run={run} host={host} />
       </footer>
     </div>
+  );
+}
+
+// ── Both ────────────────────────────────────────────────────────────────────
+
+/** Settings back to Wan's defaults; what you made stays. */
+function ResetRow() {
+  const reset = useVideo((s) => s.resetSettings);
+  return (
+    <Group justify="space-between" wrap="nowrap" gap="xs">
+      <Text size="xs" c="dimmed">Prompt, start image and LoRAs stay.</Text>
+      <Button size="xs" variant="subtle" color="gray" leftSection={<IconArrowBackUp size={15} />} onClick={reset} aria-label="Reset video settings" className="shrink-0">
+        Wan's defaults
+      </Button>
+    </Group>
+  );
+}
+
+/** The seed row (as Generate's footer has it), Generate / Stop, and the time estimate. */
+function VideoFooter({ run, host }: { run: StudioRun; host: string }) {
+  return (
+    <Stack gap={8}>
+      <VideoSeedRow />
+      <VideoGenerateBar run={run} host={host} />
+    </Stack>
+  );
+}
+
+const MAX_SEED = 0xFFFFFFFF;
+
+function VideoSeedRow() {
+  const seed = useVideo((s) => s.seed);
+  const auto = useVideo((s) => s.randomizeSeed);
+  const set = useVideo((s) => s.set);
+  return (
+    <Group gap="xs" wrap="nowrap">
+      <Text size="xs" c="dimmed" w={32}>Seed</Text>
+      <StepperInput value={seed} min={0} max={MAX_SEED} step={1} size="xs" style={{ flex: 1, minWidth: 0 }}
+        onChange={(seed) => set({ seed })} aria-label="Seed"
+        styles={{ input: { textAlign: 'center', fontVariantNumeric: 'tabular-nums' } }} />
+      <Tooltip label="Randomize seed">
+        <ActionIcon variant="light" color="gray" size="md" onClick={() => set({ seed: Math.floor(Math.random() * MAX_SEED) })} aria-label="Randomize seed"><IconDice5 size={15} /></ActionIcon>
+      </Tooltip>
+      <Tooltip label="Pick a new seed for every generation">
+        <Switch size="xs" checked={auto} onChange={(e) => set({ randomizeSeed: e.currentTarget.checked })} label={<Text size="xs" c="dimmed">Auto</Text>} aria-label="Randomize seed every generation" />
+      </Tooltip>
+    </Group>
   );
 }
 
@@ -215,268 +319,25 @@ function VideoGenerateBar({ run, host }: { run: StudioRun; host: string }) {
 
   return (
     <Stack gap={6}>
-    <Group gap="xs" wrap="nowrap">
-      <Button
-        aria-label="Generate video"
-        onClick={() => void run.run()}
-        disabled={run.busy}
-        fullWidth
-        size="md"
-        leftSection={run.busy ? <Loader size="xs" color="white" /> : <IconPlayerPlay size="1rem" />}
-        className="flex-1"
-      >
-        {run.busy ? (run.status ?? 'Working…') : 'Generate video'}
-      </Button>
-      {run.busy && (
-        <Button variant="default" size="md" leftSection={<IconPlayerStop size="1rem" />} onClick={() => void run.cancel()} className="shrink-0">
-          Stop
+      <Group gap="xs" wrap="nowrap">
+        <Button
+          aria-label="Generate video"
+          onClick={() => void run.run()}
+          disabled={run.busy}
+          fullWidth
+          size="md"
+          leftSection={run.busy ? <Loader size="xs" color="white" /> : <IconPlayerPlay size="1rem" />}
+          className="flex-1"
+        >
+          {run.busy ? (run.status ?? 'Working…') : 'Generate video'}
         </Button>
-      )}
-    </Group>
-    <Text size="xs" c="dimmed" ta="center" className="tabular-nums">{line}</Text>
-    </Stack>
-  );
-}
-
-function Section({ title, right, children }: { title: string; right?: ReactNode; children: ReactNode }) {
-  return (
-    <Stack gap="sm">
-      <Group justify="space-between" wrap="nowrap">
-        <Text size="xs" fw={700} tt="uppercase" c="dimmed" style={{ letterSpacing: 0.6 }}>{title}</Text>
-        {right}
+        {run.busy && (
+          <Button variant="default" size="md" leftSection={<IconPlayerStop size="1rem" />} onClick={() => void run.cancel()} className="shrink-0">
+            Stop
+          </Button>
+        )}
       </Group>
-      {children}
+      <Text size="xs" c="dimmed" ta="center" className="tabular-nums">{line}</Text>
     </Stack>
-  );
-}
-
-function VideoControls({ host }: { host: string }) {
-  const v = useVideo();
-  const [negOpen, setNegOpen] = useState(false);
-  const seconds = (wanLength(v.length) / Math.max(1, v.fps)).toFixed(1);
-
-  return (
-    <Stack gap="lg">
-      <SegmentedControl
-        fullWidth
-        value={v.mode}
-        onChange={(m) => v.set({ mode: m as VideoMode })}
-        data={[{ value: 't2v', label: 'Text → Video' }, { value: 'i2v', label: 'Image → Video' }]}
-      />
-
-      <MissingFiles />
-
-      <Section title="Prompt">
-        <Textarea
-          value={v.positive}
-          onChange={(e) => v.set({ positive: e.currentTarget.value })}
-          placeholder={v.mode === 'i2v' ? 'What happens: the motion, the camera…' : 'The scene, what moves, how the camera moves…'}
-          autosize
-          minRows={4}
-          maxRows={12}
-          aria-label="Prompt"
-        />
-        <UnstyledButton onClick={() => setNegOpen((o) => !o)} aria-expanded={negOpen}>
-          <Group gap={4}>
-            {negOpen ? <IconChevronUp size={14} /> : <IconChevronDown size={14} />}
-            <Text size="xs" c="dimmed">Negative prompt</Text>
-          </Group>
-        </UnstyledButton>
-        <Collapse in={negOpen}>
-          <Textarea value={v.negative} onChange={(e) => v.set({ negative: e.currentTarget.value })} autosize minRows={3} maxRows={8} aria-label="Negative prompt"
-            description="Wan was trained with this Chinese negative; English works too." />
-        </Collapse>
-      </Section>
-
-      {v.mode === 'i2v' && (
-        <Section title="Start image">
-          <ImageInput param={START_IMAGE} value={v.startImage} onChange={(ref) => v.set({ startImage: String(ref ?? '') })} host={host} />
-        </Section>
-      )}
-
-      <Section title="Video">
-        <DimensionsField value={{ width: v.width, height: v.height }} onChange={({ width, height }) => v.set({ width, height })} presets={WAN_PRESETS} />
-        <SliderField label="Length (frames)" value={v.length} min={5} max={161} step={4} defaultValue={81} presets={[33, 49, 81, 121]}
-          onChange={(length) => v.set({ length: wanLength(length) })} description={`${seconds} s at ${v.fps} fps`} />
-        <SliderField label="Frame rate" value={v.fps} min={8} max={30} step={1} defaultValue={16} presets={[16, 24]} onChange={(fps) => v.set({ fps })} />
-      </Section>
-
-      <ModelsSection />
-
-      <SamplingSection />
-
-      <UpscaleSection />
-    </Stack>
-  );
-}
-
-/** Fast upscale models first; measured on the A100 (81 frames 832x480 -> 2x, incl. writing the
- *  MP4): resize 7 s, 2xNomosUni SPAN 12 s, 2x-AnimeSharpV4 Fast 20 s, 4x-ClearReality 33 s,
-  *  RealESRGAN x4 anime 6B 57 s, 4x-UltraSharp 102 s. */
-const FAST_UPSCALERS = ['2xNomosUni_span_multijpg.safetensors', '2x-AnimeSharpV4_Fast_RCAN_PU.safetensors', '4x-ClearRealityV1.safetensors'];
-
-function UpscaleSection() {
-  const v = useVideo();
-  const models = useStore((s) => s.server.upscaleModels);
-  const up = v.upscale;
-  const set = (p: Partial<VideoUpscale>) => v.set({ upscale: { ...up, ...p } });
-  const [w, h] = upscaledSize(v.width, v.height, up.scale);
-  const ordered = [...FAST_UPSCALERS.filter((m) => models.includes(m)), ...models.filter((m) => !FAST_UPSCALERS.includes(m))];
-  const data = ordered.map((m) => ({ value: m, label: `${modelLabel(m)}${FAST_UPSCALERS.includes(m) ? ' (fast)' : ''}` }));
-  if (up.model && !models.includes(up.model)) data.unshift({ value: up.model, label: `${modelLabel(up.model)} (not installed)` });
-  return (
-    <Section title="Upscale" right={
-      <Switch size="sm" checked={up.on} onChange={(e) => set({ on: e.currentTarget.checked })} aria-label="Upscale the video"
-        label={<Text size="xs" c="dimmed">{up.on ? `${w} × ${h}` : 'Off'}</Text>} labelPosition="left" />
-    }>
-      {up.on && (
-        <>
-          <SegmentedControl fullWidth size="xs" value={up.method} onChange={(m) => set({ method: m as VideoUpscale['method'] })}
-            data={[{ value: 'model', label: 'Upscale model' }, { value: 'resize', label: 'Plain resize' }]} />
-          {up.method === 'model' && (
-            <SelectField label="Model" value={up.model} onChange={(model) => set({ model })} data={data}
-              description="SPAN 2x is the quickest; 4x models are sharper and much slower on 81 frames." />
-          )}
-          <SliderField label="Scale" value={up.scale} min={1.25} max={4} step={0.25} defaultValue={2} presets={[1.5, 2, 3, 4]}
-            onChange={(scale) => set({ scale })} description={`${v.width} × ${v.height} → ${w} × ${h}`} />
-          <SelectField label={up.method === 'model' ? 'Resize to exact size with' : 'Interpolation'} value={up.resizeMethod}
-            onChange={(resizeMethod) => set({ resizeMethod: resizeMethod as VideoUpscale['resizeMethod'] })}
-            data={['lanczos', 'bicubic', 'bilinear', 'area', 'nearest-exact']} />
-        </>
-      )}
-    </Section>
-  );
-}
-
-/** A select over one server list; the chosen file stays listed (marked) even if it is missing. */
-function FileSelect({ label, value, files, onChange }: { label: string; value: string; files: string[]; onChange: (v: string) => void }) {
-  const missing = !!value && !files.includes(value);
-  const data = [...(missing ? [{ value, label: `${modelLabel(value)} (not installed)` }] : []), ...files.map((f) => ({ value: f, label: modelLabel(f) }))];
-  return (
-    <SelectField label={label} value={value} onChange={onChange} data={data}
-      rightSection={missing ? <Badge size="xs" color="orange" variant="light">missing</Badge> : undefined} />
-  );
-}
-
-function ModelsSection() {
-  const v = useVideo();
-  const server = useStore((s) => s.server);
-  const availability = useResourceAvailability('lora');
-  const [picking, setPicking] = useState(false);
-  const files = v.models[v.mode];
-  const toggleLora = (name: string) => {
-    const found = v.loras.find((l) => l.name === name);
-    if (found) v.removeLora(found.id); else v.addLora(name);
-  };
-
-  return (
-    <Section title="Models">
-      <FileSelect label="High-noise model" value={files.high} files={server.diffusionModels} onChange={(f) => v.setModel(v.mode, 'high', f)} />
-      <FileSelect label="Low-noise model" value={files.low} files={server.diffusionModels} onChange={(f) => v.setModel(v.mode, 'low', f)} />
-      {v.fast && (
-        <Paper withBorder p="xs" radius="sm">
-          <Stack gap={6}>
-            {(['high', 'low'] as const).map((which) => (
-              <Switch key={which} size="xs" checked={hasSpeedInside(v, files[which])}
-                onChange={(e) => v.set({ speedInside: { ...v.speedInside, [files[which]]: e.currentTarget.checked } })}
-                label={<Text size="xs">{which === 'high' ? 'High-noise' : 'Low-noise'} model has the speed LoRA inside</Text>} />
-            ))}
-            <Text size="xs" c="dimmed">Fast then adds no lightx2v LoRA to it: a second one makes the video worse. Guessed from the name (SmoothMix T2V, Lightning mixes).</Text>
-          </Stack>
-        </Paper>
-      )}
-      <FileSelect label="Text encoder" value={v.textEncoder} files={server.textEncoders} onChange={(textEncoder) => v.set({ textEncoder })} />
-      <FileSelect label="VAE" value={v.vae} files={server.vaes} onChange={(vae) => v.set({ vae })} />
-
-      <FieldWrapper label="LoRAs" rightSection={<Badge size="sm" variant="light" color="grape">{v.loras.length}</Badge>}>
-        <Stack gap="xs">
-          {v.loras.map((l) => (
-            <Paper key={l.id} withBorder p="xs" radius="sm" style={{ opacity: l.on ? 1 : 0.55 }}>
-              <Stack gap={6}>
-                <Group gap="xs" wrap="nowrap">
-                  <Switch size="xs" checked={l.on} onChange={(e) => v.updateLora(l.id, { on: e.currentTarget.checked })} aria-label={`${l.name} on`} />
-                  <Text size="xs" fw={600} truncate style={{ flex: 1, minWidth: 0 }} title={l.name}>{modelLabel(l.name)}</Text>
-                  <ActionIcon size="sm" variant="subtle" color="gray" aria-label={`Remove ${l.name}`} onClick={() => v.removeLora(l.id)}><IconX size={14} /></ActionIcon>
-                </Group>
-                <SegmentedControl size="xs" fullWidth value={l.expert} onChange={(expert) => v.updateLora(l.id, { expert: expert as typeof l.expert })}
-                  data={[{ value: 'high', label: 'High noise' }, { value: 'low', label: 'Low noise' }, { value: 'both', label: 'Both' }]} />
-                <StrengthControl label="Strength" value={l.strength} min={0} max={3} step={0.05} chips={[0.5, 1, 1.5]} color="grape"
-                  onChange={(strength) => v.updateLora(l.id, { strength })} />
-              </Stack>
-            </Paper>
-          ))}
-          <Button variant="light" color="grape" leftSection={<IconPlus size="1rem" />} onClick={() => setPicking(true)} fullWidth>Add LoRA</Button>
-        </Stack>
-      </FieldWrapper>
-      <ModelSelectorModal
-        opened={picking}
-        onClose={() => setPicking(false)}
-        kind="lora"
-        models={server.loras}
-        selectedModels={v.loras.map((l) => l.name)}
-        onToggleModel={toggleLora}
-        availability={availability}
-        fitsType={{ label: 'Wan', fits: (bucket) => bucket === 'Wan Video' || bucket === 'Unknown' }}
-      />
-    </Section>
-  );
-}
-
-function SamplingSection() {
-  const v = useVideo();
-  const samplers = useStore((s) => s.server.samplers);
-  const schedulers = useStore((s) => s.server.schedulers);
-  return (
-    <Section title="Sampling" right={
-      <Tooltip label="Back to Wan's defaults (prompt, start image and LoRAs stay)" withArrow>
-        <ActionIcon size="sm" variant="subtle" color="gray" aria-label="Reset video settings" onClick={v.resetSettings}><IconArrowBackUp size={15} /></ActionIcon>
-      </Tooltip>
-    }>
-      <Paper withBorder p="xs" radius="sm">
-        <Switch
-          checked={v.fast}
-          onChange={(e) => v.set({ fast: e.currentTarget.checked })}
-          label={<Text size="sm" fw={500}>Fast (4 steps)</Text>}
-          description={`lightx2v speed LoRAs on both models (none on a model that has one inside), ${FAST.steps} steps at CFG ${FAST.cfg}: about 6× faster, nearly the same look. Off: the full steps and CFG below.`}
-        />
-      </Paper>
-      <SliderField label="Steps" value={v.fast ? FAST.steps : v.steps} min={2} max={60} step={1} defaultValue={20} presets={[8, 20, 30]} disabled={v.fast}
-        onChange={(steps) => v.set({ steps, switchStep: Math.min(v.switchStep, steps) })} />
-      <SliderField label="Switch to low-noise at step" value={v.fast ? FAST.switchStep : v.switchStep} min={0} max={v.fast ? FAST.steps : v.steps} step={1} defaultValue={10} disabled={v.fast}
-        description="The high-noise expert lays out motion and layout; the low-noise one adds detail."
-        onChange={(switchStep) => v.set({ switchStep })} />
-      <SliderField label="CFG" value={v.fast ? FAST.cfg : v.cfg} min={1} max={10} step={0.1} defaultValue={3.5} presets={[1, 3.5, 5]} disabled={v.fast} onChange={(cfg) => v.set({ cfg })} />
-      <SliderField label="Shift" value={v.shift} min={1} max={16} step={0.5} defaultValue={8} presets={[5, 8]} onChange={(shift) => v.set({ shift })} />
-      <SelectField label="Sampler" value={v.sampler} onChange={(sampler) => v.set({ sampler })} data={samplers} />
-      <SelectField label="Scheduler" value={v.scheduler} onChange={(scheduler) => v.set({ scheduler })} data={schedulers} />
-      <SeedField value={v.seed} onChange={(seed) => v.set({ seed })} auto={v.randomizeSeed} onAutoChange={(randomizeSeed) => v.set({ randomizeSeed })} />
-    </Section>
-  );
-}
-
-/** The chosen files the server does not have (none while the server lists are still empty). */
-function missingVideoFiles(v: VideoSettings, server: ServerInfo): string[] {
-  if (!server.models.length) return [];
-  const files = v.models[v.mode];
-  return [
-    ...[files.high, files.low].filter((f) => !server.diffusionModels.includes(f)),
-    ...(server.textEncoders.includes(v.textEncoder) ? [] : [v.textEncoder]),
-    ...(server.vaes.includes(v.vae) ? [] : [v.vae]),
-    ...(v.fast ? (['high', 'low'] as const).filter((w) => !hasSpeedInside(v, files[w])).map((w) => v.fastLoras[v.mode][w]).filter((f) => !server.loras.includes(f)) : []),
-    ...(v.upscale.on && v.upscale.method === 'model' && !server.upscaleModels.includes(v.upscale.model) ? [v.upscale.model] : []),
-  ];
-}
-
-/** Wan's files are not in the image's models.txt yet: say which ones the server lacks. */
-function MissingFiles() {
-  const v = useVideo();
-  const server = useStore((s) => s.server);
-  const missing = missingVideoFiles(v, server);
-  if (!missing.length) return null;
-  return (
-    <Alert variant="light" color="orange" icon={<IconAlertTriangle size={16} />} p="xs" title="Not on the server yet">
-      <Text size="xs">{missing.map(modelLabel).join(', ')}</Text>
-      <Text size="xs" c="dimmed" mt={4}>Links are in the note of ImageLabDocker's workflows/Wan 2.2 {v.mode === 't2v' ? 'T2V' : 'I2V'} A14B.json.</Text>
-    </Alert>
   );
 }

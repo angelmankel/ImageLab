@@ -43,7 +43,7 @@ npm run build
 - **Phones get `layout/MobileShell`** for the Generate view: Parameters / Image / Gallery tabs and a
   floating Generate button that switches to Image only once a job is really queued. Its Parameters
   tab is `panel/MobileParameters`, a settings list (one row per section, live summary, the user's
-  tab order), not the desktop tab bar: a row slides its section in full screen with Back and
+  tab order; the list itself is `components/SettingsPager`, shared with Video), not the desktop tab bar: a row slides its section in full screen with Back and
   previous / next. Swipe right on a page = back (`hooks/useSwipe`, thresholds in `lib/swipe.ts`,
   tested; a touch on a slider, text box, sortable or sideways scroller is never a swipe); the
   phone's back button works too (the open page holds one history entry). Swipe left on the list
@@ -125,7 +125,11 @@ npm run build
   `SaveVideo` (`format: "mp4", codec: "h264"` works in API format) to `output/video/`. It runs
   through Studio's runner (`useComfyRun` in `studio/useStudioRun.ts`, which takes a graph source
   and a `keep` filter — Video keeps only video files) and Studio's `ResultView`, which plays video.
-  The Wan models are not in models.txt yet: the page lists what the server lacks, and fills in
+  **Layout:** seven sections (`video/sections.tsx`; order, live summaries and missing files per
+  section in `lib/videoSections.ts`, tested): Mode & input · Prompt · Models · LoRAs · Size & length
+  · Speed & sampling · Upscale. Desktop folds them as cards (fold state per browser, Models starts
+  folded); phones use the same `components/SettingsPager` list as Generate's Parameters tab. Seed,
+  Generate and the estimate stay pinned at the bottom on both. The Wan models are not in models.txt yet: the page lists what the server lacks, and fills in
   installed stand-ins (`pickInstalledWanFiles`). **Fast mode** (default on) adds the mode's
   lightx2v 4-step LoRA to each expert, 4 steps, switch at 2, CFG 1: ~6x faster (A100, 832x480x33:
   18.6 s vs 117 s). Phones get `components/VideoFullscreen` (tap, drag to seek, rotate; never the
