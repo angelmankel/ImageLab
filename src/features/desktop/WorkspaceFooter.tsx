@@ -1,6 +1,6 @@
 /**
- * The bottom of the settings column: seed, Generate and the run's progress for the active mode.
- * Pinned, so starting a run never needs a scroll. Image keeps `GenerateButton` (it owns ⌘↵ and
+ * The top of the settings column (Donny wants Generate first): Generate, seed and the run's
+ * progress for the active mode. Pinned, so starting a run never needs a scroll. Image keeps `GenerateButton` (it owns ⌘↵ and
  * the server routing); Video and Workflow run through their app-wide run stores, so a run started
  * here keeps going and reporting when the mode changes.
  */
@@ -21,9 +21,9 @@ import { useStudio } from '@/features/studio/studioStore';
 export function ImageFooter() {
   return (
     <Footer>
-      <GenerationProgress />
-      <SeedRow />
       <GenerateButton />
+      <SeedRow />
+      <GenerationProgress />
     </Footer>
   );
 }
@@ -39,9 +39,9 @@ export function VideoFooter({ host }: { host: string }) {
   useShortcut('cmd+Enter', (e) => { e.preventDefault(); if (!busy) run(); }, { priority: ShortcutPriority.Global + 1, skipTyping: false });
   return (
     <Footer>
-      <VideoSeedRow />
       <RunBar label="Generate video" busy={busy} progress={progress} statusLine={busy ? status ?? 'Working…' : line}
         onRun={run} onStop={() => { void useVideoRun.getState().cancel(); }} />
+      <VideoSeedRow />
       {error && <Text size="xs" c="red.4">{error}</Text>}
     </Footer>
   );
@@ -94,5 +94,5 @@ export function CompactRun({ mode, videoHost, workflowHost, info }: {
 }
 
 function Footer({ children }: { children: React.ReactNode }) {
-  return <footer className="flex shrink-0 flex-col gap-2 border-t border-border-default p-2.5">{children}</footer>;
+  return <div className="flex shrink-0 flex-col gap-2 border-b border-border-default p-2.5">{children}</div>;
 }

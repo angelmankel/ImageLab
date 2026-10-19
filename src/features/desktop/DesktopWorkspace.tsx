@@ -3,12 +3,12 @@
  *
  *   ┌ Image · Video · Workflow │ Simple · Advanced │ status · server · queue · jobs │ ‹ › ┐
  *   ├──────────────┬──────────────────────────────────────────────┬───────────────────┤
- *   │ settings     │                                              │ history / results │
- *   │ cards        │          the latest result, big              │ grid              │
- *   │ (one scroll) │          live preview + progress while busy  │                   │
- *   ├──────────────┤                                              │                   │
- *   │ seed         ├──────────────────────────────────────────────┤                   │
- *   │ [ Generate ] │ ▫ ▫ ▫ ▫ ▫  recent results                    │                   │
+ *   │ [ Generate ] │                                              │ history / results │
+ *   │ seed         │          the latest result, big              │ grid              │
+ *   ├──────────────┤          live preview + progress while busy  │                   │
+ *   │ settings     │                                              │                   │
+ *   │ cards        ├──────────────────────────────────────────────┤                   │
+ *   │ (one scroll) │ ▫ ▫ ▫ ▫ ▫  recent results                    │                   │
  *   └──────────────┴──────────────────────────────────────────────┴───────────────────┘
  *
  * The two side columns are the docked, resizable panels the canvas view has (`panelLayout.ts`
@@ -101,8 +101,8 @@ function SettingsForMode({ mode, videoHost, workflowHost, info, infoError }: {
   if (mode === 'image') {
     return (
       <div className="flex h-full min-h-0 flex-col" aria-label="Image settings" data-pad-start>
-        <ImageSettingsColumn scope={scope} note={note} empty={empty} />
         <ImageFooter />
+        <ImageSettingsColumn scope={scope} note={note} empty={empty} />
       </div>
     );
   }
@@ -110,8 +110,8 @@ function SettingsForMode({ mode, videoHost, workflowHost, info, infoError }: {
     if (!videoHost) return <Dead title="No ComfyUI server" body="Add one in Settings, then come back." />;
     return (
       <div className="flex h-full min-h-0 flex-col" aria-label="Video settings" data-pad-start>
-        <VideoSettingsColumn host={videoHost} />
         <VideoFooter host={videoHost} />
+        <VideoSettingsColumn host={videoHost} />
       </div>
     );
   }
@@ -120,8 +120,8 @@ function SettingsForMode({ mode, videoHost, workflowHost, info, infoError }: {
   if (!info) return <Dead title="Reading the server…" body="Fetching the node catalogue." />;
   return (
     <div className="flex h-full min-h-0 flex-col" aria-label="Workflow settings" data-pad-start>
-      <WorkflowSettingsColumn host={workflowHost} info={info} />
       <WorkflowFooter host={workflowHost} info={info} />
+      <WorkflowSettingsColumn host={workflowHost} info={info} />
     </div>
   );
 }

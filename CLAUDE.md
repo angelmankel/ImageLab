@@ -300,7 +300,7 @@ LoadImage input, uploaded to the Workflow server). A video result sends its last
   (connection · server · queue · downloads) and the job tray (one pill per running job in any mode,
   so a video and an image render side by side).
 - **Three columns.** Left: the mode's sections as folding `SectionCard`s in one scroll
-  (`desktop/SettingsColumn.tsx`), the seed row and Generate pinned under them
+  (`desktop/SettingsColumn.tsx`), with Generate and the seed row pinned above them
   (`WorkspaceFooter.tsx`; image keeps `GenerateButton`, video and workflow use `RunBar` on their
   run stores). Simple shows the simple tier (`sectionTier` / `videoSectionTier`) plus Quick
   tweaks and a "N more settings → Advanced" row; Advanced shows every card. Image cards follow the
