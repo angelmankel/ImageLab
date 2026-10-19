@@ -26,7 +26,7 @@ import { SECTION_META, SectionBody, availableSections, useSectionStatus, type Pa
 import { CustomizeTabsModal } from '@/features/panel/CustomizeTabsModal';
 import { PanelToolbar } from '@/features/controls/PanelToolbar';
 import { MissingFiles, VIDEO_SECTION_META, VideoSectionBody, useVideoSectionStatus } from '@/features/video/sections';
-import { VideoResetRow, useInstalledWanFiles } from '@/features/video/videoControls';
+import { VideoResetRow } from '@/features/video/videoControls';
 import { ParamList, PromptPanel, ResetAllButton, WorkflowPicker } from '@/features/studio/StudioPanels';
 import { useWorkflowLibrary } from '@/features/studio/useWorkflowLibrary';
 import { useStudio } from '@/features/studio/studioStore';
@@ -153,7 +153,6 @@ export function VideoSettingsColumn({ host }: { host: string }) {
   const toggleFold = useDesktopLayout(s => s.toggleFold);
   const shown = useMemo(() => visibleSections(VIDEO_SECTIONS, detail, videoSectionTier), [detail]);
   useCardShortcuts('video', shown);
-  useInstalledWanFiles();
 
   return (
     <Column>
