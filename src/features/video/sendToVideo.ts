@@ -10,7 +10,7 @@ import type { HistoryEntry } from '@/lib/types';
 import { useStore } from '@/lib/store';
 import { useCanvasStore } from '@/lib/canvasStore';
 import { loadImageRef, uploadImage, viewUrl } from '@/lib/comfy';
-import { studioHostNow } from '@/features/studio/StudioView';
+import { modeHostNow } from '@/features/workspace/modeHost';
 import { useVideo } from './videoStore';
 
 async function imageSize(blob: Blob): Promise<{ w: number; h: number } | null> {
@@ -31,7 +31,7 @@ async function imageSize(blob: Blob): Promise<{ w: number; h: number } | null> {
  *  Returns false (with a status message) when it could not. */
 export async function sendBlobToVideo(blob: Blob, name: string, opts: { open?: boolean } = {}): Promise<boolean> {
   const { setStatus } = useStore.getState();
-  const host = studioHostNow();
+  const host = modeHostNow('video');
   if (!host) {
     setStatus('No ComfyUI server to send the image to', 'error');
     return false;

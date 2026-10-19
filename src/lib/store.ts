@@ -15,6 +15,7 @@ import { useCanvasStore } from './canvasStore';
 import { canvasStorage } from './canvasStorageInstance';
 import type { LayerHistoryEntry } from './types';
 import { missingResources } from './routing';
+import { canRunImages } from './serverRoles';
 import type { CivitaiCacheEntry } from './civitai';
 import {
   loadLayers, loadSnippets, loadSnippetCategories,
@@ -204,7 +205,9 @@ function rrEligibleServers(
   serverInfo: Record<string, ServerInfo>,
   workflow: WorkflowState | undefined,
 ): Server[] {
-  return servers.filter(sv => {
+  // A video-only server (the pod's second ComfyUI) is left to video, unless it is all there is.
+  const pool = servers.some(sv => sv.enabled !== false && canRunImages(sv)) ? servers.filter(canRunImages) : servers;
+  return pool.filter(sv => {
     if (sv.enabled === false) return false;
     const info = serverInfo[sv.id];
     if (!info) return false;

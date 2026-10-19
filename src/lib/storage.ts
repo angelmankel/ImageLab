@@ -133,6 +133,9 @@ export type Server = {
    *  excluded from round-robin routing and from the picker's pinned options.
    *  Defaults to true on every existing record so legacy rows just work. */
   enabled?: boolean;
+  /** What it runs: images, video, or both (default). A `/video-comfy` host path means video
+   *  when unset — see `lib/serverRoles.ts`. */
+  role?: 'image' | 'video' | 'both';
 };
 
 /** What a fresh install starts with: the pod it is served from, or the two LAN boxes during dev. */
@@ -152,6 +155,7 @@ function normalizeServers(raw: unknown): Server[] {
       name: String(s.name || 'Server'),
       host: String(s.host || DEFAULT_COMFY_HOST),
       enabled: s.enabled !== false,
+      ...(s.role === 'image' || s.role === 'video' || s.role === 'both' ? { role: s.role } : {}),
     }));
 }
 

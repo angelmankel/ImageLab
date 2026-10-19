@@ -10,8 +10,7 @@
  * phone, where a node graph was never going to be usable anyway.
  */
 import { useMemo } from 'react';
-import { useStore } from '@/lib/store';
-import type { Server } from '@/lib/storage';
+import { modeHostNow, useModeHost } from '@/features/workspace/modeHost';
 import { useCanvasStore } from '@/lib/canvasStore';
 import { useIsDesktop } from '@/hooks/useIsDesktop';
 import {
@@ -24,23 +23,14 @@ import { useObjectInfo, useStudioRun } from './useStudioRun';
 import { useWorkflowLibrary } from './useWorkflowLibrary';
 import { useStudio } from './studioStore';
 
-/** The host Studio talks to: the server the person last chose, else the first enabled one. */
-function pickStudioHost(servers: Server[], pinned: string | null): string | null {
-  const server = servers.find(s => s.id === pinned && s.enabled !== false)
-    ?? servers.find(s => s.enabled !== false)
-    ?? servers[0];
-  return server?.host ?? null;
-}
-
+/** The host Studio talks to: the workflow mode's server (`features/workspace/modeHost.ts`). */
 export function useStudioHost(): string | null {
-  const servers = useStore(s => s.servers);
-  const pinned = useCanvasStore(s => s.comfyServerId);
-  return pickStudioHost(servers, pinned);
+  return useModeHost('workflow');
 }
 
-/** `useStudioHost` outside React — the server Studio and Video run on right now. */
+/** `useStudioHost` outside React. */
 export function studioHostNow(): string | null {
-  return pickStudioHost(useStore.getState().servers, useCanvasStore.getState().comfyServerId);
+  return modeHostNow('workflow');
 }
 
 export function StudioView() {

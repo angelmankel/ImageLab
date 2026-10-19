@@ -11,7 +11,6 @@ import { TooltipProvider } from '@/components/ui/Tooltip';
 import { ConfirmProvider } from '@/components/ui/ConfirmDialog';
 import { CanvasContext } from '@/lib/canvasContext';
 import { MainView } from '@/features/layout/MainView';
-import { MobileShell } from '@/features/layout/MobileShell';
 import { MobileNav } from '@/features/layout/MobileNav';
 import { ComfyLayer } from '@/features/comfy/ComfyLayer';
 import { usePanelLayout } from '@/features/layout/panelLayout';
@@ -27,6 +26,7 @@ import { useThemeEffect } from '@/hooks/useThemeEffect';
 import { useModelProfileSync } from '@/hooks/useModelProfileSync';
 import { useViewSwitching } from '@/hooks/useViewSwitching';
 import { useCanvasControllerProvider } from '@/hooks/useCanvasControllerProvider';
+import { useVideoServerProbe } from '@/hooks/useVideoServerProbe';
 
 export default function App() {
   const canvas = useCanvasControllerProvider();
@@ -46,6 +46,7 @@ export default function App() {
   useServerFavorites();
   useThemeEffect();
   useModelProfileSync();
+  useVideoServerProbe();
 
   const { mainView, viewKey, isSwitching } = useViewSwitching();
 
@@ -55,9 +56,6 @@ export default function App() {
   const rightW = usePanelLayout(s => s.right);
   const desktopLeftInset = isDesktop && leftOpen ? leftW : 0;
   const desktopRightInset = isDesktop && rightOpen ? rightW : 0;
-
-  // Phones get v1's tabbed layout for Generate: no drawers to juggle to start a run or see it.
-  const mobileShell = !isDesktop && mainView === 'generate';
 
   return (
     <CanvasContext.Provider value={canvas.value}>
@@ -70,9 +68,7 @@ export default function App() {
           style={{ overscrollBehavior: 'none' }}
         >
           {isDesktop && <Sidebar servers={servers} onOpenSettings={() => setSettingsOpen(true)} />}
-          {mobileShell ? (
-            <div className="relative min-h-0 w-full flex-1"><MobileShell /></div>
-          ) : (
+          {(
           // CENTER — canvas fills all remaining width. Side panels are absolutely-positioned
           // overlays inside this <main>, so toggling them never resizes the canvas.
           <main className={cn('relative flex-1 overflow-hidden bg-bg-base', isDesktop ? 'h-[100dvh]' : 'min-h-0 w-full')}>

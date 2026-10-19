@@ -1,15 +1,13 @@
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { InfiniteCanvas } from '@/features/canvas/InfiniteCanvas';
-import { StrippedCanvas } from '@/features/canvas/StrippedCanvas';
 import { BrushCursor } from '@/features/canvas/BrushCursor';
 import { CanvasToolbar } from '@/features/canvas/CanvasToolbar';
 import { CollectionsView } from '@/features/collections';
 import { ModelBrowserView } from '@/features/browser';
-import { StudioView } from '@/features/studio/StudioView';
-import { VideoView } from '@/features/video/VideoView';
+import { WorkspaceView } from '@/features/workspace/WorkspaceView';
+import { isWorkspaceView } from '@/lib/workspace';
 import { AppSidePanels } from './AppSidePanels';
 import { CanvasTopNav } from './CanvasTopNav';
-import { GenerateTopNav } from './GenerateTopNav';
 import { NAV_HEIGHT, TOOLBAR_TRANSITION } from './constants';
 import { usePanelLayout } from './panelLayout';
 
@@ -51,22 +49,10 @@ export function MainView({
       </ErrorBoundary>
     );
   }
-  if (mainView === 'studio') {
-    // Studio is a self-contained shell: it brings its own layout on both desktop and phone, and
-    // shares none of the canvas chrome below.
-    return (
-      <ErrorBoundary label="Studio">
-        <StudioView />
-      </ErrorBoundary>
-    );
-  }
-  if (mainView === 'video') {
-    // Like Studio, a self-contained page with its own layout on desktop and phone.
-    return (
-      <ErrorBoundary label="Video">
-        <VideoView />
-      </ErrorBoundary>
-    );
+  if (isWorkspaceView(mainView)) {
+    // Image, Video and Workflow are modes of one workspace with its own layout on desktop and
+    // phone; none of the canvas chrome below applies.
+    return <WorkspaceView />;
   }
   if (mainView === 'comfy') {
     // Rendered by <ComfyLayer>, which sits outside this keyed subtree so the iframe survives a
@@ -80,11 +66,7 @@ export function MainView({
 
   return (
     <>
-      {mainView === 'canvas' ? (
-        <InfiniteCanvas navOffset={NAV_HEIGHT} leftInset={leftInset} rightInset={rightInset} />
-      ) : (
-        <StrippedCanvas navOffset={NAV_HEIGHT} leftInset={leftInset} rightInset={rightInset} />
-      )}
+      <InfiniteCanvas navOffset={NAV_HEIGHT} leftInset={leftInset} rightInset={rightInset} />
 
       <AppSidePanels {...panelProps} />
 
@@ -94,9 +76,6 @@ export function MainView({
           the history controls (recall the last params, peek at metadata). */}
       {mainView === 'canvas' && (
         <CanvasTopNav {...panelProps} leftInset={desktopLeftInset} rightInset={desktopRightInset} />
-      )}
-      {mainView === 'generate' && (
-        <GenerateTopNav {...panelProps} leftInset={desktopLeftInset} rightInset={desktopRightInset} />
       )}
 
       {/* Floating canvas-tools palette — clears the LeftPanel overlay

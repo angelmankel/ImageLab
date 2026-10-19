@@ -18,43 +18,27 @@ import { IconArrowBackUp, IconChevronDown, IconDice5, IconPlayerPlay, IconPlayer
 import { cn } from '@/lib/cn';
 import { useStore } from '@/lib/store';
 import { useIsDesktop } from '@/hooks/useIsDesktop';
-import { buildWanGraph, isVideoName, pickInstalledWanFiles, wanRunShape, wanRunTiming } from '@/lib/wanGraph';
-import { VIDEO_SECTIONS, missingVideoFiles, type VideoSectionId, type VideoSectionStatus } from '@/lib/videoSections';
+import { buildWanGraph, pickInstalledWanFiles, wanRunShape } from '@/lib/wanGraph';
+import { VIDEO_SECTIONS, type VideoSectionId, type VideoSectionStatus } from '@/lib/videoSections';
 import { estimateRun, formatDuration } from '@/lib/videoEstimate';
-import { useHostTimings, useVideoTimings } from './videoTimings';
+import { useHostTimings } from './videoTimings';
 import { StepperInput } from '@/components/fields';
-import { modelLabel } from '@/components/models/modelInfo';
 import { SettingsPager, StatusBadge } from '@/components/SettingsPager';
 import { ResultView } from '@/features/studio/StudioPanels';
-import { useStudioHost } from '@/features/studio/StudioView';
+import { useModeHost } from '@/features/workspace/modeHost';
 import { ViewTabs } from '@/features/layout/MobileNav';
-import { useComfyRun, type StudioRun } from '@/features/studio/useStudioRun';
-import { randomVideoSeed, useVideo } from './videoStore';
+import { useRunStore, type StudioRun } from '@/features/studio/useStudioRun';
+import { useVideoRun, videoRunSource } from './videoRun';
+import { useVideo } from './videoStore';
 import { MissingFiles, VIDEO_SECTION_META, VideoSectionBody, useVideoSectionStatus } from './sections';
 
-function useVideoRun(host: string | null): StudioRun {
-  return useComfyRun(host, {
-    build: async () => {
-      const st = useVideo.getState();
-      if (!st.positive.trim()) return { error: 'Write a prompt first.' };
-      if (st.mode === 'i2v' && !st.startImage) return { error: 'Choose a start image first.' };
-      const missing = missingVideoFiles(st, useStore.getState().server);
-      if (missing.length) return { error: `Not on the server: ${missing.map(modelLabel).join(', ')}. Pick installed files under Models, or download these first.` };
-      let seed = st.seed;
-      if (st.randomizeSeed) { seed = randomVideoSeed(); st.set({ seed }); }
-      return { graph: buildWanGraph({ ...st, seed }, st.startImage || null) };
-    },
-    // Only videos: the same server's images belong to the other views.
-    keep: (img) => isVideoName(img.filename),
-    // Every finished run teaches the time estimate.
-    onFinished: ({ graph, nodeMs }) => {
-      if (host) useVideoTimings.getState().record(host, wanRunTiming(graph as Parameters<typeof wanRunTiming>[0], nodeMs));
-    },
-  });
+/** The video run store, as the view's handle (`features/video/videoRun.ts` owns the run). */
+function useVideoRunHandle(host: string | null): StudioRun {
+  return useRunStore(useVideoRun, host, videoRunSource(host ?? ''));
 }
 
 /** The estimate for the current settings on this server, from its past runs. */
-function useVideoEstimate(host: string | null) {
+export function useVideoEstimate(host: string | null) {
   const v = useVideo();
   const runs = useHostTimings(host);
   return useMemo(() => {
@@ -80,9 +64,9 @@ function useInstalledWanFiles() {
 }
 
 export function VideoView() {
-  const host = useStudioHost();
+  const host = useModeHost('video');
   const isDesktop = useIsDesktop();
-  const run = useVideoRun(host);
+  const run = useVideoRunHandle(host);
   useInstalledWanFiles();
 
   if (!host) {
@@ -271,7 +255,7 @@ function VideoFooter({ run, host }: { run: StudioRun; host: string }) {
 
 const MAX_SEED = 0xFFFFFFFF;
 
-function VideoSeedRow() {
+export function VideoSeedRow() {
   const seed = useVideo((s) => s.seed);
   const auto = useVideo((s) => s.randomizeSeed);
   const set = useVideo((s) => s.set);
@@ -291,32 +275,35 @@ function VideoSeedRow() {
   );
 }
 
-function VideoGenerateBar({ run, host }: { run: StudioRun; host: string }) {
+/**
+ * One line under Generate: the estimate for these settings, or — while a run goes — the estimate
+ * made when it started, counted down. Shared with the desktop workspace's footer.
+ */
+export function useVideoEstimateLine(host: string | null, busy: boolean): string {
   const estimate = useVideoEstimate(host);
-  // While a run goes: the estimate made when it started, counted down.
   const [started, setStarted] = useState<{ at: number; ms: number } | null>(null);
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
-    if (!run.busy) { setStarted(null); return; }
+    if (!busy) { setStarted(null); return; }
     setStarted((s) => s ?? (estimate ? { at: Date.now(), ms: estimate.ms } : null));
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
-  }, [run.busy]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [busy]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  let line: string;
-  if (run.busy) {
-    if (!started) line = 'Timing this run to estimate the next ones';
-    else {
-      const left = started.ms - (now - started.at);
-      line = left > 0 ? `About ${formatDuration(left)} left` : 'Taking longer than the estimate';
-    }
-  } else if (estimate) {
-    line = `About ${formatDuration(estimate.ms)}${estimate.parts.load > 0 ? ' (incl. loading models)' : ''} · from ${estimate.runs} run${estimate.runs === 1 ? '' : 's'}`
-      + (estimate.partial ? ' · upscale time learned after its first run' : '');
-  } else {
-    line = 'Time estimate after your first video on this server';
+  if (busy) {
+    if (!started) return 'Timing this run to estimate the next ones';
+    const left = started.ms - (now - started.at);
+    return left > 0 ? `About ${formatDuration(left)} left` : 'Taking longer than the estimate';
   }
+  if (estimate) {
+    return `About ${formatDuration(estimate.ms)}${estimate.parts.load > 0 ? ' (incl. loading models)' : ''} · from ${estimate.runs} run${estimate.runs === 1 ? '' : 's'}`
+      + (estimate.partial ? ' · upscale time learned after its first run' : '');
+  }
+  return 'Time estimate after your first video on this server';
+}
 
+function VideoGenerateBar({ run, host }: { run: StudioRun; host: string }) {
+  const line = useVideoEstimateLine(host, run.busy);
   return (
     <Stack gap={6}>
       <Group gap="xs" wrap="nowrap">
