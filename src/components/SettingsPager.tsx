@@ -110,7 +110,9 @@ export function SettingsPager<T extends string>({ rows, renderPage, menu, onMenu
   return (
     <div className="relative min-h-0 flex-1 overflow-hidden">
       {/* The menu */}
-      <div ref={menuRef} className="scroll-y absolute inset-0 overflow-x-hidden px-3 pb-4 pt-3" style={{ touchAction: 'pan-y' }}
+      {/* isolate: Mantine's SegmentedControl gives its labels a z-index, which otherwise paints
+          the menu's Simple/Advanced switch on top of an open page. */}
+      <div ref={menuRef} className="scroll-y absolute inset-0 overflow-x-hidden px-3 pb-4 pt-3" style={{ touchAction: 'pan-y', isolation: 'isolate' }}
         aria-hidden={open ? true : undefined}>
         {menu(nav)}
       </div>
@@ -123,6 +125,7 @@ export function SettingsPager<T extends string>({ rows, renderPage, menu, onMenu
           transform: open ? `translateX(${drag}px)` : 'translateX(100%)',
           transition: drag ? 'none' : SLIDE,
           touchAction: 'pan-y',
+          zIndex: 1,
           boxShadow: open || drag ? '-12px 0 24px rgba(0, 0, 0, 0.35)' : 'none',
         }}
         onTransitionEnd={(e) => { if (e.target === e.currentTarget && !open) setShown(null); }}
