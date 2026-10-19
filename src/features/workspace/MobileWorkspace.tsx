@@ -13,7 +13,7 @@
  * badges the tab. Tabs stay mounted within a mode so scroll and open editors survive a switch.
  * The bottom edge below all this is the app-wide `MobileNav`.
  */
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Box, Group, Text } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconDice } from '@tabler/icons-react';
@@ -31,16 +31,12 @@ import { useObjectInfo } from '@/features/studio/useStudioRun';
 import { useWorkflowLibrary } from '@/features/studio/useWorkflowLibrary';
 import { startWorkflowRun } from '@/features/studio/studioRun';
 import { startVideoRun, useVideoRun } from '@/features/video/videoRun';
-import { useVideo } from '@/features/video/videoStore';
-import { useHostTimings } from '@/features/video/videoTimings';
+import { VideoSeedRow, useVideoEstimateLine } from '@/features/video/videoControls';
 import { onApp } from '@/lib/appEvents';
 import type { RunStore } from '@/lib/comfyRunner';
 import { jobActivity } from '@/lib/jobActivity';
 import { useStore } from '@/lib/store';
-import { estimateRun, formatDuration } from '@/lib/videoEstimate';
-import { buildWanGraph, wanRunShape } from '@/lib/wanGraph';
 import type { ResultItem, WorkspaceMode } from '@/lib/workspace';
-import { StepperInput } from '@/components/fields';
 import { ImageCreate, VideoCreate, WorkflowCreate } from './mobileCreate';
 import { SeedRow, usePanelScope } from './imageScope';
 import { useModeHost } from './modeHost';
@@ -234,46 +230,6 @@ function ImageMode({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
 }
 
 // ── Video ───────────────────────────────────────────────────────────────────
-
-const MAX_SEED = 0xFFFFFFFF;
-
-function VideoSeedRow() {
-  const seed = useVideo(s => s.seed);
-  const auto = useVideo(s => s.randomizeSeed);
-  const set = useVideo(s => s.set);
-  return (
-    <Group gap="xs" wrap="nowrap">
-      <Text size="xs" c="dimmed" w={32}>Seed</Text>
-      <StepperInput value={seed} min={0} max={MAX_SEED} step={1} size="xs" style={{ flex: 1, minWidth: 0 }} onChange={seed => set({ seed })} aria-label="Seed"
-        styles={{ input: { textAlign: 'center', fontVariantNumeric: 'tabular-nums' } }} />
-      <button type="button" onClick={() => set({ randomizeSeed: !auto })} aria-pressed={auto} className={`h-8 rounded-md border px-2 text-[12px] ${auto ? 'border-accent bg-accent-soft text-accent-fg' : 'border-border-default text-fg-muted'}`}>Auto</button>
-    </Group>
-  );
-}
-
-/** The estimate for the current settings on this server, from its past runs. */
-function useVideoEstimateLine(host: string | null, busy: boolean): string {
-  const v = useVideo();
-  const runs = useHostTimings(host);
-  const estimate = useMemo(() => {
-    const shape = wanRunShape(buildWanGraph(v, v.startImage || 'x'));
-    return estimateRun(runs, shape, runs.length ? runs[runs.length - 1].modelsKey : null);
-  }, [v, runs]);
-  const startedAt = useVideoRun(s => s.startedAt);
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    if (!busy) return;
-    const id = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, [busy]);
-  if (busy) {
-    if (!estimate || !startedAt) return 'Timing this run to estimate the next ones';
-    const left = estimate.ms - (now - startedAt);
-    return left > 0 ? `About ${formatDuration(left)} left` : 'Taking longer than the estimate';
-  }
-  if (estimate) return `About ${formatDuration(estimate.ms)}${estimate.parts.load > 0 ? ' (incl. loading models)' : ''} · from ${estimate.runs} run${estimate.runs === 1 ? '' : 's'}`;
-  return 'Time estimate after your first video on this server';
-}
 
 /** Video and Workflow share this: the run store's hero, strip and run bar. */
 function RunResultPane({ store, items, empty, onOpen }: { store: RunStore; items: readonly ResultItem[]; empty: string; onOpen: (i: number) => void }) {

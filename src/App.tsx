@@ -27,6 +27,7 @@ import { useModelProfileSync } from '@/hooks/useModelProfileSync';
 import { useViewSwitching } from '@/hooks/useViewSwitching';
 import { useCanvasControllerProvider } from '@/hooks/useCanvasControllerProvider';
 import { useVideoServerProbe } from '@/hooks/useVideoServerProbe';
+import { useInstalledWanFiles } from '@/features/video/videoControls';
 
 export default function App() {
   const canvas = useCanvasControllerProvider();
@@ -47,6 +48,8 @@ export default function App() {
   useThemeEffect();
   useModelProfileSync();
   useVideoServerProbe();
+  // Swap a missing Wan file for its installed stand-in, for both shells.
+  useInstalledWanFiles();
 
   const { mainView, viewKey, isSwitching } = useViewSwitching();
 

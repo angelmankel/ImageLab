@@ -28,9 +28,9 @@ npm run build
   the one below and clips its own contents.
 - **`touch-none` on a full-width control kills scrolling.** The slider root is `touch-pan-y` and
   only the thumb is `touch-none`.
-- **Mobile has no overlays by design.** The generate view's drawers are mutually exclusive and the
-  top bar uses flow layout, not absolute tracks — absolute tracks cannot see each other and stack
-  on a narrow screen.
+- **Mobile has no overlays by design.** The phone workspace is tabs and full-screen pages, never
+  drawers; its bars use flow layout, not absolute tracks — absolute tracks cannot see each other
+  and stack on a narrow screen.
 
 - **The UI is v1's (Mantine 8 + Tabler icons).** `modules/theme` + `stores/theme-store.ts` build the
   Mantine theme; every Tailwind colour token in `styles/index.css` reads a Mantine CSS var, so
@@ -40,31 +40,72 @@ npm run build
   Layers: rail 70, modals 200, fullscreen viewer 250, popovers 300, confirm 400.
 - **Parameter UI comes from `components/fields`** (v1 SliderField, SelectField, SeedField,
   DimensionsField, LoopbackField…). `ParamRow` and `ui/Field` wrap them.
-- **Phones get `layout/MobileShell`** for the Generate view: Parameters / Image / Gallery tabs and a
-  floating Generate button that switches to Image only once a job is really queued. Its Parameters
-  tab is `panel/MobileParameters`, a settings list (one row per section, live summary, the user's
-  tab order; the list itself is `components/SettingsPager`, shared with Video), not the desktop tab bar: a row slides its section in full screen with Back and
-  previous / next. Swipe right on a page = back (`hooks/useSwipe`, thresholds in `lib/swipe.ts`,
-  tested; a touch on a slider, text box, sortable or sideways scroller is never a swipe); the
-  phone's back button works too (the open page holds one history entry). Swipe left on the list
-  goes to Image. Every scroll container in there needs `touch-action: pan-y` of its own.
+- **Phones get `workspace/MobileWorkspace`** for every mode: the mode switch and job tray on top,
+  Create / Result / Gallery tabs, the run bar pinned at the bottom (Stop while it runs), the seed row
+  above it. Create is a settings list (`components/SettingsPager`; the rows per mode are in
+  `workspace/mobileCreate.tsx`): one row per section with its live summary, Simple / Advanced on top;
+  a row slides its section in full screen with Back and previous / next. Swipe right on a page =
+  back (`hooks/useSwipe`, thresholds in `lib/swipe.ts`, tested; a touch on a slider, text box,
+  sortable or sideways scroller is never a swipe); the phone's back button works too (the open page
+  holds one history entry). Swipe left on the list goes to Result. Every scroll container in there
+  needs `touch-action: pan-y` of its own. The bottom bar (`layout/MobileNav`) has one **Create**
+  entry for the workspace, which returns to the last mode.
 - **It installs as a PWA** (`public/manifest.json`, `public/sw.js`). Install needs HTTPS — the
   Traefik domain, not the bare pod ip:port. The service worker fetches index.html network-first,
   so a push to the pod shows up on the next launch.
 
-## The two views
+## The workspace
 
-- **Generate** uses one left workspace with tabs (Prompt, Models, Settings, Enhance, Input,
-  Passes by default). Generation controls stay at the bottom with a live sampler progress bar,
-  a seed field, Auto toggle, and a separate New seed action. Status follows tracked jobs, never
-  a leftover status string. Completion must not depend on a mounted canvas controller.
-- **The left panel is tabbed** (`features/panel`). The old accordion sections are the building
-  blocks (`sections.tsx`: body, icon, live summary/badge); the user owns which tab holds which
-  section, the order, names, icons and hidden tabs (`lib/panelTabs.ts`, pure + tested; store
-  `panelTabsStore.ts`, `imagelab.panelTabs.v1`). Tabs mount on first visit and stay mounted, so
-  scroll and open editors survive a switch. Alt+1…9 opens the Nth tab; the summary strip jumps to a
-  section. The toolbar (`PanelToolbar`) keeps the five preset slots (`paramPresets.ts`), which hold
-  the workflow and prompt parts, never the input image.
+- **One workspace, three modes.** Image, Video and Workflow are modes of one layout, on desktop
+  (`features/desktop`, see "Desktop layout") and phone (`features/workspace/MobileWorkspace`). The
+  mode *is* `canvasStore.mainView` (`generate` / `video` / `studio`; `lib/workspace.ts`, pure +
+  tested: `modeOfView`, `viewOfMode`, `isWorkspaceView`), so nothing saved migrated and
+  `setMainView('video')` still means "go to Video". `useViewSwitching` keys every workspace view as
+  one, so a mode switch never remounts the shell. `workspace/WorkspaceView` picks the shell by width.
+- **Simple by default, Advanced on request.** One global switch (`workspace/workspaceStore.ts`,
+  `imagelab.workspace.v1`, `detail`; seeded from Studio's old "advanced" once). Each section has a
+  tier (`sectionTier` / `videoSectionTier` in `lib/workspace.ts`): Simple shows Prompts, Models,
+  Composition, Input image (video: Mode & input, Prompt, Size & length) plus the Quick tweaks block
+  (`workspace/QuickTweaks.tsx`: steps, CFG, images; video: Fast, length); Advanced shows every
+  section. Nothing is removed by Simple, only folded away; a quick-search "show section" that lands
+  on a hidden section switches to Advanced. Workflow mode's Simple is the pinned controls.
+- **The building blocks** (`components/blocks`, one file each, used by both shells): `SectionCard`
+  (folding card with icon, live summary, badge), `FieldRow`, `SliderRow` (one-line slider),
+  `Segmented`, `ChipPicker` / `ChipButton`, `ResultsStrip` (thumbnails, current outlined),
+  `HeroResult` (the big latest result; live preview and progress while busy; a tap opens fullscreen;
+  children float over it), `RunBar` (big Generate that becomes Stop, progress along its bottom),
+  `JobTray` (one pill per running job across modes), `ModeSwitch`, `DetailToggle`. Results from
+  every mode share one shape, `ResultItem` (`workspace/results.ts`: `useImageResults` with the
+  history entry attached, `useVideoResults`, `useWorkflowResults`). The image sections themselves
+  are unchanged (`features/panel/sections.tsx`: body, icon, live summary/badge); the user still owns
+  their order and hidden tabs (`lib/panelTabs.ts`, pure + tested; `panelTabsStore.ts`,
+  `imagelab.panelTabs.v1`). `PanelToolbar` keeps the five preset slots (`paramPresets.ts`), which
+  hold the workflow and prompt parts, never the input image. `usePanelScope` / `SeedRow` live in
+  `workspace/imageScope.tsx`.
+- **Images and video run at the same time.** Image jobs are the generate store's `jobs` (per
+  server, persisted in IndexedDB) as before. Video and Workflow runs live in module-level stores
+  made by `lib/comfyRunner.ts` (`video/videoRun.ts` → `useVideoRun` / `startVideoRun(host)`,
+  `studio/studioRun.ts` → `useWorkflowRun` / `startWorkflowRun(host, info)`): a run keeps going,
+  reporting and collecting results when its view unmounts; the store listens on the shared bus
+  while a view is attached or a run is in flight. `useRunStore` (`studio/useStudioRun.ts`) is a
+  view's handle with the old `StudioRun` shape. Each mode's shell shows only its own run; the job
+  tray shows all of them.
+- **Which server runs what** (`lib/serverRoles.ts`, pure + tested). A `Server` has an optional
+  `role` (Settings → Servers → "Runs"); unset, a host whose path is `/video-comfy` is the video
+  server. Video goes to a video-role server when one exists, images never go to a video-only
+  server (the image round-robin filters them out), and with one server both modes share it as
+  before. `workspace/modeHost.ts` (`useModeHost(mode)`) picks the host for Video and Workflow. A host
+  may carry a path (`pod:8188/video-comfy`): `comfyHost.ts` just appends to it. The pod's second
+  ComfyUI is found by `hooks/useVideoServerProbe` (reads `<origin>/pod/logs/instances.json`, then
+  `/video-comfy/system_stats`; 502 while it starts) and added as "This pod · video".
+- **Snippets are one tap.** `layers/SnippetChips.tsx`, under each prompt box inside `PromptFields`:
+  a chip row (in the prompt first, then recently used — `workspaceStore.recentSnippetIds` — then the
+  rest; `chipOrder`, tested), tap to add or take out. "Suggest" asks the AI helper
+  (`brainstormSnippets` from the current prompt, with an optional hint) and shows the answers as
+  chips; tapping one adds it to the prompt and the library, with Undo. "All…" is the old library
+  window (`SnippetsModal`). Generation controls keep the live sampler progress, a seed field, Auto
+  and New seed; status follows tracked jobs, never a leftover status string; completion must not
+  depend on a mounted canvas controller.
 - **Desktop side panels are docked and resizable.** Widths live in `layout/panelLayout.ts`
   (persisted); `PanelResizeHandle` drags, folds past the minimum, and resets on double-click.
 - **Sounds** (`lib/sounds.ts`): a blip on queue, a chime on the live completion path only — the
@@ -82,9 +123,11 @@ npm run build
   full presets carry positive and negative parts with their weights and on/off states. Insert
   appends; Replace on a single-kind preset preserves the other kind. Replacement and deletion
   offer Undo. Edits save as typed, and every operation has a click target for trackpad use.
-- **Studio** (`features/studio`) drives *any* workflow saved in ComfyUI, read live from
-  `/object_info` plus the saved graph. Its own store (`studioStore.ts`) is deliberately separate
-  from the generate view's. Each workflow has **keywords** (its own tags) and shares a **prompt**
+- **Workflow mode (Studio, `features/studio`)** drives *any* workflow saved in ComfyUI, read live
+  from `/object_info` plus the saved graph. Its own store (`studioStore.ts`) is deliberately
+  separate from the generate view's; the panels (`StudioPanels.tsx`: `WorkflowPicker`,
+  `PromptPanel`, `ParamList`) are what both shells render, and `ParamList` follows the workspace's
+  Simple / Advanced (pinned controls only, or everything with a pin on each). Each workflow has **keywords** (its own tags) and shares a **prompt**
   with the other workflows unless it opts out; both are joined, keywords first, into the workflow's
   positive text box, which is auto-detected and can be re-pointed. History comes from the server's
   `/history`, so it survives a reload and shows other clients' runs too.
@@ -118,29 +161,28 @@ npm run build
   skip words the type's pills own. LoRA/embedding pickers show only fitting types until
   "Show all"; the VAE select shows only the family's VAEs until its switch is on.
 
-- **Video** (`features/video`, rail button under Generate) — Wan 2.2 A14B text→video and
-  image→video. Its own store (`videoStore.ts`, `imagelab.video.v1`); the graph is
+- **Video mode** (`features/video`) — Wan 2.2 A14B text→video and image→video. Its own store (`videoStore.ts`, `imagelab.video.v1`); the graph is
   `lib/wanGraph.ts` (pure + tested): two experts (high noise for steps 0..switch, low noise after),
   each with its own LoRAs (`LoraLoaderModelOnly`) and `ModelSamplingSD3` shift, saved as MP4 via
   `SaveVideo` (`format: "mp4", codec: "h264"` works in API format) to `output/video/`. It runs
-  through Studio's runner (`useComfyRun` in `studio/useStudioRun.ts`, which takes a graph source
-  and a `keep` filter — Video keeps only video files) and Studio's `ResultView`, which plays video.
-  **Layout:** seven sections (`video/sections.tsx`; order, live summaries and missing files per
-  section in `lib/videoSections.ts`, tested): Mode & input · Prompt · Models · LoRAs · Size & length
-  · Speed & sampling · Upscale. Desktop folds them as cards (fold state per browser, Models starts
-  folded); phones use the same `components/SettingsPager` list as Generate's Parameters tab. Seed,
-  Generate and the estimate stay pinned at the bottom on both. The Wan models are not in models.txt yet: the page lists what the server lacks, and fills in
+  through the video run store (`video/videoRun.ts`, a `lib/comfyRunner.ts` store with a `keep`
+  filter — only video files) and shows in the workspace's `HeroResult`, which plays video.
+  **Sections:** seven (`video/sections.tsx`; order, live summaries and missing files per section
+  in `lib/videoSections.ts`, tested): Mode & input · Prompt · Models · LoRAs · Size & length ·
+  Speed & sampling · Upscale; Simple shows the first, second and fifth. Seed, Generate and the
+  estimate stay pinned at the bottom on both shells. The Wan models are not in models.txt yet: the page lists what the server lacks, and fills in
   installed stand-ins (`pickInstalledWanFiles`). **Fast mode** (default on) adds the mode's
   lightx2v 4-step LoRA to each expert, 4 steps, switch at 2, CFG 1: ~6x faster (A100, 832x480x33:
   18.6 s vs 117 s). Phones get `components/VideoFullscreen` (tap, drag to seek, rotate; never the
   Fullscreen API — Chrome's Android banner cannot be hidden). **Upscale** (off by default): an
   upscale model (fast SPAN 2xNomosUni first) then an exact even-sized `ImageScale`, or a plain
-  resize, before the MP4. **Time estimate** (`lib/videoEstimate.ts`, tested): `useComfyRun` times
+  resize, before the MP4. **Time estimate** (`lib/videoEstimate.ts`, tested): the run store times
   each node from `executing` events (`onFinished`); `wanRunTiming` splits a run into sampling /
   upscale / finish / load; rates are medians of warm runs per server (`videoTimings.ts`,
   `imagelab.video.timings.v1`), cold runs (models changed) give the loading cost. **Send to video**
-  (`video/sendToVideo.ts`: top toolbar, history tiles, fullscreen viewer, Collections) fetches the
-  image, uploads it to the Video server and sets it as the i2v start frame; a portrait image flips a
+  (`video/sendToVideo.ts`: result actions, history tiles, fullscreen viewer, Collections) fetches the
+  image, uploads it to the video mode's server (`modeHostNow('video')`) and sets it as the i2v start
+  frame, then switches to Video; a portrait image flips a
   landscape size. Both image drop zones (img2img and Studio/Video's `ImageInput`) pick from past
   generations (`InputImageBrowserModal`) and take dropped history thumbnails.
 

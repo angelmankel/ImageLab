@@ -375,7 +375,7 @@ type Store = {
 
   // Server actions
   addServer: (name: string, host: string) => void;
-  updateServer: (id: string, patch: Partial<Pick<Server, 'name' | 'host' | 'enabled'>>) => void;
+  updateServer: (id: string, patch: Partial<Pick<Server, 'name' | 'host' | 'enabled' | 'role'>>) => void;
   removeServer: (id: string) => void;
 
   // Fullscreen viewer actions
@@ -867,6 +867,7 @@ export const useStore = create<Store>((set, get) => {
         ...(patch.name !== undefined ? { name: patch.name.trim() || sv.name } : {}),
         ...(patch.host !== undefined ? { host: patch.host.trim() || sv.host } : {}),
         ...(patch.enabled !== undefined ? { enabled: patch.enabled } : {}),
+        ...(patch.role !== undefined ? { role: patch.role } : {}),
       } : sv);
       // If we just disabled the currently-pinned server, drop its capability
       // record so the picker stops showing it as online — and fall the routing

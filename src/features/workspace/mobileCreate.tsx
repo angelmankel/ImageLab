@@ -3,9 +3,9 @@
  * Simple / Advanced on top, one big row per section with its live summary, the simple mode's quick
  * tweaks, then the mode's own extras (presets, reset). Advanced lists every section.
  */
-import { useMemo, type ReactNode } from 'react';
-import { Button, Text } from '@mantine/core';
-import { IconAdjustmentsHorizontal, IconArrowBackUp, IconMessageCircle, IconPin, IconRoute } from '@tabler/icons-react';
+import { useEffect, useMemo, type ReactNode } from 'react';
+import { Text } from '@mantine/core';
+import { IconAdjustmentsHorizontal, IconMessageCircle, IconPin, IconRoute } from '@tabler/icons-react';
 import { DetailToggle } from '@/components/blocks';
 import { SettingsPager, type PagerRow, type PagerStatus } from '@/components/SettingsPager';
 import { PanelToolbar } from '@/features/controls/PanelToolbar';
@@ -15,7 +15,7 @@ import { ParamList, PromptPanel, ResetAllButton, WorkflowPicker } from '@/featur
 import { exposedParams, useStudio } from '@/features/studio/studioStore';
 import type { useWorkflowLibrary } from '@/features/studio/useWorkflowLibrary';
 import { MissingFiles, VIDEO_SECTION_META, VideoSectionBody, useVideoSectionStatus } from '@/features/video/sections';
-import { useVideo } from '@/features/video/videoStore';
+import { VideoResetRow } from '@/features/video/videoControls';
 import { VIDEO_SECTIONS, type VideoSectionId } from '@/lib/videoSections';
 import type { SectionId } from '@/lib/panelTabs';
 import { sectionTier, videoSectionTier, visibleSections } from '@/lib/workspace';
@@ -65,6 +65,9 @@ export function ImageCreate({ scope, empty, note, onSwipeToResult }: { scope: Pa
   );
   const shown = visibleSections(order, detail, sectionTier);
   const rows: PagerRow<SectionId>[] = shown.map(id => ({ id, ...SECTION_META[id], status: status[id] }));
+  // The quick search asks for a section Simple hides: show Advanced, then the page opens.
+  const setDetail = useWorkspace(s => s.setDetail);
+  useEffect(() => { if (reveal && order.includes(reveal) && !shown.includes(reveal)) setDetail('advanced'); }, [reveal, order, shown, setDetail]);
 
   return (
     <SettingsPager
@@ -101,7 +104,6 @@ export function ImageCreate({ scope, empty, note, onSwipeToResult }: { scope: Pa
 export function VideoCreate({ host, onSwipeToResult }: { host: string; onSwipeToResult: () => void }) {
   const detail = useWorkspace(s => s.detail);
   const status = useVideoSectionStatus();
-  const reset = useVideo(s => s.resetSettings);
   const shown = visibleSections(VIDEO_SECTIONS, detail, videoSectionTier);
   const rows: PagerRow<VideoSectionId>[] = shown.map(id => ({ id, ...VIDEO_SECTION_META[id], status: status[id] }));
   return (
@@ -116,12 +118,7 @@ export function VideoCreate({ host, onSwipeToResult }: { host: string; onSwipeTo
           <div className="mb-3 empty:hidden"><MissingFiles /></div>
           {nav}
           {detail === 'simple' && <Card><VideoQuickTweaks /></Card>}
-          <Card className="flex items-center justify-between gap-2">
-            <Text size="xs" c="dimmed">Prompt, start image and LoRAs stay.</Text>
-            <Button size="xs" variant="subtle" color="gray" leftSection={<IconArrowBackUp size={15} />} onClick={reset} aria-label="Reset video settings" className="shrink-0">
-              Wan's defaults
-            </Button>
-          </Card>
+          <Card><VideoResetRow /></Card>
           {hint('video')}
         </>
       )}

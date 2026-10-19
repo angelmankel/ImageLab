@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Stack, Group, Paper, TextInput, Switch, ActionIcon, Button, Badge, Tooltip, SimpleGrid } from '@mantine/core';
+import { Stack, Group, Paper, TextInput, Switch, ActionIcon, Button, Badge, Tooltip, SimpleGrid, SegmentedControl, Text } from '@mantine/core';
+import { serverRole, type ServerRole } from '@/lib/serverRoles';
 import { IconServer, IconPlus, IconTrash } from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
 import type { Server } from '@/lib/storage';
@@ -89,7 +90,7 @@ function ServerRow({
   server: Server;
   online: boolean;
   canRemove: boolean;
-  onUpdate: (patch: Partial<Pick<Server, 'name' | 'host'>>) => void;
+  onUpdate: (patch: Partial<Pick<Server, 'name' | 'host' | 'role'>>) => void;
   onRemove: () => void;
   onToggleEnabled: (on: boolean) => void;
 }) {
@@ -155,14 +156,26 @@ function ServerRow({
           onChange={(e) => setHost(e.currentTarget.value)}
           onBlur={commitHost}
           onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
-          placeholder="host:port"
+          placeholder="host:port or host:port/video-comfy"
           aria-label="Server host"
-          leftSection={<IconServer size={16} />}
+          leftSection={<IconServer size={16} />
+}
           spellCheck={false}
           autoCapitalize="off"
           autoComplete="off"
           styles={{ input: { fontFamily: 'var(--mantine-font-family-monospace)' } }}
         />
+        {/* What this server runs. Video goes to a video server when there is one; images stay off it. */}
+        <Group gap="xs" wrap="nowrap">
+          <Text size="xs" c="dimmed" className="shrink-0">Runs</Text>
+          <SegmentedControl
+            size="xs"
+            value={serverRole(server)}
+            onChange={(v) => onUpdate({ role: v as ServerRole })}
+            data={[{ value: 'both', label: 'Images + video' }, { value: 'image', label: 'Images' }, { value: 'video', label: 'Video' }]}
+            aria-label="What this server runs"
+          />
+        </Group>
       </Stack>
     </Paper>
   );
