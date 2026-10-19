@@ -17,6 +17,7 @@ export function AiModelPicker({ size = 'sm', label, className }: { size?: Mantin
   const setVenice = useStore((s) => s.setVenice);
   const models = useLocalModels((s) => s.models);
   const error = useLocalModels((s) => s.error);
+  const refreshLocal = useLocalModels((s) => s.refresh);
   const veniceModels = useVeniceModels((s) => s.models);
   useLocalModelsFor(venice.localBaseUrl);
   useVeniceModelsFor(venice.baseUrl);
@@ -48,6 +49,8 @@ export function AiModelPicker({ size = 'sm', label, className }: { size?: Mantin
       aria-label="AI model"
       value={value}
       allowDeselect={false}
+      // The list is read once per server; a model pulled since then appears on the next open.
+      onDropdownOpen={() => { if (venice.localBaseUrl.trim()) void refreshLocal(venice.localBaseUrl); }}
       searchable
       nothingFoundMessage="No model matches"
       maxDropdownHeight={360}
