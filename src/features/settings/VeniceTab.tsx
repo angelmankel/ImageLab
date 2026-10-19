@@ -1,10 +1,12 @@
-import { Stack, Text, TextInput, PasswordInput, Radio, Anchor, Code } from '@mantine/core';
+import { Stack, Text, TextInput, PasswordInput, Radio, Anchor, Code, Select } from '@mantine/core';
 import { IconKey, IconSparkles, IconWorld } from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
 import { VENICE_DEFAULT_MODEL, VENICE_DEFAULT_BASE_URL, type PromptStyle } from '@/lib/storage';
 import { SettingsSection } from './SettingsSection';
 import { AiModelPicker } from '@/features/ai/AiModelPicker';
 import { LocalLlmSection } from '@/features/ai/LocalLlmSection';
+import { useVeniceModels, useVeniceModelsFor } from '@/features/ai/veniceModelsStore';
+import { veniceModelLabel } from '@/lib/veniceModels';
 
 type StyleOption = { id: PromptStyle; label: string; blurb: string };
 
@@ -61,15 +63,7 @@ export function VeniceTab() {
           autoCapitalize="off"
           autoComplete="off"
         />
-        <TextInput
-          label="Model"
-          description={<>Default: <Code>{VENICE_DEFAULT_MODEL}</Code>. Any Venice chat model id works (e.g. <Code>llama-3.3-70b</Code>).</>}
-          placeholder={VENICE_DEFAULT_MODEL}
-          leftSection={<IconSparkles size={16} />}
-          value={venice.model}
-          onChange={(e) => setVenice({ model: e.currentTarget.value })}
-          spellCheck={false}
-        />
+        <VeniceModelSelect />
       </SettingsSection>
 
       <SettingsSection
@@ -106,5 +100,35 @@ export function VeniceTab() {
         </Text>
       </SettingsSection>
     </Stack>
+  );
+}
+
+/** Venice's chat models from its own list (searchable), so no model id has to be typed. */
+function VeniceModelSelect() {
+  const venice = useStore(s => s.venice);
+  const setVenice = useStore(s => s.setVenice);
+  const models = useVeniceModels(s => s.models);
+  const error = useVeniceModels(s => s.error);
+  useVeniceModelsFor(venice.baseUrl);
+  const current = venice.model || VENICE_DEFAULT_MODEL;
+  const data = models.map(m => ({ value: m.id, label: veniceModelLabel(m) }));
+  if (!models.some(m => m.id === current)) data.unshift({ value: current, label: current });
+
+  return (
+    <Select
+      label="Model"
+      description={error
+        ? <>Could not load Venice's model list ({error}). Showing the saved model.</>
+        : <>Default: <Code>{VENICE_DEFAULT_MODEL}</Code>. Type to search {models.length || ''} models.</>}
+      leftSection={<IconSparkles size={16} />}
+      value={current}
+      onChange={(v) => { if (v) setVenice({ model: v }); }}
+      data={data}
+      searchable
+      allowDeselect={false}
+      nothingFoundMessage="No model matches"
+      maxDropdownHeight={360}
+      comboboxProps={{ withinPortal: true, shadow: 'md', zIndex: 320, middlewares: { flip: false, shift: true } }}
+    />
   );
 }
