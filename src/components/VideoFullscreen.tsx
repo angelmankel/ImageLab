@@ -16,6 +16,7 @@ import { ActionIcon, Group, Text } from '@mantine/core';
 import { IconDeviceMobileRotated, IconPlayerPause, IconPlayerPlay } from '@tabler/icons-react';
 import { useShortcut, ShortcutPriority } from '@/hooks/useShortcut';
 import { DRAG_SLOP, alongVideo, scrubTime, timeLabel } from '@/lib/videoScrub';
+import { playOrMute, videoHasAudio } from '@/lib/videoAudio';
 import { registerViewer } from './viewerTransition';
 
 type Orientation = ScreenOrientation & { lock?: (o: string) => Promise<void>; unlock?: () => void };
@@ -131,10 +132,10 @@ export function VideoFullscreen({ url, startTime = 0, onClose }: {
           src={url}
           autoPlay
           loop
-          muted
+          muted={!videoHasAudio(url)}
           playsInline
           className="h-full w-full object-contain"
-          onLoadedMetadata={(e) => { e.currentTarget.currentTime = startTime; setDuration(e.currentTarget.duration); }}
+          onLoadedMetadata={(e) => { e.currentTarget.currentTime = startTime; setDuration(e.currentTarget.duration); playOrMute(e.currentTarget); }}
           onTimeUpdate={(e) => { if (!drag.current?.scrubbing) setTime(e.currentTarget.currentTime); }}
           onPlay={() => setPaused(false)}
           onPause={() => setPaused(true)}

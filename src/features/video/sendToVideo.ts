@@ -42,10 +42,12 @@ export async function sendBlobToVideo(blob: Blob, name: string, opts: { open?: b
     const up = await uploadImage(host, blob, `${Date.now()}-${safe}`);
     const v = useVideo.getState();
     const size = await imageSize(blob);
-    const patch: Parameters<typeof v.set>[0] = { startImage: loadImageRef(up), mode: 'i2v' };
-    if (size && size.w !== size.h && (size.w > size.h) !== (v.width > v.height) && v.width !== v.height) {
-      patch.width = v.height;
-      patch.height = v.width;
+    // Both engines go to image → video; the one in use gets its size flipped to the picture's shape
+    // (H3 stretches the first frame to the canvas, so the shape matters even more there).
+    const patch: Parameters<typeof v.set>[0] = { startImage: loadImageRef(up), mode: 'i2v', h3: { ...v.h3, mode: v.h3.mode === 'ref' ? 'ref' : 'i2v' } };
+    if (size && size.w !== size.h) {
+      if ((size.w > size.h) !== (v.width > v.height) && v.width !== v.height) { patch.width = v.height; patch.height = v.width; }
+      if ((size.w > size.h) !== (v.h3.width > v.h3.height) && v.h3.width !== v.h3.height) patch.h3 = { ...patch.h3!, width: v.h3.height, height: v.h3.width };
     }
     v.set(patch);
     if (opts.open !== false) useCanvasStore.getState().setMainView('video');

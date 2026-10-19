@@ -7,9 +7,9 @@
  *
  * Imports only `./wanGraph` (which imports nothing), so the tests load it from source.
  */
-import { defaultVideoSettings, type VideoSettings } from './wanGraph';
+import { defaultVideoSettings, h3Length, type VideoEngine, type VideoSettings } from './wanGraph';
 
-export type SweepAxis = 'seed' | 'cfg' | 'shift' | 'steps' | 'switchStep' | 'length' | 'fastStrength' | 'motionSteps' | 'nagScale' | 'loraStrength';
+export type SweepAxis = 'seed' | 'cfg' | 'shift' | 'steps' | 'switchStep' | 'length' | 'fastStrength' | 'motionSteps' | 'nagScale' | 'loraStrength' | 'audioShift' | 'turboStrength';
 
 export interface SweepAxisInfo {
   id: SweepAxis;
@@ -37,6 +37,20 @@ export const SWEEP_AXES: readonly SweepAxisInfo[] = [
   { id: 'loraStrength', label: 'First LoRA strength', min: 0, max: 2, step: 0.05, from: 0.4, to: 1.2 },
 ];
 
+/** The H3 knobs worth sweeping (`needsFast` here means the turbo LoRA). */
+export const H3_SWEEP_AXES: readonly SweepAxisInfo[] = [
+  { id: 'seed', label: 'Seed', min: 0, max: 1e15, step: 1, from: 0, to: 3 },
+  { id: 'steps', label: 'Steps', min: 4, max: 50, step: 1, from: 12, to: 30, needsFast: false },
+  { id: 'cfg', label: 'CFG', min: 1, max: 6, step: 0.5, from: 1, to: 3 },
+  { id: 'shift', label: 'Video shift', min: 1, max: 30, step: 0.5, from: 6, to: 16 },
+  { id: 'audioShift', label: 'Audio shift', min: 0.5, max: 10, step: 0.5, from: 1.5, to: 5 },
+  { id: 'length', label: 'Frames', min: 22, max: 362, step: 17, from: 73, to: 243 },
+  { id: 'turboStrength', label: 'Turbo LoRA strength', min: 0, max: 1.5, step: 0.05, from: 0.6, to: 1, needsFast: true },
+  { id: 'loraStrength', label: 'First LoRA strength', min: 0, max: 2, step: 0.05, from: 0.4, to: 1.2 },
+];
+
+export const sweepAxesFor = (engine: VideoEngine | undefined): readonly SweepAxisInfo[] => (engine === 'h3' ? H3_SWEEP_AXES : SWEEP_AXES);
+
 export interface SweepItem {
   label: string;
   patch: Partial<VideoSettings>;
@@ -63,7 +77,7 @@ const fmt = (v: number) => (Number.isInteger(v) ? String(v) : String(Number(v.to
  * on; sweeping NAG turns NAG on. The seed stays `base.seed` unless it is the axis.
  */
 export function sweepItems(base: VideoSettings, axis: SweepAxis, from: number, to: number, count: number): SweepItem[] {
-  const info = SWEEP_AXES.find((a) => a.id === axis);
+  const info = sweepAxesFor(base.engine).find((a) => a.id === axis);
   if (!info) return [];
   if (axis === 'seed') {
     const n = Math.max(1, Math.round(count));
@@ -71,6 +85,26 @@ export function sweepItems(base: VideoSettings, axis: SweepAxis, from: number, t
     return Array.from({ length: n }, (_, i) => ({ label: `seed ${start + i}`, patch: { seed: start + i } }));
   }
   const values = sweepValues(from, to, count, info.step);
+  if (base.engine === 'h3') {
+    const h = base.h3;
+    return values.map((v) => {
+      const label = `${info.label} ${fmt(v)}`;
+      switch (axis) {
+        case 'steps': return { label, patch: { h3: { ...h, steps: v, turbo: { ...h.turbo, on: false } } } };
+        case 'cfg': return { label, patch: { h3: { ...h, cfg: v } } };
+        case 'shift': return { label, patch: { h3: { ...h, shiftVideo: v } } };
+        case 'audioShift': return { label, patch: { h3: { ...h, shiftAudio: v } } };
+        case 'length': return { label: `${info.label} ${h3Length(v)}`, patch: { h3: { ...h, length: h3Length(v) } } };
+        case 'turboStrength': return { label, patch: { h3: { ...h, turbo: { ...h.turbo, on: true, strength: v } } } };
+        case 'loraStrength': {
+          const i = h.loras.findIndex((l) => l.on);
+          if (i < 0) return { label, patch: {} };
+          return { label, patch: { h3: { ...h, loras: h.loras.map((l, j) => (j === i ? { ...l, strength: v } : l)) } } };
+        }
+        default: return { label, patch: {} };
+      }
+    });
+  }
   return values.map((v) => {
     const label = `${info.label} ${fmt(v)}`;
     switch (axis) {

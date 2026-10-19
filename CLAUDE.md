@@ -214,6 +214,26 @@ npm run build
   (`video/CompareVideos.tsx`, two clips played together). The estimate's `RunShape.outFrames` counts
   interpolated frames in the finish stage; node groups are `WAN_NODE_GROUPS`.
 
+- **MiniMax H3 (10-19)** is the Video mode's second *engine* (`VideoSettings.engine: 'wan' | 'h3'`,
+  a segmented switch at the top of Mode & input; every older save is `wan` and builds the same graph).
+  Its settings are `VideoSettings.h3` (`H3Settings` in `wanGraph.ts`: task t2v / i2v (first + optional
+  last frame, the shared `startImage` / `endImage`) / ref (up to 9 `refImages`), the fl2va / ref2va
+  checkpoints, Qwen3-VL text encoder, video + audio VAE, own LoRAs, 32-multiple size, 17k+5 frames at
+  a fixed 24 fps, steps / CFG / sampler / video + audio shift, `audio` on/off, the lightx2v turbo
+  LoRAs with their own step counts, KJNodes low-VRAM patches). The graph is `lib/h3Graph.ts`
+  (`buildH3Graph`, `buildVideoGraph` picks by engine; tested in `tests/h3-graph.test.cjs`): one
+  `UNETLoader` → turbo LoRA → LoRAs → `MiniMaxH3SigmaShift` → patches; `CLIPLoader type: minimax`;
+  `MiniMaxH3ImageToVideo` (t2v / fl2v) or `MiniMaxH3ReferenceToVideo` (autogrow keys
+  `ref_images.ref_image_N`) give positive + the joint AV latent; `KSampler` at CFG 1 with a
+  `ConditioningZeroOut` negative (what the templates' `BasicGuider` does), `VAEDecode` (video half)
+  + `VAEDecodeAudio` (`13a`), `CreateVideo` at 24 fps with the audio, `SaveVideo` as
+  `video/ImageLab_H3_<TASK>`. Node ids match the Wan graph, so the estimate, upscale, interpolation,
+  colour match and encode are shared. **A file named `ImageLab_H3*` has a soundtrack**: the hero,
+  the fullscreen viewer and the phone player render it unmuted (`lib/videoAudio.ts`, falling back
+  to muted when the browser refuses unmuted autoplay). Sweeps have their own H3 axes
+  (`sweepAxesFor`), presets drop `refImages`. Pickers keep H3 files out of the image views
+  (`isVideoModelName`). Checked only against `/object_info` and `/prompt` validation on the pod
+  (ComfyUI 0.34.5 has the nodes); **no H3 clip has been rendered from here yet** — Donny tests.
 - **AI helpers** (`lib/venice.ts`) call Venice or a local Ollama, per `settings.venice.provider`
   (`aiReady` / `withChatModel` / `visionModelOf`; never test `apiKey` directly). Ollama runs on
   winold (192.168.0.83:11434, RTX A4500) and is reached over HTTPS at `llm.blueoceanswim.com`

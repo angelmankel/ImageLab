@@ -23,13 +23,18 @@ export interface VideoPreset {
 export function presetBody(s: VideoSettings): VideoPresetBody {
   const out: Record<string, unknown> = { ...s };
   for (const k of PRESET_EXCLUDED) delete out[k];
+  // H3's reference pictures are pictures, not recipe.
+  if (s.h3) out.h3 = { ...s.h3, refImages: [] };
   return JSON.parse(JSON.stringify(out)) as VideoPresetBody;
 }
 
 /** `current` with the preset's recipe over it; missing fields in an old preset keep their defaults. */
 export function applyPreset(current: VideoSettings, preset: Pick<VideoPreset, 'settings'>): VideoSettings {
   const body = loadVideoSettings({ ...current, ...preset.settings });
-  return { ...body, positive: current.positive, seed: current.seed, randomizeSeed: current.randomizeSeed, endImage: current.endImage };
+  return {
+    ...body, positive: current.positive, seed: current.seed, randomizeSeed: current.randomizeSeed, endImage: current.endImage,
+    h3: { ...body.h3, refImages: current.h3?.refImages ?? [] },
+  };
 }
 
 /** Whether the current settings are exactly this preset's recipe. */

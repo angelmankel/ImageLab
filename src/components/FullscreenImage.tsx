@@ -21,6 +21,7 @@ import {
   type SlideshowTransition,
 } from '@/lib/storage';
 import { cn } from '@/lib/cn';
+import { playOrMute, videoHasAudio } from '@/lib/videoAudio';
 import { CLOSE_MS, EASE_OUT, animateClose, animateOpen, reducedMotion, registerViewer } from './viewerTransition';
 
 /**
@@ -351,8 +352,8 @@ export function FullscreenImage({
                   <KenBurnsWrap active={playing && transition === 'ken-burns'} durationMs={slideshowMs} animKey={animKey}>
                     {isVideoUrl(u) ? (
                       <video
-                        key={u} src={u} autoPlay muted loop playsInline className={IMAGE_BOX} style={panStyle}
-                        onLoadedMetadata={(e) => { const n = { w: e.currentTarget.videoWidth, h: e.currentTarget.videoHeight }; naturalRef.current = n; setSize(n); }}
+                        key={u} src={u} autoPlay muted={!videoHasAudio(u)} loop playsInline className={IMAGE_BOX} style={panStyle}
+                        onLoadedMetadata={(e) => { const n = { w: e.currentTarget.videoWidth, h: e.currentTarget.videoHeight }; naturalRef.current = n; setSize(n); playOrMute(e.currentTarget); }}
                       />
                     ) : (
                       <img

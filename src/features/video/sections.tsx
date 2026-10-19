@@ -13,10 +13,11 @@ import {
 } from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
 import {
-  COLOR_MATCH_METHODS, CONTAINER_CODECS, FAST, INTERPOLATION_MODELS, effectiveSampling, hasSpeedInside, outputFrames, upscaledSize, wanLength,
-  type ColorMatchMethod, type VideoEncode, type VideoMode, type VideoSettings, type VideoUpscale, type WeightDtype,
+  COLOR_MATCH_METHODS, CONTAINER_CODECS, FAST, H3_FPS, H3_TURBO_LORAS, INTERPOLATION_MODELS, clipFrames, effectiveSampling, h3EffectiveSteps, h3Length, h3TurboStepsOf, hasSpeedInside, isH3Name, outputFrames, upscaledSize, wanLength,
+  type ColorMatchMethod, type H3Mode, type VideoEncode, type VideoEngine, type VideoMode, type VideoSettings, type VideoUpscale, type WeightDtype,
 } from '@/lib/wanGraph';
-import { missingVideoFiles, videoSeconds, videoSectionStatus, type VideoSectionId, type VideoSectionStatus } from '@/lib/videoSections';
+import { H3_SIZE_PRESETS, h3ModelFile } from '@/lib/h3Graph';
+import { framesSeconds, missingVideoFiles, videoSeconds, videoSectionStatus, type VideoSectionId, type VideoSectionStatus } from '@/lib/videoSections';
 import { DimensionsField, SelectField, SliderField, StrengthControl, ToggleField } from '@/components/fields';
 import type { PresetGroup } from '@/components/fields/DimensionsField';
 import { ModelSelectorModal } from '@/components/models/ModelSelectorModal';
@@ -46,17 +47,43 @@ export function useVideoSectionStatus(): Record<VideoSectionId, VideoSectionStat
 }
 
 export function VideoSectionBody({ id, host }: { id: VideoSectionId; host: string }): ReactNode {
+  const h3 = useVideo((s) => s.engine === 'h3');
   switch (id) {
     case 'mode': return <ModeSection host={host} />;
     case 'prompt': return <PromptSection />;
-    case 'models': return <ModelsSection />;
-    case 'loras': return <LorasSection />;
-    case 'size': return <SizeSection />;
-    case 'speed': return <SpeedSection />;
-    case 'guidance': return <GuidanceSection />;
+    case 'models': return h3 ? <H3ModelsSection /> : <ModelsSection />;
+    case 'loras': return h3 ? <H3LorasSection /> : <LorasSection />;
+    case 'size': return h3 ? <H3SizeSection /> : <SizeSection />;
+    case 'speed': return h3 ? <H3SpeedSection /> : <SpeedSection />;
+    case 'guidance': return h3 ? <H3GuidanceSection /> : <GuidanceSection />;
     case 'upscale': return <UpscaleSection />;
     case 'finish': return <FinishSection />;
   }
+}
+
+/** Whether the run starts from a picture, whichever engine. */
+const isI2v = (v: Pick<VideoSettings, 'engine' | 'mode' | 'h3'>) => (v.engine === 'h3' ? v.h3.mode === 'i2v' : v.mode === 'i2v');
+
+/** Wan 2.2 or MiniMax H3: one switch, each with its own settings underneath. */
+function EngineSwitch() {
+  const engine = useVideo((s) => s.engine);
+  const set = useVideo((s) => s.set);
+  return (
+    <Stack gap={4}>
+      <SegmentedControl
+        fullWidth
+        value={engine}
+        onChange={(e) => set({ engine: e as VideoEngine })}
+        data={[{ value: 'wan', label: 'Wan 2.2' }, { value: 'h3', label: 'MiniMax H3' }]}
+        aria-label="Video model"
+      />
+      <Text size="xs" c="dimmed">
+        {engine === 'h3'
+          ? 'One 33B omni model: video with its own stereo soundtrack, 24 fps, up to 15 s, text / first-last frame / reference pictures. Slower per clip than Wan.'
+          : 'Two 14B experts, silent video, 16 fps, quick with the lightx2v speed LoRAs. Switch to MiniMax H3 for sound.'}
+      </Text>
+    </Stack>
+  );
 }
 
 /** Wan sizes: 480p and 720p buckets, multiples of 16. */
@@ -96,11 +123,79 @@ function Fold({ label, open, onToggle, children }: { label: string; open: boolea
   );
 }
 
+/** Reference pictures for H3's reference task: up to nine `LoadImage` slots, <Picture n> in the prompt. */
+function RefImages({ host }: { host: string }) {
+  const refs = useVideo((s) => s.h3.refImages);
+  const setH3 = useVideo((s) => s.setH3);
+  const update = (list: string[]) => setH3({ refImages: list.filter(Boolean).slice(0, 9) });
+  const slots = [...refs.filter(Boolean), ...(refs.filter(Boolean).length < 9 ? [''] : [])];
+  return (
+    <Stack gap="xs">
+      {slots.map((img, i) => (
+        <Stack key={`${i}:${img}`} gap={4}>
+          <Group justify="space-between" wrap="nowrap">
+            <Text size="sm" fw={500}>{img ? `<Picture ${i + 1}>` : refs.filter(Boolean).length ? 'Add another picture' : 'Reference picture'}</Text>
+            {img && <ActionIcon size="sm" variant="subtle" color="gray" aria-label={`Remove picture ${i + 1}`} onClick={() => update(refs.filter((r, j) => r && j !== i))}><IconX size={14} /></ActionIcon>}
+          </Group>
+          <ImageInput
+            param={{ ...START_IMAGE, id: `video:ref:${i}`, nodeLabel: `Picture ${i + 1}` }}
+            value={img}
+            onChange={(ref) => { const next = [...refs.filter(Boolean)]; next[i] = String(ref ?? ''); update(next); }}
+            host={host}
+          />
+        </Stack>
+      ))}
+      <Text size="xs" c="dimmed">Say in the prompt what each one is for: "the character in &lt;Picture 1&gt; walks through the street in &lt;Picture 2&gt;". The model keeps their identity; "match" sizing is the quick one, "max" (under Size) holds detail better and is several times slower.</Text>
+    </Stack>
+  );
+}
+
+function H3ModeBody({ host }: { host: string }) {
+  const v = useVideo();
+  const h = v.h3;
+  const [endOpen, setEndOpen] = useState(!!v.endImage);
+  return (
+    <>
+      <SegmentedControl
+        fullWidth
+        value={h.mode}
+        onChange={(m) => v.setH3({ mode: m as H3Mode })}
+        data={[{ value: 't2v', label: 'Text' }, { value: 'i2v', label: 'First frame' }, { value: 'ref', label: 'Reference' }]}
+        aria-label="H3 task"
+      />
+      {h.mode === 'i2v' && (
+        <>
+          <Stack gap={4}>
+            <Text size="sm" fw={500}>First frame</Text>
+            <ImageInput param={START_IMAGE} value={v.startImage} onChange={(ref) => v.set({ startImage: String(ref ?? '') })} host={host} />
+            <Text size="xs" c="dimmed">H3 stretches the first frame to the video size, so pick a size with the picture's shape (Send to video flips it for you).</Text>
+          </Stack>
+          <Fold label={v.endImage ? 'Last frame (set)' : 'Last frame'} open={endOpen} onToggle={() => setEndOpen((o) => !o)}>
+            <ImageInput param={END_IMAGE} value={v.endImage} onChange={(ref) => v.set({ endImage: String(ref ?? '') })} host={host} />
+            <Text size="xs" c="dimmed">With a last frame the clip travels from the first picture to the second (the same fl2va model). It is cover-cropped to the size. Clear it to go back to first frame only.</Text>
+          </Fold>
+        </>
+      )}
+      {h.mode === 'ref' && <RefImages host={host} />}
+      {h.mode === 't2v' && <Text size="xs" c="dimmed">Text alone. H3 writes the sound too: tell it what to hear ("Audio: rain on tin, a distant train, no music").</Text>}
+    </>
+  );
+}
+
 function ModeSection({ host }: { host: string }) {
   const v = useVideo();
   const [endOpen, setEndOpen] = useState(!!v.endImage);
+  if (v.engine === 'h3') {
+    return (
+      <Stack gap="sm">
+        <EngineSwitch />
+        <H3ModeBody host={host} />
+      </Stack>
+    );
+  }
   return (
     <Stack gap="sm">
+      <EngineSwitch />
       <SegmentedControl
         fullWidth
         value={v.mode}
@@ -128,21 +223,211 @@ function ModeSection({ host }: { host: string }) {
 function PromptSection() {
   const v = useVideo();
   const [negOpen, setNegOpen] = useState(false);
+  const h3 = v.engine === 'h3';
   return (
     <Stack gap="sm">
       <Textarea
         value={v.positive}
         onChange={(e) => v.set({ positive: e.currentTarget.value })}
-        placeholder={v.mode === 'i2v' ? 'What happens: the motion, the camera…' : 'The scene, what moves, how the camera moves…'}
+        placeholder={h3
+          ? (v.h3.mode === 'ref' ? 'What happens, who is who: <Picture 1> …, <Picture 2> …; the camera; "Audio: …"' : 'The scene, the motion, the camera — and the sound: "Audio: …"')
+          : v.mode === 'i2v' ? 'What happens: the motion, the camera…' : 'The scene, what moves, how the camera moves…'}
         autosize
         minRows={4}
         maxRows={12}
         aria-label="Prompt"
       />
-      <Fold label="Negative prompt" open={negOpen} onToggle={() => setNegOpen((o) => !o)}>
+      {h3 && (
+        <Text size="xs" c="dimmed">
+          H3 follows long, concrete prompts: look, scene, a timeline ("[0–2 s] …"), camera, then an "Audio:" line (ambience, effects, music, speech in quotes). It takes no negative prompt.
+        </Text>
+      )}
+      {!h3 && <Fold label="Negative prompt" open={negOpen} onToggle={() => setNegOpen((o) => !o)}>
         <Textarea value={v.negative} onChange={(e) => v.set({ negative: e.currentTarget.value })} autosize minRows={3} maxRows={8} aria-label="Negative prompt"
           description={v.fast && !v.guidance.nag.on ? 'At CFG 1 (Fast) the negative does nothing — turn on NAG under Guidance to make it count.' : 'Wan was trained with this Chinese negative; English works too.'} />
-      </Fold>
+      </Fold>}
+    </Stack>
+  );
+}
+
+// ── MiniMax H3 sections ─────────────────────────────────────────────────────
+
+const H3_LENGTHS = [73, 124, 243, 362];
+
+function H3SizeSection() {
+  const v = useVideo();
+  const h = v.h3;
+  const secs = framesSeconds(h3Length(h.length), H3_FPS);
+  return (
+    <Stack gap="sm">
+      <DimensionsField value={{ width: h.width, height: h.height }} onChange={({ width, height }) => v.setH3({ width, height })} presets={H3_SIZE_PRESETS} />
+      <Text size="xs" c="dimmed">Multiples of 32. 864 × 480 is the template's quick size; 1344 × 768 is the model's native canvas (about 3× the work). Above 768 × 1344 pixels is outside what it was trained on.</Text>
+      <SliderField label="Length (frames at 24 fps)" value={h.length} min={22} max={362} step={17} defaultValue={124} presets={H3_LENGTHS} ends={['Short clip, quick', '15 s, slow; needs the most VRAM']}
+        onChange={(length) => v.setH3({ length: h3Length(length) })}
+        description={`${secs} s · frames snap to the model's 17k + 5 grid · trained for 5–15 s${v.interpolate.on ? ` · saved at ${outputFrames(v).fps} fps after interpolation` : ''}`} />
+      <ToggleField label="Audio" checked={h.audio} onChange={(audio) => v.setH3({ audio })}
+        description={h.audio ? 'The model\'s stereo soundtrack (32 kHz) is decoded and muxed into the MP4.' : 'Silent: the audio decode is skipped (the model still generates it inside).'} />
+      {h.mode === 'ref' && (
+        <SelectField label="Reference picture size" value={h.refImageSize} onChange={(s) => v.setH3({ refImageSize: s as 'match' | 'max' })} searchable={false}
+          data={[{ value: 'match', label: 'match — scaled to the video\'s pixel area (quick)' }, { value: 'max', label: 'max — 2048 px short edge (best identity, several × slower)' }]} />
+      )}
+    </Stack>
+  );
+}
+
+function H3ModelsSection() {
+  const v = useVideo();
+  const h = v.h3;
+  const server = useStore((s) => s.server);
+  const h3Files = server.diffusionModels.filter(isH3Name);
+  const diffusion = h3Files.length ? h3Files : server.diffusionModels;
+  return (
+    <Stack gap="sm">
+      <Text size="xs" c="dimmed">Text and first / last frame run the fl2va checkpoint, reference pictures the ref2va one. The pod carries the pruned INT8 pair (21 GB each) from Comfy-Org/MiniMax-H3.</Text>
+      <FileSelect label={h.mode === 'ref' ? 'Model (ref2va, in use)' : 'Model (fl2va, in use)'} value={h3ModelFile(h)} files={diffusion}
+        onChange={(f) => v.setH3({ models: { ...h.models, [h.mode === 'ref' ? 'ref2va' : 'fl2va']: f } })} />
+      <FileSelect label={h.mode === 'ref' ? 'Model for text / first frame (fl2va)' : 'Model for reference pictures (ref2va)'} value={h.mode === 'ref' ? h.models.fl2va : h.models.ref2va} files={diffusion}
+        onChange={(f) => v.setH3({ models: { ...h.models, [h.mode === 'ref' ? 'fl2va' : 'ref2va']: f } })} />
+      <FileSelect label="Text encoder (Qwen3-VL-32B)" value={h.textEncoder} files={server.textEncoders} onChange={(textEncoder) => v.setH3({ textEncoder })}
+        description="nvfp4_awq (16 GB, the template's, runs on any GPU) or int8_convrot (27 GB, closer to the original). Both are on the pod." />
+      <FileSelect label="Video VAE" value={h.videoVae} files={server.vaes} onChange={(videoVae) => v.setH3({ videoVae })} />
+      <FileSelect label="Audio VAE" value={h.audioVae} files={server.vaes} onChange={(audioVae) => v.setH3({ audioVae })} />
+      <SelectField label="Weight dtype" value={v.weightDtype} onChange={(weightDtype) => v.set({ weightDtype: weightDtype as WeightDtype })} data={WEIGHT_DTYPES} searchable={false}
+        description="Leave on default for the INT8 files: they carry their own quantisation." />
+    </Stack>
+  );
+}
+
+function H3LorasSection() {
+  const v = useVideo();
+  const h = v.h3;
+  const loras = useStore((s) => s.server.loras);
+  const availability = useResourceAvailability('lora');
+  const [picking, setPicking] = useState(false);
+  const toggle = (name: string) => {
+    const found = h.loras.find((l) => l.name === name);
+    if (found) v.removeH3Lora(found.id); else v.addH3Lora(name);
+  };
+  return (
+    <Stack gap="xs">
+      {h.loras.map((l) => (
+        <Paper key={l.id} withBorder p="xs" radius="sm" style={{ opacity: l.on ? 1 : 0.55 }}>
+          <Stack gap={6}>
+            <Group gap="xs" wrap="nowrap">
+              <Switch size="xs" checked={l.on} onChange={(e) => v.updateH3Lora(l.id, { on: e.currentTarget.checked })} aria-label={`${l.name} on`} />
+              <Text size="xs" fw={600} truncate style={{ flex: 1, minWidth: 0 }} title={l.name}>{modelLabel(l.name)}</Text>
+              <ActionIcon size="sm" variant="subtle" color="gray" aria-label={`Remove ${l.name}`} onClick={() => v.removeH3Lora(l.id)}><IconX size={14} /></ActionIcon>
+            </Group>
+            <StrengthControl label="Strength" value={l.strength} min={0} max={3} step={0.05} chips={[0.5, 1, 1.5]} color="grape" ends={LORA_ENDS}
+              onChange={(strength) => v.updateH3Lora(l.id, { strength })} />
+          </Stack>
+        </Paper>
+      ))}
+      {!h.loras.length && <Text size="xs" c="dimmed">H3 LoRAs are single files (one model, no experts). The turbo speed LoRAs live under Speed & sampling, not here.</Text>}
+      <Button variant="light" color="grape" leftSection={<IconPlus size="1rem" />} onClick={() => setPicking(true)} fullWidth>Add LoRA</Button>
+      <ModelSelectorModal
+        opened={picking}
+        onClose={() => setPicking(false)}
+        kind="lora"
+        models={loras}
+        selectedModels={h.loras.map((l) => l.name)}
+        onToggleModel={toggle}
+        availability={availability}
+        fitsType={{ label: 'MiniMax H3', fits: (bucket) => bucket === 'Unknown' }}
+      />
+    </Stack>
+  );
+}
+
+function H3SpeedSection() {
+  const v = useVideo();
+  const h = v.h3;
+  const samplers = useStore((s) => s.server.samplers);
+  const schedulers = useStore((s) => s.server.schedulers);
+  const serverLoras = useStore((s) => s.server.loras);
+  const t = h.turbo;
+  const setTurbo = (p: Partial<typeof t>) => v.setH3({ turbo: { ...t, ...p } });
+  const ref = h.mode === 'ref';
+  const [filesOpen, setFilesOpen] = useState(false);
+  const turboLoras: string[] = [H3_TURBO_LORAS.fl2va8, H3_TURBO_LORAS.fl2va4, H3_TURBO_LORAS.ref4];
+  const loraFiles = [...turboLoras.filter((f) => serverLoras.includes(f)), ...serverLoras.filter((f) => !turboLoras.includes(f) && /turbo|lightning|lightx2v/i.test(f))];
+  // Picking a turbo file sets the steps it was distilled for ("4step", "8step").
+  const pickLora = (which: 'lora' | 'loraRef', file: string) => {
+    const steps = h3TurboStepsOf(file);
+    setTurbo(which === 'lora' ? { lora: file, ...(steps ? { steps } : {}) } : { loraRef: file, ...(steps ? { stepsRef: steps } : {}) });
+  };
+  return (
+    <Stack gap="sm">
+      <Paper withBorder p="xs" radius="sm">
+        <Stack gap="xs">
+          <Switch
+            checked={t.on}
+            onChange={(e) => setTurbo({ on: e.currentTarget.checked })}
+            label={<Text size="sm" fw={500}>Turbo ({ref ? t.stepsRef : t.steps} steps)</Text>}
+            description={`lightx2v's turbo LoRA on the model, ${ref ? t.stepsRef : t.steps} steps instead of ${h.steps}: about ${Math.max(1, Math.round(h.steps / Math.max(1, ref ? t.stepsRef : t.steps)))}× faster. The 8-step file keeps more detail than the 4-step; speech and timbre want 12+ steps, so leave Turbo off for talking.`}
+          />
+          {t.on && (
+            <Stack gap={6} className="border-t border-border-default pt-2">
+              <SliderField label={ref ? 'Turbo steps (reference)' : 'Turbo steps'} value={ref ? t.stepsRef : t.steps} min={2} max={16} step={1} defaultValue={ref ? 4 : 8} presets={[4, 6, 8]}
+                onChange={(n) => setTurbo(ref ? { stepsRef: n } : { steps: n })} ends={['What the LoRA was made for', 'More detail, slower']}
+                description="4 for a 4-step file, 8 for the 8-step one; 6–8 with the 4-step file at strength ~0.8 also works." />
+              <StrengthControl label="Turbo LoRA strength" value={t.strength} min={0} max={1.5} step={0.05} chips={[0.8, 1]} color="yellow" onChange={(strength) => setTurbo({ strength })}
+                ends={['Softer, more motion', 'Cleaner, as distilled']} />
+              <Fold label="Turbo LoRA files" open={filesOpen} onToggle={() => setFilesOpen((o) => !o)}>
+                <FileSelect label="Text / first frame (fl2va)" value={t.lora} files={loraFiles} onChange={(f) => pickLora('lora', f)} />
+                <FileSelect label="Reference pictures (ref2va)" value={t.loraRef} files={loraFiles} onChange={(f) => pickLora('loraRef', f)}
+                  description="The pod has the fl2v 8-step and 4-step (768p) files and the ref2v 4-step one. Distilled on the full builds; they are what the templates use with the pruned ones too." />
+              </Fold>
+            </Stack>
+          )}
+        </Stack>
+      </Paper>
+      <SliderField label="Steps" value={t.on ? h3EffectiveSteps(h) : h.steps} min={4} max={50} step={1} defaultValue={20} presets={[12, 20, 30]} disabled={t.on}
+        onChange={(steps) => v.setH3({ steps })} ends={STEPS_ENDS} description="20 is the template. Simple shots are fine at 12–16; fine detail keeps improving to about 50." />
+      <SliderField label="CFG" value={h.cfg} min={1} max={6} step={0.1} defaultValue={1} presets={[1, 2, 3]} onChange={(cfg) => v.setH3({ cfg })}
+        description="1 is the template (no guidance pass, as BasicGuider). Above 1 the model runs twice per step against an empty negative: stronger prompt following, may burn." ends={['The template; fastest', 'Follows the prompt harder; 2× work']} />
+      <SliderField label="Video shift" value={h.shiftVideo} min={1} max={30} step={0.5} defaultValue={12} presets={[10, 12]} onChange={(shiftVideo) => v.setH3({ shiftVideo })}
+        description="The flow schedule's shift. 12 is the model's default; FastH3 uses 10." ends={['More detail, less motion', 'Bigger motion, looser detail']} />
+      <SliderField label="Audio shift" value={h.shiftAudio} min={0.5} max={10} step={0.5} defaultValue={3} presets={[2, 3]} onChange={(shiftAudio) => v.setH3({ shiftAudio })}
+        description="The soundtrack's own shift; 3 is the default, 2 with the 4-step distill." ends={['Cleaner, flatter sound', 'More texture, may smear']} />
+      <SelectField label="Sampler" value={h.sampler} onChange={(sampler) => v.setH3({ sampler })} data={samplers}
+        description="res_multistep / simple is the template; lcm / simple for the 4-step distill. Keep one sampler run: splitting resets multistep history." />
+      <SelectField label="Scheduler" value={h.scheduler} onChange={(scheduler) => v.setH3({ scheduler })} data={schedulers} />
+    </Stack>
+  );
+}
+
+function H3GuidanceSection() {
+  const v = useVideo();
+  const lv = v.h3.lowVram;
+  const set = (p: Partial<typeof lv>) => v.setH3({ lowVram: { ...lv, ...p } });
+  const tokens = Math.round((clipFrames(v) - 5) / 17 * 5 + 2) * Math.ceil(v.h3.height / 16) * Math.ceil(v.h3.width / 16);
+  return (
+    <Stack gap="sm">
+      <Text size="xs" c="dimmed">
+        H3 runs on one card: about {Math.round(tokens / 1000)}k video tokens at this size and length, plus audio and text, through a 33B model. On a shared 80 GB card (the pod's video share is 41 GB) long or native-size clips can run out of VRAM; these KJNodes patches cut the peak without changing the output. Off by default; turn them on if a run fails with "out of memory".
+      </Text>
+      <Paper withBorder p="xs" radius="sm">
+        <Stack gap="xs">
+          <ToggleField label="Low-VRAM attention" checked={lv.attention} onChange={(attention) => set({ attention })}
+            description="Splits each attention call into head groups so its temporary buffers shrink by the count. Same result, a little slower." />
+          {lv.attention && (
+            <SliderField label="Head groups" value={lv.headChunks} min={1} max={14} step={1} defaultValue={4} presets={[2, 4, 8]} onChange={(headChunks) => set({ headChunks })}
+              ends={['Less saving', 'Most saving, slowest']} />
+          )}
+        </Stack>
+      </Paper>
+      <Paper withBorder p="xs" radius="sm">
+        <Stack gap="xs">
+          <ToggleField label="Chunked feed-forward" checked={lv.feedForward} onChange={(feedForward) => set({ feedForward })}
+            description="Runs the feed-forward (SwiGLU) over the token sequence in pieces; each piece still uses the fused INT8 kernel, so the output matches." />
+          {lv.feedForward && (
+            <SliderField label="Chunks" value={lv.chunks} min={1} max={16} step={1} defaultValue={2} presets={[2, 4, 8]} onChange={(chunks) => set({ chunks })}
+              ends={['Less saving', 'Most saving, slowest']} />
+          )}
+        </Stack>
+      </Paper>
+      <Text size="xs" c="dimmed">Not here on purpose: SageAttention (no wheel in the image; its INT8 path also artefacts with int8_convrot) and the hosted 2K upscaler / Context-IR, which are Comfy Cloud only. The Upscale section's SPAN models work on H3 frames as on Wan's.</Text>
     </Stack>
   );
 }
@@ -429,7 +714,8 @@ function UpscaleSection() {
   const models = useStore((s) => s.server.upscaleModels);
   const up = v.upscale;
   const set = (p: Partial<VideoUpscale>) => v.set({ upscale: { ...up, ...p } });
-  const [w, h] = upscaledSize(v.width, v.height, up.scale);
+  const baseW = v.engine === 'h3' ? v.h3.width : v.width, baseH = v.engine === 'h3' ? v.h3.height : v.height;
+  const [w, h] = upscaledSize(baseW, baseH, up.scale);
   const ordered = [...FAST_UPSCALERS.filter((m) => models.includes(m)), ...models.filter((m) => !FAST_UPSCALERS.includes(m))];
   const data = ordered.map((m) => ({ value: m, label: `${modelLabel(m)}${FAST_UPSCALERS.includes(m) ? ' (fast)' : ''}` }));
   if (up.model && !models.includes(up.model)) data.unshift({ value: up.model, label: `${modelLabel(up.model)} (not installed)` });
@@ -437,7 +723,7 @@ function UpscaleSection() {
     <Stack gap="sm">
       <Switch checked={up.on} onChange={(e) => set({ on: e.currentTarget.checked })} aria-label="Upscale the video"
         label={<Text size="sm" fw={500}>Upscale the video</Text>}
-        description={up.on ? 'Runs on the finished frames, before the MP4 is written.' : `Off: the MP4 comes out at ${v.width} × ${v.height}.`} />
+        description={up.on ? 'Runs on the finished frames, before the MP4 is written.' : `Off: the MP4 comes out at ${baseW} × ${baseH}.`} />
       {up.on && (
         <>
           <SegmentedControl fullWidth size="xs" value={up.method} onChange={(m) => set({ method: m as VideoUpscale['method'] })}
@@ -447,7 +733,7 @@ function UpscaleSection() {
               description="SPAN 2x is the quickest; 4x models are sharper and much slower on 81 frames." />
           )}
           <SliderField label="Scale" value={up.scale} min={1.25} max={4} step={0.25} defaultValue={2} presets={[1.5, 2, 3, 4]}
-            onChange={(scale) => set({ scale })} description={`${v.width} × ${v.height} → ${w} × ${h}`}
+            onChange={(scale) => set({ scale })} description={`${baseW} × ${baseH} → ${w} × ${h}`}
             ends={['Small file, quick', 'Big file, slow']} />
           <SelectField label={up.method === 'model' ? 'Resize to exact size with' : 'Interpolation'} value={up.resizeMethod}
             onChange={(resizeMethod) => set({ resizeMethod: resizeMethod as VideoUpscale['resizeMethod'] })}
@@ -478,7 +764,7 @@ function FinishSection() {
   if (ip.model && !installed.includes(ip.model)) ipData.unshift({ value: ip.model, label: `${modelLabel(ip.model)} (not installed)` });
   return (
     <Stack gap="sm">
-      {v.mode === 'i2v' && (
+      {isI2v(v) && (
         <Paper withBorder p="xs" radius="sm">
           <Stack gap="xs">
             <ToggleField label="Colour match to the start image" checked={cm.on} onChange={(on) => setCm({ on })}
@@ -498,12 +784,12 @@ function FinishSection() {
         <Stack gap="xs">
           <ToggleField label="Frame interpolation (RIFE / FILM)" checked={ip.on} onChange={(on) => setIp({ on })}
             description={ip.on
-              ? `${wanLength(v.length)} → ${out.frames} frames, saved at ${out.fps} fps: the same seconds, ${ip.multiplier}× smoother. Runs after the upscale.`
-              : `Doubles or more the frames after rendering, so 16 fps plays as 32. Cheap (seconds) and a big win for anime pans; costs nothing in sampling.`} />
+              ? `${clipFrames(v)} → ${out.frames} frames, saved at ${out.fps} fps: the same seconds, ${ip.multiplier}× smoother. Runs after the upscale.`
+              : `Doubles or more the frames after rendering, so ${v.engine === 'h3' ? '24 fps plays as 48' : '16 fps plays as 32'}. Cheap (seconds) and a big win for anime pans; costs nothing in sampling.`} />
           {ip.on && (
             <>
               <SegmentedControl fullWidth size="xs" value={String(ip.multiplier)} onChange={(m) => setIp({ multiplier: Number(m) })}
-                data={[2, 3, 4].map((m) => ({ value: String(m), label: `${m}× → ${v.fps * m} fps` }))} />
+                data={[2, 3, 4].map((m) => ({ value: String(m), label: `${m}× → ${(v.engine === 'h3' ? H3_FPS : v.fps) * m} fps` }))} />
               <SelectField label="Model" value={ip.model} onChange={(model) => setIp({ model })} data={ipData}
                 description="RIFE 4.26 is the pick; lite is quicker; heavy is sharper on big motion; FILM handles larger jumps but is slower." />
             </>
@@ -542,7 +828,11 @@ export function MissingFiles() {
   return (
     <Alert variant="light" color="orange" icon={<IconAlertTriangle size={16} />} p="xs" title="Not on the server yet">
       <Text size="xs">{missing.map(modelLabel).join(', ')}</Text>
-      <Text size="xs" c="dimmed" mt={4}>Links are in the note of ImageLabDocker's workflows/Wan 2.2 {v.mode === 't2v' ? 'T2V' : 'I2V'} A14B.json.</Text>
+      <Text size="xs" c="dimmed" mt={4}>
+        {v.engine === 'h3'
+          ? 'Hugging Face Comfy-Org/MiniMax-H3 (diffusion_models, text_encoders, vae, loras); the model browser downloads by URL.'
+          : `Links are in the note of ImageLabDocker's workflows/Wan 2.2 ${v.mode === 't2v' ? 'T2V' : 'I2V'} A14B.json.`}
+      </Text>
     </Alert>
   );
 }

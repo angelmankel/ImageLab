@@ -8,7 +8,8 @@
  */
 import { createRunStore, type RunSource } from '@/lib/comfyRunner';
 import { useStore } from '@/lib/store';
-import { buildWanGraph, isVideoName, wanRunTiming, type VideoSettings } from '@/lib/wanGraph';
+import { isVideoName, wanRunTiming, type VideoSettings } from '@/lib/wanGraph';
+import { buildVideoGraph } from '@/lib/h3Graph';
 import { missingVideoFiles } from '@/lib/videoSections';
 import { modelLabel } from '@/components/models/modelInfo';
 import { randomVideoSeed, useVideo } from './videoStore';
@@ -22,13 +23,16 @@ export function videoRunSource(host: string, override: Partial<VideoSettings> = 
     build: async () => {
       const st = { ...useVideo.getState(), ...override };
       if (!st.positive.trim()) return { error: 'Write a prompt first.' };
-      if (st.mode === 'i2v' && !st.startImage) return { error: 'Choose a start image first.' };
+      if (st.engine === 'h3') {
+        if (st.h3.mode === 'i2v' && !st.startImage) return { error: 'Choose a first frame first.' };
+        if (st.h3.mode === 'ref' && !st.h3.refImages.some(Boolean)) return { error: 'Add at least one reference picture first.' };
+      } else if (st.mode === 'i2v' && !st.startImage) return { error: 'Choose a start image first.' };
       const missing = missingVideoFiles(st, useStore.getState().server);
       if (missing.length) return { error: `Not on the server: ${missing.map(modelLabel).join(', ')}. Pick installed files under Models, or download these first.` };
       let seed = st.seed;
       // A sweep fixes the seed itself; a plain run rolls one when Auto is on and keeps it shown.
       if (override.seed == null && st.randomizeSeed) { seed = randomVideoSeed(); useVideo.getState().set({ seed }); }
-      return { graph: buildWanGraph({ ...st, seed }, st.startImage || null) };
+      return { graph: buildVideoGraph({ ...st, seed }, st.startImage || null) };
     },
     keep: (img) => isVideoName(img.filename),
     // Every finished run teaches the time estimate.

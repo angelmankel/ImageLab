@@ -18,7 +18,7 @@ import { rankSpotlight, type SpotlightItem } from '@/lib/spotlight';
 import { emitApp, onApp } from '@/lib/appEvents';
 import { useStore } from '@/lib/store';
 import { profileById } from '@/lib/modelProfiles';
-import { isWanName } from '@/lib/wanGraph';
+import { isVideoModelName } from '@/lib/wanGraph';
 import { useCanvasStore, type MainView } from '@/lib/canvasStore';
 import { uid } from '@/lib/storage';
 import { applyPromptPreset } from '@/lib/promptPresets';
@@ -102,7 +102,7 @@ function buildItems(): SpotlightItem[] {
   const base = w.checkpoints[0];
   for (const name of st.server.models) {
     // Wan video models run in the Video view only.
-    if (name === base?.name || isWanName(name)) continue;
+    if (name === base?.name || isVideoModelName(name)) continue;
     out.push({
       id: `ckpt:${name}`, group: 'Checkpoints', label: modelLabel(name), description: 'Use as the checkpoint', keywords: name,
       run: () => {

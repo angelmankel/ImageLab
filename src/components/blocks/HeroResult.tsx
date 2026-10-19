@@ -17,6 +17,7 @@ import { usePreloadAround } from '@/hooks/usePreload';
 import { useTouchInput } from '@/hooks/useTouchInput';
 import { cn } from '@/lib/cn';
 import { SLIDE_GAP, createWheelStepper, lockAxis } from '@/lib/pager';
+import { playOrMute, videoHasAudio } from '@/lib/videoAudio';
 import type { ResultItem } from '@/lib/workspace';
 
 const SIDES = [-1, 0, 1] as const;
@@ -88,13 +89,18 @@ export function HeroResult({ items = NO_ITEMS, currentKey = null, onPick, previe
     return items[index + side] ?? null;
   };
 
+  // A clip with a soundtrack (MiniMax H3) plays unmuted; if the browser refuses unmuted autoplay
+  // (no gesture yet), it falls back to muted so the picture still moves.
   const renderCurrent = (it: ResultItem) => it.kind === 'video' ? (
     <video
-      key={it.url} src={it.url} controls={!touch} autoPlay loop muted playsInline
+      key={it.url} src={it.url} controls={!touch} autoPlay loop muted={!videoHasAudio(it.filename)} playsInline
       data-viewer-origin={it.key}
       onClick={touch ? (e) => setVideoFs({ url: it.url, time: e.currentTarget.currentTime }) : undefined}
       onDoubleClick={touch ? undefined : () => onOpen?.(it)}
-      onLoadedMetadata={(e) => { if (resumeAt.current != null) { e.currentTarget.currentTime = resumeAt.current; resumeAt.current = null; } }}
+      onLoadedMetadata={(e) => {
+        if (resumeAt.current != null) { e.currentTarget.currentTime = resumeAt.current; resumeAt.current = null; }
+        playOrMute(e.currentTarget);
+      }}
       className="h-full w-full object-contain"
     />
   ) : (

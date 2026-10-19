@@ -28,6 +28,51 @@
 
 export type VideoMode = 't2v' | 'i2v';
 
+/** Which model family the Video mode drives: Wan 2.2 A14B (two experts, silent) or MiniMax H3
+ *  (one omni model, video + stereo audio). Each keeps its own settings; `lib/h3Graph.ts` builds
+ *  the H3 graph. */
+export type VideoEngine = 'wan' | 'h3';
+
+/** H3 tasks: text → video, first (+ optional last) frame → video, reference pictures → video. */
+export type H3Mode = 't2v' | 'i2v' | 'ref';
+
+export type H3Lora = { id: string; name: string; strength: number; on: boolean };
+
+/** MiniMax H3's own settings (ComfyUI v0.34.5's `nodes_minimax_h3.py` and the bundled
+ *  `video_minimax_h3_*` templates): the fl2va checkpoint serves text and first/last frame, the
+ *  ref2va one the reference task; one Qwen3-VL-32B text encoder, a video VAE and an audio VAE. */
+export type H3Settings = {
+  mode: H3Mode;
+  models: { fl2va: string; ref2va: string };
+  textEncoder: string;
+  videoVae: string;
+  audioVae: string;
+  loras: H3Lora[];
+  /** Multiples of 32; the model's native canvas is a 768 short edge capped at 768×1344. */
+  width: number;
+  height: number;
+  /** Frames at 24 fps on the model's 17k + 5 grid (124 = ~5 s; trained 124–362). */
+  length: number;
+  steps: number;
+  /** 1 is the template (`BasicGuider`, no negative); above 1 the zeroed negative starts to cost. */
+  cfg: number;
+  sampler: string;
+  scheduler: string;
+  shiftVideo: number;
+  shiftAudio: number;
+  /** Decode and mux the model's stereo soundtrack. Off saves the audio decode only. */
+  audio: boolean;
+  /** The lightx2v turbo LoRAs: `lora` + `steps` for fl2va (8-step file at 8, 4-step at 4),
+   *  `loraRef` + `stepsRef` for ref2va. */
+  turbo: { on: boolean; lora: string; steps: number; loraRef: string; stepsRef: number; strength: number };
+  /** Reference task: `LoadImage` references, up to 9, named <Picture 1>… in the prompt. */
+  refImages: string[];
+  refImageSize: 'match' | 'max';
+  /** KJNodes' peak-VRAM patches for H3, exact in output: attention in head groups and a
+   *  chunked feed-forward. For a shared card (the pod's 41 GB video share). */
+  lowVram: { attention: boolean; headChunks: number; feedForward: boolean; chunks: number };
+};
+
 export type VideoLora = {
   id: string;
   name: string;
@@ -102,6 +147,9 @@ export type VideoSettings = {
   interpolate: VideoInterpolate;
   /** The file ComfyUI writes. Defaults give exactly `format: mp4, codec: h264` as before. */
   encode: VideoEncode;
+  /** Wan (default, every older save) or MiniMax H3. Upscale, interpolation and the encode are shared. */
+  engine: VideoEngine;
+  h3: H3Settings;
 };
 
 export type FastRecipe = { steps: number; switchStep: number; cfg: number; strengthHigh: number; strengthLow: number; motionSteps: number; motionCfg: number };
@@ -216,8 +264,107 @@ export function defaultVideoSettings(): VideoSettings {
     colorMatch: { on: false, method: 'mkl', strength: 1 },
     interpolate: { on: false, model: INTERPOLATION_MODELS[0], multiplier: 2 },
     encode: { container: 'mp4', codec: 'h264', crf: null },
+    engine: 'wan',
+    h3: defaultH3Settings(),
   };
 }
+
+/** H3's frame rate is fixed. */
+export const H3_FPS = 24;
+
+/** The turbo LoRAs in Comfy-Org/MiniMax-H3 (lightx2v distills), with the steps each is made for. */
+export const H3_TURBO_LORAS = {
+  fl2va8: 'minimax_h3_fl2v_turbo_8step_v1.0_comfyui_bf16.safetensors',
+  fl2va4: 'minimax_h3_fl2v_turbo_4step_v1.0_768p_comfyui_bf16.safetensors',
+  ref4: 'minimax_h3_ref2v_turbo_4step_v0.1_comfyui_bf16.safetensors',
+} as const;
+
+/** The steps a turbo LoRA was distilled for, from its name; null when the name does not say. */
+export function h3TurboStepsOf(lora: string): number | null {
+  const m = /(\d+)[-_ ]?step/i.exec(lora);
+  return m ? Number(m[1]) : null;
+}
+
+/** The templates' defaults: pruned INT8 checkpoints, the NVFP4 text encoder (runs on any GPU),
+ *  fp16 video VAE, 0.4 MP 16:9, 5 s, 20 steps res_multistep / simple, turbo off. */
+export function defaultH3Settings(): H3Settings {
+  return {
+    mode: 't2v',
+    models: { fl2va: 'minimax_h3_fl2va_pruned_int8_convrot.safetensors', ref2va: 'minimax_h3_ref2va_pruned_int8_convrot.safetensors' },
+    textEncoder: 'qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors',
+    videoVae: 'minimax_h3_video_vae_fp16.safetensors',
+    audioVae: 'minimax_h3_audio_vae_fp32.safetensors',
+    loras: [],
+    width: 864,
+    height: 480,
+    length: 124,
+    steps: 20,
+    cfg: 1,
+    sampler: 'res_multistep',
+    scheduler: 'simple',
+    shiftVideo: 12,
+    shiftAudio: 3,
+    audio: true,
+    turbo: { on: false, lora: H3_TURBO_LORAS.fl2va8, steps: 8, loraRef: H3_TURBO_LORAS.ref4, stepsRef: 4, strength: 1 },
+    refImages: [],
+    refImageSize: 'match',
+    lowVram: { attention: false, headChunks: 4, feedForward: false, chunks: 2 },
+  };
+}
+
+/** Saved H3 settings (any version) with every missing field at its default. */
+export function loadH3Settings(raw: unknown): H3Settings {
+  const base = defaultH3Settings();
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return base;
+  const r = raw as Partial<H3Settings>;
+  const obj = <T extends object>(def: T, v: unknown): T => (v && typeof v === 'object' && !Array.isArray(v) ? { ...def, ...(v as Partial<T>) } : def);
+  const out: H3Settings = { ...base, ...r };
+  out.models = obj(base.models, r.models);
+  out.turbo = obj(base.turbo, r.turbo);
+  out.lowVram = obj(base.lowVram, r.lowVram);
+  if (!Array.isArray(out.loras)) out.loras = [];
+  if (!Array.isArray(out.refImages)) out.refImages = [];
+  out.refImages = out.refImages.filter((x): x is string => typeof x === 'string' && !!x).slice(0, 9);
+  return out;
+}
+
+/** Snap a frame count up to H3's 17k + 5 grid (5, 22, 39, … 124 …), as the node does. */
+export function h3Length(frames: number): number {
+  let n = Math.max(5, Math.round(Number(frames) || 5));
+  while (n % 17 !== 5) n += 1;
+  return n;
+}
+
+/** H3 canvases are multiples of 32. */
+export const h3Side = (px: number) => Math.max(32, Math.round(px / 32) * 32);
+
+/** The steps an H3 run samples: the turbo LoRA's own count when it is on. */
+export function h3EffectiveSteps(h: H3Settings): number {
+  const turbo = h.turbo ?? defaultH3Settings().turbo;
+  if (turbo.on) return Math.max(1, Math.round(h.mode === 'ref' ? turbo.stepsRef : turbo.steps));
+  return Math.max(1, Math.round(h.steps));
+}
+
+/** The frames and fps of the clip itself, whichever engine makes it. */
+export function clipFrames(s: Pick<VideoSettings, 'length'> & Partial<Pick<VideoSettings, 'engine' | 'h3'>>): number {
+  return s.engine === 'h3' && s.h3 ? h3Length(s.h3.length) : wanLength(s.length);
+}
+export function clipFps(s: Pick<VideoSettings, 'fps'> & Partial<Pick<VideoSettings, 'engine'>>): number {
+  return s.engine === 'h3' ? H3_FPS : Number(s.fps);
+}
+
+/** A MiniMax H3 file by name (Comfy-Org's repack: minimax_h3_*, qwen3vl_32b_minimax_h3_*). */
+export const isH3Name = (name: string) => /minimax[-_ ]?h3/i.test(name);
+
+/** Any video-only model file (Wan or H3): kept out of the image pickers. */
+export const isVideoModelName = (name: string) => isWanName(name) || isH3Name(name);
+
+/** H3 clips are saved with this prefix; a file named so carries the model's soundtrack, so the
+ *  players unmute it. */
+export const H3_FILE_PREFIX = 'ImageLab_H3';
+export const videoHasAudio = (urlOrName: string) => {
+  try { return /ImageLab_H3/i.test(decodeURIComponent(urlOrName)); } catch { return /ImageLab_H3/i.test(urlOrName); }
+};
 
 /**
  * Saved settings (any version) to the current shape: every missing key gets its default, nested
@@ -243,6 +390,8 @@ export function loadVideoSettings(raw: unknown): VideoSettings {
   out.colorMatch = obj(base.colorMatch, r.colorMatch);
   out.interpolate = obj(base.interpolate, r.interpolate);
   out.encode = obj(base.encode, r.encode);
+  out.engine = r.engine === 'h3' ? 'h3' : 'wan';
+  out.h3 = loadH3Settings(r.h3);
   if (!Array.isArray(out.loras)) out.loras = [];
   if (typeof out.endImage !== 'string') out.endImage = '';
   return out;
@@ -291,12 +440,13 @@ export function effectiveSampling(s: VideoSettings): { steps: number; switchStep
   return { steps, switchStep, cfg, cfgLow, motionSteps, motionCfg: Number(fr.motionCfg) || 3.5 };
 }
 
-/** The frame count and fps the saved file has. */
-export function outputFrames(s: Pick<VideoSettings, 'length' | 'fps' | 'interpolate'>): { frames: number; fps: number } {
-  const frames = wanLength(s.length);
+/** The frame count and fps the saved file has (either engine). */
+export function outputFrames(s: Pick<VideoSettings, 'length' | 'fps' | 'interpolate'> & Partial<Pick<VideoSettings, 'engine' | 'h3'>>): { frames: number; fps: number } {
+  const frames = clipFrames(s);
+  const fps = clipFps(s);
   const mult = s.interpolate?.on ? Math.max(2, Math.min(16, Math.round(s.interpolate.multiplier))) : 1;
   // FrameInterpolate: (frames − 1) × multiplier + 1 frames out.
-  return mult > 1 ? { frames: (frames - 1) * mult + 1, fps: Number(s.fps) * mult } : { frames, fps: Number(s.fps) };
+  return mult > 1 ? { frames: (frames - 1) * mult + 1, fps: fps * mult } : { frames, fps };
 }
 
 type Graph = Record<string, { class_type: string; inputs: Record<string, unknown>; _meta?: { title: string } }>;
@@ -517,11 +667,12 @@ export function wanRunShape(graph: AnyGraph): import('./videoEstimate').RunShape
   };
 }
 
-/** The sampler, upscale and finish node ids of a Wan graph (the rest of a run's time is loading). */
+/** The sampler, upscale and finish node ids of a Wan or H3 graph (the rest of a run's time is
+ *  loading). The H3 graph keeps the same ids ('13a' is its audio decode). */
 export const WAN_NODE_GROUPS = {
   sampling: ['11p', '11', '12'],
   upscale: ['16m', '16x'],
-  finish: ['13', '13m', '16', '17m', '17', '14', '15'],
+  finish: ['13', '13a', '13m', '16', '17m', '17', '14', '15'],
 } as const;
 
 /** A finished run's timing, split into the parts the estimate learns separately. */

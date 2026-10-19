@@ -7,7 +7,7 @@
  */
 import { create } from 'zustand';
 import { uid } from '@/lib/storage';
-import { defaultVideoSettings, loadVideoSettings, type VideoLora, type VideoMode, type VideoSettings } from '@/lib/wanGraph';
+import { defaultVideoSettings, loadVideoSettings, type H3Lora, type H3Settings, type VideoLora, type VideoMode, type VideoSettings } from '@/lib/wanGraph';
 
 const KEY = 'imagelab.video.v1';
 
@@ -29,12 +29,17 @@ type Store = VideoState & {
   addLora: (name: string) => void;
   updateLora: (id: string, patch: Partial<Omit<VideoLora, 'id'>>) => void;
   removeLora: (id: string) => void;
-  /** Settings back to Wan's defaults; the prompt, start image, LoRAs and speed-LoRA marks stay. */
+  /** MiniMax H3's own settings, merged. */
+  setH3: (patch: Partial<H3Settings>) => void;
+  addH3Lora: (name: string) => void;
+  updateH3Lora: (id: string, patch: Partial<Omit<H3Lora, 'id'>>) => void;
+  removeH3Lora: (id: string) => void;
+  /** Settings back to the engine's defaults; the engine, prompt, pictures, LoRAs and speed-LoRA marks stay. */
   resetSettings: () => void;
 };
 
 const settingsOf = (s: Store): VideoState => {
-  const { set: _s, setModel: _m, addLora: _a, updateLora: _u, removeLora: _r, resetSettings: _x, ...rest } = s;
+  const { set: _s, setModel: _m, addLora: _a, updateLora: _u, removeLora: _r, setH3: _h, addH3Lora: _ha, updateH3Lora: _hu, removeH3Lora: _hr, resetSettings: _x, ...rest } = s;
   return rest;
 };
 
@@ -54,9 +59,14 @@ export const useVideo = create<Store>((set, get) => {
     }] }),
     updateLora: (id, p) => patch({ loras: get().loras.map((l) => (l.id === id ? { ...l, ...p } : l)) }),
     removeLora: (id) => patch({ loras: get().loras.filter((l) => l.id !== id) }),
+    setH3: (p) => patch({ h3: { ...get().h3, ...p } }),
+    addH3Lora: (name) => patch({ h3: { ...get().h3, loras: [...get().h3.loras, { id: uid(), name, strength: 1, on: true }] } }),
+    updateH3Lora: (id, p) => patch({ h3: { ...get().h3, loras: get().h3.loras.map((l) => (l.id === id ? { ...l, ...p } : l)) } }),
+    removeH3Lora: (id) => patch({ h3: { ...get().h3, loras: get().h3.loras.filter((l) => l.id !== id) } }),
     resetSettings: () => {
-      const { positive, startImage, endImage, mode, loras, speedInside } = get();
-      patch({ ...defaultVideoSettings(), positive, startImage, endImage, mode, loras, speedInside });
+      const { positive, startImage, endImage, mode, loras, speedInside, engine, h3 } = get();
+      const fresh = defaultVideoSettings();
+      patch({ ...fresh, positive, startImage, endImage, mode, loras, speedInside, engine, h3: { ...fresh.h3, mode: h3.mode, loras: h3.loras, refImages: h3.refImages } });
     },
   };
 });

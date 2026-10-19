@@ -10,10 +10,11 @@ import { IconArrowBackUp, IconBookmark, IconDeviceFloppy, IconDice5, IconDotsVer
 import { useShallow } from 'zustand/react/shallow';
 import { ChipPicker, type Chip } from '@/components/blocks';
 import { useStore } from '@/lib/store';
-import { buildWanGraph, pickInstalledWanFiles, wanRunShape } from '@/lib/wanGraph';
+import { pickInstalledWanFiles, wanRunShape } from '@/lib/wanGraph';
+import { buildVideoGraph, pickInstalledH3Files } from '@/lib/h3Graph';
 import { estimateRun, formatDuration } from '@/lib/videoEstimate';
 import { matchesPreset } from '@/lib/videoPresets';
-import { SWEEP_AXES, sweepItems, type SweepAxis } from '@/lib/videoSweep';
+import { sweepAxesFor, sweepItems, type SweepAxis } from '@/lib/videoSweep';
 import { StepperInput } from '@/components/fields';
 import { useHostTimings } from './videoTimings';
 import { useVideo, videoSettingsOf } from './videoStore';
@@ -26,7 +27,7 @@ export function useVideoEstimate(host: string | null) {
   const v = useVideo();
   const runs = useHostTimings(host);
   return useMemo(() => {
-    const shape = wanRunShape(buildWanGraph(v, v.startImage || 'x'));
+    const shape = wanRunShape(buildVideoGraph(v, v.startImage || 'x'));
     const last = runs.length ? runs[runs.length - 1].modelsKey : null;
     return estimateRun(runs, shape, last);
   }, [v, runs]);
@@ -68,22 +69,26 @@ export function useInstalledWanFiles() {
   const diffusionModels = useStore((s) => s.server.diffusionModels);
   const textEncoders = useStore((s) => s.server.textEncoders);
   const vaes = useStore((s) => s.server.vaes);
+  const engine = useVideo((s) => s.engine);
   useEffect(() => {
     if (!diffusionModels.length) return;
     const st = useVideo.getState();
     const patch = pickInstalledWanFiles(st, { diffusionModels, textEncoders, vaes });
     if (Object.keys(patch).length) st.set(patch);
-  }, [mode, diffusionModels, textEncoders, vaes]);
+    const h3 = pickInstalledH3Files(st.h3, { diffusionModels, textEncoders, vaes });
+    if (Object.keys(h3).length) st.setH3(h3);
+  }, [mode, engine, diffusionModels, textEncoders, vaes]);
 }
 
-/** Settings back to Wan's defaults; what you made stays. */
+/** Settings back to the engine's defaults; what you made stays. */
 export function VideoResetRow() {
   const reset = useVideo((s) => s.resetSettings);
+  const engine = useVideo((s) => s.engine);
   return (
     <Group justify="space-between" wrap="nowrap" gap="xs">
-      <Text size="xs" c="dimmed">Prompt, start image and LoRAs stay.</Text>
+      <Text size="xs" c="dimmed">Prompt, pictures and LoRAs stay.</Text>
       <Button size="xs" variant="subtle" color="gray" leftSection={<IconArrowBackUp size={15} />} onClick={reset} aria-label="Reset video settings" className="shrink-0">
-        Wan's defaults
+        {engine === 'h3' ? "H3's defaults" : "Wan's defaults"}
       </Button>
     </Group>
   );
@@ -177,20 +182,21 @@ export function VideoSweepRow({ host }: { host: string | null }) {
   const busy = useVideoRun((s) => s.busy);
   const sweep = useVideoSweep(useShallow((s) => ({ current: s.current, left: s.queue.length, total: s.total })));
   const [axis, setAxis] = useState<SweepAxis>('seed');
-  const info = SWEEP_AXES.find((a) => a.id === axis) ?? SWEEP_AXES[0];
+  const axes = sweepAxesFor(v.engine);
+  const info = axes.find((a) => a.id === axis) ?? axes[0];
   const [range, setRange] = useState<Record<string, { from: number; to: number; count: number }>>({});
-  const r = range[axis] ?? { from: axis === 'seed' ? v.seed : info.from, to: info.to, count: 4 };
-  const setR = (p: Partial<typeof r>) => setRange((all) => ({ ...all, [axis]: { ...r, ...p } }));
-  const items = useMemo(() => sweepItems(videoSettingsOf(v), axis, r.from, r.to, r.count), [v, axis, r.from, r.to, r.count]);
+  const r = range[`${v.engine}:${info.id}`] ?? { from: info.id === 'seed' ? v.seed : info.from, to: info.to, count: 4 };
+  const setR = (p: Partial<typeof r>) => setRange((all) => ({ ...all, [`${v.engine}:${info.id}`]: { ...r, ...p } }));
+  const items = useMemo(() => sweepItems(videoSettingsOf(v), info.id, r.from, r.to, r.count), [v, info.id, r.from, r.to, r.count]);
   const running = !!sweep.current;
-  const options = SWEEP_AXES.map((a) => ({ value: a.id, label: a.label + (a.needsFast === true ? ' (Fast)' : a.needsFast === false ? ' (Fast off)' : '') }));
+  const options = axes.map((a) => ({ value: a.id, label: a.label + (a.needsFast === true ? ' (Fast)' : a.needsFast === false ? ' (Fast off)' : '') }));
 
   return (
     <div className="flex flex-col gap-2">
       <Group gap={6} wrap="nowrap" align="flex-end">
-        <Select size="xs" label="Vary" value={axis} onChange={(a) => { if (a) setAxis(a as SweepAxis); }} data={options} allowDeselect={false} style={{ flex: 1.4, minWidth: 0 }} aria-label="Setting to vary" />
-        <NumberInput size="xs" label={axis === 'seed' ? 'From seed' : 'From'} value={r.from} onChange={(n) => setR({ from: Number(n) || 0 })} min={info.min} max={info.max} step={info.step} decimalScale={3} style={{ flex: 1, minWidth: 0 }} aria-label="From" />
-        {axis !== 'seed' && <NumberInput size="xs" label="To" value={r.to} onChange={(n) => setR({ to: Number(n) || 0 })} min={info.min} max={info.max} step={info.step} decimalScale={3} style={{ flex: 1, minWidth: 0 }} aria-label="To" />}
+        <Select size="xs" label="Vary" value={info.id} onChange={(a) => { if (a) setAxis(a as SweepAxis); }} data={options} allowDeselect={false} style={{ flex: 1.4, minWidth: 0 }} aria-label="Setting to vary" />
+        <NumberInput size="xs" label={info.id === 'seed' ? 'From seed' : 'From'} value={r.from} onChange={(n) => setR({ from: Number(n) || 0 })} min={info.min} max={info.max} step={info.step} decimalScale={3} style={{ flex: 1, minWidth: 0 }} aria-label="From" />
+        {info.id !== 'seed' && <NumberInput size="xs" label="To" value={r.to} onChange={(n) => setR({ to: Number(n) || 0 })} min={info.min} max={info.max} step={info.step} decimalScale={3} style={{ flex: 1, minWidth: 0 }} aria-label="To" />}
         <NumberInput size="xs" label="Runs" value={r.count} onChange={(n) => setR({ count: Math.max(1, Math.min(12, Number(n) || 1)) })} min={1} max={12} step={1} style={{ width: 64 }} aria-label="Runs" />
       </Group>
       <Group justify="space-between" wrap="nowrap" gap="xs">

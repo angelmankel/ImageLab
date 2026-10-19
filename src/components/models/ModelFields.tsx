@@ -24,9 +24,9 @@ import { ModelSelectorModal } from './ModelSelectorModal';
 import { modelLabel, modelTrainedWords, plainDescription, readModelInfo, useModelInfo } from './modelInfo';
 import { embeddingWords } from '@/lib/embeddings';
 import { FAMILY_LABELS, bucketFits, vaeFits } from '@/lib/modelProfiles';
-import { isWanName } from '@/lib/wanGraph';
+import { isVideoModelName } from '@/lib/wanGraph';
 
-const isVideoModel = (file: string, bucket: string) => bucket === 'Wan Video' || isWanName(file);
+const isVideoModel = (file: string, bucket: string) => bucket === 'Wan Video' || isVideoModelName(file);
 import { useModelProfile } from '@/hooks/useModelProfileSync';
 import { ModelProfileModal } from './ModelProfileModal';
 
