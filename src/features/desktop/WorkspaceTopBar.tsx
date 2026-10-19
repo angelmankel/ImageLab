@@ -10,6 +10,8 @@ import { JobStatusCluster } from '@/features/layout/JobStatusCluster';
 import { SidePanelTrigger, BothPanelsTrigger } from '@/features/layout/SidePanel';
 import { GenerateWidget } from '@/features/generate/GenerateWidget';
 import type { WorkspaceMode } from '@/lib/workspace';
+import type { ObjectInfo } from '@/lib/workflowGraph';
+import { CompactRun } from './WorkspaceFooter';
 
 interface Props {
   mode: WorkspaceMode;
@@ -17,9 +19,12 @@ interface Props {
   rightOpen: boolean;
   setLeftOpen: (open: boolean) => void;
   setRightOpen: (open: boolean) => void;
+  videoHost: string | null;
+  workflowHost: string | null;
+  info: ObjectInfo | null;
 }
 
-export function WorkspaceTopBar({ mode, leftOpen, rightOpen, setLeftOpen, setRightOpen }: Props) {
+export function WorkspaceTopBar({ mode, leftOpen, rightOpen, setLeftOpen, setRightOpen, videoHost, workflowHost, info }: Props) {
   return (
     <header className="flex h-12 shrink-0 items-center gap-3 border-b border-border-subtle bg-bg-panel/85 px-2 backdrop-blur-md">
       <div className="flex shrink-0 items-center gap-1.5">
@@ -32,7 +37,9 @@ export function WorkspaceTopBar({ mode, leftOpen, rightOpen, setLeftOpen, setRig
         <JobTray />
       </div>
       <div className="flex shrink-0 items-center gap-1.5">
-        {mode === 'image' && !leftOpen && <GenerateWidget />}
+        {!leftOpen && (mode === 'image'
+          ? <GenerateWidget />
+          : <CompactRun mode={mode} videoHost={videoHost} workflowHost={workflowHost} info={info} />)}
         {!rightOpen && <SidePanelTrigger side="right" open={rightOpen} onClick={() => setRightOpen(true)} />}
         {!leftOpen && !rightOpen && (
           <BothPanelsTrigger leftOpen={leftOpen} rightOpen={rightOpen} onChange={open => { setLeftOpen(open); setRightOpen(open); }} />

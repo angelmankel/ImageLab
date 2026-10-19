@@ -4,10 +4,12 @@
  * the server routing); Video and Workflow run through their app-wide run stores, so a run started
  * here keeps going and reporting when the mode changes.
  */
-import { Text } from '@mantine/core';
+import { Button, Text } from '@mantine/core';
+import { IconPlayerPlay, IconPlayerStop } from '@tabler/icons-react';
 import { RunBar } from '@/components/blocks/RunBar';
 import { useShortcut, ShortcutPriority } from '@/hooks/useShortcut';
 import type { ObjectInfo } from '@/lib/workflowGraph';
+import type { WorkspaceMode } from '@/lib/workspace';
 import { GenerateButton } from '@/features/generate/GenerateButton';
 import { GenerationProgress } from '@/features/generate/GenerationProgress';
 import { SeedRow } from '@/features/workspace/imageScope';
@@ -61,6 +63,33 @@ export function WorkflowFooter({ host, info }: { host: string; info: ObjectInfo 
         onRun={run} onStop={() => { void useWorkflowRun.getState().cancel(); }} />
       {error && <Text size="xs" c="red.4">{error}</Text>}
     </Footer>
+  );
+}
+
+/**
+ * The top bar's Generate for video and workflow while the settings column is folded (image has
+ * `GenerateWidget` there): a small button that becomes Stop while the run goes.
+ */
+export function CompactRun({ mode, videoHost, workflowHost, info }: {
+  mode: WorkspaceMode; videoHost: string | null; workflowHost: string | null; info: ObjectInfo | null;
+}) {
+  const store = mode === 'video' ? useVideoRun : useWorkflowRun;
+  const busy = store(s => s.busy);
+  const path = useStudio(s => s.path);
+  const host = mode === 'video' ? videoHost : workflowHost;
+  const disabled = !host || (mode === 'workflow' && !path);
+  const run = () => { if (mode === 'video' && videoHost) void startVideoRun(videoHost); else if (workflowHost) void startWorkflowRun(workflowHost, info); };
+  return (
+    <Button
+      size="compact-sm" h={30} radius="sm"
+      color={busy ? 'red' : undefined} variant={busy ? 'light' : 'filled'}
+      leftSection={busy ? <IconPlayerStop size={14} /> : <IconPlayerPlay size={14} />}
+      disabled={!busy && disabled}
+      onClick={() => { if (busy) void store.getState().cancel(); else run(); }}
+      aria-label={busy ? 'Stop' : mode === 'video' ? 'Generate video' : 'Generate'}
+    >
+      {busy ? 'Stop' : mode === 'video' ? 'Generate video' : 'Generate'}
+    </Button>
   );
 }
 

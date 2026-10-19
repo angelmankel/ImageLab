@@ -65,7 +65,8 @@ export function DesktopWorkspace() {
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-bg-base">
-      <WorkspaceTopBar mode={mode} leftOpen={leftOpen} rightOpen={rightOpen} setLeftOpen={setLeftOpen} setRightOpen={setRightOpen} />
+      <WorkspaceTopBar mode={mode} leftOpen={leftOpen} rightOpen={rightOpen} setLeftOpen={setLeftOpen} setRightOpen={setRightOpen}
+        videoHost={videoHost} workflowHost={workflowHost} info={info} />
       <div className="relative min-h-0 flex-1 overflow-hidden">
         {/* Centre: dodges the open columns; snaps while a handle is dragged. */}
         <main
