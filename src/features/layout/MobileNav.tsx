@@ -1,30 +1,30 @@
 /**
- * The one bottom bar on phones, the same in every view: the main views with a label each, and
- * "More" for the rest (Studio, the infinite canvas, quick search, settings). A view's own tabs
- * (Generate: Parameters / Image / Gallery; Video: Settings / Video; Studio's) sit at the top of
- * the view, so the bottom edge always means "where am I in the app".
+ * The one bottom bar on phones, the same in every view: Create (the workspace: Image, Video and
+ * Workflow), Collections, Models, and "More" for the rest (the infinite canvas, quick search,
+ * settings). A view's own tabs (the workspace's Create / Result / Gallery) sit at the top of the
+ * view, so the bottom edge always means "where am I in the app".
  *
  * Desktop keeps the left rail (`Sidebar`).
  */
-import { memo, type ReactNode } from 'react';
+import { memo, useRef, type ReactNode } from 'react';
 import { Badge, Box, Group, Menu, Tabs, Text, UnstyledButton } from '@mantine/core';
 import {
-  IconBoxModel, IconDots, IconFolders, IconInfinity, IconMovie, IconPalette, IconSearch, IconSettings, IconWand,
+  IconBoxModel, IconDots, IconFolders, IconInfinity, IconSearch, IconSettings, IconSparkles,
 } from '@tabler/icons-react';
 import { useCanvasStore, type MainView } from '@/lib/canvasStore';
+import { isWorkspaceView } from '@/lib/workspace';
 import { emitApp } from '@/lib/appEvents';
 
 export const MOBILE_NAV_H = 58;
 
-const MAIN: { view: MainView; label: string; icon: ReactNode }[] = [
-  { view: 'generate', label: 'Generate', icon: <IconPalette size={24} stroke={1.5} /> },
-  { view: 'video', label: 'Video', icon: <IconMovie size={24} stroke={1.5} /> },
-  { view: 'collections', label: 'Collections', icon: <IconFolders size={24} stroke={1.5} /> },
-  { view: 'browser', label: 'Models', icon: <IconBoxModel size={24} stroke={1.5} /> },
+/** Create is the workspace: Image, Video and Workflow are its modes, so one entry covers all three. */
+const MAIN: { view: MainView; label: string; icon: ReactNode; active: (v: MainView) => boolean }[] = [
+  { view: 'generate', label: 'Create', icon: <IconSparkles size={24} stroke={1.5} />, active: isWorkspaceView },
+  { view: 'collections', label: 'Collections', icon: <IconFolders size={24} stroke={1.5} />, active: v => v === 'collections' },
+  { view: 'browser', label: 'Models', icon: <IconBoxModel size={24} stroke={1.5} />, active: v => v === 'browser' },
 ];
 
 const MORE: { view: MainView; label: string; icon: ReactNode }[] = [
-  { view: 'studio', label: 'Studio', icon: <IconWand size={16} /> },
   { view: 'canvas', label: 'Infinite canvas', icon: <IconInfinity size={16} /> },
 ];
 
@@ -58,6 +58,8 @@ export function MobileNav({ onOpenSettings }: { onOpenSettings: () => void }) {
   const mainView = useCanvasStore((s) => s.mainView);
   const setMainView = useCanvasStore((s) => s.setMainView);
   const inMore = MORE.some((m) => m.view === mainView) || mainView === 'comfy';
+  const lastWorkspace = useRef<MainView>(isWorkspaceView(mainView) ? mainView : 'generate');
+  if (isWorkspaceView(mainView)) lastWorkspace.current = mainView;
   return (
     <Box
       component="nav"
@@ -69,7 +71,8 @@ export function MobileNav({ onOpenSettings }: { onOpenSettings: () => void }) {
     >
       <Group gap={0} h={MOBILE_NAV_H} wrap="nowrap">
         {MAIN.map((m) => (
-          <NavItem key={m.view} icon={m.icon} label={m.label} active={mainView === m.view} onClick={() => setMainView(m.view)} />
+          // Create keeps the mode you were in: tapping it again from elsewhere returns to that mode.
+          <NavItem key={m.view} icon={m.icon} label={m.label} active={m.active(mainView)} onClick={() => { if (!m.active(mainView)) setMainView(m.view === 'generate' ? lastWorkspace.current : m.view); }} />
         ))}
         <Menu position="top-end" withinPortal shadow="md" width={210} offset={6}>
           <Menu.Target>

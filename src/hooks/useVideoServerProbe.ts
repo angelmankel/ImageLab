@@ -1,7 +1,10 @@
 /**
- * Finds the pod's second ComfyUI (video) at `<origin>/video-comfy/` and keeps it in the server
- * list, so video jobs have somewhere of their own to go. Nothing to do during `npm run dev`, where
- * the page is not served by a pod. The list logic is `lib/serverRoles.ts` (tested).
+ * Finds the pod's second ComfyUI (video) and keeps it in the server list, so video jobs have
+ * somewhere of their own to go. The pod writes `/pod/logs/instances.json` at boot saying what it
+ * launched (`video: null` or `{ path: '/video-comfy/' }`; a 404 is an older, single-instance pod);
+ * whether it is up is a separate question, answered by its `/system_stats` (502 while starting).
+ * Nothing to do during `npm run dev`, where the page is not served by a pod. The list logic is
+ * `lib/serverRoles.ts` (tested).
  */
 import { useEffect } from 'react';
 import { comfyHttpFor } from '@/lib/comfyHost';
@@ -17,8 +20,12 @@ export function useVideoServerProbe() {
     void (async () => {
       let present = false;
       try {
-        const res = await fetch(`${comfyHttpFor(origin + VIDEO_PATH)}/system_stats`, { signal: AbortSignal.timeout(8000) });
-        present = res.ok;
+        const info = await fetch(`${comfyHttpFor(origin)}/pod/logs/instances.json`, { signal: AbortSignal.timeout(8000), cache: 'no-store' });
+        const launched = info.ok ? !!(await info.json() as { video?: unknown }).video : false;
+        if (launched) {
+          const res = await fetch(`${comfyHttpFor(origin + VIDEO_PATH)}/system_stats`, { signal: AbortSignal.timeout(8000) });
+          present = res.ok;
+        }
       } catch { present = false; }
       if (cancelled) return;
       const servers = useStore.getState().servers;

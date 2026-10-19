@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useCanvasStore } from '@/lib/canvasStore';
+import { isWorkspaceView } from '@/lib/workspace';
 
 /**
  * Drives the brief loading veil + animate-view-in keyed wrapper around the
@@ -9,7 +10,8 @@ import { useCanvasStore } from '@/lib/canvasStore';
 export function useViewSwitching() {
   const mainView = useCanvasStore(s => s.mainView);
   const comfyServerId = useCanvasStore(s => s.comfyServerId);
-  const viewKey = mainView === 'comfy' ? `comfy:${comfyServerId ?? 'none'}` : mainView;
+  // Image, Video and Workflow are one shell: a mode switch must not remount it.
+  const viewKey = mainView === 'comfy' ? `comfy:${comfyServerId ?? 'none'}` : isWorkspaceView(mainView) ? 'workspace' : mainView;
 
   const [isSwitching, setIsSwitching] = useState(false);
   useEffect(() => {
