@@ -10,6 +10,7 @@
  *
  * Position props are given on `Content`, as with Radix; they are lifted to the Mantine root.
  */
+import { DROPDOWN_MIDDLEWARES } from '@/modules/theme/popoverMiddlewares';
 import {
   cloneElement, createContext, useContext, useLayoutEffect, useState,
   type CSSProperties, type HTMLAttributes, type ReactElement, type ReactNode,
@@ -62,7 +63,7 @@ export function Root({ open: controlled, defaultOpen = false, onOpenChange, chil
         onChange={setOpen}
         position={toPosition(placement.side, placement.align)}
         offset={{ mainAxis: placement.sideOffset ?? 4, crossAxis: placement.alignOffset ?? 0 }}
-        middlewares={{ flip: true, shift: { padding: placement.collisionPadding ?? 8 }, inline: false }}
+        middlewares={{ ...DROPDOWN_MIDDLEWARES, shift: { padding: placement.collisionPadding ?? 8 }, inline: false }}
         withinPortal
         zIndex={POPOVER_Z}
         unstyled

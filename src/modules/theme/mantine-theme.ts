@@ -1,3 +1,4 @@
+import { DROPDOWN_MIDDLEWARES } from "./popoverMiddlewares";
 import { MantineThemeOverride, MantineColorsTuple, MantineShadow, MantineSize } from "@mantine/core";
 import { ThemeConfig, GradientStyle, BorderRadiusStyle, ShadowIntensity, SurfaceStyle, UIBorderStyle } from "./types";
 import { createDarkPalette, createOledPalette } from "./utils";
@@ -169,6 +170,12 @@ export function createMantineTheme(
     defaultRadius: getDefaultRadius(borderRadiusStyle),
     ...(shadows ? { shadows } : {}),
     components: {
+      // Every dropdown fits on screen and stays put (see DROPDOWN_MIDDLEWARES); a dropdown cut
+      // short scrolls inside itself.
+      Popover: {
+        defaultProps: { middlewares: DROPDOWN_MIDDLEWARES },
+        styles: { dropdown: { overflowY: "auto" } },
+      },
       // No stepper arrows on number inputs anywhere — type, scroll, or use the field's own buttons.
       NumberInput: {
         defaultProps: { hideControls: true },

@@ -154,7 +154,7 @@ export function LocalLlmSection() {
         value={venice.localVisionModel || ''}
         onChange={(v) => setVenice({ localVisionModel: v ?? '' })}
         allowDeselect={false}
-        comboboxProps={{ withinPortal: true, zIndex: 320, middlewares: { flip: false, shift: true } }}
+        comboboxProps={{ withinPortal: true, zIndex: 320 }}
         data={[
           { value: '', label: 'Same as the text model' },
           ...visionModels.map((m) => ({ value: m.name, label: modelLabel(m.name) })),

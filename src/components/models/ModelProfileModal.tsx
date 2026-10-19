@@ -39,9 +39,6 @@ export function ModelProfileModal({ opened, onClose, fileName }: { opened: boole
             ariaLabel="Model type"
             onValueChange={setOverride}
             options={[{ value: AUTO, label: `Auto (${detectedLabel})` }, ...PROFILE_IDS.map((id) => ({ value: id, label: id }))]}
-            // Inside this centered modal the portalled dropdown flipped up/down forever (a visible
-            // flicker loop). Pin it below the trigger — no flip — and let it shift to stay on screen.
-            comboboxProps={{ middlewares: { flip: false, shift: true } }}
           />
           <Text size="xs" c="dimmed">
             {profile

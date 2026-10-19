@@ -51,9 +51,7 @@ export function AiModelPicker({ size = 'sm', label, className }: { size?: Mantin
       searchable
       nothingFoundMessage="No model matches"
       maxDropdownHeight={360}
-      // Flip off: inside the Settings modal the dropdown flipped up and down forever as the lists
-      // loaded (the same loop as the Model Type modal). It stays below and shifts to fit.
-      comboboxProps={{ withinPortal: true, shadow: 'md', zIndex: 320, middlewares: { flip: false, shift: true } }}
+      comboboxProps={{ withinPortal: true, shadow: 'md', zIndex: 320 }}
       data={[
         { group: 'Venice (cloud)', items: veniceItems },
         {

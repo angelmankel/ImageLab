@@ -128,7 +128,7 @@ function VeniceModelSelect() {
       allowDeselect={false}
       nothingFoundMessage="No model matches"
       maxDropdownHeight={360}
-      comboboxProps={{ withinPortal: true, shadow: 'md', zIndex: 320, middlewares: { flip: false, shift: true } }}
+      comboboxProps={{ withinPortal: true, shadow: 'md', zIndex: 320 }}
     />
   );
 }
