@@ -14,7 +14,7 @@ import {
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
-  IconBooks, IconBox, IconChevronDown, IconChevronUp, IconDeviceFloppy, IconEye, IconEyeOff, IconPencil, IconPlus, IconSettings, IconTrash, IconX,
+  IconBooks, IconBox, IconChevronDown, IconChevronUp, IconDeviceFloppy, IconEye, IconEyeOff, IconPencil, IconPhotoSearch, IconPlus, IconSettings, IconTrash, IconX,
 } from '@tabler/icons-react';
 import * as Popover from '@/components/ui/popover';
 import { FieldWrapper } from '@/components/fields/FieldWrapper';
@@ -32,6 +32,7 @@ import { profileTagOn, profileTagTexts, withProfileTags } from '@/lib/modelProfi
 import { useModelProfile } from '@/hooks/useModelProfileSync';
 import { ModelProfileModal } from '@/components/models/ModelProfileModal';
 import { PresetLibraryModal } from './PresetLibraryModal';
+import { CivitaiPromptsModal } from './CivitaiPromptsModal';
 
 /** Weights run 0–2 here (v1 stopped at 1); the bar shows the whole range. */
 const MAX_WEIGHT = 2;
@@ -67,6 +68,7 @@ function PromptBox({ kind }: { kind: LayerKind }) {
   const positive = kind === 'positive';
   const accent = positive ? 'teal' : 'red';
   const [presetsOpen, setPresetsOpen] = useState(false);
+  const [civitaiOpen, setCivitaiOpen] = useState(false);
 
   // A local draft so typing never waits on the store; committed on a short timer and on blur.
   const [draft, setDraft] = useState(main?.text ?? '');
@@ -129,6 +131,13 @@ function PromptBox({ kind }: { kind: LayerKind }) {
               <IconBooks size="1rem" />
             </ActionIcon>
           </Tooltip>
+          {positive && (
+            <Tooltip label="Browse prompts people used with your models (CivitAI)">
+              <ActionIcon size="sm" variant="subtle" onClick={() => { flush(); setCivitaiOpen(true); }} aria-label="Prompts from CivitAI">
+                <IconPhotoSearch size="1rem" />
+              </ActionIcon>
+            </Tooltip>
+          )}
           {positive && <PromptGeneratorButton variant="icon" />}
           <Tooltip label="Save to library">
             <ActionIcon size="sm" variant="subtle" onClick={saveToLibrary} disabled={!draft.trim()} aria-label="Save prompt to library">
@@ -162,6 +171,7 @@ function PromptBox({ kind }: { kind: LayerKind }) {
         }}
       />
       <PresetLibraryModal opened={presetsOpen} onClose={() => setPresetsOpen(false)} kind={kind} />
+      {positive && <CivitaiPromptsModal opened={civitaiOpen} onClose={() => setCivitaiOpen(false)} />}
     </FieldWrapper>
   );
 }
