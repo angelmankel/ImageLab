@@ -14,7 +14,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { ActionIcon, Group, Text } from '@mantine/core';
 import { IconDeviceMobileRotated, IconPlayerPause, IconPlayerPlay } from '@tabler/icons-react';
+import { useShortcut, ShortcutPriority } from '@/hooks/useShortcut';
 import { DRAG_SLOP, alongVideo, scrubTime, timeLabel } from '@/lib/videoScrub';
+import { registerViewer } from './viewerTransition';
 
 type Orientation = ScreenOrientation & { lock?: (o: string) => Promise<void>; unlock?: () => void };
 
@@ -45,6 +47,10 @@ export function VideoFullscreen({ url, startTime = 0, onClose }: {
     try { orientation?.unlock?.(); } catch { /* not locked */ }
     onClose(video.current?.currentTime ?? time);
   };
+  // Escape (a keyboard, or the controller's B through `padViewer`) closes it like a tap.
+  useShortcut('Escape', () => close(), { priority: ShortcutPriority.TopOverlay });
+  const closeRef = useRef(close); closeRef.current = close;
+  useEffect(() => registerViewer({ step: () => false, close: () => closeRef.current() }), []);
 
   const rotate = async () => {
     const orientation = screen.orientation as Orientation | undefined;
@@ -106,6 +112,7 @@ export function VideoFullscreen({ url, startTime = 0, onClose }: {
     <div
       ref={overlay}
       data-no-swipe
+      data-pad-layer="viewer"
       className="fixed inset-0 z-[250] overflow-hidden bg-black"
       style={{ touchAction: 'none' }}
     >

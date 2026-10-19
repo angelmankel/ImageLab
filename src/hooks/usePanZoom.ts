@@ -1,21 +1,25 @@
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import { THROW_MIN_DISTANCE, createVelocityTracker, runInertia } from '@/lib/momentum';
+import { DOUBLE_TAP_MS, DOUBLE_TAP_PX, DOUBLE_TAP_ZOOM } from '@/lib/pager';
 
 const ZOOM_MIN = 1;
 const ZOOM_MAX = 8;
-const SWIPE_THRESHOLD = 80; // px of horizontal flick (at zoom ~1) to navigate
 const CLICK_BUFFER = 6;     // px of travel under which a press counts as a tap
-/** At or under this zoom the image counts as fit: one finger swipes to page, never pans. */
+/** At or under this zoom the image counts as fit: one finger drags the pager or pulls down, never pans. */
 const FIT_ZOOM = 1.05;
+
+export type DragPhase = 'start' | 'move' | 'end' | 'cancel';
 
 type Options = {
   /** When this changes, zoom/offset reset and any running throw stops. */
   resetKey: unknown;
-  /** Horizontal flick at zoom ~1 — `dir` is -1 (previous) or +1 (next). */
-  onSwipe?: (dir: -1 | 1) => void;
-  /** Downward flick at zoom ~1 (e.g. close the viewer). */
-  onSwipeDown?: () => void;
-  /** A press that didn't drag (a tap). */
+  /**
+   * A one-finger drag at fit zoom, as it happens: `start` on the first move, `move` with the offset
+   * from where the finger went down, `end` on release, `cancel` when a second finger joins. The
+   * consumer decides what the axis means (page sideways, pull down to close).
+   */
+  onDrag?: (phase: DragPhase, dx: number, dy: number) => void;
+  /** A press that didn't drag (a tap), reported after the double-tap window has passed. */
   onTap?: () => void;
 };
 
@@ -35,14 +39,14 @@ export type PanZoom = {
 };
 
 /**
- * Pan + pinch-zoom + wheel-zoom + release momentum for a CSS-transformed
- * element. Pure gesture mechanics built on `lib/momentum` — the consumer
- * supplies `onSwipe` for un-zoomed horizontal flicks and `onTap` for plain
- * presses, and applies the returned `zoom`/`offset` as a transform.
+ * Pan + pinch-zoom + wheel-zoom + double-tap zoom + release momentum for a CSS-transformed
+ * element. Pure gesture mechanics built on `lib/momentum` — the consumer gets fit-zoom one-finger
+ * drags through `onDrag`, taps through `onTap`, and applies the returned `zoom`/`offset` as a
+ * transform.
  */
 export function usePanZoom(
   containerRef: RefObject<HTMLElement | null>,
-  { resetKey, onSwipe, onSwipeDown, onTap }: Options,
+  { resetKey, onDrag, onTap }: Options,
 ): PanZoom {
   const [zoom, setZoom] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
@@ -67,6 +71,12 @@ export function usePanZoom(
   const pinchedRef = useRef(false);
   const velocity = useRef(createVelocityTracker());
   const cancelInertiaRef = useRef<(() => void) | null>(null);
+  /** A fit-zoom one-finger drag has been reported with `start`. */
+  const draggingRef = useRef(false);
+  const lastTapRef = useRef<{ x: number; y: number; t: number } | null>(null);
+  const tapTimerRef = useRef<number | null>(null);
+  // Latest callbacks, so the handlers below never call a stale closure.
+  const cbRef = useRef({ onDrag, onTap }); cbRef.current = { onDrag, onTap };
 
   // Latest zoom/offset, so the imperative pointer handlers never read stale state.
   const zoomRef = useRef(zoom); zoomRef.current = zoom;
@@ -88,7 +98,19 @@ export function usePanZoom(
   useEffect(() => () => {
     stopInertia();
     if (reframeTimerRef.current != null) window.clearTimeout(reframeTimerRef.current);
+    if (tapTimerRef.current != null) window.clearTimeout(tapTimerRef.current);
   }, []);
+
+  /** Zoom to DOUBLE_TAP_ZOOM about a screen point (relative to the container's centre), animated. */
+  const zoomAt = (mx: number, my: number) => {
+    const z = zoomRef.current;
+    const k = DOUBLE_TAP_ZOOM / z - 1;
+    setOffset(o => ({ x: o.x - mx * k, y: o.y - my * k }));
+    setZoom(DOUBLE_TAP_ZOOM);
+    setReframing(true);
+    if (reframeTimerRef.current != null) window.clearTimeout(reframeTimerRef.current);
+    reframeTimerRef.current = window.setTimeout(() => setReframing(false), 260);
+  };
 
   const dist = (a: { x: number; y: number }, b: { x: number; y: number }) =>
     Math.hypot(a.x - b.x, a.y - b.y);
@@ -129,6 +151,7 @@ export function usePanZoom(
     } else if (map.size === 2) {
       pinchedRef.current = true;
       downPosRef.current = null;
+      if (draggingRef.current) { draggingRef.current = false; cbRef.current.onDrag?.('cancel', 0, 0); }
       const [a, b] = [...map.values()];
       const r = containerRef.current!.getBoundingClientRect();
       pinchStartRef.current = {
@@ -151,9 +174,19 @@ export function usePanZoom(
     pt.y = e.clientY;
 
     if (map.size === 1 && panStartRef.current) {
-      // At fit, a one-finger drag is a swipe (or nothing): the image stays put.
-      if (zoomRef.current <= FIT_ZOOM) return;
       const only = [...map.values()][0];
+      // At fit, a one-finger drag belongs to the consumer (page, pull down): the image stays put.
+      if (zoomRef.current <= FIT_ZOOM) {
+        const dx = only.x - only.sx;
+        const dy = only.y - only.sy;
+        if (!draggingRef.current) {
+          if (Math.hypot(dx, dy) <= CLICK_BUFFER) return;
+          draggingRef.current = true;
+          cbRef.current.onDrag?.('start', dx, dy);
+        }
+        cbRef.current.onDrag?.('move', dx, dy);
+        return;
+      }
       setOffset({
         x: panStartRef.current.ox + (only.x - only.sx),
         y: panStartRef.current.oy + (only.y - only.sy),
@@ -188,17 +221,12 @@ export function usePanZoom(
     if (map.size === 0) {
       const atFit = zoomRef.current <= FIT_ZOOM;
       const moved = Math.hypot(dx, dy);
-      if (atFit && !pinchedRef.current && panStartRef.current
-          && moved > SWIPE_THRESHOLD && Math.abs(dx) > Math.abs(dy) * 1.5) {
-        // Un-zoomed one-finger sideways flick: navigate (the new item resets the framing).
-        onSwipe?.(dx > 0 ? -1 : 1);
-        if (!onSwipe) reframe();
-      } else if (atFit && onSwipeDown && !pinchedRef.current && panStartRef.current
-          && dy > SWIPE_THRESHOLD && dy > Math.abs(dx) * 1.5) {
-        // Un-zoomed one-finger downward flick.
-        onSwipeDown();
+      if (draggingRef.current) {
+        // The fit-zoom drag ends; the consumer decides what the release means.
+        draggingRef.current = false;
+        cbRef.current.onDrag?.(e.type === 'pointercancel' ? 'cancel' : 'end', dx, dy);
       } else if (atFit) {
-        // Back at the fit — after a pinch-out, a drag, or a short flick — snap to the initial framing.
+        // Back at the fit — after a pinch-out or a short move — snap to the initial framing.
         if (zoomRef.current !== ZOOM_MIN || offsetRef.current.x !== 0 || offsetRef.current.y !== 0) reframe();
       } else if (panStartRef.current && moved > THROW_MIN_DISTANCE) {
         // Zoomed in: throw the image with the (idle-decayed) release velocity.
@@ -225,7 +253,22 @@ export function usePanZoom(
     const down = downPosRef.current;
     downPosRef.current = null;
     if (!down) return;
-    if (Math.hypot(e.clientX - down.x, e.clientY - down.y) <= CLICK_BUFFER) onTap?.();
+    if (Math.hypot(e.clientX - down.x, e.clientY - down.y) > CLICK_BUFFER) return;
+    const now = performance.now();
+    const last = lastTapRef.current;
+    if (last && now - last.t < DOUBLE_TAP_MS && Math.hypot(e.clientX - last.x, e.clientY - last.y) < DOUBLE_TAP_PX) {
+      // Second tap: zoom in about the finger, or back out. The pending single tap is off.
+      lastTapRef.current = null;
+      if (tapTimerRef.current != null) { window.clearTimeout(tapTimerRef.current); tapTimerRef.current = null; }
+      const r = containerRef.current?.getBoundingClientRect();
+      if (zoomRef.current > FIT_ZOOM || !r) reframe();
+      else zoomAt(e.clientX - r.left - r.width / 2, e.clientY - r.top - r.height / 2);
+      return;
+    }
+    lastTapRef.current = { x: e.clientX, y: e.clientY, t: now };
+    // A single tap waits out the double-tap window, as photo apps do.
+    if (tapTimerRef.current != null) window.clearTimeout(tapTimerRef.current);
+    tapTimerRef.current = window.setTimeout(() => { tapTimerRef.current = null; cbRef.current.onTap?.(); }, DOUBLE_TAP_MS);
   };
 
   return { zoom, offset, reframing, handlers: { onWheel, onPointerDown, onPointerMove, onPointerUp, onClick } };

@@ -50,6 +50,7 @@ export const HistoryGridItem = memo(function HistoryGridItem({
   return (
     <div
       data-history-id={id}
+      data-viewer-origin={id}
       className={cn(
         'group relative aspect-square overflow-hidden border-2 transition-[border-color] duration-100',
         selected

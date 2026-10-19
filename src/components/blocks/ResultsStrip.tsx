@@ -1,14 +1,23 @@
 /**
- * The recent results as a strip of thumbnails: the current one outlined, the rest dimmed. One tap
- * shows it in the hero; a second tap on the current one opens it full screen. Video thumbnails are
- * the clip's first frame.
+ * The recent results as a strip of thumbnails: the current one outlined and kept centred, the rest
+ * dimmed. One tap shows it in the hero (which slides to it); a second tap on the current one opens
+ * it full screen. Video thumbnails are the clip's first frame. While the hero is being dragged the
+ * strip follows the finger through `follow()`, so the two never disagree.
  */
-import { useEffect, useRef } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import { UnstyledButton } from '@mantine/core';
 import { cn } from '@/lib/cn';
+import { centredScrollLeft } from '@/lib/pager';
 import type { ResultItem } from '@/lib/workspace';
 
-export function ResultsStrip({ items, currentKey, onPick, onOpen, size = 64, className }: {
+export interface ResultsStripHandle {
+  /** -1..1: how far the hero is towards the next (+) / previous (−) result; 0 when settled. */
+  follow: (fraction: number) => void;
+}
+
+const GAP = 8;
+
+export const ResultsStrip = forwardRef<ResultsStripHandle, {
   items: readonly ResultItem[];
   currentKey: string | null;
   onPick: (key: string) => void;
@@ -16,23 +25,43 @@ export function ResultsStrip({ items, currentKey, onPick, onOpen, size = 64, cla
   onOpen?: (key: string) => void;
   size?: number;
   className?: string;
-}) {
+}>(function ResultsStrip({ items, currentKey, onPick, onOpen, size = 64, className }, handle) {
   const ref = useRef<HTMLDivElement>(null);
-  // Keep the current thumbnail in view as results arrive or the arrows walk the strip.
+  const followedAt = useRef(0);
+
+  const currentEl = () => currentKey ? ref.current?.querySelector<HTMLElement>(`[data-key="${CSS.escape(currentKey)}"]`) ?? null : null;
+
+  useImperativeHandle(handle, () => ({
+    follow: (fraction) => {
+      const strip = ref.current;
+      const el = currentEl();
+      if (!strip || !el) return;
+      followedAt.current = performance.now();
+      // Setting scrollLeft also stops any smooth scroll that was under way.
+      strip.scrollLeft = centredScrollLeft(el.offsetLeft, el.offsetWidth, strip.clientWidth) + fraction * (el.offsetWidth + GAP);
+    },
+  }), [currentKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Keep the current thumbnail centred as results arrive or something else picks one — unless the
+  // hero is driving the strip right now.
   useEffect(() => {
-    if (!currentKey) return;
-    const el = ref.current?.querySelector<HTMLElement>(`[data-key="${CSS.escape(currentKey)}"]`);
-    el?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
-  }, [currentKey]);
+    const strip = ref.current;
+    const el = currentEl();
+    if (!strip || !el || performance.now() - followedAt.current < 100) return;
+    const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    strip.scrollTo({ left: centredScrollLeft(el.offsetLeft, el.offsetWidth, strip.clientWidth), behavior: reduced ? 'auto' : 'smooth' });
+  }, [currentKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
   if (!items.length) return null;
   return (
-    <div ref={ref} className={cn('scroll-x-thin flex shrink-0 gap-2 pb-1', className)} style={{ touchAction: 'pan-x' }} role="listbox" aria-label="Recent results">
+    <div ref={ref} className={cn('scroll-x-thin flex shrink-0 pb-1', className)} style={{ touchAction: 'pan-x', gap: GAP }} role="listbox" aria-label="Recent results">
       {items.map(r => {
         const current = r.key === currentKey;
         return (
           <UnstyledButton
             key={r.key}
             data-key={r.key}
+            data-viewer-origin={r.key}
             role="option"
             aria-selected={current}
             onClick={() => (current ? onOpen?.(r.key) : onPick(r.key))}
@@ -53,4 +82,4 @@ export function ResultsStrip({ items, currentKey, onPick, onOpen, size = 64, cla
       })}
     </div>
   );
-}
+});

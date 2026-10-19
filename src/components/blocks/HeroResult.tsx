@@ -2,16 +2,32 @@
  * The big result. A live preview frame outranks everything while a run goes, with the progress
  * under it; otherwise the picked result, image or video. One tap opens it full screen (videos on a
  * phone open the touch player). `children` float over it: badges, an action toolbar.
+ *
+ * It pages like a photo app: a sideways drag moves the picture 1:1 with its neighbour sliding in
+ * beside it, a release pages on distance or on a flick and springs back otherwise, the ends
+ * rubber-band (`hooks/usePager`, maths in `lib/pager.ts`). A pick from anywhere — the strip, the
+ * arrow keys, the wheel, the controller — slides the same way, so there is never a hard cut. The
+ * neighbours are real elements already decoded, so they never pop in blank.
  */
-import { useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Progress } from '@mantine/core';
 import { VideoFullscreen } from '@/components/VideoFullscreen';
+import { bindPagerPointer, usePager } from '@/hooks/usePager';
+import { usePreloadAround } from '@/hooks/usePreload';
 import { useTouchInput } from '@/hooks/useTouchInput';
 import { cn } from '@/lib/cn';
+import { SLIDE_GAP, createWheelStepper, lockAxis } from '@/lib/pager';
 import type { ResultItem } from '@/lib/workspace';
 
-export function HeroResult({ item, preview, busy, progress, statusLine, queued, onOpen, empty, children, className }: {
-  item: ResultItem | null;
+const SIDES = [-1, 0, 1] as const;
+const NO_ITEMS: readonly ResultItem[] = [];
+
+export function HeroResult({ items = NO_ITEMS, currentKey = null, onPick, preview, busy, progress, statusLine, queued, onOpen, onDragProgress, empty, children, className }: {
+  /** Every result, in strip order (newest first); the hero shows `currentKey` and pages among them. */
+  items?: readonly ResultItem[];
+  currentKey?: string | null;
+  /** A swipe, wheel or key landed on another result. */
+  onPick?: (key: string) => void;
   /** The running job's latest preview frame. */
   preview?: string | null;
   busy: boolean;
@@ -22,36 +38,107 @@ export function HeroResult({ item, preview, busy, progress, statusLine, queued, 
   /** Jobs ahead of this one on the server. */
   queued?: number;
   onOpen?: (item: ResultItem) => void;
+  /** -1..1 while the track moves towards the next (+) / previous (−) result; the strip follows it. */
+  onDragProgress?: (fraction: number) => void;
   /** Shown when there is nothing yet. */
   empty?: ReactNode;
   children?: ReactNode;
   className?: string;
 }) {
+  const index = items.findIndex(i => i.key === currentKey);
+  const item = items[index] ?? null;
   const live = busy && preview ? preview : null;
-  const shown = live ?? item?.url ?? null;
-  const isVideo = !live && item?.kind === 'video';
   const touch = useTouchInput();
   const [videoFs, setVideoFs] = useState<{ url: string; time: number } | null>(null);
   const resumeAt = useRef<number | null>(null);
+  const root = useRef<HTMLDivElement>(null);
+
+  const keys = items.map(i => i.key);
+  const canPage = items.length > 1 && !live;
+  const pager = usePager({
+    keys,
+    index,
+    onIndexChange: i => { const it = items[i]; if (it) onPick?.(it.key); },
+    enabled: canPage && !!onPick,
+    onProgress: onDragProgress,
+  });
+  usePreloadAround(items.map(i => i.url), index);
+
+  // A finger (or a mouse) on the hero drives the track directly.
+  const drag = pager.drag;
+  useEffect(() => {
+    const el = root.current;
+    if (!el) return;
+    return bindPagerPointer(el, drag, lockAxis);
+  }, [drag]);
+
+  // A wheel over the hero steps through the results, one per gesture.
+  const wheel = useRef(createWheelStepper());
+  const onWheel = (e: React.WheelEvent) => {
+    if (e.ctrlKey || e.metaKey || !canPage) return;
+    const dir = wheel.current.feed(e.deltaY + e.deltaX, e.timeStamp);
+    if (dir) pager.step(dir);
+  };
+
+  /** The item drawn on a side: the one leaving (ghost) while a slide runs, else the neighbour. */
+  const slideItem = (side: -1 | 0 | 1): ResultItem | null => {
+    if (side === 0) return item;
+    if (live) return null;
+    if (pager.ghost?.side === side) return items.find(i => i.key === pager.ghost!.key) ?? null;
+    return items[index + side] ?? null;
+  };
+
+  const renderCurrent = (it: ResultItem) => it.kind === 'video' ? (
+    <video
+      key={it.url} src={it.url} controls={!touch} autoPlay loop muted playsInline
+      data-viewer-origin={it.key}
+      onClick={touch ? (e) => setVideoFs({ url: it.url, time: e.currentTarget.currentTime }) : undefined}
+      onDoubleClick={touch ? undefined : () => onOpen?.(it)}
+      onLoadedMetadata={(e) => { if (resumeAt.current != null) { e.currentTarget.currentTime = resumeAt.current; resumeAt.current = null; } }}
+      className="h-full w-full object-contain"
+    />
+  ) : (
+    <img
+      src={it.url}
+      alt={it.filename}
+      data-viewer-origin={it.key}
+      draggable={false}
+      onClick={() => onOpen?.(it)}
+      className="h-full w-full cursor-zoom-in object-contain"
+    />
+  );
+
+  const renderNeighbour = (it: ResultItem) => it.kind === 'video'
+    ? <video src={it.url} muted playsInline preload="metadata" className="h-full w-full object-contain" />
+    : <img src={it.url} alt="" draggable={false} decoding="async" className="h-full w-full object-contain" />;
 
   return (
-    <div className={cn('relative flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-xl border border-border-default bg-bg-base', className)}>
-      {shown && isVideo && item ? (
-        <video
-          key={shown} src={shown} controls={!touch} autoPlay loop muted playsInline
-          onClick={touch ? (e) => setVideoFs({ url: shown, time: e.currentTarget.currentTime }) : undefined}
-          onDoubleClick={touch ? undefined : () => onOpen?.(item)}
-          onLoadedMetadata={(e) => { if (resumeAt.current != null) { e.currentTarget.currentTime = resumeAt.current; resumeAt.current = null; } }}
-          className="h-full w-full object-contain"
-        />
-      ) : shown ? (
-        <img
-          src={shown}
-          alt={live ? 'Live preview' : item?.filename ?? 'Result'}
-          onClick={() => { if (!live && item) onOpen?.(item); }}
-          // h-full w-full + object-contain scales a small preview frame up to the whole area.
-          className={cn('h-full w-full object-contain', !live && 'cursor-zoom-in')}
-        />
+    <div
+      ref={root}
+      onWheel={onWheel}
+      // pan-y: the browser keeps any vertical scroll; sideways is ours.
+      style={{ touchAction: 'pan-y' }}
+      className={cn('relative flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-xl border border-border-default bg-bg-base', className)}
+    >
+      {item && !live ? (
+        <div ref={pager.trackRef} className="absolute inset-0">
+          {SIDES.map(side => {
+            const it = slideItem(side);
+            if (!it) return null;
+            return (
+              <div
+                key={`${side}:${it.key}`}
+                className="absolute inset-0"
+                style={side ? { transform: `translateX(calc(${side} * (100% + ${SLIDE_GAP}px)))` } : undefined}
+              >
+                {side === 0 ? renderCurrent(it) : renderNeighbour(it)}
+              </div>
+            );
+          })}
+        </div>
+      ) : live ? (
+        // h-full w-full + object-contain scales a small preview frame up to the whole area.
+        <img src={live} alt="Live preview" className="h-full w-full object-contain" />
       ) : (
         <div className="px-6 text-center text-[13px] italic text-fg-muted">
           {busy ? (statusLine ?? 'Working…') : (empty ?? 'Nothing yet — press Generate.')}

@@ -4,11 +4,12 @@
  * viewer is found by what it already is (a full-screen `data-no-swipe` overlay, or anything that
  * opts in with `data-pad-layer="viewer"`), and it is stepped and closed through what it already
  * answers to — the image viewer through the store, the rest through the arrow keys and Escape they
- * listen for, exactly as a keyboard drives them. When the viewers grow their own next / previous /
- * close actions, `viewerStep` / `viewerClose` (and `stepResults` / `openResult` for the hero) are
- * what to point at them.
+ * listen for, exactly as a keyboard drives them. The image viewer and the touch video player
+ * register their own animated next / previous / close (`components/viewerTransition`
+ * `registerViewer`), which `viewerStep` / `viewerClose` prefer; the keys are the fallback.
  */
 import { useEffect, useRef } from 'react';
+import { activeViewer } from '@/components/viewerTransition';
 import { useStore } from '@/lib/store';
 import { stepResult } from '@/lib/desktopLayout';
 import type { WorkspaceMode } from '@/lib/workspace';
@@ -24,11 +25,15 @@ function key(k: 'Escape' | 'ArrowLeft' | 'ArrowRight', on: EventTarget) {
 
 /** Previous / next picture: -1 is ←, 1 is →, as the arrow keys. */
 export function viewerStep(dir: 1 | -1) {
+  const v = activeViewer();
+  if (v) { v.step(dir); return; }
   key(dir < 0 ? 'ArrowLeft' : 'ArrowRight', window);
 }
 
 /** Close it: the image viewer is store state; the others close on Escape. */
 export function viewerClose(viewer: HTMLElement) {
+  const v = activeViewer();
+  if (v) { v.close(); return; } // animated; it tells its owner (the store, for the image viewer) when done
   const st = useStore.getState();
   if (st.viewerOpen) { st.closeViewer(); return; }
   key('Escape', viewer);

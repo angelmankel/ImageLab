@@ -72,8 +72,8 @@ npm run build
 - **The building blocks** (`components/blocks`, one file each, used by both shells): `SectionCard`
   (folding card with icon, live summary, badge), `FieldRow`, `SliderRow` (one-line slider),
   `Segmented`, `ChipPicker` / `ChipButton`, `ResultsStrip` (thumbnails, current outlined),
-  `HeroResult` (the big latest result; live preview and progress while busy; a tap opens fullscreen;
-  children float over it), `RunBar` (big Generate that becomes Stop, progress along its bottom),
+  `HeroResult` (the big latest result, swipeable — see "Swiping results"; live preview and progress while
+  busy; a tap opens fullscreen; children float over it), `RunBar` (big Generate that becomes Stop, progress along its bottom),
   `JobTray` (one pill per running job across modes), `ModeSwitch`, `DetailToggle`. Results from
   every mode share one shape, `ResultItem` (`workspace/results.ts`: `useImageResults` with the
   history entry attached, `useVideoResults`, `useWorkflowResults`). The image sections themselves
@@ -226,6 +226,49 @@ npm run build
 `control_after_generate` slot even when `/object_info` does not declare one, and saves the extra
 `"randomize"` in `widgets_values`. `lib/workflowGraph.ts` mirrors that rule. Break it and every
 widget after a seed is read one slot off — it showed up as steps reading "randomize".
+
+## Swiping results (the gesture model)
+
+- **One pager everywhere.** The hero (`components/blocks/HeroResult`), the fullscreen viewer
+  (`components/FullscreenImage`) and, through them, the strip and the gallery all page with
+  `hooks/usePager`: a track of three slides (previous · current · next, `SLIDE_GAP` 24 px apart)
+  that the finger moves 1:1, a spring that settles it, and a *ghost* — on an index change the
+  outgoing item is drawn on the side it leaves by, the track jumps so it has not moved yet, and the
+  new one springs in. So every change — a release, a tapped thumbnail, ←/→, the wheel, a new result
+  landing, a controller — is the same slide, never a cut. The hook writes the track's `transform`
+  itself (`will-change` only while moving); React state changes only on commit.
+- **The numbers** are `lib/pager.ts` (pure, tested in `tests/pager.test.cjs`): axis locks after
+  10 px (`lockAxis`, symmetric; `lib/swipe.ts` keeps the one-way `swipeAxis` for the settings
+  pager); a release pages past 30 % of the width or on a flick ≥ 0.5 px/ms that moved ≥ 20 px
+  (`pageOnRelease`); the first and last item rubber-band (`rubberBand`, iOS curve, c = 0.55);
+  the settle is a unit spring k = 320, c = 32 (just under critical, ~300 ms, a hint of overshoot
+  only when thrown; `spring` is closed-form, sampled per frame). Pull-down closes past 20 % of the
+  height or a flick ≥ 0.6 px/ms after 30 px (`closeCommits`); the picture scales to 0.65 and the
+  backdrop fades with `closeProgress`. Double-tap: 300 ms / 30 px, zoom 2.5×. A wheel steps once
+  per gesture (`createWheelStepper`: 60 units, then quiet for 160 ms — trackpad inertia never
+  pages twice). `prefers-reduced-motion` turns every slide, open and close into a 120 ms fade.
+- **The viewer** (`usePanZoom` + the pager): at 1× one finger pages sideways or pulls down to
+  close (the image follows, shrinks, the backdrop fades; let go early and it springs back); pinch
+  or double-tap zooms, and zoomed a drag pans and a flick throws; a second finger cancels a page
+  drag. Open and close are a shared-element transition (`components/viewerTransition.ts`, maths in
+  `lib/flip.ts`, tested): the picture grows out of the largest visible element marked
+  `data-viewer-origin="<key>"` — the hero's image, a strip thumbnail, a gallery tile — and shrinks
+  back into whatever shows it then; nothing visible → a fade. The chrome fades in after. A tap
+  closes only after the double-tap window.
+- **Preloading.** The neighbours are real `<img>`s in the track (already decoded when they slide
+  in); `hooks/usePreload` decodes ±2 more off screen. Thumbnails and the hero share the viewer's
+  URLs, so the browser cache is the placeholder.
+- **The strip** keeps the current thumbnail centred (`centredScrollLeft`, smooth) and, while the
+  hero is dragged, follows the finger through its `follow(fraction)` handle (`ResultsStripHandle`).
+- **For code that wants the same animation** — the controller (`features/gamepad/padViewer`) —
+  the open viewer registers `{ step(dir), close() }` with `registerViewer` / `activeViewer()`
+  (`viewerTransition.ts`); the touch video player registers too and closes on Escape. Outside the
+  viewer, changing the selection (`selectHistoryEntry`, a run pane's pick) is enough: the hero
+  slides to it. `openViewer()` / `closeViewer()` are untouched; the viewer animates around them.
+- **Do not fight the browser.** The hero is `touch-action: pan-y` (vertical scroll stays the
+  browser's; a `pointercancel` snaps the track back), the viewer `touch-action: none`; nothing
+  starts on a button, a text box, a slider or `data-no-swipe`; a mouse on a `<video>` is for its
+  controls. Android's edge-back gesture is the system's and is never intercepted.
 
 ## Verifying
 

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useMediaQuery } from '@mantine/hooks';
 import {
@@ -9,27 +9,39 @@ import {
   IconSettings, IconX,
 } from '@tabler/icons-react';
 import { POPOVER_Z } from '@/components/ui/popover';
-import { usePanZoom } from '@/hooks/usePanZoom';
+import { usePager } from '@/hooks/usePager';
+import { usePanZoom, type DragPhase } from '@/hooks/usePanZoom';
+import { usePreloadAround } from '@/hooks/usePreload';
 import { useShortcut, ShortcutPriority } from '@/hooks/useShortcut';
+import { createVelocityTracker } from '@/lib/momentum';
+import { SLIDE_GAP, closeCommits, closeProgress, closeScale, lockAxis, rubberBand } from '@/lib/pager';
 import {
   loadSlideshowTransition,
   saveSlideshowTransition,
   type SlideshowTransition,
 } from '@/lib/storage';
 import { cn } from '@/lib/cn';
+import { CLOSE_MS, EASE_OUT, animateClose, animateOpen, reducedMotion, registerViewer } from './viewerTransition';
 
 /**
  * Generic, reusable fullscreen image viewer.
  *
- * Owns the chrome (close, prev/next, page counter, slideshow toggle, info
- * panel) plus pan/pinch/wheel/momentum gestures and keyboard navigation
- * (←/→ for nav, S for slideshow, Esc for close). At normal zoom a sideways swipe pages and a
- * downward swipe closes; on phones prev/next sit near the bottom. The contents of the
- * info panel are caller-provided — the history viewer renders an entry's
- * metadata; the model-metadata modal can pass `null`.
+ * Owns the chrome (close, prev/next, page counter, slideshow toggle, info panel) plus the gestures
+ * and keyboard navigation (←/→ for nav, S for slideshow, Esc for close).
  *
- * Slideshow play state can be externally controlled (pass `playing` +
- * `onPlayingChange`) for cross-component persistence, or left internal.
+ * The gesture model, as a photo app's: at 1× a sideways drag moves the picture 1:1 with the next
+ * or previous one sliding in beside it (`hooks/usePager`), and the release pages on distance or on
+ * a flick, else springs back; the ends rubber-band. A downward pull shrinks the picture under the
+ * finger and fades the backdrop, and past a fifth of the height (or a flick) closes it, shrinking
+ * back into its thumbnail; let go early and it springs back. Pinch or double-tap zooms; zoomed, a
+ * drag pans and a flick throws. Open and close are a shared-element transition from whatever on
+ * the page shows the same result (`data-viewer-origin`), or a fade when nothing does. Arrow keys,
+ * the buttons and the controller run the same animations. `prefers-reduced-motion` makes every
+ * one of them a short fade.
+ *
+ * The contents of the info panel are caller-provided — the history viewer renders an entry's
+ * metadata; the model-metadata modal can pass `null`. Slideshow play state can be externally
+ * controlled (pass `playing` + `onPlayingChange`) for cross-component persistence, or left internal.
  */
 
 /** Video by file name (CivitAI galleries mix in .mp4 clips; ComfyUI's /view?filename=x.mp4&… too);
@@ -77,6 +89,8 @@ const DEFAULT_SLIDESHOW_MS = 3000;
  */
 const IMAGE_BOX = 'block h-[100dvh] w-screen select-none object-contain';
 
+const SIDES = [-1, 0, 1] as const;
+
 export function FullscreenImage({
   items,
   index,
@@ -107,20 +121,26 @@ export function FullscreenImage({
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
   const [infoOpen, setInfoOpen] = useState(initialInfoOpen);
   const containerRef = useRef<HTMLDivElement>(null);
+  const backdropRef = useRef<HTMLDivElement>(null);
+  const topBarRef = useRef<HTMLDivElement>(null);
+  const navRef = useRef<HTMLDivElement>(null);
+  /** The current slide (grows from / shrinks to the thumbnail) and the pull-down wrapper inside it. */
+  const slideRef = useRef<HTMLDivElement>(null);
+  const pullRef = useRef<HTMLDivElement>(null);
+  const naturalRef = useRef<{ w: number; h: number } | null>(null);
+  const closing = useRef(false);
 
-  // Slideshow transition (persisted). The chosen effect only applies when
-  // `playing === true` — manual prev/next stays instant so quick browsing
-  // isn't blocked behind a 500 ms animation.
+  // Slideshow transition (persisted). The chosen effect only applies when `playing === true`;
+  // manual prev/next slides on the pager instead.
   const [transition, setTransitionState] = useState<SlideshowTransition>(() => loadSlideshowTransition());
   const setTransition = (t: SlideshowTransition) => {
     saveSlideshowTransition(t);
     setTransitionState(t);
   };
 
-  // Previous-URL ref drives the dual-image transition stack. On every URL
-  // change while the slideshow is playing, we capture the just-shown URL and
-  // bump `animKey` so both layers remount and run their enter/exit
-  // animations.
+  // Previous-URL ref drives the dual-image transition stack. On every URL change while the
+  // slideshow is playing, we capture the just-shown URL and bump `animKey` so both layers remount
+  // and run their enter/exit animations.
   const [prevUrl, setPrevUrl] = useState<string | null>(null);
   const [animKey, setAnimKey] = useState(0);
   const lastUrlRef = useRef<string>(url);
@@ -136,18 +156,119 @@ export function FullscreenImage({
   }, [url, playing, transition]);
 
   const len = items.length;
-  const prev = () => onIndexChange((index - 1 + len) % len);
-  const next = () => onIndexChange((index + 1) % len);
-
-  // Phones: prev/next sit low where a thumb reaches, and a sideways swipe at normal zoom pages.
+  // Phones: prev/next sit low where a thumb reaches.
   const narrow = useMediaQuery('(max-width: 48em)') ?? false;
   const canPage = len > 1 && !live;
 
+  const keys = items.map(i => i.key);
+  const pager = usePager({ keys, index, onIndexChange, enabled: canPage, animate: !playing });
+  usePreloadAround(items.map(i => i.url), index);
+
+  // Buttons and keys wrap around; the slide always goes the way that was asked.
+  const prev = () => { if (canPage) pager.goTo(index > 0 ? index - 1 : len - 1, -1); };
+  const next = () => { if (canPage) pager.goTo(index < len - 1 ? index + 1 : 0, 1); };
+
+  /** Animated close: shrink into the thumbnail (or fade), then tell the owner. Idempotent. */
+  const close = useCallback(() => {
+    if (closing.current) return;
+    closing.current = true;
+    const root = containerRef.current;
+    if (root) root.style.pointerEvents = 'none';
+    const slide = slideRef.current;
+    const chrome = [topBarRef.current, navRef.current].filter((c): c is HTMLDivElement => !!c);
+    const pull = pullRef.current;
+    const fromBackdrop = backdropRef.current ? Number(getComputedStyle(backdropRef.current).opacity) || 1 : 1;
+    const done = () => onCloseRef.current();
+    if (!slide || !item || live) {
+      // Nothing to shrink (a live frame, or no item): a quick fade.
+      if (backdropRef.current) backdropRef.current.animate([{ opacity: fromBackdrop }, { opacity: 0 }], { duration: 150, fill: 'forwards' }).finished.then(done, done);
+      else done();
+      return;
+    }
+    if (pull && pull.style.transform) {
+      pull.animate([{ transform: pull.style.transform }, { transform: 'none' }], { duration: reducedMotion() ? 100 : CLOSE_MS, easing: EASE_OUT, fill: 'forwards' });
+    }
+    animateClose(slide, backdropRef.current, chrome, item.key, naturalRef.current, 'none', fromBackdrop).then(done, done);
+  }, [item, live]); // eslint-disable-line react-hooks/exhaustive-deps
+  const onCloseRef = useRef(onClose); onCloseRef.current = onClose;
+
+  // Open: grow out of whatever shows this result on the page, with the chrome fading in after.
+  useLayoutEffect(() => {
+    const slide = slideRef.current;
+    const chrome = [topBarRef.current, navRef.current].filter((c): c is HTMLDivElement => !!c);
+    if (!slide || !item || live) {
+      backdropRef.current?.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200, easing: 'ease-out' });
+      return;
+    }
+    void animateOpen(slide, backdropRef.current, chrome, item.key, null);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // The controller (and anything else) drives the same animations.
+  const stepRef = useRef<(dir: 1 | -1) => boolean>(() => false);
+  stepRef.current = (dir) => { if (!canPage) return false; if (dir > 0) next(); else prev(); return true; };
+  useEffect(() => registerViewer({ step: (dir) => stepRef.current(dir), close }), [close]);
+
+  // ── One-finger drags at 1×: page sideways, pull down to close ─────────────
+  const gesture = useRef<{ axis: 'x' | 'y' | 'none' | null; vy: ReturnType<typeof createVelocityTracker> }>({ axis: null, vy: createVelocityTracker() });
+
+  const setPull = (dx: number, dy: number) => {
+    const pull = pullRef.current;
+    const h = window.innerHeight;
+    const y = dy >= 0 ? dy : rubberBand(dy, h / 2);
+    const p = closeProgress(dy, h);
+    if (pull) {
+      pull.style.willChange = 'transform';
+      pull.style.transform = `translate(${dx * 0.3}px, ${y}px) scale(${closeScale(p)})`;
+    }
+    if (backdropRef.current) backdropRef.current.style.opacity = String(1 - 0.9 * p);
+    for (const c of [topBarRef.current, navRef.current]) if (c) c.style.opacity = String(1 - p);
+  };
+  const springPullBack = () => {
+    const pull = pullRef.current;
+    const ms = reducedMotion() ? 100 : 300;
+    if (pull && pull.style.transform) {
+      const from = pull.style.transform;
+      pull.style.transform = '';
+      pull.style.willChange = '';
+      pull.animate([{ transform: from }, { transform: 'none' }], { duration: ms, easing: EASE_OUT });
+    }
+    const back = (el: HTMLElement | null) => {
+      if (!el) return;
+      const from = el.style.opacity;
+      el.style.opacity = '';
+      if (from) el.animate([{ opacity: from }, { opacity: 1 }], { duration: ms, easing: 'ease-out' });
+    };
+    back(backdropRef.current); back(topBarRef.current); back(navRef.current);
+  };
+
+  const onDrag = (phase: DragPhase, dx: number, dy: number) => {
+    const g = gesture.current;
+    if (phase === 'start') { g.axis = null; g.vy.reset(0, dy); return; }
+    if (phase === 'move') {
+      if (!g.axis) {
+        const axis = lockAxis(dx, dy);
+        if (!axis) return;
+        if (axis === 'x') { if (canPage) { g.axis = 'x'; pager.drag.begin(); } else g.axis = 'none'; }
+        else g.axis = live ? 'none' : 'y';
+      }
+      if (g.axis === 'x') pager.drag.update(dx);
+      else if (g.axis === 'y') { setPull(dx, dy); g.vy.sample(0, dy); }
+      return;
+    }
+    // end or cancel
+    if (g.axis === 'x') pager.drag.finish({ cancel: phase === 'cancel' });
+    else if (g.axis === 'y') {
+      const vy = g.vy.release().y;
+      if (phase === 'end' && closeCommits(dy, vy, window.innerHeight)) close();
+      else springPullBack();
+    }
+    g.axis = null;
+  };
+
   const { zoom, offset, reframing, handlers } = usePanZoom(containerRef, {
     resetKey: item?.key ?? index,
-    onTap: onClose,
-    onSwipe: canPage ? (dir) => (dir < 0 ? prev() : next()) : undefined,
-    onSwipeDown: onClose,
+    onTap: close,
+    onDrag,
   });
 
   useEffect(() => { setSize(null); }, [item?.key, index]);
@@ -163,9 +284,9 @@ export function FullscreenImage({
 
   // Top-overlay priority — when the fullscreen viewer is open, its arrows
   // and Esc take precedence over the history panel / metadata gallery behind.
-  useShortcut('Escape', () => onClose(), { priority: ShortcutPriority.TopOverlay });
-  useShortcut('ArrowLeft', () => onIndexChange((index - 1 + len) % len), { priority: ShortcutPriority.TopOverlay });
-  useShortcut('ArrowRight', () => onIndexChange((index + 1) % len), { priority: ShortcutPriority.TopOverlay });
+  useShortcut('Escape', () => close(), { priority: ShortcutPriority.TopOverlay });
+  useShortcut('ArrowLeft', () => prev(), { priority: ShortcutPriority.TopOverlay });
+  useShortcut('ArrowRight', () => next(), { priority: ShortcutPriority.TopOverlay });
   useShortcut(['s', 'S'], () => setPlaying(p => !p), { priority: ShortcutPriority.TopOverlay });
 
   if (!item && !live) return null;
@@ -174,6 +295,19 @@ export function FullscreenImage({
   // its click so the container's tap-to-close does not fire underneath it.
   const chrome = { variant: 'filled', color: 'dark', size: 'lg', style: { opacity: 0.8 } } as const;
 
+  /** The item drawn on a side: the one leaving (ghost) while a slide runs, else the neighbour. */
+  const slideItem = (side: -1 | 0 | 1): FullscreenItem | undefined => {
+    if (side === 0) return item;
+    if (live) return undefined;
+    if (pager.ghost?.side === side) return items.find(i => i.key === pager.ghost!.key);
+    return items[index + side];
+  };
+
+  const panStyle = {
+    transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom})`,
+    transition: reframing ? 'transform 250ms cubic-bezier(0.22, 1, 0.36, 1)' : undefined,
+  };
+
   return createPortal(
     <div
       ref={containerRef}
@@ -181,9 +315,10 @@ export function FullscreenImage({
       // (300) so the transition picker and tooltips still show over it.
       className="fixed inset-0 z-[250] overflow-hidden"
       // Page-level swipe gestures (Studio's pane swipe, drawer edge-swipe) leave the viewer's
-      // own swipes and pinches alone.
+      // own swipes and pinches alone; the controller finds it by these too.
       data-no-swipe
-      style={{ touchAction: 'none', backgroundColor: 'rgba(0, 0, 0, 0.95)' }}
+      data-pad-layer="viewer"
+      style={{ touchAction: 'none' }}
       onWheel={handlers.onWheel}
       onPointerDown={handlers.onPointerDown}
       onPointerMove={handlers.onPointerMove}
@@ -191,74 +326,73 @@ export function FullscreenImage({
       onPointerCancel={handlers.onPointerUp}
       onClick={handlers.onClick}
     >
-      {/* Image stack — when the slideshow is playing with a non-`none`
-          transition, the outgoing image (back layer) runs its exit anim
-          while the new image (front layer) runs its enter anim. Outside of
-          slideshow mode only the front layer is rendered, so manual prev /
-          next stays instant. The user's pan/zoom transform stays on the
-          inner image; the transition transform wraps it so the two compose. */}
-      <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-        {prevUrl && (
-          <div key={`out-${animKey}`} className={cn('absolute', transitionClass(transition, 'out'))}>
-            {isVideoUrl(prevUrl) ? (
-              <video src={prevUrl} muted playsInline className={IMAGE_BOX} />
-            ) : (
-              <img
-                src={prevUrl}
-                alt=""
-                draggable={false}
-                className={IMAGE_BOX}
-              />
-            )}
-          </div>
-        )}
-        <div
-          key={`in-${animKey}`}
-          className={cn('absolute', prevUrl && transitionClass(transition, 'in'))}
-        >
-          <KenBurnsWrap active={playing && transition === 'ken-burns'} durationMs={slideshowMs} animKey={animKey}>
-            {isVideoUrl(url) ? (
-              <video
-                key={url}
-                src={url}
-                autoPlay
-                muted
-                loop
-                playsInline
-                onLoadedMetadata={(e) => setSize({ w: e.currentTarget.videoWidth, h: e.currentTarget.videoHeight })}
-                className={IMAGE_BOX}
-                style={{
-                  transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom})`,
-                  transition: reframing ? 'transform 250ms cubic-bezier(0.22, 1, 0.36, 1)' : undefined,
-                }}
-              />
-            ) : (
-              <img
-                src={url}
-                alt=""
-                draggable={false}
-                onLoad={(e) => setSize({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight })}
-                className={IMAGE_BOX}
-                style={{
-                  transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom})`,
-                  transition: reframing ? 'transform 250ms cubic-bezier(0.22, 1, 0.36, 1)' : undefined,
-                }}
-              />
-            )}
-          </KenBurnsWrap>
-        </div>
+      {/* The backdrop fades on its own: with the pull-down, and on open and close. */}
+      <div ref={backdropRef} className="absolute inset-0" style={{ backgroundColor: 'rgba(0, 0, 0, 0.95)' }} />
+
+      {/* The slide track: previous, current and next side by side, moved as one by the finger or
+          the spring (`usePager` writes its transform). Only the current slide carries the user's
+          pan/zoom on the inner image; the pull-down wrapper and the open/close transform sit on
+          the slide around it, so the three compose. */}
+      <div ref={pager.trackRef} className="pointer-events-none absolute inset-0">
+        {SIDES.map(side => {
+          const it = slideItem(side);
+          if (!it && !(side === 0 && live)) return null;
+          const u = side === 0 ? url : it!.url;
+          const k = side === 0 ? (live ? 'live' : it!.key) : it!.key;
+          return (
+            <div
+              key={`${side}:${k}`}
+              ref={side === 0 ? slideRef : undefined}
+              className={cn('absolute inset-0 flex items-center justify-center', side === 0 && prevUrl && transitionClass(transition, 'in'))}
+              style={side ? { transform: `translateX(calc(${side} * (100% + ${SLIDE_GAP}px)))` } : undefined}
+            >
+              {side === 0 ? (
+                <div ref={pullRef} className="h-full w-full">
+                  <KenBurnsWrap active={playing && transition === 'ken-burns'} durationMs={slideshowMs} animKey={animKey}>
+                    {isVideoUrl(u) ? (
+                      <video
+                        key={u} src={u} autoPlay muted loop playsInline className={IMAGE_BOX} style={panStyle}
+                        onLoadedMetadata={(e) => { const n = { w: e.currentTarget.videoWidth, h: e.currentTarget.videoHeight }; naturalRef.current = n; setSize(n); }}
+                      />
+                    ) : (
+                      <img
+                        src={u} alt="" draggable={false} className={IMAGE_BOX} style={panStyle}
+                        onLoad={(e) => { const n = { w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight }; naturalRef.current = n; setSize(n); }}
+                      />
+                    )}
+                  </KenBurnsWrap>
+                </div>
+              ) : isVideoUrl(u) ? (
+                <video src={u} muted playsInline preload="metadata" className={IMAGE_BOX} />
+              ) : (
+                <img src={u} alt="" draggable={false} decoding="async" className={IMAGE_BOX} />
+              )}
+            </div>
+          );
+        })}
       </div>
+
+      {/* The slideshow's outgoing layer runs its exit animation over the track. */}
+      {prevUrl && (
+        <div key={`out-${animKey}`} className={cn('pointer-events-none absolute inset-0 flex items-center justify-center', transitionClass(transition, 'out'))}>
+          {isVideoUrl(prevUrl) ? (
+            <video src={prevUrl} muted playsInline className={IMAGE_BOX} />
+          ) : (
+            <img src={prevUrl} alt="" draggable={false} className={IMAGE_BOX} />
+          )}
+        </div>
+      )}
 
       {/* Prev / next — hidden while the slideshow plays, as in v1. */}
       {canPage && !playing && (
-        <>
+        <div ref={navRef} className="pointer-events-none absolute inset-0 z-10">
           <ActionIcon
             {...chrome}
             size={narrow ? 56 : 'xl'}
             radius={narrow ? 'xl' : undefined}
             aria-label="Previous"
             onClick={(e) => { e.stopPropagation(); prev(); }}
-            className={cn('!absolute left-4 z-10', narrow ? '' : 'top-1/2 -translate-y-1/2')}
+            className={cn('pointer-events-auto !absolute left-4', narrow ? '' : 'top-1/2 -translate-y-1/2')}
             style={{ ...chrome.style, ...(narrow ? { bottom: 'calc(env(safe-area-inset-bottom, 0px) + 24px)' } : null) }}
           >
             <IconChevronLeft size="1.5rem" />
@@ -269,12 +403,12 @@ export function FullscreenImage({
             radius={narrow ? 'xl' : undefined}
             aria-label="Next"
             onClick={(e) => { e.stopPropagation(); next(); }}
-            className={cn('!absolute z-10', narrow ? 'right-4' : 'top-1/2 -translate-y-1/2', !narrow && (infoSlot && infoOpen ? 'right-[356px]' : 'right-4'))}
+            className={cn('pointer-events-auto !absolute', narrow ? 'right-4' : 'top-1/2 -translate-y-1/2', !narrow && (infoSlot && infoOpen ? 'right-[356px]' : 'right-4'))}
             style={{ ...chrome.style, ...(narrow ? { bottom: 'calc(env(safe-area-inset-bottom, 0px) + 24px)' } : null) }}
           >
             <IconChevronRight size="1.5rem" />
           </ActionIcon>
-        </>
+        </div>
       )}
 
       {infoSlot && (
@@ -310,6 +444,7 @@ export function FullscreenImage({
       {/* Top bar: one row, badges left and controls right, so the two can never overlap — the
           badges wrap onto a second line first. Padded below the notch / status bar. */}
       <div
+        ref={topBarRef}
         className="pointer-events-none !absolute inset-x-0 top-0 z-20 flex items-start justify-between gap-2 pl-4 transition-[padding] duration-200"
         style={{
           paddingTop: 'calc(env(safe-area-inset-top, 0px) + 16px)',
@@ -374,7 +509,7 @@ export function FullscreenImage({
           <ActionIcon
             {...chrome}
             aria-label="Close"
-            onClick={(e) => { e.stopPropagation(); onClose(); }}
+            onClick={(e) => { e.stopPropagation(); close(); }}
           >
             <IconX size="1.2rem" />
           </ActionIcon>

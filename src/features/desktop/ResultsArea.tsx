@@ -9,10 +9,10 @@
  * The image fullscreen viewer is the history panel's (it stays mounted in the folded column too),
  * so `openViewer()` is all the hero does; rendering a second one here would stack two overlays.
  */
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Badge, Button } from '@mantine/core';
 import { HeroResult } from '@/components/blocks/HeroResult';
-import { ResultsStrip } from '@/components/blocks/ResultsStrip';
+import { ResultsStrip, type ResultsStripHandle } from '@/components/blocks/ResultsStrip';
 import { FullscreenImage } from '@/components/FullscreenImage';
 import { useShortcut, ShortcutPriority } from '@/hooks/useShortcut';
 import { useStore } from '@/lib/store';
@@ -69,7 +69,6 @@ function ImageResults() {
   // run's result shows itself unless something older was picked on purpose.
   const current = selected ?? history[0] ?? null;
   const index = current ? history.findIndex(h => h.id === current.id) : -1;
-  const item = useMemo(() => items.find(i => i.key === current?.id) ?? null, [items, current]);
 
   // Servers in their configured order, so two concurrent previews keep their places.
   const previews = useMemo(() => {
@@ -78,6 +77,8 @@ function ImageResults() {
   }, [servers, livePreviews]);
   const activity = jobActivity(jobs, submitting, online);
   const stage = activity.queued > 0 ? `${activity.label} · ${activity.queued} queued` : activity.label;
+  const strip_ = useRef<ResultsStripHandle>(null);
+  const pick = (key: string) => { const e = history.find(h => h.id === key); if (e) select(e); };
 
   useShortcut('ArrowLeft', () => { const i = stepResult(index, history.length, 1); if (history[i]) select(history[i]); },
     { priority: ShortcutPriority.Panel + 10, when: () => !viewerOpen });
@@ -87,7 +88,10 @@ function ImageResults() {
   return (
     <div className="flex h-full min-h-0 flex-col gap-2 p-3">
       <HeroResult
-        item={item}
+        items={items}
+        currentKey={current?.id ?? null}
+        onPick={pick}
+        onDragProgress={f => strip_.current?.follow(f)}
         preview={previews[0] ?? null}
         busy={activity.active}
         progress={activity.percent != null ? activity.percent / 100 : null}
@@ -109,8 +113,8 @@ function ImageResults() {
         )}
       </HeroResult>
       <div onWheel={onWheel} className="shrink-0 empty:hidden">
-        <ResultsStrip items={items} currentKey={current?.id ?? null} size={strip}
-          onPick={key => { const e = history.find(h => h.id === key); if (e) select(e); }}
+        <ResultsStrip ref={strip_} items={items} currentKey={current?.id ?? null} size={strip}
+          onPick={pick}
           onOpen={key => { const e = history.find(h => h.id === key); if (e) { select(e); openViewer(); } }} />
       </div>
     </div>
@@ -159,10 +163,12 @@ function RunResults({ mode, store }: { mode: WorkspaceMode; store: RunStore }) {
 
   const line = busy ? `${currentNode ?? status ?? 'Working…'}${queue ? ` · ${queue} queued` : ''}` : undefined;
   const noun = mode === 'video' ? 'video' : 'result';
+  const strip_ = useRef<ResultsStripHandle>(null);
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-2 p-3">
-      <HeroResult item={item} preview={busy ? preview : null} busy={busy} progress={progress} statusLine={line}
+      <HeroResult items={items} currentKey={item?.key ?? null} onPick={setPicked} onDragProgress={f => strip_.current?.follow(f)}
+        preview={busy ? preview : null} busy={busy} progress={progress} statusLine={line}
         onOpen={() => { if (item) setFullscreen(index); }} empty={`No ${noun} yet — press Generate.`}>
         {items.length > 1 && index >= 0 && !busy && (
           <Badge variant="filled" color="dark" radius="sm" className="pointer-events-none !absolute right-2 top-2 tabular-nums" style={{ opacity: 0.85 }}>
@@ -180,7 +186,7 @@ function RunResults({ mode, store }: { mode: WorkspaceMode; store: RunStore }) {
         <CompareVideos items={items} opened={comparing} onClose={() => setComparing(false)} initialA={items[index + 1]?.key ?? null} initialB={item?.key ?? null} />
       )}
       <div onWheel={onWheel} className="shrink-0 empty:hidden">
-        <ResultsStrip items={items} currentKey={item?.key ?? null} size={strip} onPick={setPicked}
+        <ResultsStrip ref={strip_} items={items} currentKey={item?.key ?? null} size={strip} onPick={setPicked}
           onOpen={key => { const i = items.findIndex(x => x.key === key); if (i >= 0) { setPicked(key); setFullscreen(i); } }} />
       </div>
       {fullscreen !== null && (

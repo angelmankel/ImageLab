@@ -14,6 +14,7 @@
  * The bottom edge below all this is the app-wide `MobileNav`.
  */
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import type { ResultsStripHandle } from '@/components/blocks/ResultsStrip';
 import { Box, Group, Text } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconDice } from '@tabler/icons-react';
@@ -157,12 +158,14 @@ function Footer({ children }: { children: ReactNode }) {
 /** The result tab: the hero, the strip under it, and the actions for the shown result. */
 function ResultPane({ items, currentKey, onPick, onOpen, hero, actions }: {
   items: readonly ResultItem[]; currentKey: string | null; onPick: (key: string) => void; onOpen: (item: ResultItem) => void;
-  hero: ReactNode; actions?: ReactNode;
+  /** The hero, given the strip's follow so a drag on it scrolls the thumbnails along. */
+  hero: (follow: (fraction: number) => void) => ReactNode; actions?: ReactNode;
 }) {
+  const strip = useRef<ResultsStripHandle>(null);
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2 p-2">
-      {hero}
-      <ResultsStrip items={items} currentKey={currentKey} onPick={onPick} onOpen={k => { const it = items.find(i => i.key === k); if (it) onOpen(it); }} size={72} />
+      {hero(f => strip.current?.follow(f))}
+      <ResultsStrip ref={strip} items={items} currentKey={currentKey} onPick={onPick} onOpen={k => { const it = items.find(i => i.key === k); if (it) onOpen(it); }} size={72} />
       {actions && <Group justify="flex-end" gap={4} wrap="nowrap" className="scroll-x-thin shrink-0">{actions}</Group>}
     </div>
   );
@@ -205,9 +208,12 @@ function ImageMode({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
             currentKey={current?.key ?? null}
             onPick={k => { const it = items.find(i => i.key === k); if (it) select(it.entry); }}
             onOpen={() => openViewer()}
-            hero={
+            hero={follow => (
               <HeroResult
-                item={current}
+                items={items}
+                currentKey={current?.key ?? null}
+                onPick={k => { const it = items.find(i => i.key === k); if (it) select(it.entry); }}
+                onDragProgress={follow}
                 preview={live}
                 busy={activity.active}
                 progress={activity.percent != null ? activity.percent / 100 : null}
@@ -216,7 +222,7 @@ function ImageMode({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
                 onOpen={() => openViewer()}
                 empty="No image yet — write a prompt and press Generate."
               />
-            }
+            )}
             actions={<GenerateNavActions />}
           />
         ),
@@ -267,10 +273,11 @@ function RunResultPane({ store, items, empty, onOpen }: { store: RunStore; items
       currentKey={current?.key ?? null}
       onPick={setPicked}
       onOpen={it => onOpen(items.findIndex(i => i.key === it.key))}
-      hero={
-        <HeroResult item={current} preview={preview} busy={busy} progress={progress} statusLine={currentNode ?? status} queued={queued}
+      hero={follow => (
+        <HeroResult items={items} currentKey={current?.key ?? null} onPick={setPicked} onDragProgress={follow}
+          preview={preview} busy={busy} progress={progress} statusLine={currentNode ?? status} queued={queued}
           onOpen={it => onOpen(items.findIndex(i => i.key === it.key))} empty={empty} />
-      }
+      )}
     />
   );
 }
