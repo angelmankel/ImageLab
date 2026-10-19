@@ -36,7 +36,7 @@ import { onApp } from '@/lib/appEvents';
 import type { RunStore } from '@/lib/comfyRunner';
 import { jobActivity } from '@/lib/jobActivity';
 import { stepResult } from '@/lib/desktopLayout';
-import { usePadResults } from '@/features/gamepad/padActions';
+import { usePadResults } from '@/features/gamepad/padViewer';
 import { useStore } from '@/lib/store';
 import type { ResultItem, WorkspaceMode } from '@/lib/workspace';
 import { ImageCreate, VideoCreate, WorkflowCreate } from './mobileCreate';

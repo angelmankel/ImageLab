@@ -2,7 +2,7 @@
  * The controller's view of the page: which controls can take the highlight, which layer is on
  * top, and how a press reaches a control. Generic on purpose — it finds controls by role and tag,
  * so no control needs to know about controllers. Opt-ins: `data-pad-layer` (an overlay the
- * highlight stays inside; "viewer" for a fullscreen viewer), `data-pad-back` (what B presses when
+ * highlight stays inside; the viewers are found by `padViewer.ts`), `data-pad-back` (what B presses when
  * no overlay is open), `data-pad-start` (where the highlight first appears), `data-pad-skip`.
  *
  * Presses reach controls the way a keyboard would: a click, or the arrow key the control already
@@ -10,13 +10,14 @@
  * the phone's keyboard never opens by accident.
  */
 import { firstBox, nearestBox, pickInDirection, scrollDelta, stepIndex, type Box, type Dir } from '@/lib/gamepad';
+import { VIEWER } from './padViewer';
 
 export type StopKind = 'button' | 'slider' | 'radio' | 'toggle' | 'number' | 'text' | 'select' | 'nativeSelect' | 'range';
 
 /** One place the highlight can sit: the element acted on, and the one drawn around. */
 export interface Stop { el: HTMLElement; visual: HTMLElement; kind: StopKind }
 
-const LAYERS = '[role="dialog"], [role="alertdialog"], [role="menu"], .mantine-Popover-dropdown, [data-radix-popper-content-wrapper], [data-pad-layer]';
+const LAYERS = `[role="dialog"], [role="alertdialog"], [role="menu"], .mantine-Popover-dropdown, [data-radix-popper-content-wrapper], [data-pad-layer], ${VIEWER}`;
 
 const CONTROLS = [
   'button', 'a[href]', 'input', 'textarea', 'select', '[contenteditable="true"]',
@@ -40,7 +41,6 @@ export function topLayer(): HTMLElement | null {
 /** An overlay still open (it may have closed since it was seen). */
 export const isOpen = (el: Element) => el.isConnected && shown(el) && !away(el);
 
-export const isViewer = (layer: Element | null) => layer?.getAttribute('data-pad-layer') === 'viewer';
 
 /** A text box with focus: the controller keeps out of it except for Plus and B. */
 export function typingElement(): HTMLElement | null {
@@ -76,7 +76,11 @@ function kindOf(el: HTMLElement): StopKind {
 
 /** What to draw around: a visually hidden input is drawn as its label or its control. */
 function visualOf(el: HTMLElement, kind: StopKind): HTMLElement {
-  if (kind === 'slider') return el.closest<HTMLElement>('.mantine-Slider-root') ?? el;
+  if (kind === 'slider') {
+    // The whole track, unless it has two thumbs (a range), where each thumb is its own stop.
+    const track = el.closest<HTMLElement>('.mantine-Slider-root');
+    return track && track.querySelectorAll('[role="slider"]').length === 1 ? track : el;
+  }
   const r = el.getBoundingClientRect();
   if (r.width >= 4 && r.height >= 4 && getComputedStyle(el).opacity !== '0') return el;
   const input = el as HTMLInputElement;
@@ -189,10 +193,6 @@ function key(el: EventTarget, k: string, keep = true) {
   el.dispatchEvent(e);
 }
 
-/** A key the whole app hears, as if typed: Escape closes things, arrows step the viewer. */
-export function pressKey(k: 'Escape' | 'ArrowLeft' | 'ArrowRight', on: EventTarget = window) {
-  key(on, k, false);
-}
 
 /** A: what a click or Enter would do. Text boxes take focus, so the keyboard opens on purpose. */
 export function activate(s: Stop) {
@@ -264,7 +264,7 @@ export function nudge(s: Stop, dir: 1 | -1, big: boolean, wrap = false): boolean
 export function closeLayer(layer: HTMLElement) {
   const opener = document.querySelector<HTMLElement>('[aria-expanded="true"][aria-controls]');
   if (opener && layer.matches('.mantine-Popover-dropdown')) key(opener, 'Escape');
-  pressKey('Escape', layer);
+  key(layer, 'Escape', false);
 }
 
 /** The page's own Back (a phone settings page), when one is showing. */

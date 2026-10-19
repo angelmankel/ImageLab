@@ -27,7 +27,7 @@ import { useVideoRun } from '@/features/video/videoRun';
 import { useResultLabel } from '@/features/video/videoControls';
 import { CompareVideos } from '@/features/video/CompareVideos';
 import { useWorkflowRun } from '@/features/studio/studioRun';
-import { usePadResults } from '@/features/gamepad/padActions';
+import { usePadResults } from '@/features/gamepad/padViewer';
 import { useDesktopLayout } from './desktopLayoutStore';
 
 const NO_URLS: string[] = [];

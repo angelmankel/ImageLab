@@ -1,13 +1,10 @@
 /**
- * What the controller's buttons do in the app, per workspace mode. Everything that lives in a store
- * is reached directly; the Video and Workflow result picks live in each shell's own state, so those
- * shells register a small handle (`usePadResults`) while they are on screen.
+ * What the controller's buttons do in the app, per workspace mode: generate, stop, seed, mode,
+ * Simple / Advanced, favourite. Results and the viewers are `padViewer.ts`.
  */
-import { useEffect, useRef } from 'react';
 import { notifications } from '@mantine/notifications';
 import { useStore } from '@/lib/store';
 import { useCanvasStore } from '@/lib/canvasStore';
-import { stepResult } from '@/lib/desktopLayout';
 import { WORKSPACE_MODES, modeOfView, viewOfMode, type WorkspaceMode } from '@/lib/workspace';
 import { fireFromStore } from '@/features/generate/GenerateButton';
 import { modeHostNow } from '@/features/workspace/modeHost';
@@ -109,43 +106,4 @@ export function favouriteShown() {
   if (!entry) return;
   st.toggleHistoryLiked(entry.id);
   toast(entry.liked ? 'Removed from favourites' : 'Added to favourites');
-}
-
-// ── Results ─────────────────────────────────────────────────────────────────
-
-/** A shell's results, for the modes whose pick lives in component state. */
-export interface PadResults {
-  /** +1 older, -1 newer, as ←/→ on the keyboard. */
-  step: (dir: 1 | -1) => void;
-  /** Open the shown result full screen. */
-  open: () => void;
-}
-
-const handles: { current: PadResults }[] = [];
-
-/** Register while mounted; the latest mounted wins. Handlers are read through a ref. */
-export function usePadResults(target: PadResults) {
-  const ref = useRef(target);
-  ref.current = target;
-  useEffect(() => {
-    const h = { get current() { return ref.current; } };
-    handles.push(h);
-    return () => { handles.splice(handles.indexOf(h), 1); };
-  }, []);
-}
-
-export function stepResults(mode: WorkspaceMode, dir: 1 | -1) {
-  if (mode === 'image') {
-    const st = useStore.getState();
-    const cur = st.selectedEntry ?? st.history[0] ?? null;
-    const i = stepResult(cur ? st.history.findIndex(h => h.id === cur.id) : -1, st.history.length, dir);
-    if (st.history[i]) st.selectHistoryEntry(st.history[i]);
-    return;
-  }
-  handles[handles.length - 1]?.current.step(dir);
-}
-
-export function openResult(mode: WorkspaceMode) {
-  if (mode === 'image') { if (useStore.getState().history.length) useStore.getState().openViewer(); return; }
-  handles[handles.length - 1]?.current.open();
 }

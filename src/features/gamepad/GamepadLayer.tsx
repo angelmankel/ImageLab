@@ -24,6 +24,7 @@ import { modeOfView } from '@/lib/workspace';
 import * as dom from './padDom';
 import * as act from './padActions';
 import { PadHelp } from './PadHelp';
+import { isViewer, openResult, stepResults, viewerClose, viewerStep } from './padViewer';
 
 /** A stale highlight (its page slid away) waits this long for the layout to settle, then moves. */
 const SETTLE_MS = 300;
@@ -119,7 +120,7 @@ export function GamepadLayer() {
   }, [acquire, setTarget]);
 
   const back = useCallback((layer: HTMLElement | null) => {
-    if (layer) { dom.closeLayer(layer); return; }
+    if (layer) { if (isViewer(layer)) viewerClose(layer); else dom.closeLayer(layer); return; }
     const page = dom.backButton();
     if (page) { page.click(); return; }
     if (lit.current) { hide(); return; }
@@ -144,13 +145,13 @@ export function GamepadLayer() {
       return;
     }
     const layer = dom.topLayer();
-    const viewer = dom.isViewer(layer);
+    const viewer = isViewer(layer);
     const workspace = !!modeOfView(useCanvasStore.getState().mainView);
 
     if (isDir(key)) {
       if (zHeld.current) zHeld.current.used = true;
       // Full screen, ◀ ▶ step the pictures until the highlight is called up with ▲ ▼.
-      if (viewer && !lit.current && (key === 'left' || key === 'right')) { dom.pressKey(key === 'left' ? 'ArrowLeft' : 'ArrowRight'); return; }
+      if (viewer && !lit.current && (key === 'left' || key === 'right')) { viewerStep(key === 'left' ? -1 : 1); return; }
       navigate(key, held.has('zl') || held.has('zr'));
       return;
     }
@@ -165,16 +166,16 @@ export function GamepadLayer() {
       case 'x': if (!layer && mode) act.newSeed(mode); return;
       case 'y': if (mode === 'image' && (!layer || viewer)) act.favouriteShown(); return;
       case 'l': case 'r':
-        if (viewer) dom.pressKey(key === 'l' ? 'ArrowLeft' : 'ArrowRight');
+        if (viewer) viewerStep(key === 'l' ? -1 : 1);
         else if (!layer && workspace) act.stepMode(key === 'l' ? -1 : 1);
         return;
       case 'zl': case 'zr':
-        if (viewer) dom.pressKey(key === 'zl' ? 'ArrowLeft' : 'ArrowRight');
+        if (viewer) viewerStep(key === 'zl' ? -1 : 1);
         else zHeld.current = { key, used: false };
         return;
       case 'lstick':
-        if (viewer && layer) dom.closeLayer(layer);
-        else if (!layer && mode) act.openResult(mode);
+        if (viewer && layer) viewerClose(layer);
+        else if (!layer && mode) openResult(mode);
         return;
       case 'rstick': if (!layer && workspace) act.toggleDetail(); return;
       default: return;
@@ -189,12 +190,17 @@ export function GamepadLayer() {
     const mode = act.modeNow();
     if (!mode || !modeOfView(useCanvasStore.getState().mainView)) return;
     // ZL is "left": the older result, as ← on the keyboard; on a phone, the tab to the left.
-    if (isDesktop) act.stepResults(mode, key === 'zl' ? 1 : -1);
+    if (isDesktop) stepResults(mode, key === 'zl' ? 1 : -1);
     else emitApp('pad-tab', key === 'zl' ? -1 : 1);
   }, [isDesktop]);
 
   const onFrame = useCallback((scroll: Stick, dt: number) => {
     const s = target.current;
+    // An overlay opened over it (a viewer, a dropdown): the ring goes until a press calls it up.
+    if (lit.current && s) {
+      const layer = dom.topLayer();
+      if (layer && !layer.contains(s.el)) hide();
+    }
     if (lit.current && s && !dom.stillThere(s)) {
       // Its page slid away or its list redrew: pick up nearby once things settle.
       const now = performance.now();
@@ -208,7 +214,7 @@ export function GamepadLayer() {
     if (Math.abs(scroll.y) > 0.2 && !dom.typingElement()) {
       dom.scrollFrom(lit.current && s ? s.visual : null, dom.topLayer(), scroll.y * dt * 1.2);
     }
-  }, [acquire, setTarget, draw]);
+  }, [acquire, setTarget, draw, hide]);
 
   const pad = useGamepad({ onPress, onRelease, onFrame });
 

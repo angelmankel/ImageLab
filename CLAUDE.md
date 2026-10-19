@@ -300,15 +300,19 @@ the LAN boxes are behind on ImageLabCore, so `/imagelab/api/*` only answers on a
   | RS press / tilt | Simple / Advanced / scroll |
   | − | the button card |
 
-  In a fullscreen viewer (`data-pad-layer="viewer"`: `FullscreenImage`, `VideoFullscreen`) ◀ ▶,
-  L / R and ZL / ZR are the arrow keys (previous / next), B or LS closes. A text box with focus
-  keeps the controller out except + and B (which leaves the box).
+  In a fullscreen viewer ◀ ▶, L / R and ZL / ZR are the arrow keys (previous / next), B or LS
+  closes. **Results and viewers are reached only through `features/gamepad/padViewer.ts`** (the
+  viewers are not edited for the pad: found as a full-screen `data-no-swipe` overlay, stepped with
+  the arrow keys they already handle, closed through the store or Escape; the phone's touch video
+  player has no Escape, so B does not close it yet). Video and Workflow shells register their
+  result pick with `usePadResults` (desktop `ResultsArea`, phone `MobileWorkspace`). A text box with
+  focus keeps the controller out except + and B (which leaves the box).
 - **The highlight** is a ring over a control, found by role and tag (`features/gamepad/padDom.ts`):
   buttons, links, inputs, sliders, switches, tabs, options; a radio group (Mantine
   `SegmentedControl`) is one stop; the − / + inside a number box are skipped (the box steps).
   Hidden, `inert`, `aria-hidden`, transparent and clipped-off controls are skipped. Up / down / left
   / right pick the nearest control ahead that lines up (`pickInDirection`), so it stays in its
-  column on desktop. Inside an open overlay (`[role=dialog]`, a Mantine dropdown, `data-pad-layer`)
+  column on desktop. Inside an open overlay (`[role=dialog]`, a Mantine dropdown, a viewer, `data-pad-layer`)
   it stays inside it and goes back to the opener when it closes. ◀ ▶ reach controls the way keys
   do — the arrow key Mantine's Slider / NumberInput already handle, contained so ←/→ never also
   step results — or a click; nothing is focused except a text box on A, so the phone keyboard
