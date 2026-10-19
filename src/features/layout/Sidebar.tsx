@@ -1,16 +1,16 @@
+import { useEffect, useRef } from 'react';
 import { ActionIcon, Divider, Indicator, Stack, Tooltip } from '@mantine/core';
 import {
   IconBoxModel,
   IconFolders,
   IconInfinity,
-  IconMovie,
-  IconPalette,
   IconSettings,
-  IconWand, IconSearch } from '@tabler/icons-react';
+  IconSparkles, IconSearch } from '@tabler/icons-react';
 import { Logo } from '@/components/Logo';
 import { ComfyIcon } from '@/components/ui/icons';
 import { useCanvasStore } from '@/lib/canvasStore';
 import { emitApp } from '@/lib/appEvents';
+import { isWorkspaceView, type WorkspaceView } from '@/lib/workspace';
 import { useFocusMode } from '@/features/studio/StudioView';
 import type { MainView } from '@/lib/canvasStore';
 import type { Server } from '@/lib/storage';
@@ -21,6 +21,10 @@ import type { Server } from '@/lib/storage';
  *
  *   - `view`  — switches `mainView` in canvasStore.
  *   - `modal` — opens a focused overlay (Settings) without leaving the current view.
+ *
+ * Image, Video and Workflow are one entry, **Create**: they are modes of the one workspace
+ * (`lib/workspace.ts`), switched inside it, so the rail shows where you are in the app and the
+ * workspace shows what you are making. Create returns to the mode you were last in.
  *
  * The rail sits at z-[70] so in-page layers never cover it; overlays (Mantine portals, z>=200)
  * still go above it.
@@ -43,8 +47,14 @@ export function Sidebar({
     setMainView('comfy');
   };
 
-  // Focus mode is Studio's promise: no node graph unless you ask for one. It hides the per-server
-  // ComfyUI buttons, and it is always on for a phone.
+  // The mode to come back to from the canvas or Collections. The persisted mainView already is
+  // the last view, so this only matters within a session.
+  const lastWorkspace = useRef<WorkspaceView>(isWorkspaceView(mainView) ? mainView : 'generate');
+  useEffect(() => { if (isWorkspaceView(mainView)) lastWorkspace.current = mainView; }, [mainView]);
+  const inWorkspace = isWorkspaceView(mainView);
+
+  // Focus mode is the workflow mode's promise: no node graph unless you ask for one. It hides the
+  // per-server ComfyUI buttons, and it is always on for a phone.
   const focusMode = useFocusMode();
 
   return (
@@ -70,12 +80,20 @@ export function Sidebar({
 
         <Divider w="100%" />
 
-        <ViewButton view="generate" current={mainView} onSelect={setMainView} label="Generate" icon={<IconPalette size="1.2rem" />} />
-        <ViewButton view="video" current={mainView} onSelect={setMainView} label="Video" icon={<IconMovie size="1.2rem" />} />
+        <Tooltip label="Create — image, video, workflow" position="right" withArrow>
+          <ActionIcon
+            size="lg"
+            variant={inWorkspace ? 'filled' : 'subtle'}
+            aria-label="Create"
+            aria-current={inWorkspace ? 'page' : undefined}
+            onClick={() => { if (!inWorkspace) setMainView(lastWorkspace.current); }}
+          >
+            <IconSparkles size="1.2rem" />
+          </ActionIcon>
+        </Tooltip>
         <ViewButton view="canvas" current={mainView} onSelect={setMainView} label="Infinite canvas" icon={<IconInfinity size="1.2rem" />} />
         <ViewButton view="collections" current={mainView} onSelect={setMainView} label="Collections" icon={<IconFolders size="1.2rem" />} />
         <ViewButton view="browser" current={mainView} onSelect={setMainView} label="Browse models" icon={<IconBoxModel size="1.2rem" />} />
-        <ViewButton view="studio" current={mainView} onSelect={setMainView} label="Studio" icon={<IconWand size="1.2rem" />} />
 
         {/* One ComfyUI button per server — each is a view switcher (mainView='comfy' + the
             server's id), numbered so two servers can be told apart. */}
