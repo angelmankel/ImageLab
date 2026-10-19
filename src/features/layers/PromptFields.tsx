@@ -24,6 +24,7 @@ import { DEFAULT_CATEGORY_ID } from '@/lib/storage';
 import type { Layer, LayerKind } from '@/lib/types';
 import { PromptGeneratorButton } from './PromptGeneratorButton';
 import { SnippetsModal, categoryColor } from './SnippetsModal';
+import { SnippetChips } from './SnippetChips';
 import { modelKeywordSources, modelKeywordState, withModelKeywords, type ModelKeywordSource } from '@/lib/modelKeywords';
 import { modelLabel, modelTrainedWords } from '@/components/models/modelInfo';
 import { withEmbeddings } from '@/lib/embeddings';
@@ -36,12 +37,16 @@ import { PresetLibraryModal } from './PresetLibraryModal';
 const MAX_WEIGHT = 2;
 const COMMIT_MS = 250;
 
-export function PromptFields() {
+/** `large`: thumb-sized chips for the phone. */
+export function PromptFields({ large }: { large?: boolean } = {}) {
   return (
     <Stack gap="md">
       <PromptBox kind="positive" />
+      {/* Pick a snippet right here, one tap; the rows under it are the parts in the prompt. */}
+      <SnippetChips kind="positive" large={large} />
       <SnippetsRow kind="positive" />
       <PromptBox kind="negative" />
+      <SnippetChips kind="negative" large={large} />
       <SnippetsRow kind="negative" compact />
     </Stack>
   );
