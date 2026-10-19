@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMediaQuery } from '@mantine/hooks';
 import { useBrowserStore } from './store';
-import { BrowserFiltersRail, BrowserSearchInput, activeFilterCount } from './BrowserFiltersRail';
+import { BaseFamilyStrip, BrowserFiltersRail, BrowserSearchInput, activeFilterCount } from './BrowserFiltersRail';
 import { BrowserGrid } from './BrowserGrid';
 import { OpenByIdInput } from './OpenByIdInput';
 import { Badge, Button, Drawer, Stack, Text } from '@mantine/core';
@@ -25,7 +25,8 @@ import { BrowserModeSwitch, LibraryView, useLibraryStore } from '@/features/libr
  *   └──────────┴────────────────────────────────────────┘
  *
  * On a phone the filter rail would eat the screen, so it becomes a bottom sheet behind a
- * Filters button; the search box stays in the header and the grid runs two columns.
+ * Filters button; the search box and a base-model family row stay in the header, and the grid
+ * runs two columns.
  *
  * Clicking a card opens the existing `<ModelMetadataModal>` which already
  * does the gallery + download flow. That keeps the browser focused on
@@ -112,6 +113,7 @@ export function ModelBrowserView() {
             </Button>
           </div>
           <BrowserSearchInput size="sm" />
+          <BaseFamilyStrip />
         </header>
         <div className="flex min-h-0 flex-1">{grid}</div>
         <Drawer opened={filtersOpen} onClose={() => setFiltersOpen(false)} position="bottom" size="85%" title="Filters"

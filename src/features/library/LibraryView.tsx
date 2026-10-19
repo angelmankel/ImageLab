@@ -9,6 +9,7 @@ import { useModelMetadataStore } from '@/features/model-metadata/store';
 import {
   exportFileName, exportLibrary, libraryTypes, typeLabel, viewEntries, type LibrarySort, type ModelLibraryEntry,
 } from '@/lib/modelLibrary';
+import { baseGroupOf } from '@/lib/baseFamilies';
 import { useLibraryStore } from './store';
 import { BrowserModeSwitch } from './BrowserModeSwitch';
 import { LibraryRow } from './LibraryRow';
@@ -18,7 +19,7 @@ import { ALL_SERVERS, useLibraryDownloads } from './useLibraryDownloads';
  * "My models" — every model downloaded through the app, kept on this device.
  *
  *   ┌ header: [Browse | My models]  count            Import  Export ┐
- *   ├ search · type · sort · download-to server                     ┤
+ *   ├ search · type · base model · sort · download-to server        ┤
  *   ├ [✓] All   n selected   Download selected  Download all  Remove ┤
  *   │ [ ] ▣ Name / version / badges   size·date  on-servers ★★★ ↓ ⋯ │
  *   └───────────────────────────────────────────────────────────────┘
@@ -33,6 +34,7 @@ const SORTS: Array<{ value: LibrarySort; label: string }> = [
   { value: 'rating', label: 'Rating' },
 ];
 const ALL_TYPES = '__all';
+const ALL_BASES = '__all';
 
 type ImportNotice = { ok: boolean; message: string } | null;
 
@@ -48,6 +50,7 @@ export function LibraryView({ narrow }: { narrow: boolean }) {
 
   const [search, setSearch] = useState('');
   const [type, setType] = useState(ALL_TYPES);
+  const [base, setBase] = useState(ALL_BASES);
   const [sort, setSort] = useState<LibrarySort>('added');
   const [selected, setSelected] = useState<Set<number>>(() => new Set());
   const [notice, setNotice] = useState<ImportNotice>(null);
@@ -60,7 +63,13 @@ export function LibraryView({ narrow }: { narrow: boolean }) {
 
   const types = useMemo(() => libraryTypes(entries), [entries]);
   const typeFilter = type !== ALL_TYPES && types.includes(type) ? type : '';
-  const visible = useMemo(() => viewEntries(entries, { search, type: typeFilter, sort }), [entries, search, typeFilter, sort]);
+  // Base models filter by family (all nine Wan labels are one "Wan"); an entry without one is only in "All".
+  const bases = useMemo(() => [...new Set(entries.map((e) => baseGroupOf(e.baseModel)).filter(Boolean))].sort(), [entries]);
+  const baseFilter = base !== ALL_BASES && bases.includes(base) ? base : '';
+  const visible = useMemo(() => {
+    const pool = baseFilter ? entries.filter((e) => baseGroupOf(e.baseModel) === baseFilter) : entries;
+    return viewEntries(pool, { search, type: typeFilter, sort });
+  }, [entries, search, typeFilter, baseFilter, sort]);
   const filtered = visible.length !== entries.length;
   const { online, target, setTarget, status, downloadMany } = useLibraryDownloads(entries);
 
@@ -187,6 +196,7 @@ export function LibraryView({ narrow }: { narrow: boolean }) {
     ...(online.length > 1 ? online.map((s) => ({ value: s.id, label: s.name })) : []),
   ];
   const typeOptions = [{ value: ALL_TYPES, label: 'All types' }, ...types.map((t) => ({ value: t, label: typeLabel(t) }))];
+  const baseOptions = [{ value: ALL_BASES, label: 'All base models' }, ...bases.map((b) => ({ value: b, label: b }))];
 
   const fileButtons = narrow ? (
     <div className="flex shrink-0 items-center gap-1">
@@ -220,7 +230,8 @@ export function LibraryView({ narrow }: { narrow: boolean }) {
         aria-label="Search my models" />
       <div className={narrow ? 'grid grid-cols-2 gap-2' : 'flex items-center gap-2'}>
         <Select size="xs" className={narrow ? '' : 'w-36 flex-none'} value={typeFilter || ALL_TYPES} onValueChange={setType} options={typeOptions} ariaLabel="Filter by type" />
-        <Select size="xs" className={narrow ? '' : 'w-36 flex-none'} value={sort} onValueChange={(v) => setSort(v as LibrarySort)} options={SORTS} ariaLabel="Sort" />
+        <Select size="xs" className={narrow ? '' : 'w-40 flex-none'} value={baseFilter || ALL_BASES} onValueChange={setBase} options={baseOptions} ariaLabel="Filter by base model" />
+        <Select size="xs" className={narrow ? 'col-span-2' : 'w-36 flex-none'} value={sort} onValueChange={(v) => setSort(v as LibrarySort)} options={SORTS} ariaLabel="Sort" />
         <div className={narrow ? 'col-span-2 flex items-center gap-2' : 'flex items-center gap-2'}>
           <Text size="xs" c="dimmed" className="shrink-0">Download to</Text>
           <Select size="xs" className={narrow ? '' : 'w-48 flex-none'} value={target} onValueChange={setTarget} options={serverOptions} ariaLabel="Download to" />

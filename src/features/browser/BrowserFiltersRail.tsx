@@ -8,6 +8,7 @@ import {
   CIVITAI_COMMERCIAL_USE, CIVITAI_FILE_FORMATS, CIVITAI_MODEL_TYPES, CIVITAI_SORTS,
   type CivitaiSearchType, type CivitaiSearchSort, type CivitaiSearchPeriod,
 } from '@/lib/civitai';
+import { BASE_FAMILIES, familyPicked, toggleFamily } from '@/lib/baseFamilies';
 import { loadCivitaiSettings } from '@/lib/storage';
 import { useStore } from '@/lib/store';
 
@@ -75,6 +76,25 @@ export function BrowserSearchInput({ size = 'xs' }: { size?: 'xs' | 'sm' }) {
       leftSection={<IconSearch size={14} />}
       aria-label="Search models"
     />
+  );
+}
+
+/**
+ * The phone's base-model row under the search box: one chip per family (Wan = all its labels),
+ * scrolled sideways, so the most used filter takes one tap instead of opening the sheet.
+ */
+export function BaseFamilyStrip() {
+  const picked = useBrowserStore((s) => s.filters.baseModels);
+  const setFilters = useBrowserStore((s) => s.setFilters);
+  return (
+    <div className="-mx-3 flex gap-1.5 overflow-x-auto px-3 pb-0.5 [scrollbar-width:none]" role="group" aria-label="Base model">
+      {BASE_FAMILIES.map((f) => (
+        <MChip key={f.id} size="sm" variant="outline" className="shrink-0" checked={familyPicked(picked, f)}
+          onChange={() => setFilters({ baseModels: toggleFamily(picked, f) })}>
+          {f.label}
+        </MChip>
+      ))}
+    </div>
   );
 }
 
