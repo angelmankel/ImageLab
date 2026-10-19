@@ -1,19 +1,22 @@
 import { useState } from 'react';
 import {
-  ActionIcon, Badge, Button, Group, NumberInput, Paper, Progress, Select, Stack, Text, TextInput, Tooltip,
+  ActionIcon, Badge, Button, Group, NumberInput, Paper, Progress, SegmentedControl, Select, Stack, Text, TextInput, Tooltip,
 } from '@mantine/core';
 import {
   IconCheck, IconDownload, IconEye, IconPlayerStop, IconRefresh, IconServer, IconTrash, IconX,
 } from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
+import { LOCAL_LLM_DEFAULT_BASE_URL, podLlmUrl } from '@/lib/storage';
+import { ollamaRoot } from '@/lib/localLlm';
 import { formatBytes, modelLabel } from '@/lib/llmModels';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useLocalModels, useLocalModelsFor, type PullState } from './localModelsStore';
 import { HfBrowser } from './HfBrowser';
 
 /**
- * Settings → AI → Local LLM: the Ollama server address, its installed models (use / use for
- * images / unload / delete), downloads by name, and the Hugging Face GGUF browser.
+ * Settings → AI → Local LLM: which Ollama server (the home PC, this pod, or any address), its
+ * installed models (use / use for images / unload / delete), downloads by name, and the Hugging
+ * Face GGUF browser. Each server keeps its own models; picking one lists what it has.
  */
 export function LocalLlmSection() {
   const venice = useStore((s) => s.venice);
@@ -34,8 +37,33 @@ export function LocalLlmSection() {
   const loaded = new Map(running.map((r) => [r.name, r]));
   const visionModels = models.filter((m) => m.vision);
 
+  const pod = podLlmUrl();
+  const same = (a: string, b: string) => !!b && ollamaRoot(a) === ollamaRoot(b);
+  const where = same(base, LOCAL_LLM_DEFAULT_BASE_URL) ? 'home' : same(base, pod) ? 'pod' : 'custom';
+
   return (
     <Stack gap="md">
+      <Stack gap={4}>
+        <Text size="sm" fw={500}>Where it runs</Text>
+        <SegmentedControl
+          fullWidth
+          value={where}
+          onChange={(v) => {
+            if (v === 'home') setVenice({ localBaseUrl: LOCAL_LLM_DEFAULT_BASE_URL });
+            else if (v === 'pod') setVenice({ localBaseUrl: pod });
+          }}
+          data={[
+            { value: 'home', label: 'Home PC' },
+            { value: 'pod', label: 'This pod', disabled: !pod },
+            { value: 'custom', label: 'Other', disabled: where !== 'custom' },
+          ]}
+        />
+        <Text size="xs" c="dimmed">
+          {pod
+            ? 'Home PC is winold on the LAN. This pod runs its own Ollama with the pod\'s GPU; a model downloaded there stays until the pod is terminated.'
+            : 'This pod is offered when ImageLab is opened from a pod.'}
+        </Text>
+      </Stack>
       <Group align="flex-end" gap="xs" wrap="nowrap">
         <TextInput
           className="flex-1"

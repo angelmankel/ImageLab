@@ -144,7 +144,10 @@ npm run build
   (`aiReady` / `withChatModel` / `visionModelOf`; never test `apiKey` directly). Ollama runs on
   winold (192.168.0.83:11434, RTX A4500) and is reached over HTTPS at `llm.blueoceanswim.com`
   through Traefik — the page is HTTPS, so the plain-http address is mixed content. Local calls send
-  `reasoning_effort: "none"` (Ollama's think-off). The model manager (`features/ai`: list, pull with
+  `reasoning_effort: "none"` (Ollama's think-off). A pod runs its own Ollama too (ImageLabDocker
+  `start.sh`, nginx `/llm/`, same origin so its basic auth carries over): Settings → AI → "Where it
+  runs" switches `localBaseUrl` between Home PC and This pod (`podLlmUrl()` in `lib/storage.ts`).
+  Venice's model list comes from its public `/models` (`lib/veniceModels.ts`). The model manager (`features/ai`: list, pull with
   progress, delete, unload, Hugging Face GGUF browser) uses `lib/localLlm.ts`; the pure parts are
   `lib/llmModels.ts` (tested).
 

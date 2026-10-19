@@ -567,6 +567,12 @@ export type VeniceSettings = {
 export const VENICE_DEFAULT_MODEL = 'venice-uncensored';
 export const VENICE_DEFAULT_BASE_URL = 'https://api.venice.ai/api/v1';
 export const LOCAL_LLM_DEFAULT_BASE_URL = 'https://llm.blueoceanswim.com';
+/** The pod's own Ollama (its start.sh runs one behind nginx at /llm/), when this page is served
+ *  from a pod or the domain in front of one. Same origin, so the pod's basic auth carries over. */
+export function podLlmUrl(): string {
+  const host = servedFromHost();
+  return host ? `${location.protocol}//${host}/llm` : '';
+}
 
 export function defaultVeniceSettings(): VeniceSettings {
   return {

@@ -1,6 +1,7 @@
 import { Select, type MantineSize } from '@mantine/core';
 import { useStore } from '@/lib/store';
-import { VENICE_DEFAULT_MODEL } from '@/lib/storage';
+import { LOCAL_LLM_DEFAULT_BASE_URL, VENICE_DEFAULT_MODEL, podLlmUrl } from '@/lib/storage';
+import { ollamaRoot } from '@/lib/localLlm';
 import { formatBytes, modelLabel } from '@/lib/llmModels';
 import { veniceModelLabel } from '@/lib/veniceModels';
 import { useLocalModels, useLocalModelsFor } from './localModelsStore';
@@ -35,6 +36,8 @@ export function AiModelPicker({ size = 'sm', label, className }: { size?: Mantin
   if (!veniceModels.some((m) => m.id === veniceModel)) {
     veniceItems.unshift({ value: `venice::${veniceModel}`, label: `${veniceModel}${noKey}` });
   }
+  const root = ollamaRoot(venice.localBaseUrl);
+  const server = root === ollamaRoot(LOCAL_LLM_DEFAULT_BASE_URL) ? 'home PC' : podLlmUrl() && root === ollamaRoot(podLlmUrl()) ? 'this pod' : 'Ollama';
   const value = venice.provider === 'local' && venice.localModel ? `local::${venice.localModel}` : `venice::${veniceModel}`;
 
   return (
@@ -54,7 +57,7 @@ export function AiModelPicker({ size = 'sm', label, className }: { size?: Mantin
       data={[
         { group: 'Venice (cloud)', items: veniceItems },
         {
-          group: error && !models.length ? 'Local (server offline)' : 'Local (Ollama)',
+          group: error && !models.length ? `Local · ${server} (offline)` : `Local · ${server}`,
           items: localItems,
         },
       ]}
