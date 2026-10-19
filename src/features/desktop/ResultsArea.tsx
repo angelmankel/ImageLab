@@ -105,7 +105,7 @@ function ImageResults() {
           </div>
         )}
       </HeroResult>
-      <div onWheel={onWheel} className="shrink-0" style={{ height: strip + 8 }}>
+      <div onWheel={onWheel} className="shrink-0 empty:hidden">
         <ResultsStrip items={items} currentKey={current?.id ?? null} size={strip}
           onPick={key => { const e = history.find(h => h.id === key); if (e) select(e); }}
           onOpen={key => { const e = history.find(h => h.id === key); if (e) { select(e); openViewer(); } }} />
@@ -163,7 +163,7 @@ function RunResults({ mode, store }: { mode: WorkspaceMode; store: RunStore }) {
           </Badge>
         )}
       </HeroResult>
-      <div onWheel={onWheel} className="shrink-0" style={{ height: strip + 8 }}>
+      <div onWheel={onWheel} className="shrink-0 empty:hidden">
         <ResultsStrip items={items} currentKey={item?.key ?? null} size={strip} onPick={setPicked}
           onOpen={key => { const i = items.findIndex(x => x.key === key); if (i >= 0) { setPicked(key); setFullscreen(i); } }} />
       </div>
