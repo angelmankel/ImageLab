@@ -66,7 +66,7 @@ export function modelPreviewUrls(
 /** Stable bucket ids — `Unknown` is for models that have no CivitAI hit. */
 export const BASE_MODEL_BUCKETS = [
   'SD 1.5', 'SD 2.x', 'SD 3.x', 'SDXL', 'Pony', 'Illustrious', 'NoobAI',
-  'Anima', 'Flux', 'Z-Image Turbo', 'Qwen', 'Wan Video', 'Cascade', 'PixArt', 'AuraFlow', 'Other', 'Unknown',
+  'Anima', 'Flux', 'Z-Image Turbo', 'Qwen', 'Wan Video', 'MiniMax H3', 'Cascade', 'PixArt', 'AuraFlow', 'Other', 'Unknown',
 ] as const;
 export type BaseModelBucket = typeof BASE_MODEL_BUCKETS[number];
 
@@ -81,6 +81,8 @@ export function bucketForBaseModel(raw: string | undefined | null): BaseModelBuc
   if (s.includes('noobai') || s.includes('noob ai')) return 'NoobAI';
   if (s.includes('anima')) return 'Anima';
   if (s.includes('wan video') || s.startsWith('wan ')) return 'Wan Video';
+  // CivitAI calls it "MiniMax H3" (Hailuo); LoRAs trained for it carry that base model.
+  if (s.includes('minimax') || /\bh3\b/.test(s)) return 'MiniMax H3';
   if (s.includes('zimage') || s.includes('z-image') || s.includes('z image')) return 'Z-Image Turbo';
   if (s.includes('qwen')) return 'Qwen';
   if (s.includes('flux')) return 'Flux';

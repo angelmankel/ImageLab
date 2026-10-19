@@ -4,7 +4,7 @@
  */
 import { useStore } from '@/lib/store';
 import { findModelHash, bucketForBaseModel, type BaseModelBucket } from '@/lib/modelHash';
-import type { CivitaiVersionByHash } from '@/lib/civitai';
+import { previewStill, type CivitaiVersionByHash } from '@/lib/civitai';
 
 export interface ModelInfo {
   hash?: string;
@@ -32,7 +32,7 @@ export function readModelInfo(fileName: string): ModelInfo {
   return {
     hash: match.hash,
     resolved: true,
-    images: (data.images ?? []).map((i) => i.url).filter((u): u is string => !!u),
+    images: (data.images ?? []).map((i) => previewStill(i)).filter((u) => !!u),
     baseModel: data.baseModel,
     bucket: bucketForBaseModel(data.baseModel),
     name: data.model?.name,

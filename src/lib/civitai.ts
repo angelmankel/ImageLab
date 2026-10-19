@@ -153,6 +153,14 @@ export function civitaiThumbUrl(url: string, width: number, opts: { video?: bool
 }
 
 /**
+ * A gallery entry as an <img> can show it: a video clip (Wan and H3 LoRAs post mostly these)
+ * becomes a still of its first frame; a picture stays as it is.
+ */
+export function previewStill(img: { url?: string; type?: string }, width = 512): string {
+  return isCivitaiVideo(img) ? civitaiThumbUrl(img.url ?? '', width, { video: true }) : (img.url ?? '');
+}
+
+/**
  * A small MP4 of a CivitAI video (`transcode=true,width=N`), for playing in a tile or rail. The
  * original is often several times larger. Non-CivitAI URLs come back untouched.
  */

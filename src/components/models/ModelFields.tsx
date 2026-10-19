@@ -26,7 +26,7 @@ import { embeddingWords } from '@/lib/embeddings';
 import { FAMILY_LABELS, bucketFits, vaeFits } from '@/lib/modelProfiles';
 import { isVideoModelName } from '@/lib/wanGraph';
 
-const isVideoModel = (file: string, bucket: string) => bucket === 'Wan Video' || isVideoModelName(file);
+const isVideoModel = (file: string, bucket: string) => bucket === 'Wan Video' || bucket === 'MiniMax H3' || isVideoModelName(file);
 import { useModelProfile } from '@/hooks/useModelProfileSync';
 import { ModelProfileModal } from './ModelProfileModal';
 

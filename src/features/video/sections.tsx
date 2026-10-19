@@ -333,7 +333,7 @@ function H3LorasSection() {
         selectedModels={h.loras.map((l) => l.name)}
         onToggleModel={toggle}
         availability={availability}
-        fitsType={{ label: 'MiniMax H3', fits: (bucket) => bucket === 'Unknown' }}
+        fitsType={{ label: 'MiniMax H3', fits: (bucket) => bucket === 'MiniMax H3' || bucket === 'Unknown' }}
       />
     </Stack>
   );
