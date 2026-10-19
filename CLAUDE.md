@@ -167,9 +167,9 @@ npm run build
   `SaveVideo` (`format: "mp4", codec: "h264"` works in API format) to `output/video/`. It runs
   through the video run store (`video/videoRun.ts`, a `lib/comfyRunner.ts` store with a `keep`
   filter — only video files) and shows in the workspace's `HeroResult`, which plays video.
-  **Sections:** seven (`video/sections.tsx`; order, live summaries and missing files per section
+  **Sections:** nine (`video/sections.tsx`; order, live summaries and missing files per section
   in `lib/videoSections.ts`, tested): Mode & input · Prompt · Models · LoRAs · Size & length ·
-  Speed & sampling · Upscale; Simple shows the first, second and fifth. Seed, Generate and the
+  Speed & sampling · Guidance & speedups · Upscale · Finish & encode; Simple shows the first, second and fifth. Seed, Generate and the
   estimate stay pinned at the bottom on both shells. The Wan models are not in models.txt yet: the page lists what the server lacks, and fills in
   installed stand-ins (`pickInstalledWanFiles`). **Fast mode** (default on) adds the mode's
   lightx2v 4-step LoRA to each expert, 4 steps, switch at 2, CFG 1: ~6x faster (A100, 832x480x33:
@@ -185,6 +185,31 @@ npm run build
   frame, then switches to Video; a portrait image flips a
   landscape size. Both image drop zones (img2img and Studio/Video's `ImageInput`) pick from past
   generations (`InputImageBrowserModal`) and take dropped history thumbnails.
+- **Video parameters and add-ons (10-18).** Every knob past the basics is optional in `VideoSettings`
+  and off by default; `loadVideoSettings` (wanGraph.ts, tested) fills the defaults for an old saved
+  `imagelab.video.v1`, and `tests/wan-graph.test.cjs` proves such a save still builds the very same
+  graph. Nodes were read from ComfyUI v0.34.5 and KJNodes at the pinned commit, not guessed; **none
+  of the new steps has run on a pod yet.** Advanced tier: per-expert CFG (`cfgLow`) and shift
+  (`shiftLow`), `weightDtype`, the LoRA's own low-expert strength, the **Fast recipe** (`fastRecipe`:
+  steps, switch, CFG, lightx2v strength per expert, and the **motion pass** — `motionSteps` first
+  steps on the high expert *without* the speed LoRA at `motionCfg`, node `11p` chained off loader `1`
+  as `1p…`; the community's fix for lightx2v's slow-motion look), the speed-LoRA files, an **end
+  image** (`WanFirstLastFrameToVideo`, same outputs as `WanImageToVideo`), **Guidance & speedups**
+  (`CFGZeroStar`, KJNodes `WanVideoNAG` fed the negative node 8 — the negative prompt at CFG 1 —,
+  `EasyCache`, core `TorchCompileModel`, `WanContextWindowsManual` for long T2V clips; chained after
+  the shift as `1t 1c 1n 1e 1w`), **Finish & encode** (KJNodes `ColorMatchV2` back to the start frame
+  as `13m`; core RIFE / FILM `FrameInterpolationModelLoader` + `FrameInterpolate` as `17m` / `17` after
+  the upscale, fps multiplied; `SaveVideo` container / codec / CRF through the dynamic-combo dotted keys
+  `format.codec`, `format.codec.encoding`, `format.codec.encoding.crf` — the default stays the plain
+  `format: mp4, codec: h264` pair that ran on the pod). `ServerInfo.interpolationModels` lists
+  `models/frame_interpolation`. Both tiers: **presets** (`lib/videoPresets.ts` + `video/videoPresets.ts`,
+  `imagelab.video.presets.v1`: the recipe without prompt, pictures or seed) and **sweeps**
+  (`lib/videoSweep.ts` + `video/videoSweep.ts`: "vary one setting across N runs", seed held unless it is
+  the axis; the sweep store watches `useVideoRun` and starts the next item when a run ends; every
+  result is labelled by url in `imagelab.video.labels.v1`). `startVideoRun(host, override)` takes a
+  settings override for that. The desktop hero shows the label and a **Compare A/B** modal
+  (`video/CompareVideos.tsx`, two clips played together). The estimate's `RunShape.outFrames` counts
+  interpolated frames in the finish stage; node groups are `WAN_NODE_GROUPS`.
 
 - **AI helpers** (`lib/venice.ts`) call Venice or a local Ollama, per `settings.venice.provider`
   (`aiReady` / `withChatModel` / `visionModelOf`; never test `apiKey` directly). Ollama runs on
