@@ -11,7 +11,7 @@
  */
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Button, Switch, Text } from '@mantine/core';
-import { IconAdjustmentsHorizontal, IconExternalLink, IconRefresh, IconRoute, IconSettings, IconSparkles } from '@tabler/icons-react';
+import { IconAdjustmentsHorizontal, IconExternalLink, IconFlask, IconRefresh, IconRoute, IconSettings, IconSparkles } from '@tabler/icons-react';
 import { SectionCard } from '@/components/blocks/SectionCard';
 import { useShortcut, ShortcutPriority } from '@/hooks/useShortcut';
 import { useCanvasStore } from '@/lib/canvasStore';
@@ -26,7 +26,8 @@ import { SECTION_META, SectionBody, availableSections, useSectionStatus, type Pa
 import { CustomizeTabsModal } from '@/features/panel/CustomizeTabsModal';
 import { PanelToolbar } from '@/features/controls/PanelToolbar';
 import { MissingFiles, VIDEO_SECTION_META, VideoSectionBody, useVideoSectionStatus } from '@/features/video/sections';
-import { VideoResetRow } from '@/features/video/videoControls';
+import { VideoPresetRow, VideoResetRow, VideoSweepRow } from '@/features/video/videoControls';
+import { useVideoSweep } from '@/features/video/videoSweep';
 import { ParamList, PromptPanel, ResetAllButton, WorkflowPicker } from '@/features/studio/StudioPanels';
 import { useWorkflowLibrary } from '@/features/studio/useWorkflowLibrary';
 import { useStudio } from '@/features/studio/studioStore';
@@ -152,11 +153,13 @@ export function VideoSettingsColumn({ host }: { host: string }) {
   const folded = useDesktopLayout(s => s.folded.video);
   const toggleFold = useDesktopLayout(s => s.toggleFold);
   const shown = useMemo(() => visibleSections(VIDEO_SECTIONS, detail, videoSectionTier), [detail]);
+  const sweeping = useVideoSweep(s => !!s.current);
   useCardShortcuts('video', shown);
 
   return (
     <Column>
       <div className="empty:hidden"><MissingFiles /></div>
+      <div className="shrink-0 rounded-lg border border-border-default bg-bg-panel px-3 py-2"><VideoPresetRow /></div>
       {shown.map((id: VideoSectionId) => (
         <Card key={id} id={id} title={VIDEO_SECTION_META[id].title} icon={VIDEO_SECTION_META[id].icon} status={status[id]}
           open={!folded.includes(id)} onToggle={() => toggleFold('video', id)}>
@@ -169,6 +172,10 @@ export function VideoSettingsColumn({ host }: { host: string }) {
           <VideoQuickTweaks />
         </Card>
       )}
+      <Card id="experiment" title="Experiment" icon={IconFlask} status={sweeping ? { summary: 'sweep running', badge: '…', tone: 'accent' } : { summary: 'vary one setting across N runs' }}
+        open={!folded.includes('experiment')} onToggle={() => toggleFold('video', 'experiment')}>
+        <VideoSweepRow host={host} />
+      </Card>
       <MoreSettingsRow hidden={VIDEO_SECTIONS.length - shown.length} />
       <div className="shrink-0 rounded-lg border border-border-default bg-bg-panel px-3 py-2"><VideoResetRow /></div>
     </Column>

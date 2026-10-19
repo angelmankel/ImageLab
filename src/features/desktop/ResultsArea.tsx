@@ -10,7 +10,7 @@
  * so `openViewer()` is all the hero does; rendering a second one here would stack two overlays.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Badge } from '@mantine/core';
+import { Badge, Button } from '@mantine/core';
 import { HeroResult } from '@/components/blocks/HeroResult';
 import { ResultsStrip } from '@/components/blocks/ResultsStrip';
 import { FullscreenImage } from '@/components/FullscreenImage';
@@ -24,6 +24,8 @@ import type { RunStore } from '@/lib/comfyRunner';
 import { GenerateNavActions } from '@/features/generate/GenerateNavActions';
 import { useImageResults, useVideoResults, useWorkflowResults } from '@/features/workspace/results';
 import { useVideoRun } from '@/features/video/videoRun';
+import { useResultLabel } from '@/features/video/videoControls';
+import { CompareVideos } from '@/features/video/CompareVideos';
 import { useWorkflowRun } from '@/features/studio/studioRun';
 import { useDesktopLayout } from './desktopLayoutStore';
 
@@ -135,9 +137,12 @@ function RunResults({ mode, store }: { mode: WorkspaceMode; store: RunStore }) {
   const setPickedFor = useDesktopLayout(s => s.setPicked);
   const setPicked = useCallback((key: string | null) => setPickedFor(mode, key), [mode, setPickedFor]);
   const [fullscreen, setFullscreen] = useState<number | null>(null);
+  const [comparing, setComparing] = useState(false);
   useEffect(() => { setPicked(null); }, [latest?.url, setPicked]);
   const index = picked ? Math.max(0, items.findIndex(i => i.key === picked)) : items.length ? 0 : -1;
   const item = items[index] ?? null;
+  // A sweep names what made a video ("CFG 3.5"); other results have no label.
+  const label = useResultLabel(mode === 'video' ? item?.url : null);
 
   const step = (dir: 1 | -1) => { const i = stepResult(index, items.length, dir); if (items[i]) setPicked(items[i].key); };
   const noOverlay = () => fullscreen === null;
@@ -162,7 +167,16 @@ function RunResults({ mode, store }: { mode: WorkspaceMode; store: RunStore }) {
             {index + 1} / {items.length}
           </Badge>
         )}
+        {label && !busy && (
+          <Badge variant="filled" color="dark" radius="sm" className="pointer-events-none !absolute left-2 top-2" style={{ opacity: 0.85 }}>{label}</Badge>
+        )}
+        {mode === 'video' && items.length > 1 && !busy && (
+          <Button size="compact-xs" variant="default" className="!absolute bottom-2 right-2" onClick={() => setComparing(true)}>Compare A/B</Button>
+        )}
       </HeroResult>
+      {mode === 'video' && (
+        <CompareVideos items={items} opened={comparing} onClose={() => setComparing(false)} initialA={items[index + 1]?.key ?? null} initialB={item?.key ?? null} />
+      )}
       <div onWheel={onWheel} className="shrink-0 empty:hidden">
         <ResultsStrip items={items} currentKey={item?.key ?? null} size={strip} onPick={setPicked}
           onOpen={key => { const i = items.findIndex(x => x.key === key); if (i >= 0) { setPicked(key); setFullscreen(i); } }} />

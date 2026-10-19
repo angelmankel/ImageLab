@@ -1,10 +1,13 @@
 /**
  * The Video view's settings. Its own store, like Studio's: the generate view's workflow knows
  * nothing about frames or two-expert models, and the two never share state.
+ *
+ * Saved settings go through `loadVideoSettings`, so a browser that saved before a field existed
+ * gets that field's default and the graph it always built.
  */
 import { create } from 'zustand';
 import { uid } from '@/lib/storage';
-import { defaultVideoSettings, type VideoLora, type VideoMode, type VideoSettings } from '@/lib/wanGraph';
+import { defaultVideoSettings, loadVideoSettings, type VideoLora, type VideoMode, type VideoSettings } from '@/lib/wanGraph';
 
 const KEY = 'imagelab.video.v1';
 
@@ -12,12 +15,12 @@ const KEY = 'imagelab.video.v1';
 export type VideoState = VideoSettings & { startImage: string };
 
 function load(): VideoState {
-  const base = { ...defaultVideoSettings(), startImage: '' };
   try {
     const raw = JSON.parse(localStorage.getItem(KEY) || 'null');
-    if (raw && typeof raw === 'object') return { ...base, ...raw, models: { ...base.models, ...raw.models }, fastLoras: { ...base.fastLoras, ...raw.fastLoras }, speedInside: { ...base.speedInside, ...raw.speedInside }, upscale: { ...base.upscale, ...raw.upscale } };
+    const startImage = raw && typeof raw === 'object' && typeof raw.startImage === 'string' ? raw.startImage : '';
+    return { ...loadVideoSettings(raw), startImage };
   } catch { /* fall back to defaults */ }
-  return base;
+  return { ...defaultVideoSettings(), startImage: '' };
 }
 
 type Store = VideoState & {
@@ -52,11 +55,17 @@ export const useVideo = create<Store>((set, get) => {
     updateLora: (id, p) => patch({ loras: get().loras.map((l) => (l.id === id ? { ...l, ...p } : l)) }),
     removeLora: (id) => patch({ loras: get().loras.filter((l) => l.id !== id) }),
     resetSettings: () => {
-      const { positive, startImage, mode, loras, speedInside } = get();
-      patch({ ...defaultVideoSettings(), positive, startImage, mode, loras, speedInside });
+      const { positive, startImage, endImage, mode, loras, speedInside } = get();
+      patch({ ...defaultVideoSettings(), positive, startImage, endImage, mode, loras, speedInside });
     },
   };
 });
+
+/** The settings alone (no start image), as the graph and the presets want them. */
+export const videoSettingsOf = (s: VideoState): VideoSettings => {
+  const { startImage: _i, ...rest } = s;
+  return rest;
+};
 
 /** A fresh seed, the same range Studio uses. */
 export const randomVideoSeed = () => Math.floor(Math.random() * 1_000_000_000_000_000);

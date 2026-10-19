@@ -15,7 +15,7 @@ import { ParamList, PromptPanel, ResetAllButton, WorkflowPicker } from '@/featur
 import { exposedParams, useStudio } from '@/features/studio/studioStore';
 import type { useWorkflowLibrary } from '@/features/studio/useWorkflowLibrary';
 import { MissingFiles, VIDEO_SECTION_META, VideoSectionBody, useVideoSectionStatus } from '@/features/video/sections';
-import { VideoResetRow } from '@/features/video/videoControls';
+import { VideoPresetRow, VideoResetRow, VideoSweepRow } from '@/features/video/videoControls';
 import { VIDEO_SECTIONS, type VideoSectionId } from '@/lib/videoSections';
 import type { SectionId } from '@/lib/panelTabs';
 import { sectionTier, videoSectionTier, visibleSections } from '@/lib/workspace';
@@ -116,8 +116,10 @@ export function VideoCreate({ host, onSwipeToResult }: { host: string; onSwipeTo
         <>
           <DetailRow hidden={VIDEO_SECTIONS.length - shown.length} />
           <div className="mb-3 empty:hidden"><MissingFiles /></div>
+          <Card className="mb-3"><VideoPresetRow large /></Card>
           {nav}
           {detail === 'simple' && <Card><VideoQuickTweaks /></Card>}
+          <Card><VideoSweepRow host={host} /></Card>
           <Card><VideoResetRow /></Card>
           {hint('video')}
         </>
