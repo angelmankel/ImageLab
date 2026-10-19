@@ -13,6 +13,7 @@
  * badges the tab. Tabs stay mounted within a mode so scroll and open editors survive a switch.
  * The bottom edge below all this is the app-wide `MobileNav`.
  */
+import { SendToButtons } from './sendTo';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { ResultsStripHandle } from '@/components/blocks/ResultsStrip';
 import { Box, Group, Text } from '@mantine/core';
@@ -251,7 +252,7 @@ function ImageMode({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
 // ── Video ───────────────────────────────────────────────────────────────────
 
 /** Video and Workflow share this: the run store's hero, strip and run bar. */
-function RunResultPane({ store, items, empty, onOpen }: { store: RunStore; items: readonly ResultItem[]; empty: string; onOpen: (i: number) => void }) {
+function RunResultPane({ store, items, empty, onOpen, from }: { store: RunStore; items: readonly ResultItem[]; empty: string; onOpen: (i: number) => void; from: WorkspaceMode }) {
   const busy = store(s => s.busy);
   const preview = store(s => s.preview);
   const progress = store(s => s.progress);
@@ -278,6 +279,9 @@ function RunResultPane({ store, items, empty, onOpen }: { store: RunStore; items
           preview={preview} busy={busy} progress={progress} statusLine={currentNode ?? status} queued={queued}
           onOpen={it => onOpen(items.findIndex(i => i.key === it.key))} empty={empty} />
       )}
+      actions={current && !busy
+        ? <SendToButtons from={from} size="lg" source={{ url: current.url, filename: current.filename, kind: current.kind === 'video' ? 'video' : 'image' }} />
+        : undefined}
     />
   );
 }
@@ -310,7 +314,7 @@ function VideoMode({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
     <>
       <Panes tab={tab} panes={{
         create: <VideoCreate host={host} onSwipeToResult={() => setTab('result')} />,
-        result: <RunResultPane store={useVideoRun} items={items} empty="No video yet — write a prompt and press Generate." onOpen={setFs} />,
+        result: <RunResultPane store={useVideoRun} items={items} from="video" empty="No video yet — write a prompt and press Generate." onOpen={setFs} />,
       }} />
       <Footer>
         {error && <Text size="xs" c="red.4" lineClamp={2} onClick={() => useVideoRun.getState().clearError()}>{error}</Text>}
@@ -348,7 +352,7 @@ function WorkflowMode({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
     <>
       <Panes tab={tab} panes={{
         create: <WorkflowCreate host={host} library={library} onSwipeToResult={() => setTab('result')} />,
-        result: <RunResultPane store={useWorkflowRun} items={items} empty="Nothing yet — open a workflow and run it." onOpen={setFs} />,
+        result: <RunResultPane store={useWorkflowRun} items={items} from="workflow" empty="Nothing yet — open a workflow and run it." onOpen={setFs} />,
       }} />
       <Footer>
         {error && <Text size="xs" c="red.4" lineClamp={2} onClick={() => useWorkflowRun.getState().clearError()}>{error}</Text>}

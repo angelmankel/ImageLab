@@ -1,13 +1,14 @@
 import { useCallback } from 'react';
 import { Divider, Group } from '@mantine/core';
 import {
-  IconInfinity, IconInfoCircle, IconMaximize, IconMovie, IconStar, IconStarFilled, IconTrash,
+  IconInfinity, IconInfoCircle, IconMaximize, IconStar, IconStarFilled, IconTrash,
 } from '@tabler/icons-react';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useShortcut, ShortcutPriority } from '@/hooks/useShortcut';
 import { useStore } from '@/lib/store';
 import { sendEntryToCanvas } from '@/features/canvas/sendEntryToCanvas';
-import { sendEntryToVideo } from '@/features/video/sendToVideo';
+import { viewUrl } from '@/lib/comfy';
+import { SendToButtons } from '@/features/workspace/sendTo';
 import { RecallButton } from '@/features/layout/RecallButton';
 import { DownloadSelectedButton } from '@/features/layout/DownloadSelectedButton';
 import { ToolbarButton } from './ToolbarButton';
@@ -27,6 +28,8 @@ export function GenerateNavActions() {
   const selectHistoryEntry = useStore(s => s.selectHistoryEntry);
   const confirm = useConfirm();
   const entry = selectedEntry ?? newest;
+  const host = useStore(s => (entry ? s.servers.find(sv => sv.id === entry.serverId)?.host : undefined));
+  const source = entry && host ? { url: viewUrl(entry, host), filename: entry.filename, kind: 'image' as const } : null;
   const disabled = !entry;
   const liked = !!entry?.liked;
 
@@ -80,13 +83,7 @@ export function GenerateNavActions() {
         onClick={() => { if (entry) void sendEntryToCanvas(entry); }}
         disabled={disabled}
       />
-      <ToolbarButton
-        icon={<IconMovie size={16} />}
-        label="Send image to video"
-        tooltip="Send this image to Video as the image → video start frame"
-        onClick={() => { if (entry) void sendEntryToVideo(entry); }}
-        disabled={disabled}
-      />
+      <SendToButtons from="image" source={source} />
       <ToolbarButton
         icon={<IconInfoCircle size={16} />}
         label="Open image info"

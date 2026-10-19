@@ -285,6 +285,11 @@ the LAN boxes are behind on ImageLabCore, so `/imagelab/api/*` only answers on a
 **The project rules — pods, money, pulling images before a terminate — live in
 `../ImageLabDocker/CLAUDE.md`.**
 
+**Send to another mode** (`workspace/sendTo.tsx`): every result has buttons for the other two
+modes: Image (input image, img2img), Video (start frame), Workflow (the open workflow's first
+LoadImage input, uploaded to the Workflow server). A video result sends its last frame
+(`lastFrame`, a detached <video> drawn to a canvas), so a clip can be continued in Video.
+
 ## Desktop layout
 
 - **One workspace** (`features/desktop/DesktopWorkspace.tsx`, mounted by `workspace/WorkspaceView`

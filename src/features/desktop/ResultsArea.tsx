@@ -21,6 +21,7 @@ import { jobActivity } from '@/lib/jobActivity';
 import { stepResult } from '@/lib/desktopLayout';
 import type { WorkspaceMode } from '@/lib/workspace';
 import type { RunStore } from '@/lib/comfyRunner';
+import { SendToButtons } from '@/features/workspace/sendTo';
 import { GenerateNavActions } from '@/features/generate/GenerateNavActions';
 import { useImageResults, useVideoResults, useWorkflowResults } from '@/features/workspace/results';
 import { useVideoRun } from '@/features/video/videoRun';
@@ -177,6 +178,11 @@ function RunResults({ mode, store }: { mode: WorkspaceMode; store: RunStore }) {
         )}
         {label && !busy && (
           <Badge variant="filled" color="dark" radius="sm" className="pointer-events-none !absolute left-2 top-2" style={{ opacity: 0.85 }}>{label}</Badge>
+        )}
+        {item && !busy && (
+          <div className="!absolute bottom-2 left-2 rounded-md bg-bg-panel/80 backdrop-blur-sm">
+            <SendToButtons from={mode} source={{ url: item.url, filename: item.filename, kind: item.kind === 'video' ? 'video' : 'image' }} />
+          </div>
         )}
         {mode === 'video' && items.length > 1 && !busy && (
           <Button size="compact-xs" variant="default" className="!absolute bottom-2 right-2" onClick={() => setComparing(true)}>Compare A/B</Button>
