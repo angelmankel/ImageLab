@@ -7,6 +7,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import { UnstyledButton } from '@mantine/core';
 import { cn } from '@/lib/cn';
+import { lastInputWasTouch } from '@/lib/inputModality';
 import { centredScrollLeft } from '@/lib/pager';
 import type { ResultItem } from '@/lib/workspace';
 
@@ -49,7 +50,7 @@ export const ResultsStrip = forwardRef<ResultsStripHandle, {
     const el = currentEl();
     if (!strip || !el || performance.now() - followedAt.current < 100) return;
     const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
-    strip.scrollTo({ left: centredScrollLeft(el.offsetLeft, el.offsetWidth, strip.clientWidth), behavior: reduced ? 'auto' : 'smooth' });
+    strip.scrollTo({ left: centredScrollLeft(el.offsetLeft, el.offsetWidth, strip.clientWidth), behavior: reduced || !lastInputWasTouch() ? 'auto' : 'smooth' });
   }, [currentKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!items.length) return null;

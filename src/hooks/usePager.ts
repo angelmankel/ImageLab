@@ -1,5 +1,6 @@
 import { useCallback, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import { createVelocityTracker } from '@/lib/momentum';
+import { lastInputWasTouch } from '@/lib/inputModality';
 import {
   REDUCED_MS, dragOffset, pageOnRelease, slideDistance, spring,
 } from '@/lib/pager';
@@ -65,7 +66,7 @@ export function usePager({ keys, index, onIndexChange, enabled = true, animate =
   const dragging = useRef(false);
   const velocity = useRef(createVelocityTracker());
   /** Set by a release that paged, read by the layout effect when the new index renders. */
-  const pending = useRef<{ dir: 1 | -1; v: number } | null>(null);
+  const pending = useRef<{ dir: 1 | -1; v: number; drag?: boolean } | null>(null);
   const lastKey = useRef<string | undefined>(keys[index]);
 
   const width = () => trackRef.current?.clientWidth || window.innerWidth;
@@ -122,7 +123,9 @@ export function usePager({ keys, index, onIndexChange, enabled = true, animate =
       dir = index > oldIdx ? 1 : -1;
     }
     if (!el) return;
-    if (!latest.current.animate) { stopSettle(); settled(); return; }
+    // A drag always lands smoothly; any other change (keys, wheel, a click, the controller) slides
+    // only for touch and cuts on a desktop.
+    if (!latest.current.animate || (!was?.drag && !lastInputWasTouch())) { stopSettle(); settled(); return; }
     if (reducedMotion()) {
       stopSettle();
       settled();
@@ -176,7 +179,7 @@ export function usePager({ keys, index, onIndexChange, enabled = true, animate =
       const v = velocity.current.release().x;
       const target = opts?.cancel ? cur : pageOnRelease(offset.current, v, width(), cur, ks.length);
       if (target === cur) { settle(v); return; }
-      pending.current = { dir: target > cur ? 1 : -1, v };
+      pending.current = { dir: target > cur ? 1 : -1, v, drag: true };
       change(target);
       // The owner did not take the change (nothing re-rendered): settle back where we were.
       requestAnimationFrame(() => { if (pending.current) { pending.current = null; settle(v); } });

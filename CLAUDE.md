@@ -229,6 +229,11 @@ widget after a seed is read one slot off — it showed up as steps reading "rand
 
 ## Swiping results (the gesture model)
 
+**Touch slides, desktop cuts.** A change of result that is not a drag (arrow keys, wheel, a click on
+the strip, the controller) slides only when the last input was a touch (`lib/inputModality.ts`);
+after a mouse, wheel or key it is instant, and the strip jumps instead of smooth-scrolling. A drag
+(finger or mouse) always settles with the spring.
+
 - **One pager everywhere.** The hero (`components/blocks/HeroResult`), the fullscreen viewer
   (`components/FullscreenImage`) and, through them, the strip and the gallery all page with
   `hooks/usePager`: a track of three slides (previous · current · next, `SLIDE_GAP` 24 px apart)
