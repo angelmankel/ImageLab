@@ -35,6 +35,8 @@ import { VideoSeedRow, useVideoEstimateLine } from '@/features/video/videoContro
 import { onApp } from '@/lib/appEvents';
 import type { RunStore } from '@/lib/comfyRunner';
 import { jobActivity } from '@/lib/jobActivity';
+import { stepResult } from '@/lib/desktopLayout';
+import { usePadResults } from '@/features/gamepad/padActions';
 import { useStore } from '@/lib/store';
 import type { ResultItem, WorkspaceMode } from '@/lib/workspace';
 import { ImageCreate, VideoCreate, WorkflowCreate } from './mobileCreate';
@@ -58,6 +60,14 @@ export function MobileWorkspace() {
   // Gallery is the image history; the other modes keep their results in the strip.
   const hasGallery = mode === 'image';
   const shownTab: Tab = tab === 'gallery' && !hasGallery ? 'result' : tab;
+  // The controller's ZL / ZR step through the tabs.
+  const tabNav = useRef({ order: [] as Tab[], shown: shownTab });
+  tabNav.current = { order: hasGallery ? ['create', 'result', 'gallery'] : ['create', 'result'], shown: shownTab };
+  useEffect(() => onApp('pad-tab', (dir) => {
+    const { order, shown } = tabNav.current;
+    const next = order[Math.min(order.length - 1, Math.max(0, order.indexOf(shown) + dir))];
+    if (next) setTab(next);
+  }), []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // A result landing while you are elsewhere: badge Result until you look.
   const count = useResultCount(mode);
@@ -95,7 +105,7 @@ export function MobileWorkspace() {
 
       {/* One mode's panes at a time, mounted on first visit and kept. */}
       {/* A column: the panes fill what is left, and each mode's Footer sits under them. */}
-      <Box key={mode} style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+      <Box key={mode} data-pad-start style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
         {mode === 'image' && <ImageMode tab={shownTab} setTab={setTab} />}
         {mode === 'video' && <VideoMode tab={shownTab} setTab={setTab} />}
         {mode === 'workflow' && <WorkflowMode tab={shownTab} setTab={setTab} />}
@@ -247,6 +257,10 @@ function RunResultPane({ store, items, empty, onOpen }: { store: RunStore; items
   const [picked, setPicked] = useState<string | null>(null);
   useEffect(() => { setPicked(null); }, [latest?.url]);
   const current = (picked && items.find(i => i.key === picked)) || items[0] || null;
+  usePadResults({
+    step: dir => { const i = stepResult(current ? items.indexOf(current) : -1, items.length, dir); if (items[i]) setPicked(items[i].key); },
+    open: () => { if (current) onOpen(items.indexOf(current)); },
+  });
   return (
     <ResultPane
       items={items}
@@ -281,6 +295,8 @@ function VideoMode({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
   useEffect(() => attach(), [attach]);
   const line = useVideoEstimateLine(host, busy);
   const [fs, setFs] = useState<number | null>(null);
+  // Until the Result tab mounts (and registers its own pick), the controller opens the newest.
+  usePadResults({ step: () => setTab('result'), open: () => { if (items.length) setFs(0); } });
 
   if (!host) return <NoServer />;
   return (
@@ -317,6 +333,7 @@ function WorkflowMode({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
   useEffect(() => { setHost(host); }, [host, setHost]);
   useEffect(() => attach(), [attach]);
   const [fs, setFs] = useState<number | null>(null);
+  usePadResults({ step: () => setTab('result'), open: () => { if (items.length) setFs(0); } });
 
   if (!host) return <NoServer />;
   if (infoError) return <Dead title="Cannot reach ComfyUI" body={infoError} />;

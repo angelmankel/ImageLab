@@ -28,6 +28,7 @@ import { useViewSwitching } from '@/hooks/useViewSwitching';
 import { useCanvasControllerProvider } from '@/hooks/useCanvasControllerProvider';
 import { useVideoServerProbe } from '@/hooks/useVideoServerProbe';
 import { useInstalledWanFiles } from '@/features/video/videoControls';
+import { GamepadLayer } from '@/features/gamepad/GamepadLayer';
 
 export default function App() {
   const canvas = useCanvasControllerProvider();
@@ -116,6 +117,10 @@ export default function App() {
           <ModelMetadataModal />
           <KeyboardDoneButton />
           <Spotlight />
+        </ErrorBoundary>
+        {/* Game controllers, for every view and both shells; idle until a pad connects. */}
+        <ErrorBoundary label="Controller">
+          <GamepadLayer />
         </ErrorBoundary>
       </TooltipProvider>
       </ConfirmProvider>

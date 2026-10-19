@@ -9,6 +9,8 @@ type AppEvents = {
   'open-spotlight': undefined;
   /** Switch the phone's Generate shell to one of its tabs. */
   'mobile-tab': 'parameters' | 'image' | 'gallery';
+  /** The controller's ZL / ZR: the phone workspace's previous / next tab. */
+  'pad-tab': 1 | -1;
 };
 
 const PREFIX = 'imagelab:';

@@ -22,6 +22,9 @@ export type StudioResult = RunResult;
 /** Raw object_info for a host, fetched once per host and kept for the session. */
 const infoCache = new Map<string, ObjectInfo>();
 
+/** The cached catalogue outside React (the controller's Generate), or null before the first fetch. */
+export const objectInfoNow = (host: string): ObjectInfo | null => infoCache.get(host) ?? null;
+
 export function useObjectInfo(host: string | null): { info: ObjectInfo | null; error: string | null } {
   const [info, setInfo] = useState<ObjectInfo | null>(host ? infoCache.get(host) ?? null : null);
   const [error, setError] = useState<string | null>(null);

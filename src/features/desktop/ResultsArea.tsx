@@ -27,6 +27,7 @@ import { useVideoRun } from '@/features/video/videoRun';
 import { useResultLabel } from '@/features/video/videoControls';
 import { CompareVideos } from '@/features/video/CompareVideos';
 import { useWorkflowRun } from '@/features/studio/studioRun';
+import { usePadResults } from '@/features/gamepad/padActions';
 import { useDesktopLayout } from './desktopLayoutStore';
 
 const NO_URLS: string[] = [];
@@ -145,6 +146,7 @@ function RunResults({ mode, store }: { mode: WorkspaceMode; store: RunStore }) {
   const label = useResultLabel(mode === 'video' ? item?.url : null);
 
   const step = (dir: 1 | -1) => { const i = stepResult(index, items.length, dir); if (items[i]) setPicked(items[i].key); };
+  usePadResults({ step, open: () => { if (item) setFullscreen(index); } });
   const noOverlay = () => fullscreen === null;
   useShortcut('ArrowLeft', () => step(1), { priority: ShortcutPriority.Panel + 10, when: noOverlay });
   useShortcut('ArrowRight', () => step(-1), { priority: ShortcutPriority.Panel + 10, when: noOverlay });

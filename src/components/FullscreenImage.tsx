@@ -183,6 +183,8 @@ export function FullscreenImage({
       // Page-level swipe gestures (Studio's pane swipe, drawer edge-swipe) leave the viewer's
       // own swipes and pinches alone.
       data-no-swipe
+      // The controller keeps its highlight in here and steps the pictures with ◀ ▶.
+      data-pad-layer="viewer"
       style={{ touchAction: 'none', backgroundColor: 'rgba(0, 0, 0, 0.95)' }}
       onWheel={handlers.onWheel}
       onPointerDown={handlers.onPointerDown}

@@ -274,3 +274,56 @@ the LAN boxes are behind on ImageLabCore, so `/imagelab/api/*` only answers on a
   `[` `]` grid step. The fullscreen viewer keeps ←/→, S slideshow, Esc.
 - `features/panel/PanelTabs.tsx` and `SummaryStrip.tsx` are no longer used on desktop; the tab data
   (`lib/panelTabs.ts`) still drives card order.
+
+## Controllers
+
+- **One layer for the whole app** (`features/gamepad/GamepadLayer.tsx`, mounted once in App): idle
+  until a pad connects (`hooks/useGamepad` starts its rAF poll on `gamepadconnected`). Every pad is
+  read at once and merged, so whichever is pressed works and a button held on two pads fires once.
+  The pure part — pad kinds, index maps, printed labels, the focus arithmetic — is `lib/gamepad.ts`,
+  tested. Minus (Back / View) opens the button card (`PadHelp.tsx`), labelled as printed on the pad
+  in hand; a "Controller connected" note says so once per connection.
+- **The map** (Switch labels; on an Xbox pad the bottom button is A, so the *same press* is the one
+  printed A on every pad):
+
+  | Button | Does |
+  | --- | --- |
+  | A | press the highlighted control; nothing highlighted: Generate |
+  | B | back: close the open overlay (Escape), leave a phone settings page (`data-pad-back`), hide the highlight; nothing left: Stop the mode's run |
+  | + | Generate, or Stop while the mode runs; works inside a text box too |
+  | d-pad / left stick | move the highlight; ◀ ▶ change the highlighted control (slider, number, segmented choice, switch); held, it repeats |
+  | ZL / ZR | held with ◀ ▶: ten steps; a tap: phone Create · Result · Gallery tab, desktop older / newer result |
+  | L / R | previous / next mode (wraps) |
+  | X | new seed (Workflow: every seed) |
+  | Y | favourite the shown image (Image mode, also in the viewer) |
+  | LS press | open the shown result full screen; again to close |
+  | RS press / tilt | Simple / Advanced / scroll |
+  | − | the button card |
+
+  In a fullscreen viewer (`data-pad-layer="viewer"`: `FullscreenImage`, `VideoFullscreen`) ◀ ▶,
+  L / R and ZL / ZR are the arrow keys (previous / next), B or LS closes. A text box with focus
+  keeps the controller out except + and B (which leaves the box).
+- **The highlight** is a ring over a control, found by role and tag (`features/gamepad/padDom.ts`):
+  buttons, links, inputs, sliders, switches, tabs, options; a radio group (Mantine
+  `SegmentedControl`) is one stop; the − / + inside a number box are skipped (the box steps).
+  Hidden, `inert`, `aria-hidden`, transparent and clipped-off controls are skipped. Up / down / left
+  / right pick the nearest control ahead that lines up (`pickInDirection`), so it stays in its
+  column on desktop. Inside an open overlay (`[role=dialog]`, a Mantine dropdown, `data-pad-layer`)
+  it stays inside it and goes back to the opener when it closes. ◀ ▶ reach controls the way keys
+  do — the arrow key Mantine's Slider / NumberInput already handle, contained so ←/→ never also
+  step results — or a click; nothing is focused except a text box on A, so the phone keyboard
+  never opens by itself. Scrolling into view only moves real scrollers. The ring shows after a pad
+  press and hides on a touch, click, wheel or key; its first press only shows where it is.
+  `data-pad-start` marks where it first lands (the settings column, the phone's panes).
+- **How Switch pads report** (read from Chromium's `device/gamepad` and Android's key layouts, not
+  tried on hardware). The standard mapping is positional (0 = bottom), so on a Pro Controller 0 is
+  B and 1 is A. Desktop Chrome drives Nintendo pads itself over HID (`nintendo_controller.cc`; on
+  Linux it needs hidraw access, and evdev copies are dropped): `mapping: "standard"`, id `Pro
+  Controller (STANDARD GAMEPAD Vendor: 057e Product: 2009)`, 16 Home, 17 Capture; a lone Joy-Con is
+  turned sideways by Chrome (SL / SR → L / R); an L and an R become one `Joy-Con L+R` pad. Chrome on
+  Android has no Nintendo mapping: `mapping: ""` with the standard indices, id just the name
+  (`Pro Controller`, `Joy-Con (R)`). The Pro Controller's `Vendor_057e_Product_2009.kl` is
+  positional; Joy-Cons fall back to `Generic.kl`, which swaps top and left and drops the left
+  Joy-Con's arrow buttons, and each stays its own upright pad — so a lone one on Android is turned
+  sideways here, and a pair is read as one upright pad. Sideways, the right-hand button confirms, as
+  on a Switch.

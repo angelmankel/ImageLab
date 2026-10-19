@@ -100,7 +100,7 @@ function SettingsForMode({ mode, videoHost, workflowHost, info, infoError }: {
   const { scope, empty, note } = usePanelScope();
   if (mode === 'image') {
     return (
-      <div className="flex h-full min-h-0 flex-col" aria-label="Image settings">
+      <div className="flex h-full min-h-0 flex-col" aria-label="Image settings" data-pad-start>
         <ImageSettingsColumn scope={scope} note={note} empty={empty} />
         <ImageFooter />
       </div>
@@ -109,7 +109,7 @@ function SettingsForMode({ mode, videoHost, workflowHost, info, infoError }: {
   if (mode === 'video') {
     if (!videoHost) return <Dead title="No ComfyUI server" body="Add one in Settings, then come back." />;
     return (
-      <div className="flex h-full min-h-0 flex-col" aria-label="Video settings">
+      <div className="flex h-full min-h-0 flex-col" aria-label="Video settings" data-pad-start>
         <VideoSettingsColumn host={videoHost} />
         <VideoFooter host={videoHost} />
       </div>
@@ -119,7 +119,7 @@ function SettingsForMode({ mode, videoHost, workflowHost, info, infoError }: {
   if (infoError) return <Dead title="Cannot reach ComfyUI" body={infoError} />;
   if (!info) return <Dead title="Reading the server…" body="Fetching the node catalogue." />;
   return (
-    <div className="flex h-full min-h-0 flex-col" aria-label="Workflow settings">
+    <div className="flex h-full min-h-0 flex-col" aria-label="Workflow settings" data-pad-start>
       <WorkflowSettingsColumn host={workflowHost} info={info} />
       <WorkflowFooter host={workflowHost} info={info} />
     </div>

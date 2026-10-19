@@ -133,7 +133,7 @@ export function SettingsPager<T extends string>({ rows, renderPage, menu, onMenu
       >
         {shown && (
           <header className="flex h-12 shrink-0 items-center gap-1 border-b border-border-default bg-bg-panel pr-1">
-            <button type="button" onClick={back} aria-label="Back to settings"
+            <button type="button" onClick={back} aria-label="Back to settings" data-pad-back
               className="flex h-12 shrink-0 items-center gap-0.5 pl-1.5 pr-2 text-[14px] text-accent-fg outline-none active:opacity-60">
               <IconChevronLeft size={22} stroke={1.8} />
               Back
