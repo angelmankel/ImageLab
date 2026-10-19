@@ -13,7 +13,7 @@ import type { WorkspaceMode } from '@/lib/workspace';
 import { GenerateButton } from '@/features/generate/GenerateButton';
 import { GenerationProgress } from '@/features/generate/GenerationProgress';
 import { SeedRow } from '@/features/workspace/imageScope';
-import { VideoSeedRow, useVideoEstimateLine } from '@/features/video/VideoView';
+import { VideoSeedRow, useVideoEstimateLine } from '@/features/video/videoControls';
 import { startVideoRun, useVideoRun } from '@/features/video/videoRun';
 import { startWorkflowRun, useWorkflowRun } from '@/features/studio/studioRun';
 import { useStudio } from '@/features/studio/studioStore';
