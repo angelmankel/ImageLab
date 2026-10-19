@@ -439,6 +439,8 @@ export type ServerInfo = {
   tagModels: string[];
   upscaleModels: string[];
   controlnets: string[];
+  /** RIFE / FILM weights in models/frame_interpolation (core `FrameInterpolationModelLoader`). */
+  interpolationModels: string[];
 };
 
 export type StatusKind = '' | 'ok' | 'error' | 'busy';

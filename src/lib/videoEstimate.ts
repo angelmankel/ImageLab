@@ -41,6 +41,8 @@ export type RunShape = {
   cfg: number;
   outWidth: number;
   outHeight: number;
+  /** Frames in the saved file (more than `frames` after interpolation); unset: `frames`. */
+  outFrames?: number;
   upscaleModel: string | null;
   modelsKey: string;
 };
@@ -58,8 +60,8 @@ export function sampleUnits(r: Pick<RunShape, 'width' | 'height' | 'frames' | 's
   return (r.width * r.height * r.frames * r.steps * (r.cfg > 1 ? 2 : 1)) / 1e9;
 }
 
-export function outUnits(r: Pick<RunShape, 'outWidth' | 'outHeight' | 'frames'>): number {
-  return (r.outWidth * r.outHeight * r.frames) / 1e9;
+export function outUnits(r: Pick<RunShape, 'outWidth' | 'outHeight' | 'frames' | 'outFrames'>): number {
+  return (r.outWidth * r.outHeight * (r.outFrames ?? r.frames)) / 1e9;
 }
 
 function median(xs: number[]): number | null {

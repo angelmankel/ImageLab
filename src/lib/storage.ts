@@ -78,6 +78,7 @@ export const FALLBACKS = {
   tagModels: [] as string[],
   upscaleModels: [] as string[],
   controlnets: [] as string[],
+  interpolationModels: [] as string[],
 };
 
 /** Width × height presets for the Output size dropdown (SDXL-friendly buckets). */

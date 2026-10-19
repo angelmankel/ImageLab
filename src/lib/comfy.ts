@@ -86,6 +86,8 @@ export async function fetchServerInfo(host: string): Promise<ServerInfo> {
     tagModels:     get('WD14Tagger|pysssss', 'model')           ?? FALLBACKS.tagModels,
     upscaleModels: get('UpscaleModelLoader', 'model_name')      ?? FALLBACKS.upscaleModels,
     controlnets:   get('ControlNetLoader', 'control_net_name')  ?? FALLBACKS.controlnets,
+    // Core since ComfyUI 0.3x (PR 13258); an older server has no such node and gets an empty list.
+    interpolationModels: get('FrameInterpolationModelLoader', 'model_name') ?? FALLBACKS.interpolationModels,
   };
 }
 

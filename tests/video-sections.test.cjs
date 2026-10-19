@@ -21,12 +21,12 @@ function fullServer(v) {
   const f = v.models[v.mode];
   return {
     models: ['x'], diffusionModels: [f.high, f.low], textEncoders: [v.textEncoder], vaes: [v.vae],
-    loras: [v.fastLoras[v.mode].high, v.fastLoras[v.mode].low], upscaleModels: [v.upscale.model],
+    loras: [v.fastLoras[v.mode].high, v.fastLoras[v.mode].low], upscaleModels: [v.upscale.model], interpolationModels: [v.interpolate.model],
   };
 }
 
 test('sections run top to bottom, mode first and upscale last', () => {
-  assert.deepEqual([...s.VIDEO_SECTIONS], ['mode', 'prompt', 'models', 'loras', 'size', 'speed', 'upscale']);
+  assert.deepEqual([...s.VIDEO_SECTIONS], ['mode', 'prompt', 'models', 'loras', 'size', 'speed', 'guidance', 'upscale', 'finish']);
 });
 
 test('missing files are split by the section that picks them, and say nothing while the lists are empty', () => {
@@ -61,6 +61,8 @@ test('summaries say what the next run uses, and warn about what stops it', () =>
   assert.equal(st.speed.badge, 'fast');
   assert.equal(st.upscale.summary, 'Off');
   assert.equal(st.loras.summary, 'None');
+  assert.equal(st.guidance.summary, 'Plain CFG');
+  assert.equal(st.finish.summary, 'MP4 H.264');
 
   const w = {
     ...base(), positive: 'a fox runs\nthrough snow', startImage: 'clip/fox.png [input]', mode: 'i2v', fast: false,
@@ -95,4 +97,26 @@ test('labels drop folders, extensions and the [input] tag', () => {
   assert.equal(s.fileLabel('model.gguf'), 'model');
   assert.equal(s.fileLabel('sub/pic.png [input]'), 'pic.png');
   assert.equal(s.videoSeconds({ length: 81, fps: 16 }), '5.1');
+});
+
+test('the new sections: patches named when on, the finish line, an interpolation model the server lacks', () => {
+  const v = { ...base(), positive: 'x', mode: 'i2v', startImage: 'a.png', endImage: 'clip/end.png', fast: false, cfg: 4, cfgLow: 2,
+    guidance: { cfgZeroStar: true, nag: { on: true, scale: 6, alpha: 0.25, tau: 2.5 } },
+    speedups: { easyCache: { on: true, threshold: 0.2, startPercent: 0.15, endPercent: 0.95 }, torchCompile: false },
+    colorMatch: { on: true, method: 'mkl', strength: 1 },
+    interpolate: { on: true, model: 'rife_v4.26.safetensors', multiplier: 2 },
+    encode: { container: 'mkv', codec: 'av1', crf: 30 } };
+  const st = s.videoSectionStatus(v, fullServer(v));
+  assert.equal(st.mode.summary, 'Image → Video · a.png → end.png');
+  assert.equal(st.speed.summary, '20 steps · CFG 4 / 2 · euler');
+  assert.equal(st.guidance.summary, 'CFG-Zero* · NAG 6 · EasyCache');
+  assert.equal(st.guidance.badge, '3');
+  assert.equal(st.finish.summary, 'colour match · 2× frames → 32 fps · MKV AV1 · CRF 30');
+  assert.equal(st.finish.badge, '2');
+  assert.deepEqual([...s.activePatches(v)], ['CFG-Zero*', 'NAG 6', 'EasyCache']);
+  const old = { ...fullServer(v) }; delete old.interpolationModels;   // a server without the core node
+  const st2 = s.videoSectionStatus(v, old);
+  assert.equal(st2.finish.tone, 'warn');
+  assert.deepEqual([...s.missingVideoFiles(v, old)], ['rife_v4.26.safetensors']);
+  assert.deepEqual([...s.missingVideoFiles({ ...v, interpolate: { ...v.interpolate, on: false } }, old)], []);
 });

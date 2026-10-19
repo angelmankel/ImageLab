@@ -238,6 +238,7 @@ function unionInfo(record: Record<string, ServerInfo>): ServerInfo {
     tagModels: merge('tagModels'),
     upscaleModels: merge('upscaleModels'),
     controlnets: merge('controlnets'),
+    interpolationModels: merge('interpolationModels'),
   };
 }
 
