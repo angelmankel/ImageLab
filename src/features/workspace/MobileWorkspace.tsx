@@ -94,7 +94,8 @@ export function MobileWorkspace() {
       </Box>
 
       {/* One mode's panes at a time, mounted on first visit and kept. */}
-      <Box key={mode} style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
+      {/* A column: the panes fill what is left, and each mode's Footer sits under them. */}
+      <Box key={mode} style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
         {mode === 'image' && <ImageMode tab={shownTab} setTab={setTab} />}
         {mode === 'video' && <VideoMode tab={shownTab} setTab={setTab} />}
         {mode === 'workflow' && <WorkflowMode tab={shownTab} setTab={setTab} />}
@@ -121,14 +122,16 @@ function useModeBusy(mode: WorkspaceMode): boolean {
 function Panes({ tab, panes }: { tab: Tab; panes: Partial<Record<Tab, ReactNode>> }) {
   const [mounted, setMounted] = useState<Set<Tab>>(() => new Set([tab, ...(panes.gallery ? ['gallery' as Tab] : [])]));
   useEffect(() => { setMounted(prev => (prev.has(tab) ? prev : new Set([...prev, tab]))); }, [tab]);
+  // The panes are stacked absolutely inside their own box, so the Footer after them stays in flow
+  // at the bottom instead of landing on top of them.
   return (
-    <>
+    <Box style={{ position: 'relative', flex: 1, minHeight: 0 }}>
       {(Object.keys(panes) as Tab[]).map(t => mounted.has(t) && panes[t] && (
         <Box key={t} style={{ position: 'absolute', inset: 0, display: tab === t ? 'flex' : 'none', flexDirection: 'column' }}>
           {panes[t]}
         </Box>
       ))}
-    </>
+    </Box>
   );
 }
 
