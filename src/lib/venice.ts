@@ -364,6 +364,42 @@ export async function generateLayerSet(opts: {
 }
 
 // ---------------------------------------------------------------------------
+// Video prompt — one paragraph, not layers. Wan wants the scene, the motion and the camera;
+// MiniMax H3 wants a long concrete prompt with a timeline and an "Audio:" line.
+// ---------------------------------------------------------------------------
+
+export type VideoPromptEngine = 'wan' | 'h3';
+
+function videoPromptSystem(source: GenerateLayerSource, engine: VideoPromptEngine): string {
+  const task = source === 'idea'
+    ? 'The user gives you a short idea. Write the prompt for a short video clip of it.'
+    : 'The user gives you an existing prompt (for an image or a video). Rewrite it as a prompt for a short video clip: keep the subject, scene and style, add how things move.';
+  const shape = engine === 'h3'
+    ? 'Write 4–7 sentences in plain English: the look and the scene first; then what happens as a timeline with time ranges in brackets, like "[0–2 s] …, [2–5 s] …"; then the camera move; then one final line starting with "Audio:" that names the ambience, sound effects, music if any, and any speech in quotes. Be concrete about motion, no vague words.'
+    : 'Write 2–4 sentences in plain English: the scene, who or what is in it, exactly how they move, and how the camera moves (push in, pan, orbit, static). Mention light and mood briefly. No sound.';
+  return [task, shape, 'Output only the prompt. No title, no quotes, no bullets, no commentary.'].join(' ');
+}
+
+export async function generateVideoPrompt(opts: {
+  seed: string;
+  source: GenerateLayerSource;
+  engine: VideoPromptEngine;
+  settings: VeniceSettings;
+  signal?: AbortSignal;
+}): Promise<string> {
+  const seed = opts.seed.trim();
+  if (!seed) return '';
+  const raw = await veniceChat({
+    settings: opts.settings,
+    messages: [{ role: 'system', content: videoPromptSystem(opts.source, opts.engine) }, { role: 'user', content: seed }],
+    temperature: opts.source === 'idea' ? 0.95 : 0.7,
+    maxTokens: 700,
+    signal: opts.signal,
+  });
+  return raw.trim().replace(/^["“]+|["”]+$/g, '').trim();
+}
+
+// ---------------------------------------------------------------------------
 // Per-snippet tweak — the user gives a free-form instruction
 // ("make this darker", "swap reds for blues") and we rewrite the fragment.
 // Returns the rewritten string verbatim; caller writes it back to the layer.

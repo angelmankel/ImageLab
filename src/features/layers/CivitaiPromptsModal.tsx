@@ -17,9 +17,11 @@ import {
   civitaiThumbUrl, fetchCivitaiImages, isCivitaiVideo, type CivitaiImage, type CivitaiVersionByHash, type NsfwFilter,
 } from '@/lib/civitai';
 import { modelLabel } from '@/components/models/modelInfo';
+import { bucketForBaseModel } from '@/lib/modelHash';
+import { isVideoModelName } from '@/lib/wanGraph';
 import { applyWithUndo } from './PresetLibraryModal';
 
-type Installed = { file: string; versionId: number; modelId: number; model: string; version: string; type: string; preview?: string };
+type Installed = { file: string; versionId: number; modelId: number; model: string; version: string; type: string; preview?: string; video: boolean };
 
 const NSFW_KEY = 'imagelab.civitaiPrompts.nsfw';
 const typeRank = (t: string) => (t === 'Checkpoint' ? 0 : /lora|locon|dora/i.test(t) ? 1 : 2);
@@ -40,16 +42,25 @@ function useInstalled(): Installed[] {
       const d = e.data as CivitaiVersionByHash;
       if (!d?.id || seen.has(d.id)) continue;
       seen.add(d.id);
-      list.push({ file: h.filename, versionId: d.id, modelId: d.modelId, model: d.model?.name ?? modelLabel(h.filename), version: d.name, type: d.model?.type ?? '', preview: d.images?.[0]?.url });
+      const bucket = bucketForBaseModel(d.baseModel);
+      list.push({ file: h.filename, versionId: d.id, modelId: d.modelId, model: d.model?.name ?? modelLabel(h.filename), version: d.name, type: d.model?.type ?? '', preview: d.images?.[0]?.url,
+        video: bucket === 'Wan Video' || bucket === 'MiniMax H3' || isVideoModelName(h.filename) });
     }
     const isActive = (m: Installed) => [...active].some((a) => a && (m.file === a || m.file.endsWith(`/${a}`) || a.endsWith(`/${m.file}`) || modelLabel(a) === modelLabel(m.file)));
     return list.sort((a, b) => Number(isActive(b)) - Number(isActive(a)) || typeRank(a.type) - typeRank(b.type) || a.model.localeCompare(b.model));
   }, [hashes, byHash, checkpoint, loras]);
 }
 
-export function CivitaiPromptsModal({ opened, onClose }: { opened: boolean; onClose: () => void }) {
+export function CivitaiPromptsModal({ opened, onClose, only, onUse }: {
+  opened: boolean; onClose: () => void;
+  /** `video`: only Wan / MiniMax H3 files (the Video panel); `image`: everything else. Default: all. */
+  only?: 'video' | 'image';
+  /** Where a prompt goes. Default: the image Prompt / Negative boxes with Undo (+ settings). */
+  onUse?: (p: { positive: string; negative?: string }) => void;
+}) {
   const narrow = useMediaQuery('(max-width: 48em)') ?? false;
-  const installed = useInstalled();
+  const all = useInstalled();
+  const installed = useMemo(() => (only === 'video' ? all.filter((m) => m.video) : only === 'image' ? all.filter((m) => !m.video) : all), [all, only]);
   const [picked, setPicked] = useState<number | null>(null);
   const [filter, setFilter] = useState('');
   const [nsfw, setNsfw] = useState<NsfwFilter>(() => (localStorage.getItem(NSFW_KEY) as NsfwFilter) || 'all');
@@ -88,6 +99,7 @@ export function CivitaiPromptsModal({ opened, onClose }: { opened: boolean; onCl
 
   const use = (img: CivitaiImage, withSettings: boolean) => {
     const m = img.meta!;
+    if (onUse) { onUse({ positive: m.prompt!, negative: m.negativePrompt || undefined }); onClose(); return; }
     applyWithUndo(m.negativePrompt ? { positive: m.prompt!, negative: m.negativePrompt } : { positive: m.prompt! }, `a CivitAI prompt for ${model?.model ?? 'this model'}`);
     if (withSettings) {
       const patch: Record<string, number> = {};
@@ -121,7 +133,7 @@ export function CivitaiPromptsModal({ opened, onClose }: { opened: boolean; onCl
               </UnstyledButton>
             );
           })}
-          {installed.length === 0 && <Text size="xs" c="dimmed" p="xs">No installed model is known to CivitAI yet. Hashes may still be loading.</Text>}
+          {installed.length === 0 && <Text size="xs" c="dimmed" p="xs">{only === 'video' ? 'No installed video model or LoRA is known to CivitAI yet.' : 'No installed model is known to CivitAI yet. Hashes may still be loading.'}</Text>}
         </Stack>
       </ScrollArea>
     </Stack>
@@ -132,7 +144,7 @@ export function CivitaiPromptsModal({ opened, onClose }: { opened: boolean; onCl
       <Group justify="space-between">
         <Button size="xs" variant="subtle" leftSection={<IconArrowLeft size={14} />} onClick={() => setOpen(null)}>Back to the grid</Button>
         <Group gap="xs">
-          <Button size="xs" variant="light" onClick={() => use(open, true)}>Use prompt + settings</Button>
+          {!onUse && <Button size="xs" variant="light" onClick={() => use(open, true)}>Use prompt + settings</Button>}
           <Button size="xs" onClick={() => use(open, false)}>Use prompt</Button>
         </Group>
       </Group>

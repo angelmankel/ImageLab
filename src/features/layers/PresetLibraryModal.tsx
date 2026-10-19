@@ -36,6 +36,10 @@ function mainText(kind: LayerKind): string {
 }
 
 export function applyWithUndo(changes: Partial<Record<LayerKind, string>>, name: string) {
+  return applyWithUndoDefault(changes, name);
+}
+
+function applyWithUndoDefault(changes: Partial<Record<LayerKind, string>>, name: string) {
   const before = Object.fromEntries(Object.keys(changes).map((k) => [k, mainText(k as LayerKind)])) as Partial<Record<LayerKind, string>>;
   for (const [kind, text] of Object.entries(changes)) setMainText(kind as LayerKind, text!);
   const id = `preset-${Date.now()}`;
@@ -50,9 +54,15 @@ export function applyWithUndo(changes: Partial<Record<LayerKind, string>>, name:
   });
 }
 
-export function PresetLibraryModal({ opened, onClose, kind }: { opened: boolean; onClose: () => void; kind: LayerKind }) {
+export function PresetLibraryModal({ opened, onClose, kind, onApply, initialFamily }: {
+  opened: boolean; onClose: () => void; kind: LayerKind;
+  /** Where a preset goes. Default: the image Prompt / Negative boxes, with Undo. The Video panel passes its own. */
+  onApply?: (changes: Partial<Record<LayerKind, string>>, name: string) => void;
+  initialFamily?: ModelFamily;
+}) {
   const checkpoint = useStore((s) => s.workflow.checkpoints[0]?.name);
-  const [family, setFamily] = useState<ModelFamily | null>(null);
+  const [family, setFamily] = useState<ModelFamily | null>(initialFamily ?? null);
+  const applyWithUndo = onApply ?? applyWithUndoDefault;
   const typeHasTags = useStore((s) => !!profileById(s.workflow.modelProfile)?.tags.length);
   const fam = family ?? familyForCheckpoint(checkpoint, typeHasTags);
   const [category, setCategory] = useState(ALL);

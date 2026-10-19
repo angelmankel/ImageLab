@@ -171,7 +171,7 @@ function PromptBox({ kind }: { kind: LayerKind }) {
         }}
       />
       <PresetLibraryModal opened={presetsOpen} onClose={() => setPresetsOpen(false)} kind={kind} />
-      {positive && <CivitaiPromptsModal opened={civitaiOpen} onClose={() => setCivitaiOpen(false)} />}
+      {positive && <CivitaiPromptsModal opened={civitaiOpen} onClose={() => setCivitaiOpen(false)} only="image" />}
     </FieldWrapper>
   );
 }

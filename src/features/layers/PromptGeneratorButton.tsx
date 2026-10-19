@@ -5,7 +5,7 @@ import { IconSparkles } from '@tabler/icons-react';
 import * as Popover from '@/components/ui/popover';
 import { useStore } from '@/lib/store';
 import { compileLayers } from '@/lib/prompt';
-import { aiNotReadyHint, aiReady, generateLayerSet, type GenerateLayerSource } from '@/lib/venice';
+import { aiNotReadyHint, aiReady, generateLayerSet, generateVideoPrompt, type GenerateLayerSource, type VideoPromptEngine } from '@/lib/venice';
 import { AiModelPicker } from '@/features/ai/AiModelPicker';
 import { CloseIcon, SparkleIcon } from '@/components/ui/icons';
 import { cn } from '@/lib/cn';
@@ -23,7 +23,10 @@ import { cn } from '@/lib/cn';
  * Phones (under 48em) get a full-screen window instead: a 340px popover beside a button has no room
  * there, went off the screen, and jumped around while the keyboard opened and closed.
  */
-export function PromptGeneratorButton({ variant = 'text' }: { variant?: 'text' | 'icon' }) {
+/** Where the result goes. Default: the image's positive layers. `video`: one prose prompt for the Video panel. */
+export type PromptGeneratorTarget = { kind: 'video'; engine: VideoPromptEngine; current: string; apply: (text: string) => void };
+
+export function PromptGeneratorButton({ variant = 'text', target }: { variant?: 'text' | 'icon'; target?: PromptGeneratorTarget }) {
   const [open, setOpen] = useState(false);
   const narrow = useMediaQuery('(max-width: 48em)') ?? false;
   const venice = useStore(s => s.venice);
@@ -72,7 +75,7 @@ export function PromptGeneratorButton({ variant = 'text' }: { variant?: 'text' |
             },
           }}
         >
-          {open && <PromptGeneratorPopover onClose={() => setOpen(false)} phone />}
+          {open && <PromptGeneratorPopover onClose={() => setOpen(false)} phone target={target} />}
         </Modal>
       </>
     );
@@ -89,7 +92,7 @@ export function PromptGeneratorButton({ variant = 'text' }: { variant?: 'text' |
         sideOffset={6}
         className="flex max-h-[min(560px,calc(100dvh-16px))] w-[340px] flex-col rounded-xl border border-border-default bg-bg-elev shadow-2xl"
       >
-        {open && <PromptGeneratorPopover onClose={() => setOpen(false)} />}
+        {open && <PromptGeneratorPopover onClose={() => setOpen(false)} target={target} />}
       </Popover.Content>
     </Popover.Root>
   );
@@ -97,12 +100,12 @@ export function PromptGeneratorButton({ variant = 'text' }: { variant?: 'text' |
 
 /** `phone`: bigger text and touch targets, and the idea box does not grab focus (the keyboard
  *  would cover the window the moment it opens). */
-function PromptGeneratorPopover({ onClose, phone = false }: { onClose: () => void; phone?: boolean }) {
+function PromptGeneratorPopover({ onClose, phone = false, target }: { onClose: () => void; phone?: boolean; target?: PromptGeneratorTarget }) {
   const layers = useStore(s => s.layers);
   const venice = useStore(s => s.venice);
   const replaceLayers = useStore(s => s.replaceLayers);
 
-  const compiledPositive = useMemo(() => compileLayers(layers, 'positive'), [layers]);
+  const compiledPositive = useMemo(() => (target ? target.current : compileLayers(layers, 'positive')), [layers, target]);
 
   const [source, setSource] = useState<GenerateLayerSource>('idea');
   const [idea, setIdea] = useState('');
@@ -125,6 +128,14 @@ function PromptGeneratorPopover({ onClose, phone = false }: { onClose: () => voi
     abortRef.current = ctrl;
     try {
       const seed = source === 'idea' ? idea : compiledPositive;
+      if (target) {
+        const text = await generateVideoPrompt({ seed, source, engine: target.engine, settings: venice, signal: ctrl.signal });
+        if (ctrl.signal.aborted) return;
+        if (!text) { setError('AI returned nothing — try rephrasing.'); return; }
+        target.apply(text);
+        onClose();
+        return;
+      }
       const items = await generateLayerSet({
         seed,
         source,
@@ -173,9 +184,9 @@ function PromptGeneratorPopover({ onClose, phone = false }: { onClose: () => voi
             active={source === 'prompt'}
             onClick={() => setSource('prompt')}
             disabled={compiledPositive.trim().length === 0}
-            disabledTitle="No compiled positive prompt yet — add some layers first"
+            disabledTitle={target ? "The video prompt is empty" : "No compiled positive prompt yet — add some layers first"}
           >
-            From final prompt
+            {target ? 'From current prompt' : 'From final prompt'}
           </SourceTab>
         </div>
 
@@ -203,8 +214,9 @@ function PromptGeneratorPopover({ onClose, phone = false }: { onClose: () => voi
         )}
 
         <p className="text-[10.5px] leading-snug text-fg-muted">
-          Replaces every <span className="font-semibold text-fg-tertiary">positive</span> layer with a fresh set.
-          Negative layers stay untouched.
+          {target
+            ? <>Replaces the video prompt with one written for {target.engine === 'h3' ? 'MiniMax H3: scene, a timeline, camera, and an "Audio:" line' : 'Wan: scene, motion and camera'}.</>
+            : <>Replaces every <span className="font-semibold text-fg-tertiary">positive</span> layer with a fresh set. Negative layers stay untouched.</>}
         </p>
 
         {error && (

@@ -26,6 +26,7 @@ import { useResourceAvailability } from '@/hooks/useResourceAvailability';
 import { ImageInput } from '@/features/studio/ImageInput';
 import type { WorkflowParam } from '@/features/studio/params';
 import { useVideo } from './videoStore';
+import { VideoPromptTools } from './VideoPromptTools';
 
 export const VIDEO_SECTION_META: Record<VideoSectionId, { title: string; icon: TablerIcon }> = {
   mode: { title: 'Mode & input', icon: IconPhotoVideo },
@@ -226,6 +227,7 @@ function PromptSection() {
   const h3 = v.engine === 'h3';
   return (
     <Stack gap="sm">
+      <VideoPromptTools kind="positive" />
       <Textarea
         value={v.positive}
         onChange={(e) => v.set({ positive: e.currentTarget.value })}
@@ -243,6 +245,7 @@ function PromptSection() {
         </Text>
       )}
       {!h3 && <Fold label="Negative prompt" open={negOpen} onToggle={() => setNegOpen((o) => !o)}>
+        <VideoPromptTools kind="negative" />
         <Textarea value={v.negative} onChange={(e) => v.set({ negative: e.currentTarget.value })} autosize minRows={3} maxRows={8} aria-label="Negative prompt"
           description={v.fast && !v.guidance.nag.on ? 'At CFG 1 (Fast) the negative does nothing — turn on NAG under Guidance to make it count.' : 'Wan was trained with this Chinese negative; English works too.'} />
       </Fold>}
