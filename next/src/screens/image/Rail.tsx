@@ -1,61 +1,172 @@
 /**
- * Rule 2: the left rail IS the chain of steps (1 · Image → 2 · Upscale → … → + Add), a check badge
- * on a step that has output, then at the bottom: History & collections · Models · ComfyUI ·
- * Settings. "+ Add" opens a small picker: Upscale / Video / Workflow.
+ * Rule 2 + fix list 8 / 17 / 24: the left rail IS the chain of steps (1 · Image → 2 · Refine →
+ * … → + Add → Generate all), then at the bottom: History & collections · Models · ComfyUI ·
+ * Settings.
+ *
+ * A step circle: click = open the step; click the step that is already open = fold / unfold the
+ * step panel (8). A small × at its top right removes it (not step 1), no confirm, 3 s Undo (24).
+ * Drag it up / down to reorder (a 6 px move starts the drag, so a click stays a click and the ×
+ * never starts one); the connecting lines follow the order live and the chain re-links itself by
+ * the I/O standard. A step that cannot run gets a red ring and says why on hover (17). A check
+ * badge = the step has output. "+ Add" opens THE step-kind picker (`~/app/stepKindPicker`).
  */
-import { Menu } from '@mantine/core';
-import { IconPhoto, IconArrowsMaximize, IconMovie, IconGitBranch, IconWand, IconScissors, IconPlus, IconHistory, IconCube, IconTopologyStar3, IconSettings, IconCheck } from '@tabler/icons-react';
+import { useRef, useState } from 'react';
+import { IconPlus, IconHistory, IconCube, IconTopologyStar3, IconSettings, IconCheck, IconX, IconExclamationMark } from '@tabler/icons-react';
 import { useRoute, type Screen } from '~/app/routeStore';
-import { useSteps, STEP_LABEL, type Step, type StepKind } from '~/app/stepsStore';
-import { T } from '~/theme/tokens';
+import { useSteps, STEP_LABEL, type Step } from '~/app/stepsStore';
+import { KIND_ICON, addStepWithPicker } from '~/app/stepKindPicker';
 import { menuProps } from '~/app/contextMenu';
+import { Tip } from '~/ui/Tip';
+import { T } from '~/theme/tokens';
 import { useStepOutput } from './useStepOutput';
+import { useStepProblem } from './useStepProblem';
+import { useLayout } from './layoutStore';
+import { removeStepWithUndo } from './stepActions';
+import './stepMenuEntries';
 
-export const KIND_ICON: Record<StepKind, typeof IconPhoto> = { image: IconPhoto, refine: IconWand, upscale: IconArrowsMaximize, 'remove-bg': IconScissors, video: IconMovie, workflow: IconGitBranch };
+export { KIND_ICON } from '~/app/stepKindPicker';
 
 /** Whether a step has produced output of its own (the check badge) — the same rule the next step chains by (`useStepOutput`). */
 export function useStepHasOutput(step: Step): boolean {
   return !!useStepOutput(step);
 }
 
-function RailButton({ label, icon, on, onClick, kind = 'place', done }: { label: string; icon: React.ReactNode; on: boolean; onClick?: () => void; kind?: 'step' | 'place' | 'add'; done?: boolean }) {
-  const size = kind === 'place' ? 40 : 46;
+/** Height of one step slot (circle + label + the line under it): the drag maths counts in slots. */
+const SLOT = 46 + 5 + 14 + 26;
+const DRAG_START = 6;
+/** When the last drag ended: the click that follows a drop is not an "open". */
+let dragEndedAt = 0;
+
+function PlaceButton({ label, icon, on, onClick }: { label: string; icon: React.ReactNode; on: boolean; onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} aria-current={on ? 'page' : undefined} aria-label={label} style={{ width: 72, border: 0, background: 'transparent', color: on ? 'var(--il-fg)' : kind === 'add' ? 'var(--il-muted)' : 'var(--il-fg2)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, padding: 0, cursor: 'pointer' }}>
-      <span style={{
-        position: 'relative', width: size, height: size, borderRadius: kind === 'place' ? 12 : '50%', display: 'grid', placeItems: 'center',
-        background: on ? 'var(--il-ember)' : kind === 'place' || kind === 'add' ? 'transparent' : 'var(--il-panel)', color: on ? 'var(--il-bg)' : kind === 'place' ? 'var(--il-muted)' : 'var(--il-fg2)',
-        border: on || kind === 'place' ? 0 : kind === 'add' ? '2px dashed #3A3A44' : '1px solid var(--il-line-soft)',
-        boxShadow: on && kind === 'step' ? '0 0 0 4px rgba(240,134,58,.18)' : undefined,
-      }}>
+    <Tip label={label} position="right">
+      <button type="button" onClick={onClick} aria-current={on ? 'page' : undefined} aria-label={label} className="il-btn"
+        style={{ width: 40, height: 40, borderRadius: 12, border: 0, display: 'grid', placeItems: 'center', cursor: 'pointer', background: on ? 'var(--il-ember)' : 'transparent', color: on ? 'var(--il-bg)' : 'var(--il-muted)' }}>
         {icon}
-        {done && <span style={{ position: 'absolute', right: -2, top: -2, width: 16, height: 16, borderRadius: '50%', background: 'var(--il-ok)', color: 'var(--il-bg)', display: 'grid', placeItems: 'center' }}><IconCheck size={10} stroke={3.5} /></span>}
-      </span>
-      {kind !== 'place' && <span style={{ fontSize: 10, fontWeight: on ? 800 : 700, whiteSpace: 'nowrap' }}>{label}</span>}
-    </button>
+      </button>
+    </Tip>
   );
 }
 
-function StepButton({ step, index }: { step: Step; index: number }) {
+function StepNode({ step, index, lifted, onGrab }: { step: Step; index: number; lifted: boolean; onGrab: (e: React.PointerEvent, id: string) => void }) {
   const screen = useRoute((s) => s.screen);
-  const go = useRoute((s) => s.go);
-  const activeId = useSteps((s) => s.activeId);
-  const setActive = useSteps((s) => s.setActive);
+  const on = useSteps((s) => s.activeId === step.id) && screen === 'step';
   const done = useStepHasOutput(step);
+  const problem = useStepProblem(step);
+  const [hover, setHover] = useState(false);
   const Icon = KIND_ICON[step.kind];
+  const first = index === 0;
+  const label = `${index + 1} · ${STEP_LABEL[step.kind]}`;
+  const tip = problem ? `${label} — ${problem}` : `${label} · ${step.name}${on ? ' (click to fold the panel)' : ''}`;
+
+  const open = () => {
+    const lay = useLayout.getState();
+    if (on) { lay.toggleStep(); return; }
+    useSteps.getState().setActive(step.id);
+    useRoute.getState().go('step');
+    if (!lay.stepOpen) lay.toggleStep();
+  };
+
   return (
-    <RailButton kind="step" label={`${index + 1} · ${STEP_LABEL[step.kind]}`} icon={<Icon size={20} stroke={2.2} />} done={done}
-      on={screen === 'step' && step.id === activeId} onClick={() => { setActive(step.id); go('step'); }} />
+    <div onPointerEnter={() => setHover(true)} onPointerLeave={() => setHover(false)} style={{ width: 72, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
+      <span style={{ position: 'relative', width: 46, height: 46 }}>
+        <Tip label={tip} position="right">
+          <button type="button" data-step-node={step.id} aria-current={on ? 'step' : undefined} aria-label={tip}
+            onClick={() => { if (Date.now() - dragEndedAt < 250) return; open(); }}
+            onPointerDown={first ? undefined : (e) => onGrab(e, step.id)}
+            className="il-btn"
+            style={{
+              width: 46, height: 46, borderRadius: '50%', display: 'grid', placeItems: 'center', padding: 0,
+              cursor: first ? 'pointer' : lifted ? 'grabbing' : 'pointer',
+              background: on ? 'var(--il-ember)' : 'var(--il-panel)', color: on ? 'var(--il-bg)' : 'var(--il-fg2)',
+              border: on ? 0 : '1px solid var(--il-line-soft)',
+              boxShadow: [
+                problem ? '0 0 0 2px var(--il-err)' : on ? '0 0 0 4px rgba(240,134,58,.18)' : '',
+                lifted ? '0 10px 24px rgba(0,0,0,.45)' : '',
+              ].filter(Boolean).join(', ') || undefined,
+              transform: lifted ? 'scale(1.08)' : undefined, transition: 'transform .12s, box-shadow .12s',
+            }}>
+            <Icon size={20} stroke={2.2} />
+          </button>
+        </Tip>
+        {!first && (hover || on) && !lifted && (
+          <button type="button" aria-label={`Remove step ${index + 1}`} title="Remove this step (Undo in the note)"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => { e.stopPropagation(); removeStepWithUndo(step.id); }}
+            style={{ position: 'absolute', top: -5, right: -5, width: 18, height: 18, borderRadius: '50%', padding: 0, border: '1px solid var(--il-line-strong)', background: 'var(--il-elev)', color: 'var(--il-fg2)', display: 'grid', placeItems: 'center', cursor: 'pointer', zIndex: 1 }}>
+            <IconX size={11} stroke={3} />
+          </button>
+        )}
+        {problem ? (
+          <span aria-hidden style={{ position: 'absolute', right: -3, bottom: -3, width: 16, height: 16, borderRadius: '50%', background: 'var(--il-err)', color: 'var(--il-bg)', display: 'grid', placeItems: 'center', pointerEvents: 'none' }}><IconExclamationMark size={11} stroke={3.5} /></span>
+        ) : done && (
+          <span aria-hidden style={{ position: 'absolute', right: -3, bottom: -3, width: 16, height: 16, borderRadius: '50%', background: 'var(--il-ok)', color: 'var(--il-bg)', display: 'grid', placeItems: 'center', pointerEvents: 'none' }}><IconCheck size={10} stroke={3.5} /></span>
+        )}
+      </span>
+      <span style={{ fontSize: 10, fontWeight: on ? 800 : 700, whiteSpace: 'nowrap', color: problem ? 'var(--il-err)' : on ? 'var(--il-fg)' : 'var(--il-fg2)' }}>{label}</span>
+    </div>
   );
 }
 
-const ADD: Array<{ kind: StepKind; label: string; hint: string }> = [
-  { kind: 'upscale', label: 'Upscale', hint: 'Bigger, sharper' },
-  { kind: 'video', label: 'Video', hint: 'Animate the picture' },
-  { kind: 'workflow', label: 'Workflow', hint: 'Any saved ComfyUI workflow' },
-];
+/** The chain, with drag-to-reorder: the order shown follows the pointer live; the drop commits it. */
+function StepChain() {
+  const steps = useSteps((s) => s.steps);
+  const [drag, setDrag] = useState<{ id: string; to: number } | null>(null);
+  const grab = useRef<{ id: string; y: number; top: number; from: number; el: HTMLElement; moved: boolean } | null>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
-const PLACES: Array<{ key: Screen; label: string; icon: typeof IconPhoto }> = [
+  const order = (() => {
+    if (!drag) return steps;
+    const from = steps.findIndex((s) => s.id === drag.id);
+    if (from < 0) return steps;
+    const next = [...steps];
+    const [s] = next.splice(from, 1);
+    next.splice(drag.to, 0, s);
+    return next;
+  })();
+
+  const onGrab = (e: React.PointerEvent, id: string) => {
+    if (e.button !== 0) return;
+    const from = steps.findIndex((s) => s.id === id);
+    grab.current = { id, y: e.clientY, top: listRef.current?.getBoundingClientRect().top ?? 0, from, el: e.currentTarget as HTMLElement, moved: false };
+    const move = (ev: PointerEvent) => {
+      const g = grab.current;
+      if (!g) return;
+      if (!g.moved && Math.abs(ev.clientY - g.y) < DRAG_START) return;
+      if (!g.moved) { g.moved = true; try { g.el.setPointerCapture(ev.pointerId); } catch { /* gone */ } }
+      const scroll = listRef.current?.scrollTop ?? 0;
+      const to = Math.max(1, Math.min(steps.length - 1, Math.floor((ev.clientY - g.top + scroll) / SLOT)));
+      setDrag((d) => (d && d.to === to ? d : { id: g.id, to }));
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', up);
+      const g = grab.current;
+      grab.current = null;
+      if (g?.moved) {
+        dragEndedAt = Date.now();
+        setDrag((d) => { if (d && d.to !== g.from) useSteps.getState().moveStep(g.id, d.to); return null; });
+      }
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
+  };
+
+  return (
+    <div ref={listRef} className="il-scroll" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minHeight: 0, overflowX: 'hidden', flex: '0 1 auto' }}>
+      {order.map((st, i) => (
+        <div key={st.id} style={{ height: SLOT, flex: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <div {...menuProps('step', st)}><StepNode step={st} index={i} lifted={drag?.id === st.id} onGrab={onGrab} /></div>
+          <span aria-hidden style={{ width: 2, flex: 1, minHeight: 0, background: order[i + 1]?.chained ? 'var(--il-ok)' : 'var(--il-line-strong)', margin: '4px 0' }} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+const PLACES: Array<{ key: Screen; label: string; icon: typeof IconHistory }> = [
   { key: 'library', label: 'History and collections', icon: IconHistory },
   { key: 'models', label: 'Models', icon: IconCube },
   { key: 'comfy', label: 'ComfyUI', icon: IconTopologyStar3 },
@@ -65,40 +176,24 @@ const PLACES: Array<{ key: Screen; label: string; icon: typeof IconPhoto }> = [
 export function Rail() {
   const screen = useRoute((s) => s.screen);
   const go = useRoute((s) => s.go);
-  const steps = useSteps((s) => s.steps);
-  const addStep = useSteps((s) => s.addStep);
   return (
     <nav aria-label="Steps" style={{ width: T.size.rail, flex: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '14px 0 12px', borderRight: '1px solid var(--il-line)', zIndex: T.z.rail, overflow: 'hidden' }}>
       <div className="il-eyebrow" style={{ marginBottom: 10 }}>Steps</div>
-      <div className="il-scroll" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minHeight: 0, overflowX: 'hidden', flex: 'none', maxHeight: '60%' }}>
-        {steps.map((st, i) => (
-          <div key={st.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            <div {...menuProps('step', st)}><StepButton step={st} index={i} /></div>
-            <span aria-hidden style={{ width: 2, height: 18, background: steps[i + 1]?.chained ? 'var(--il-ok)' : 'var(--il-line-strong)', margin: '4px 0' }} />
-          </div>
-        ))}
-        <Menu position="right-start" shadow="lg" width={220} withinPortal zIndex={T.z.popover}>
-          <Menu.Target>
-            <div><RailButton kind="add" label="Add" icon={<IconPlus size={18} stroke={2.6} />} on={false} /></div>
-          </Menu.Target>
-          <Menu.Dropdown>
-            <Menu.Label>Add a step</Menu.Label>
-            {ADD.map((a) => {
-              const Icon = KIND_ICON[a.kind];
-              return (
-                <Menu.Item key={a.kind} leftSection={<Icon size={16} stroke={2} />} onClick={() => { addStep(a.kind); go('step'); }}>
-                  <div style={{ fontWeight: 700 }}>{a.label}</div>
-                  <div style={{ fontSize: 11, color: 'var(--il-muted)' }}>{a.hint}</div>
-                </Menu.Item>
-              );
-            })}
-          </Menu.Dropdown>
-        </Menu>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minHeight: 0, maxHeight: '64%' }}>
+        <StepChain />
+        <Tip label="Add a step after the open one" position="right">
+          <button type="button" aria-label="Add a step" className="il-btn"
+            onClick={(e) => addStepWithPicker(e.currentTarget, { after: useSteps.getState().activeId })}
+            style={{ width: 72, border: 0, background: 'transparent', color: 'var(--il-muted)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, padding: 0, cursor: 'pointer', flex: 'none' }}>
+            <span style={{ width: 46, height: 46, borderRadius: '50%', display: 'grid', placeItems: 'center', border: '2px dashed var(--il-line-strong)' }}><IconPlus size={18} stroke={2.6} /></span>
+            <span style={{ fontSize: 10, fontWeight: 700 }}>Add</span>
+          </button>
+        </Tip>
       </div>
       <div style={{ flex: 1 }} />
       <span aria-hidden style={{ width: 40, height: 1, background: 'var(--il-line)', margin: '8px 0' }} />
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-        {PLACES.map((p) => <RailButton key={p.key} label={p.label} icon={<p.icon size={19} stroke={2} />} on={screen === p.key} onClick={() => go(p.key)} />)}
+        {PLACES.map((p) => <PlaceButton key={p.key} label={p.label} icon={<p.icon size={19} stroke={2} />} on={screen === p.key} onClick={() => go(p.key)} />)}
       </div>
     </nav>
   );

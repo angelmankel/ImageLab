@@ -18,11 +18,13 @@ const HIT = 10;
  * chevron on the panel's side of it (always shown on touch screens) that collapses the panel;
  * the collapsed slim tab (`T.size.collapsedTab`) reopens it.
  */
-export function Panel({ side, width, min = 240, max = 640, open, onResize, onToggle, children, tabLabel, resizable = true, defaultWidth }: {
+export function Panel({ side, width, min = 240, max = 640, open, onResize, onToggle, children, tabLabel, resizable = true, defaultWidth, edgeToggle = true }: {
   side: 'left' | 'right'; width: number; min?: number; max?: number; open: boolean;
   onResize?: (w: number) => void; onToggle: () => void; children: ReactNode; tabLabel: string; resizable?: boolean;
   /** Double-click on the edge resets to this (clamped to min/max). Default: the step / history panel width. */
   defaultWidth?: number;
+  /** false = no chevron on the edge (the step panel folds by clicking its open step in the rail, fix list 8). */
+  edgeToggle?: boolean;
 }) {
   const start = useRef<{ x: number; w: number } | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -102,7 +104,7 @@ export function Panel({ side, width, min = 240, max = 640, open, onResize, onTog
           cursor: canResize ? 'col-resize' : 'default', touchAction: 'none', background: 'transparent',
         }}
       />
-      <button
+      {edgeToggle && <button
         type="button"
         onClick={onToggle}
         aria-label={`Hide ${tabLabel}`}
@@ -116,7 +118,7 @@ export function Panel({ side, width, min = 240, max = 640, open, onResize, onTog
         }}
       >
         {side === 'left' ? '‹' : '›'}
-      </button>
+      </button>}
     </div>
   );
 

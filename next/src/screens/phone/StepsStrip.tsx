@@ -6,12 +6,10 @@
 import { useEffect, useRef } from 'react';
 import { Menu } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
-import { useSteps, STEP_LABEL, type StepKind } from '~/app/stepsStore';
+import { useSteps, STEP_LABEL, ADDABLE_KINDS } from '~/app/stepsStore';
 import { T } from '~/theme/tokens';
 import { stepChipLabel } from './phoneLogic';
 import { menuProps } from '~/app/contextMenu';
-
-const ADDABLE: StepKind[] = ['upscale', 'video', 'image', 'workflow'];
 
 export function StepsStrip({ onJump }: { onJump: (id: string) => void }) {
   const steps = useSteps((s) => s.steps);
@@ -55,7 +53,7 @@ export function StepsStrip({ onJump }: { onJump: (id: string) => void }) {
         </Menu.Target>
         <Menu.Dropdown style={{ background: 'var(--il-elev)', border: '1px solid var(--il-line-soft)' }}>
           <Menu.Label>Add a step</Menu.Label>
-          {ADDABLE.map((k) => (
+          {ADDABLE_KINDS.map((k) => (
             <Menu.Item key={k} onClick={() => addStep(k)} style={{ fontWeight: 700 }}>{STEP_LABEL[k]}</Menu.Item>
           ))}
         </Menu.Dropdown>

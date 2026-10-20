@@ -10,6 +10,7 @@ import { notifications } from '@mantine/notifications';
 import { IconChevronDown, IconDeviceFloppy, IconCopy, IconArrowBackUp, IconPencil, IconTrash } from '@tabler/icons-react';
 import { useSteps, stepTitle, type Step } from '~/app/stepsStore';
 import { saveSnapshot, revertSnapshot } from './workflowSnapshots';
+import { removeStepWithUndo } from './stepActions';
 
 const THUMB: Record<Step['kind'], string> = {
   image: 'linear-gradient(135deg,#5A4A3E,#2A2420)',
@@ -23,7 +24,6 @@ const THUMB: Record<Step['kind'], string> = {
 export function WorkflowRow({ step }: { step: Step }) {
   const steps = useSteps((s) => s.steps);
   const updateStep = useSteps((s) => s.updateStep);
-  const removeStep = useSteps((s) => s.removeStep);
   const [renaming, setRenaming] = useState<null | 'rename' | 'saveAs'>(null);
   const [draft, setDraft] = useState(step.name);
   const first = steps[0]?.id === step.id;
@@ -61,7 +61,7 @@ export function WorkflowRow({ step }: { step: Step }) {
           <Menu.Item leftSection={<IconCopy size={14} />} onClick={() => { setDraft(`${step.name} copy`); setRenaming('saveAs'); }}>Save as…</Menu.Item>
           <Menu.Item leftSection={<IconArrowBackUp size={14} />} onClick={revert} disabled={!step.edited}>Revert</Menu.Item>
           <Menu.Item leftSection={<IconPencil size={14} />} onClick={() => { setDraft(step.name); setRenaming('rename'); }}>Rename…</Menu.Item>
-          {!first && <><Menu.Divider /><Menu.Item color="red" leftSection={<IconTrash size={14} />} onClick={() => removeStep(step.id)}>Remove step</Menu.Item></>}
+          {!first && <><Menu.Divider /><Menu.Item color="red" leftSection={<IconTrash size={14} />} onClick={() => removeStepWithUndo(step.id)}>Remove step</Menu.Item></>}
         </Menu.Dropdown>
       </Menu>
       <Modal opened={renaming !== null} onClose={() => setRenaming(null)} title={renaming === 'saveAs' ? 'Save the workflow as' : 'Rename the workflow'} size="xs" centered>

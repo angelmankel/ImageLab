@@ -44,7 +44,7 @@ export function ImageScreen() {
   const toggleHist = useLayout((s) => s.toggleHist);
   return (
     <div style={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex' }}>
-      <Panel side="left" width={stepW} min={T.size.stepPanelMin} max={640} open={stepOpen} onResize={setStepW} onToggle={toggleStep} tabLabel="Step">
+      <Panel side="left" width={stepW} min={T.size.stepPanelMin} max={640} open={stepOpen} onResize={setStepW} onToggle={toggleStep} tabLabel="Step" edgeToggle={false}>
         <StepPanel key={step.id} stepId={step.id} />
       </Panel>
       <StageColumn key={step.id} step={step} />

@@ -21,6 +21,7 @@ import { ModelTab } from './model';
 import { SettingsTab } from './settings';
 import { VideoPromptTab, VideoModelTab, VideoSettingsTab, VideoInputTab } from './video';
 import { WorkflowTab } from './workflowBridge';
+import './stepMenuEntries';
 
 const TABS: Array<{ key: StepTab; label: ReactNode; title: string }> = [
   { key: 'prompt', label: <><IconAlignLeft size={15} stroke={2.2} />Prompt</>, title: 'Prompt' },
