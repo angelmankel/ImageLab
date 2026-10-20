@@ -30,3 +30,11 @@ export function revertSnapshot(stepId: string): boolean {
   st.setPromptLayers(snap.layers);
   return true;
 }
+
+/** A duplicated session's step keeps the saved snapshot of the step it was copied from. */
+export function copySnapshot(fromStepId: string, toStepId: string): void {
+  try {
+    const raw = localStorage.getItem(key(fromStepId));
+    if (raw) localStorage.setItem(key(toStepId), raw);
+  } catch { /* best effort */ }
+}

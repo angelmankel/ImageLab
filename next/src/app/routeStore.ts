@@ -2,6 +2,7 @@
  * Where the app is. A hash router (`#/`, `#/library`, `#/models`, `#/comfy`, `#/settings`) so
  * the page works from any path under nginx try_files and the phone's back button works.
  *   step     → the active step's screen (Image / Upscale / Video …)  — the only place that generates
+ *   home     → every session as a tile (item 20)
  *   library  → History & collections
  *   models   → the CivitAI browser
  *   comfy    → ComfyUI (servers, saved workflows, embedded UI, queue + log)
@@ -9,9 +10,9 @@
  */
 import { create } from 'zustand';
 
-export type Screen = 'step' | 'library' | 'models' | 'comfy' | 'settings';
+export type Screen = 'step' | 'home' | 'library' | 'models' | 'comfy' | 'settings';
 
-const SCREENS: Screen[] = ['step', 'library', 'models', 'comfy', 'settings'];
+const SCREENS: Screen[] = ['step', 'home', 'library', 'models', 'comfy', 'settings'];
 
 export function screenOfHash(hash: string): Screen {
   const seg = hash.replace(/^#\/?/, '').split(/[/?]/)[0];

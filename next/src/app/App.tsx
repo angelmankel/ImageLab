@@ -18,6 +18,7 @@ import { useCreditNewResults } from '~/screens/image/resultSteps';
 import { ContextMenuHost } from './contextMenu';
 import { DragLayer, SendToSheet } from '~/dnd';
 import { UiEffects } from '~/ui/UiEffects';
+import './sessionMenus'; // boots the sessions store (fix list 20 / 36) + its right-click entries
 
 export function App() {
   const phone = useIsPhone();

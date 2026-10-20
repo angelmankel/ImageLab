@@ -3,7 +3,8 @@
  * own settings and its own outputs; it may take the previous step's output as input. The left rail
  * IS this list. Persisted; step 1 (Image) always exists.
  *
- * Who owns what: this store holds the chain, which step is active, and the session's name. Each
+ * Who owns what: this store holds the chain, which step is active, and the session's name — of the
+ * CURRENT session; `sessionsStore.ts` keeps every session and swaps this store's state on a tab switch. Each
  * step's parameters live in that step's own store (the Image step reuses the main app's
  * `useStore().workflow`; Refine / Upscale / Remove BG keep theirs on the step as `params`).
  * The pure rules are `stepsLogic.ts` (tested): the STEP I/O STANDARD (fix list 24) lives there.
@@ -66,14 +67,15 @@ interface StepsState {
   renameSession: (name: string) => void;
 }
 
-const FIRST: Step = { id: 'step-image', kind: 'image', name: 'Portrait · SDXL', edited: false, chained: false };
+const FIRST: Step = { id: 'step-image', kind: 'image', name: 'Image', edited: false, chained: false };
 
 export const useSteps = create<StepsState>()(
   persist(
     (set, get) => ({
       steps: [FIRST],
       activeId: FIRST.id,
-      sessionName: 'Portrait session',
+      /** Blank until named (item 20): the UI shows the "Untitled session" placeholder. Sessions: `sessionsStore.ts`. */
+      sessionName: '',
       setActive: (activeId) => set({ activeId }),
       addStep: (kind, name) => {
         const id = `step-${uid()}`;
@@ -111,7 +113,7 @@ export const useSteps = create<StepsState>()(
         steps: s.steps.map((x) => (x.id !== id ? x : input ? { ...x, input, chained: false } : clearStepInput(x))),
       })),
       setChainMode: (id, mode, pick) => set((s) => ({ steps: s.steps.map((x) => (x.id === id ? withChainMode(x, mode, pick) : x)) })),
-      renameSession: (sessionName) => set({ sessionName: sessionName.trim() || 'Session' }),
+      renameSession: (sessionName) => set({ sessionName: sessionName.trim() }),
     }),
     {
       name: 'imagelab.next.steps.v1',
