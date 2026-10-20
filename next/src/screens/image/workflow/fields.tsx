@@ -6,10 +6,11 @@
  * `WorkflowParam` (`/object_info` + the saved graph); the rules are `workflowStepLogic.ts`.
  */
 import { useEffect, useState, type ReactNode } from 'react';
-import { Select, Slider as MSlider } from '@mantine/core';
-import { IconArrowBackUp, IconChevronDown, IconDice5, IconLock, IconLockOpen, IconMinus, IconPin, IconPinned, IconPlus } from '@tabler/icons-react';
+import { Select } from '@mantine/core';
+import { IconArrowBackUp, IconChevronDown, IconDice5, IconLock, IconLockOpen, IconPin, IconPinned } from '@tabler/icons-react';
 import { randomSeed, type WorkflowParam } from '@/features/studio/params';
-import { Chip, IconBtn } from '~/ui';
+import { Chip, IconBtn, Slider, NumberField as UiNumberField } from '~/ui';
+import { useIsPhone } from '~/app/useIsPhone';
 import { T } from '~/theme/tokens';
 import { formatNumber, humanize, numberRange, presetsFor } from './workflowStepLogic';
 
@@ -79,22 +80,9 @@ export function FieldRow({ label, sub, value, changed, onReset, pinned, onPin, i
 
 const box: React.CSSProperties = { height: 30, border: '1px solid var(--il-line-strong)', borderRadius: 8, background: 'var(--il-panel)', color: 'var(--il-fg)', fontSize: 12, fontWeight: 700, padding: '0 8px', outline: 'none', fontVariantNumeric: 'tabular-nums', minWidth: 0 };
 
-/** A number box that commits on blur / Enter, with − / + steppers. */
-function NumberBox({ label, value, min, max, step, isInt, onChange }: { label: string; value: number; min: number; max: number; step: number; isInt: boolean; onChange: (v: number) => void }) {
-  const [draft, setDraft] = useState(String(value));
-  useEffect(() => { setDraft(String(value)); }, [value]);
-  const clamp = (n: number) => Math.max(min, Math.min(max, isInt ? Math.round(n) : n));
-  const commit = () => { const n = Number(draft); if (Number.isFinite(n)) { const c = clamp(n); if (c !== value) onChange(c); setDraft(String(c)); } else setDraft(String(value)); };
-  const nudge = (dir: 1 | -1) => onChange(clamp(Number((value + dir * step).toFixed(6))));
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-      <IconBtn size={28} tone="card" icon={<IconMinus size={13} />} label={`${label} down`} onClick={() => nudge(-1)} disabled={value <= min} tooltip={false} />
-      <input aria-label={label} type="number" inputMode="decimal" value={draft} min={min} max={max} step={step}
-        onChange={(e) => setDraft(e.currentTarget.value)} onBlur={commit} onKeyDown={(e) => { if (e.key === 'Enter') (e.currentTarget as HTMLInputElement).blur(); }}
-        style={{ ...box, flex: 1, textAlign: 'center' }} />
-      <IconBtn size={28} tone="card" icon={<IconPlus size={13} />} label={`${label} up`} onClick={() => nudge(1)} disabled={value >= max} tooltip={false} />
-    </div>
-  );
+/** A number box with − / + steppers (the shared `ui/NumberField`: select-all, ↑↓, wheel, hold-repeat). */
+function NumberBox({ label, value, min, max, step, isInt, onChange, width }: { label: string; value: number; min: number; max: number; step: number; isInt: boolean; onChange: (v: number) => void; width?: number }) {
+  return <UiNumberField label={label} value={value} min={min} max={max} step={isInt ? Math.max(1, Math.round(step)) : step} onChange={onChange} width={width} />;
 }
 
 export interface ParamFieldProps { p: WorkflowParam; value: unknown; onChange: (v: unknown) => void; onReset: () => void; pinned?: boolean; onPin?: () => void; sub?: string }
@@ -104,13 +92,14 @@ export function NumberField({ p, value, onChange, onReset, pinned, onPin, sub }:
   const n = Number(value ?? p.default ?? r.min);
   const presets = r.slider ? presetsFor(p, r) : undefined;
   const fmt = (v: number) => formatNumber(v, p);
+  const phone = useIsPhone();
   return (
-    <FieldRow label={humanize(p.name)} sub={sub} value={fmt(n)} changed={value !== p.value} onReset={onReset} pinned={pinned} onPin={onPin}>
+    <FieldRow label={humanize(p.name)} sub={sub} changed={value !== p.value} onReset={onReset} pinned={pinned} onPin={onPin}
+      inline={r.slider ? <UiNumberField label={humanize(p.name)} value={n} min={r.min} max={r.max} step={r.step} onChange={onChange} format={fmt} size={phone ? 'lg' : 'sm'} width={phone ? 150 : 116} /> : undefined}>
       {r.slider ? (
         <>
           {presets && <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>{presets.map((v) => <Chip key={v} small on={Math.abs(v - n) < r.step / 2} onClick={() => onChange(v)}>{fmt(v)}</Chip>)}</div>}
-          <MSlider value={n} min={r.min} max={r.max} step={r.step} onChange={onChange} label={null} size="sm" color="ember"
-            styles={{ track: { touchAction: 'pan-y' }, thumb: { touchAction: 'none', borderWidth: 2 } }} />
+          <Slider value={n} min={r.min} max={r.max} step={r.step} onChange={onChange} aria-label={`${humanize(p.name)} slider`} />
         </>
       ) : (
         <NumberBox label={humanize(p.name)} value={n} min={r.min} max={r.max} step={r.step} isInt={p.type === 'INT'} onChange={onChange} />

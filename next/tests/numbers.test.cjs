@@ -60,3 +60,11 @@ test('inputModeFor', () => {
   assert.equal(N.inputModeFor(0.05, 0), 'decimal');
   assert.equal(N.inputModeFor(1, -10), 'decimal');
 });
+
+test('commitTyped: clamp, whole steps stay whole, exact decimals allowed', () => {
+  assert.equal(N.commitTyped('33.6', 1, 60, 1), 34);
+  assert.equal(N.commitTyped('99', 1, 60, 1), 60);
+  assert.equal(N.commitTyped('7.25', 1, 15, 0.5), 7.25);
+  assert.equal(N.commitTyped('0.123456', 0, 1, 0.01), 0.1235);
+  assert.equal(N.commitTyped('x', 0, 1, 0.01), null);
+});

@@ -2,7 +2,7 @@
  * Settings → Appearance: the logo (fix list 47: Spark · Frame · Prism, `~/app/logo`) and the tile
  * size of the History & collections grid (`collectionsTileSize`, limits from `@/lib/storage`).
  */
-import { Slider } from '@mantine/core';
+import { Slider } from '~/ui';
 import { useStore } from '@/lib/store';
 import { COLLECTIONS_TILE_MAX, COLLECTIONS_TILE_MIN } from '@/lib/storage';
 import type { SettingDef } from './categories';
@@ -18,8 +18,7 @@ function TileCtl() {
   const setTile = useStore((s) => s.setCollectionsTileSize);
   return (
     <div style={{ width: '100%' }}>
-      <Slider value={tile} min={COLLECTIONS_TILE_MIN} max={COLLECTIONS_TILE_MAX} step={10} onChange={setTile} label={null} size="sm" color="ember"
-        aria-label="Library tile size" styles={{ track: { touchAction: 'pan-y' }, thumb: { touchAction: 'none', borderWidth: 2 } }} />
+      <Slider value={tile} min={COLLECTIONS_TILE_MIN} max={COLLECTIONS_TILE_MAX} step={10} onChange={setTile} aria-label="Library tile size" />
     </div>
   );
 }

@@ -34,10 +34,9 @@ export function RangeRow({ label, ramp, min, max, step, digits = 2, onChange, on
         value={handlesOf(ramp)}
         min={min} max={max} step={step} minRange={0}
         onChange={([lo, hi]) => onChange(rampFromHandles(lo, hi, falling))}
-        label={null} size="sm" color="ember"
+        label={null} size="sm" color="ember" className="il-slider"
         thumbFromLabel={`${label} ${falling ? 'last' : 'first'} round`}
         thumbToLabel={`${label} ${falling ? 'first' : 'last'} round`}
-        styles={{ track: { touchAction: 'pan-y' }, thumb: { touchAction: 'none', borderWidth: 2 } }}
       />
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--il-muted)' }}>
         <span>{falling ? 'last round' : 'first round'}</span>

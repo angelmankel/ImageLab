@@ -59,15 +59,15 @@ export function VideoSettingsTab() {
           </ChipGroup>
         ))}
         <Fold title="Set width and height myself" defaultOpen={custom}>
-          <SliderRow label="Width" value={width} min={sideStep(v.engine) * 8} max={1536} step={sideStep(v.engine)} onChange={(w) => setSize({ width: snapSide(v.engine, w), height })} />
-          <SliderRow label="Height" value={height} min={sideStep(v.engine) * 8} max={1536} step={sideStep(v.engine)} onChange={(hh) => setSize({ width, height: snapSide(v.engine, hh) })} />
+          <SliderRow id="width" label="Width" value={width} min={sideStep(v.engine) * 8} max={1536} step={sideStep(v.engine)} onChange={(w) => setSize({ width: snapSide(v.engine, w), height })} />
+          <SliderRow id="height" label="Height" value={height} min={sideStep(v.engine) * 8} max={1536} step={sideStep(v.engine)} onChange={(hh) => setSize({ width, height: snapSide(v.engine, hh) })} />
           <div style={muted}>Multiples of {sideStep(v.engine)}.{h3 ? ' H3 stretches the first frame to this canvas.' : ' WanImageToVideo crops the start frame to this shape.'}</div>
         </Fold>
       </Section>
 
       <Section title="Length" value={`${secondsOf(frames, fps)} s · ${frames} f`}>
         <ChipGroup>{lengthChips(v.engine, fps).map((c) => <Chip key={c.frames} on={c.frames === frames} onClick={() => setFrames(c.frames)}>{c.seconds} s<span style={{ fontWeight: 600, color: 'var(--il-muted)', fontSize: 10 }}>{c.frames} f</span></Chip>)}</ChipGroup>
-        <SliderRow label="Frames" value={frames} min={5} max={h3 ? 362 : 161} step={h3 ? 17 : 4} onChange={setFrames} hint={h3 ? '← short, quick · long, slow →  (17n + 5 at 24 fps)' : '← short, quick · long, may drift →  (4n + 1)'} />
+        <SliderRow id="video.frames" label="Frames" value={frames} min={5} max={h3 ? 362 : 161} step={h3 ? 17 : 4} onChange={setFrames} hint={h3 ? '← short, quick · long, slow →  (17n + 5 at 24 fps)' : '← short, quick · long, may drift →  (4n + 1)'} />
         {fields.fps && <ChipGroup title="Frame rate">{[16, 24].map((n) => <Chip key={n} small on={v.fps === n} onClick={() => v.set({ fps: n })}>{n} fps</Chip>)}</ChipGroup>}
         {fields.audio && <Switch label="Soundtrack (stereo, from the model)" checked={h.audio} onChange={(audio) => v.setH3({ audio })} />}
       </Section>
@@ -127,7 +127,7 @@ export function VideoSettingsTab() {
               <SliderRow label="Steps" value={eff.steps} min={2} max={60} step={1} onChange={(n) => (v.fast ? setFr({ steps: n, switchStep: Math.min(fr.switchStep, n) }) : v.set({ steps: n, switchStep: Math.min(v.switchStep, n) }))} hint="← quicker · more detail →" />
               {fields.expertSwitch && <SliderRow label="Switch to low-noise at step" value={eff.switchStep} min={0} max={eff.steps} step={1} onChange={(n) => (v.fast ? setFr({ switchStep: n, motionSteps: Math.min(fr.motionSteps, n) }) : v.set({ switchStep: n }))} hint="← less motion, more detail · more motion →" />}
               <SliderRow label="CFG" value={eff.cfg} min={1} max={10} step={0.5} presets={v.fast ? [1] : [1, 3.5, 5]} format={fmt1} onChange={(cfg) => (v.fast ? setFr({ cfg }) : v.set({ cfg }))} hint={v.fast ? '1 is the distilled value (half the work per step).' : '← looser · follows the prompt, may burn →'} />
-              <SliderRow label="Shift" value={v.shift} min={1} max={20} step={0.5} presets={[5, 8]} format={fmt1} onChange={(shift) => v.set({ shift })} />
+              <SliderRow id="video.shift" label="Shift" value={v.shift} min={1} max={20} step={0.5} presets={[5, 8]} format={fmt1} onChange={(shift) => v.set({ shift })} />
               <ChipGroup title="Sampler">{samplers.map((s) => <Chip key={s} small on={v.sampler === s} onClick={() => v.set({ sampler: s })}>{s}</Chip>)}</ChipGroup>
               <ChipGroup title="Scheduler">{schedulers.map((s) => <Chip key={s} small on={v.scheduler === s} onClick={() => v.set({ scheduler: s })}>{s}</Chip>)}</ChipGroup>
             </>

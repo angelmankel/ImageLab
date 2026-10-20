@@ -207,7 +207,7 @@ function ChangePicture({ iw, ih }: { iw: number; ih: number }) {
     <>
       <div style={card}>
         <Tip hint="denoise"><div style={{ minWidth: 0 }}>
-          <SliderRow label="How much to change" value={denoise} min={0} max={1} step={0.01} onChange={(v) => setWorkflow({ inputDenoise: v })} format={(v) => v.toFixed(2)} />
+          <SliderRow id="denoise" label="How much to change" value={denoise} min={0} max={1} step={0.01} onChange={(v) => setWorkflow({ inputDenoise: v })} format={(v) => v.toFixed(2)} />
         </div></Tip>
         <Seg label="How much to change" items={CHANGE} value={preset} onChange={(k) => setWorkflow({ inputDenoise: CHANGE.find((c) => c.key === k)!.v })} />
       </div>

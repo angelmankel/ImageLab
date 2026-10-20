@@ -5,10 +5,9 @@
  * MuteToggle is the same `muted`).
  */
 import { useEffect, useRef } from 'react';
-import { Slider } from '@mantine/core';
 import { IconPlayerPlay } from '@tabler/icons-react';
 import { playCompleteSound, playSound, SOUND_KINDS, useSoundStore } from '@/lib/sounds';
-import { Chip, IconBtn, Row, Switch } from '~/ui';
+import { Chip, IconBtn, Row, Slider, Switch } from '~/ui';
 import type { SettingDef } from './categories';
 
 const PRESETS = [0, 25, 50, 100];
@@ -33,8 +32,7 @@ function VolumeCtl() {
   return (
     <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 8 }}>
       <Row wrap>{PRESETS.map((p) => <Chip key={p} small on={Math.abs(p - pct) < 2.5} onClick={() => change(p)}>{fmt(p)}</Chip>)}</Row>
-      <Slider value={pct} min={0} max={100} step={5} onChange={change} label={null} size="sm" color="ember" aria-label="Volume"
-        styles={{ track: { touchAction: 'pan-y' }, thumb: { touchAction: 'none', borderWidth: 2 } }} />
+      <Slider value={pct} min={0} max={100} step={5} onChange={change} aria-label="Volume" />
     </div>
   );
 }

@@ -83,3 +83,15 @@ export function isOverridden(base: { min: number; max: number; step: number }, o
 export function inputModeFor(step: number, min: number): 'numeric' | 'decimal' {
   return decimalsOf(step) === 0 && min >= 0 ? 'numeric' : 'decimal';
 }
+
+/**
+ * A typed value → what is stored: clamped to the range; whole numbers when the step is whole,
+ * else at most 4 decimals (exact values off the step grid are allowed: "CFG 7.25"). null when
+ * the text is not a number (the box goes back to the old value).
+ */
+export function commitTyped(text: string, min: number, max: number, step: number): number | null {
+  const n = parseTyped(text);
+  if (n == null) return null;
+  const c = clamp(n, min, max);
+  return decimalsOf(step) === 0 && Number.isInteger(min) ? Math.round(c) : Number(c.toFixed(4));
+}

@@ -6,9 +6,8 @@
  * transport. A mouse press on a button never leaves it focused, so Space stays play / pause.
  */
 import { useState } from 'react';
-import { Slider } from '@mantine/core';
 import { IconCaretLeftFilled, IconCaretRightFilled, IconMaximize, IconPlayerPauseFilled, IconPlayerPlayFilled, IconRepeat, IconRepeatOff, IconVolume, IconVolume2, IconVolumeOff } from '@tabler/icons-react';
-import { Chip, IconBtn } from '~/ui';
+import { Chip, IconBtn, Slider } from '~/ui';
 import { fmtClock, fmtSpeed } from './playerLogic';
 import { RenderBar, ScrubBar } from './ScrubBar';
 
@@ -91,8 +90,7 @@ export function PlayerRow(p: PlayerRowProps) {
               icon={!p.hasAudio || p.muted ? <IconVolumeOff size={icon} stroke={2.2} /> : p.volume < 0.5 ? <IconVolume2 size={icon} stroke={2.2} /> : <IconVolume size={icon} stroke={2.2} />} />
             {volOpen && p.hasAudio && (
               <div style={{ width: p.phone ? 90 : 72, padding: '0 8px 0 2px' }}>
-                <Slider value={Math.round((p.muted ? 0 : p.volume) * 100)} min={0} max={100} step={1} label={null} size="xs" color="ember" aria-label="Volume"
-                  onChange={(v) => p.onVolume(v / 100)} styles={{ track: { touchAction: 'pan-y' }, thumb: { touchAction: 'none', borderWidth: 2 } }} />
+                <Slider value={Math.round((p.muted ? 0 : p.volume) * 100)} min={0} max={100} step={1} aria-label="Volume" onChange={(v) => p.onVolume(v / 100)} />
               </div>
             )}
           </div>

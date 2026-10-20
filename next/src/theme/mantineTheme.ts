@@ -46,6 +46,21 @@ export const emberTheme = createTheme({
       classNames: { root: 'il-btn' },
       vars: () => ({ root: { '--button-radius': 'calc(var(--button-height) / 2 * var(--il-btn-round, .85))' } }),
     },
+    // Item 38: every Mantine pick list wears the SearchSelect look (.il-dd / .il-opt in next.css),
+    // opens with a soft pop, and never spell-checks or offers autofill on its search box.
+    Select: {
+      classNames: { dropdown: 'il-dd', option: 'il-opt', groupLabel: 'il-glabel', empty: 'il-empty' },
+      defaultProps: { spellCheck: false, autoComplete: 'off', 'data-1p-ignore': true, comboboxProps: { transitionProps: { transition: 'pop', duration: 120 } } },
+    },
+    Autocomplete: {
+      classNames: { dropdown: 'il-dd', option: 'il-opt', groupLabel: 'il-glabel', empty: 'il-empty' },
+      defaultProps: { spellCheck: false, autoComplete: 'off', 'data-1p-ignore': true, comboboxProps: { transitionProps: { transition: 'pop', duration: 120 } } },
+    },
+    MultiSelect: {
+      classNames: { dropdown: 'il-dd', option: 'il-opt', groupLabel: 'il-glabel', empty: 'il-empty' },
+      defaultProps: { spellCheck: false, comboboxProps: { transitionProps: { transition: 'pop', duration: 120 } } },
+    },
+    Menu: { classNames: { dropdown: 'il-dd' }, defaultProps: { transitionProps: { transition: 'pop', duration: 120 } } },
     // The model viewer sits above these, outside their DOM: let it scroll (see scrollShards.ts).
     Modal: { defaultProps: { removeScrollProps: { shards: [viewerLayerRef] } } },
     Drawer: { defaultProps: { removeScrollProps: { shards: [viewerLayerRef] } } },

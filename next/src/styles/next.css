@@ -141,19 +141,49 @@ button[style*="border-radius: 999px"]:not(:disabled):not([style*="transform"]):a
 .il-field[data-align="right"] input { text-align: right; }
 .il-field[data-disabled="true"] { opacity: .5; }
 
-/* ---- Slider (item 1): Mantine's, re-dressed. Big handle, 6px track, ember fill; bigger on touch. */
-.il-slider { --il-thumb: 20px; --il-track: 6px; }
-.il-slider[data-big="true"] { --il-thumb: 24px; }
-@media (hover: none) { .il-slider { --il-thumb: 26px; --il-track: 8px; } }
-.il-slider .mantine-Slider-root { padding: calc(var(--il-thumb) / 2 - var(--il-track) / 2) 0; }
-.il-slider .mantine-Slider-track { touch-action: pan-y; }
+.il-field[data-steppers="true"] { padding: 0 3px; gap: 2px; }
+.il-field .il-step {
+  width: 26px; height: 26px; flex: none; border: 0; border-radius: 7px; padding: 0; display: grid; place-items: center;
+  background: var(--il-card-on); color: var(--il-fg); cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+  transition: background-color .12s ease, transform calc(.08s * var(--il-motion)) ease, opacity .12s ease;
+}
+.il-field[data-size="sm"] .il-step { width: 24px; height: 24px; border-radius: 6px; }
+.il-field[data-tall="true"] .il-step { width: 38px; height: 38px; border-radius: 11px; }
+@media (hover: hover) { .il-field .il-step:not(:disabled):hover { background: var(--il-line-strong); } }
+.il-field .il-step:not(:disabled):active { transform: scale(calc(1 - .08 * var(--il-motion))); background: var(--il-ember-soft); color: var(--il-ember-hi); }
+.il-field .il-step:disabled { opacity: .35; cursor: default; }
+.il-field .il-unit { flex: none; color: var(--il-muted); font-size: 11px; font-weight: 700; }
+.il-field .il-x {
+  width: 22px; height: 22px; flex: none; border: 0; border-radius: 50%; padding: 0; display: grid; place-items: center;
+  background: transparent; color: var(--il-muted); cursor: pointer;
+}
+.il-field[data-tall="true"] .il-x { width: 32px; height: 32px; }
+.il-field .il-x:hover { background: var(--il-card-on); color: var(--il-fg); }
+.il-field .il-chev { color: var(--il-muted); transition: transform calc(.15s * var(--il-motion)) ease; margin-right: 2px; }
+.il-field[data-open="true"] { border-color: var(--il-ember); box-shadow: 0 0 0 3px rgba(240, 134, 58, .18); }
+.il-field[data-open="true"] .il-chev { transform: rotate(180deg); color: var(--il-ember); }
+.il-field[data-size="sm"] { height: 30px; border-radius: 9px; }
+/* A select whose value sits inside a card row (Sampling): no box until it is used. */
+.il-field-bare { border-color: transparent; background: transparent; padding: 0 4px 0 8px; }
+@media (hover: hover) { .il-field-bare:hover { background: var(--il-card-on); } }
+.il-field-bare:focus-within, .il-field-bare[data-open="true"] { background: var(--il-panel); }
+
+/* ---- Slider (item 1): Mantine's, re-dressed through its own vars. Big handle (20px, 26 on touch),
+   6px track (8 on touch), ember fill; the whole 26px strip takes the press; vertical pans scroll. */
+.il-slider {
+  --slider-size: 6px !important; --slider-thumb-size: 20px !important;
+  height: 26px !important; padding-inline: 10px !important; touch-action: pan-y !important;
+}
+@media (pointer: coarse) { .il-slider { --slider-size: 8px !important; --slider-thumb-size: 26px !important; height: 34px !important; padding-inline: 13px !important; } }
+.il-slider .mantine-Slider-trackContainer { height: 100%; touch-action: pan-y; }
 .il-slider .mantine-Slider-thumb {
-  touch-action: none; width: var(--il-thumb); height: var(--il-thumb); border: 3px solid var(--il-bg); background: var(--il-ember);
+  touch-action: none; border: 3px solid var(--il-bg); background: var(--il-ember); color: var(--il-ember);
   box-shadow: 0 0 0 1px var(--il-ember-line), 0 2px 8px rgba(0, 0, 0, .4);
   transition: transform calc(.12s * var(--il-motion)) ease, box-shadow .12s ease;
 }
-.il-slider .mantine-Slider-thumb:hover, .il-slider .mantine-Slider-thumb[data-dragging] { transform: translate(-50%, -50%) scale(calc(1 + .15 * var(--il-motion))); }
-.il-slider .mantine-Slider-thumb:focus-visible { outline: 0; box-shadow: 0 0 0 3px rgba(240, 134, 58, .35); }
+.il-slider .mantine-Slider-thumb:hover, .il-slider .mantine-Slider-thumb[data-dragging] { transform: translate(-50%, -50%) scale(calc(1 + .14 * var(--il-motion))); box-shadow: 0 0 0 5px rgba(240, 134, 58, .16), 0 2px 8px rgba(0, 0, 0, .4); }
+.il-slider .mantine-Slider-thumb:focus-visible { outline: 0; box-shadow: 0 0 0 4px rgba(240, 134, 58, .35); }
+.il-slider[data-disabled] { opacity: .45; }
 
 /* ---- Tooltip (item 26): dark card, quick. */
 .il-tip { background: var(--il-bg-deep); color: var(--il-fg); border: 1px solid var(--il-line-strong); border-radius: 8px; padding: 6px 9px; font-size: 11px; font-weight: 700; line-height: 1.4; box-shadow: 0 8px 24px rgba(0, 0, 0, .4); max-width: 280px; }
@@ -162,16 +192,23 @@ button[style*="border-radius: 999px"]:not(:disabled):not([style*="transform"]):a
 
 /* ---- Dropdowns (items 38): Mantine Combobox / Menu / Popover in the Ember look. */
 .il-dd { background: var(--il-panel); border: 1px solid var(--il-line-soft); border-radius: 12px; box-shadow: 0 14px 40px rgba(0, 0, 0, .45); }
-.il-dd .mantine-Combobox-group:not(:first-child) { margin-top: 2px; }
-.il-dd .mantine-Combobox-groupLabel { font-size: 9px; font-weight: 800; letter-spacing: .6px; text-transform: uppercase; color: var(--il-dim); padding: 8px 10px 4px; }
-.il-dd .mantine-Combobox-groupLabel::after { display: none; }
-.il-dd .mantine-Combobox-option { border-radius: 8px; min-height: 32px; padding: 0 10px; display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: var(--il-fg2); }
-.il-dd .mantine-Combobox-option[data-combobox-active], .il-dd .mantine-Combobox-option:hover { background: var(--il-card-on); color: var(--il-fg); }
-.il-dd .mantine-Combobox-option[data-combobox-selected] { color: var(--il-ember-hi); font-weight: 800; }
-.il-dd .mantine-Combobox-option mark { background: transparent; color: var(--il-ember); font-weight: 800; }
-.il-dd .mantine-Combobox-empty { font-size: 12px; font-weight: 600; color: var(--il-muted); padding: 10px; }
-.il-dd .mantine-Combobox-footer { display: flex; gap: 8px; align-items: center; padding: 6px 8px 2px; margin: 4px 0 0; border-top: 1px solid var(--il-line); font-size: 10px; color: var(--il-muted); font-weight: 700; }
-@media (hover: none) { .il-dd .mantine-Combobox-option { min-height: 44px; font-size: 13px; } .il-dd .mantine-Combobox-footer { display: none; } }
+/* Options (SearchSelect + every Mantine Select via the theme): a clear hover / keyboard row,
+   the current value in ember with a check, the typed part highlighted, groups as small caps. */
+.il-dd { padding: 4px; }
+.il-dd .il-ogroup + .il-ogroup, .il-dd .il-opt + .il-ogroup { margin-top: 2px; }
+.il-dd .il-glabel { font-size: 9px; font-weight: 800; letter-spacing: .6px; text-transform: uppercase; color: var(--il-dim); padding: 8px 10px 4px; }
+.il-dd .il-glabel::after { display: none; }
+.il-dd .il-opt { border-radius: 8px; min-height: 32px; padding: 5px 10px; display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: var(--il-fg2); transition: background-color .08s ease; }
+.il-dd .il-opt:hover, .il-dd .il-opt[data-combobox-selected] { background: var(--il-card-on); color: var(--il-fg); }
+.il-dd .il-opt[data-combobox-selected] { box-shadow: inset 2px 0 0 var(--il-ember); }
+.il-dd .il-opt[data-combobox-active], .il-dd .il-opt[data-checked] { color: var(--il-ember-hi); font-weight: 800; }
+.il-dd .il-opt mark { background: transparent; color: var(--il-ember); font-weight: 800; padding: 0; }
+.il-dd .il-opt-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.il-dd .il-opt-desc { font-size: 10px; font-weight: 600; color: var(--il-muted); margin-top: 1px; }
+.il-dd .il-empty { font-size: 12px; font-weight: 600; color: var(--il-muted); padding: 10px; }
+.il-dd .il-ofoot { display: flex; gap: 4px; align-items: center; padding: 6px 8px 2px; margin: 4px 0 0; border-top: 1px solid var(--il-line); font-size: 10px; color: var(--il-muted); font-weight: 700; }
+.il-dd .il-ofoot .il-tip-key { margin-left: 0; }
+@media (hover: none) { .il-dd .il-opt { min-height: 44px; font-size: 13px; } .il-dd .il-ofoot { display: none; } }
 .il-dd .mantine-Menu-item { border-radius: 8px; min-height: 34px; font-size: 12px; font-weight: 600; color: var(--il-fg2); }
 .il-dd .mantine-Menu-item:hover, .il-dd .mantine-Menu-item[data-hovered] { background: var(--il-card-on); color: var(--il-fg); }
 .il-dd .mantine-Menu-label { font-size: 9px; font-weight: 800; letter-spacing: .6px; text-transform: uppercase; color: var(--il-dim); }
