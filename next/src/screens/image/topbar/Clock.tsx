@@ -1,11 +1,17 @@
 /**
- * Top-bar clock (rule 9 keeps the bar tight: one muted 12px label, no pill). Local time, 24 h,
- * formatted by the browser's locale through Intl. Re-renders once a minute, on the minute: one
+ * Top-bar clock (rule 9 keeps the bar tight: one muted 12px label, no pill). Local time, 12 h,
+ * formatted as NN:NNAM/PM. Re-renders once a minute, on the minute: one
  * setTimeout aimed at the next minute boundary, re-armed after each tick (no per-second interval).
  */
 import { useEffect, useState } from 'react';
 
-const FMT = new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+/** "02:07PM" — Donny's format (10-19): two-digit 12-hour clock, no space before AM/PM. */
+export function fmtClock(d: Date): string {
+  const h = d.getHours();
+  const hh = String(h % 12 || 12).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  return `${hh}:${mm}${h < 12 ? 'AM' : 'PM'}`;
+}
 
 export function Clock() {
   const [now, setNow] = useState(() => new Date());
@@ -28,7 +34,7 @@ export function Clock() {
       title={now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}
       style={{ color: 'var(--il-muted)', fontSize: 12, fontWeight: 700, fontVariantNumeric: 'tabular-nums', padding: '0 4px', whiteSpace: 'nowrap', flex: 'none' }}
     >
-      {FMT.format(now)}
+      {fmtClock(now)}
     </time>
   );
 }
