@@ -15,7 +15,9 @@ import { apiToEditor, type ApiGraph } from '@/lib/workflowGraph';
 import type { Server } from '@/lib/storage';
 import { useSteps } from '~/app/stepsStore';
 import { useRoute } from '~/app/routeStore';
-import { saveWorkflowFile } from './comfyApi';
+import { deleteWorkflowFile, restoreWorkflowFile, saveWorkflowFile } from './comfyApi';
+import { deleteInFrame, openInFrame, syncFrame } from './comfyFrame';
+import { undoNote } from '~/app/undoNote';
 import { editorNodeCount, epochMs, workflowFileName, workflowKind } from './comfyHelpers';
 import { useWorkflowStore, workflowKey, type ComfyKind } from './workflowStore';
 import { ensureStepWorkflowOpen } from './ensureStepWorkflow';
@@ -75,10 +77,34 @@ export function useComfyWorkflows(server: Server | null, kind: ComfyKind) {
     useRoute.getState().go('step');
   }, [host, server?.id, kind]);
 
+  /** Open it in the embedded ComfyUI (FIXLIST 34) and in the shared Studio store (what a workflow step runs). */
   const select = useCallback(async (w: ComfyWorkflowRow) => {
+    void openInFrame(w.path).catch((err) => notifications.show({ color: 'red', title: 'ComfyUI could not open it', message: err instanceof Error ? err.message : String(err) }));
     await open(w.path);
     useWorkflowStore.getState().markUsed(w.key);
   }, [open]);
+
+  /** Delete the file from ComfyUI's workflow store (through the frame when it can, so its tab closes too). Undo writes it back. */
+  const remove = useCallback(async (w: ComfyWorkflowRow) => {
+    if (!host) return;
+    let saved: unknown;
+    try { saved = await loadSavedWorkflow(host, w.path); } catch { saved = undefined; }
+    try {
+      const viaFrame = await deleteInFrame(w.path);
+      if (!viaFrame) await deleteWorkflowFile(host, w.path);
+    } catch (err) {
+      notifications.show({ color: 'red', title: 'Could not delete it', message: err instanceof Error ? err.message : String(err) });
+      return;
+    }
+    library.refresh();
+    if (saved !== undefined) {
+      undoNote(`${w.name} deleted`, () => {
+        void restoreWorkflowFile(host, w.path, saved)
+          .then(() => { library.refresh(); return syncFrame(); })
+          .catch((err) => notifications.show({ color: 'red', title: 'Could not bring it back', message: err instanceof Error ? err.message : String(err) }));
+      });
+    }
+  }, [host, library]);
 
   /** Import a workflow file into this server's ComfyUI `workflows/` folder. */
   const importFile = useCallback(async (file: File) => {
@@ -105,6 +131,7 @@ export function useComfyWorkflows(server: Server | null, kind: ComfyKind) {
         await saveWorkflowFile(host, name, wf);
         notifications.show({ color: 'green', title: 'Workflow imported', message: name.replace(/\.json$/, '') });
         library.refresh();
+        void syncFrame();
         return;
       } catch (err) {
         if (err instanceof Error && err.message === 'exists') continue;
@@ -121,6 +148,7 @@ export function useComfyWorkflows(server: Server | null, kind: ComfyKind) {
     ready: !!info,
     addAsStep,
     select,
+    remove,
     importFile,
     refresh: library.refresh,
   };

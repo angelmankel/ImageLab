@@ -6,7 +6,7 @@ import { IconArrowRight, IconArrowsMaximize, IconGitBranch, IconMovie, IconPlus,
 import { useRoute } from '~/app/routeStore';
 import { useSteps, type Step, type StepKind } from '~/app/stepsStore';
 import { registerMenu } from '../registry';
-import { undoNote } from './undoNote';
+import { undoNote } from '~/app/undoNote';
 
 const ADD: Array<{ kind: StepKind; label: string; icon: typeof IconPlus }> = [
   { kind: 'upscale', label: 'Upscale', icon: IconArrowsMaximize },

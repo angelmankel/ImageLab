@@ -41,3 +41,19 @@ export async function saveWorkflowFile(host: string, fileName: string, workflow:
 export function comfyPageUrl(host: string): string {
   return `${comfyHttpFor(host)}/`;
 }
+
+/** Delete a saved workflow file (path under `workflows/`). A missing file counts as deleted. */
+export async function deleteWorkflowFile(host: string, path: string): Promise<void> {
+  const id = encodeURIComponent(`workflows/${path}`);
+  const res = await fetch(`${comfyHttpFor(host)}/api/userdata/${id}`, { method: 'DELETE' });
+  if (!res.ok && res.status !== 404) throw new Error(`HTTP ${res.status}`);
+}
+
+/** Write a workflow file back at its exact path (overwrite allowed): Undo after a delete. */
+export async function restoreWorkflowFile(host: string, path: string, workflow: unknown): Promise<void> {
+  const id = encodeURIComponent(`workflows/${path}`);
+  const res = await fetch(`${comfyHttpFor(host)}/api/userdata/${id}?overwrite=true&full_info=true`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(workflow),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+}

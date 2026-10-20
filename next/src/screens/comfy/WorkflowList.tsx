@@ -7,13 +7,17 @@ import { TextInput } from '@mantine/core';
 import { IconFileImport, IconSearch } from '@tabler/icons-react';
 import { useStudio } from '@/features/studio/studioStore';
 import { WorkflowRow } from './WorkflowRow';
+import { useComfyFrame } from './comfyFrame';
+import './workflowMenu';
 import type { useComfyWorkflows } from './useComfyWorkflows';
 
 type Workflows = ReturnType<typeof useComfyWorkflows>;
 
 export function WorkflowList({ wf, large, scroll = true }: { wf: Workflows; large?: boolean; scroll?: boolean }) {
   const [query, setQuery] = useState('');
-  const openPath = useStudio((s) => s.path);
+  const studioPath = useStudio((s) => s.path);
+  const framePath = useComfyFrame((s) => (s.status === 'ready' ? s.openPath : undefined));
+  const openPath = framePath === undefined ? studioPath : framePath;
   const fileRef = useRef<HTMLInputElement>(null);
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => { const t = window.setInterval(() => setNow(Date.now()), 30_000); return () => window.clearInterval(t); }, []);
@@ -27,7 +31,7 @@ export function WorkflowList({ wf, large, scroll = true }: { wf: Workflows; larg
     <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
       {shown.map((r) => (
         <WorkflowRow key={r.key} row={r} large={large} now={now} selected={r.path === openPath}
-          onSelect={() => void wf.select(r)} onUse={() => void wf.addAsStep(r)} />
+          onSelect={() => void wf.select(r)} onUse={() => void wf.addAsStep(r)} onDelete={() => void wf.remove(r)} />
       ))}
       {!shown.length && (
         <div style={{ padding: '14px 8px', fontSize: 12, fontWeight: 600, color: 'var(--il-muted)', textAlign: 'center' }}>
