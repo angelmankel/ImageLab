@@ -1,25 +1,38 @@
 /**
- * A model card in the grid (the picker brief: big tiles, 220–260 wide on desktop, 2 per row on
- * the phone): cover 3:4 with type / base / version badges, name, creator, stats, and a bottom row
- * that says Installed ✓ + Use, "2 of 3 versions" + ↓, or size + Download. With a picker open the
- * primary action is Use (installed) or "Add & download". A tap on the PICTURE opens the
- * fullscreen model viewer (on the cover's picture); a tap on the name / body opens the detail
- * panel. An adult cover (beyond the NSFW level) stays hidden until tapped. Which picture is the
- * cover follows Settings → "Model preview starts on" (`useModelCover` → `usePreviewOrder`).
+ * A model card in the grid (fix list item 32, rebuilt: "it is hard to know which part I can click
+ * to do what"). Three zones, each with its own hover and a mark that says what it does:
+ *
+ *   ┌ picture 3:4 ──────────────┐  hover darkens it, a "⤢ View" pill rises, zoom cursor →
+ *   │ TYPE            base      │  opens the model viewer (the big modal). The ♥ toggles a
+ *   │          ⤢ View           │  favourite. The picture is a drag source (~/dnd).
+ *   │                        ♥  │
+ *   ├ name · creator · stats  › ┤  hover lifts it, the › slides → opens the detail panel.
+ *   ├───────────────────────────┤
+ *   │ [v8.0 · 6.5 GB · 3 ▾] [↓] │  the version picker + Download (or ✓ + Use, or the picker's
+ *   └───────────────────────────┘  Use / Add & download) for the version picked right here.
+ *
+ * An adult cover (beyond the NSFW level) stays hidden until tapped. Which picture is the cover
+ * follows Settings → "Model preview starts on" (`useModelCover` → `usePreviewOrder`); a hover
+ * plays the first sample clip within the NSFW level.
  */
 import { useEffect, useMemo, useState } from 'react';
-import { IconCheck, IconEyeOff, IconHeartFilled, IconPlus } from '@tabler/icons-react';
-import type { CivitaiModel } from '@/lib/civitai';
+import { IconArrowsMaximize, IconCheck, IconChevronRight, IconEyeOff, IconHeart, IconHeartFilled, IconPlus } from '@tabler/icons-react';
+import type { CivitaiModel, CivitaiModelVersion } from '@/lib/civitai';
 import { civitaiThumbUrl, civitaiVideoUrl, isCivitaiVideo, previewStill } from '@/lib/civitai';
-import { primaryFile } from '@/features/model-metadata/civitai';
-import { baseModelShort, fmtSizeKB, isBeyondMask, typeLabel, type InstalledState } from './civitaiQuery';
-import { Avatar, CoverBadge, COVER_FALLBACK, EmberBtn, GhostBtn, Stats, type Size } from './bits';
+import { Button } from '~/ui';
+import { makePayload, nameFromUrl, useImageDrag } from '~/dnd';
+import { baseModelShort, isBeyondMask, typeLabel, type InstalledState } from './civitaiQuery';
+import { Avatar, CoverBadge, COVER_FALLBACK, Stats, type Size } from './bits';
 import { DownloadButton } from './DownloadButton';
+import { VersionPicker } from './VersionPicker';
 import { openModelViewer } from './viewerBridge';
 import { isLocalModel } from './localModels';
+import { useInstalled } from './useInstalled';
+import { useModels } from './modelsStore';
 import { menuProps } from '~/app/contextMenu';
 import type { ModelTileTarget } from '~/app/contextMenu/menus/modelMenu';
 import { usePreviewOrder, viewerStart, type PreviewImage } from '~/app/usePreviewOrder';
+import './models.css';
 
 export const TILE_THUMB = 560;
 
@@ -46,94 +59,122 @@ export function useModelCover(model: CivitaiModel, mask: number) {
 
 export function ModelTile({ model, selected, installed, mask, revealed, favourite, picking, size = 'desktop', onOpen, onReveal, onUse }: {
   model: CivitaiModel; selected: boolean; installed: InstalledState; mask: number; revealed: boolean; favourite?: boolean; picking?: boolean; size?: Size;
-  onOpen: () => void; onReveal: () => void; onUse: () => void;
+  onOpen: () => void; onReveal: () => void;
+  /** Use the version picked on the tile (in the step, or as the picker's pick). */
+  onUse: (version?: CivitaiModelVersion) => void;
 }) {
   const phone = size === 'phone';
-  const { version, images, image, start, observe, viewerStart: startOn } = useModelCover(model, mask);
-  // Hover (pointer devices) plays the first sample clip within the NSFW level — the cover's own
-  // clip when it is one, else the first clip among the version's samples (Donny, 10-20).
+  const { version: first, images, image, start, observe, viewerStart: startOn } = useModelCover(model, mask);
+  const inst = useInstalled();
+  // The version this tile downloads / uses: the one a server has, else the newest; the picker changes it.
+  const [versionId, setVersionId] = useState<number | null>(null);
+  const version = model.modelVersions.find((v) => v.id === versionId) ?? model.modelVersions.find((v) => inst.version(v)) ?? first;
+  const has = !!version && inst.version(version);
+
   const [hover, setHover] = useState(false);
   const clip = (() => {
     const c = image && isCivitaiVideo(image) ? image : images.find((i) => isCivitaiVideo(i) && !isBeyondMask(i.nsfwLevel, mask));
     return c?.url ? civitaiVideoUrl(c.url, TILE_THUMB) : null;
   })();
-  // A cover whose link is dead falls back to the plain card colour instead of a broken-image icon.
   const [broken, setBroken] = useState(false);
   useEffect(() => setBroken(false), [image?.url]);
   const hidden = !!image && isBeyondMask(image.nsfwLevel, mask) && !revealed;
   const url = image ? civitaiThumbUrl(previewStill(image, TILE_THUMB), TILE_THUMB) : '';
-  const versions = model.modelVersions.length;
-  const file = version ? primaryFile(version) : null;
-  const all = installed.total > 0 && installed.installed === installed.total;
-  const some = installed.installed > 0 && !all;
-  const anyInstalled = installed.installed > 0;
+  const local = isLocalModel(model);
+  const toggleFavourite = useModels((s) => s.toggleFavourite);
+
+  // The cover is a picture you can drag onto a step, a drop zone, another tab (~/dnd).
+  const drag = useImageDrag(() => {
+    if (!image || hidden || isCivitaiVideo(image)) return null;
+    const full = previewStill(image);
+    return makePayload({ url: full, name: nameFromUrl(full) || `${model.name}.png`, source: 'model' });
+  });
 
   const onCover = () => {
     if (hidden) { onReveal(); return; }
-    const file = isLocalModel(model) ? version?.files[0]?.name : null;
+    const file = local ? first?.files[0]?.name : null;
     void openModelViewer(file ? { file, start: startOn } : { modelId: model.id, versionId: version?.id ?? null, start: startOn }).then((opened) => { if (!opened) onOpen(); });
   };
 
-  const h = phone ? 36 : 30;
-  const action = picking ? (
-    anyInstalled
-      ? <EmberBtn h={h} size={size} onClick={onUse} style={{ flex: 1 }} label={`Use ${model.name}`}><IconCheck size={12} stroke={3} />Use</EmberBtn>
-      : <EmberBtn h={h} size={size} onClick={onUse} style={{ flex: 1 }} label={`Add ${model.name} and download it`}><IconPlus size={12} stroke={3} />Add & download</EmberBtn>
-  ) : all ? (
-    <>
-      <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 800, color: 'var(--il-ok)' }}><IconCheck size={13} stroke={3} />Installed</span>
-      <GhostBtn h={h} size={size} onClick={onUse} label={`Use ${model.name} in the step`}>Use</GhostBtn>
-    </>
-  ) : some ? (
-    <>
-      <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--il-muted)' }}>{installed.installed} of {installed.total} versions</span>
-      {version && <DownloadButton version={version} modelType={model.type} shape="icon" />}
-    </>
+  const h = phone ? 40 : 34;
+  const action = !version ? null : picking ? (
+    <Button tone="primary" h={h} grow={phone} icon={has ? <IconCheck size={13} stroke={3} /> : <IconPlus size={13} stroke={3} />} onClick={() => onUse(version)} aria-label={`${has ? 'Use' : 'Add and download'} ${model.name} ${version.name}`}>
+      {has ? 'Use' : phone ? 'Add' : 'Add & get'}
+    </Button>
+  ) : has ? (
+    <Button tone="card" h={h} grow={phone} icon={<IconCheck size={13} stroke={3} color="var(--il-ok)" />} onClick={() => onUse(version)} tooltip={`Use ${version.name} in the step`}>Use</Button>
   ) : (
-    <>
-      <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--il-muted)' }}>{fmtSizeKB(file?.sizeKB)}</span>
-      {version && <DownloadButton version={version} modelType={model.type} h={h} size={size} />}
-    </>
+    <DownloadButton version={version} modelType={model.type} h={h} size={size} style={phone ? { flex: 1 } : undefined} />
   );
 
   return (
-    <div {...menuProps<ModelTileTarget>('model-tile', { model, view: onCover, open: onOpen, use: anyInstalled ? onUse : null })} style={{ background: 'var(--il-card)', borderRadius: 16, padding: phone ? 8 : 10, display: 'flex', flexDirection: 'column', gap: phone ? 6 : 7, outline: selected ? '2px solid var(--il-ember)' : undefined, outlineOffset: -2, minWidth: 0 }}>
-      <button
-        type="button"
-        aria-label={`${hidden ? 'Show the NSFW cover of' : 'View'} ${model.name}`}
-        ref={observe}
-        onClick={onCover}
-        onPointerEnter={(e) => { if (e.pointerType !== 'touch') { setHover(true); start(); } }}
-        onPointerLeave={() => setHover(false)}
-        style={{
-          position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', padding: 0, border: 0, aspectRatio: '3 / 4', borderRadius: 14,
-          background: hidden || !url ? (hidden ? 'var(--il-elev)' : COVER_FALLBACK) : 'var(--il-bg-deep)', overflow: 'hidden', cursor: 'pointer', color: 'var(--il-muted)',
-        }}
-      >
-        {!hidden && url && !broken && <img src={url} alt="" loading="lazy" decoding="async" onError={() => setBroken(true)} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
-        {!hidden && hover && clip && (
-          <video src={clip} poster={url || undefined} muted loop autoPlay playsInline disablePictureInPicture preload="auto" aria-hidden
-            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', background: 'transparent' }} />
+    <div {...menuProps<ModelTileTarget>('model-tile', { model, view: onCover, open: onOpen, use: installed.installed > 0 ? () => onUse(version) : null })}
+      style={{ background: 'var(--il-card)', borderRadius: 16, display: 'flex', flexDirection: 'column', outline: `2px solid ${selected ? 'var(--il-ember)' : 'transparent'}`, outlineOffset: -2, minWidth: 0 }}>
+      {/* Zone 1 · the picture → the viewer */}
+      <div style={{ position: 'relative', margin: phone ? '6px 6px 0' : '8px 8px 0' }}>
+        <button
+          type="button"
+          className="ilm-cover"
+          aria-label={`${hidden ? 'Show the NSFW cover of' : 'View the pictures of'} ${model.name}`}
+          ref={observe}
+          onClick={onCover}
+          onPointerEnter={(e) => { if (e.pointerType !== 'touch') { setHover(true); start(); } }}
+          onPointerLeave={() => setHover(false)}
+          {...drag}
+          style={{
+            position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', padding: 0, border: 0, aspectRatio: '3 / 4', borderRadius: 12,
+            background: hidden || !url ? (hidden ? 'var(--il-elev)' : COVER_FALLBACK) : 'var(--il-bg-deep)', overflow: 'hidden', color: 'var(--il-muted)',
+          }}
+        >
+          {!hidden && url && !broken && <img src={url} alt="" loading="lazy" decoding="async" draggable={false} onError={() => setBroken(true)} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
+          {!hidden && hover && clip && (
+            <video src={clip} poster={url || undefined} muted loop autoPlay playsInline disablePictureInPicture preload="auto" aria-hidden
+              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', background: 'transparent' }} />
+          )}
+          {hidden ? (
+            <span style={{ height: 26, padding: '0 10px', border: '1px solid var(--il-line-strong)', borderRadius: 999, fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <IconEyeOff size={12} stroke={2.2} />NSFW · tap to show
+            </span>
+          ) : (
+            <span className="ilm-veil"><span className="ilm-eye"><IconArrowsMaximize size={13} stroke={2.6} />View</span></span>
+          )}
+          <CoverBadge at="tl">{typeLabel(model.type).toUpperCase()}</CoverBadge>
+          {version?.baseModel && <CoverBadge at="tr" tone="ember">{baseModelShort(version.baseModel)}</CoverBadge>}
+          {!hidden && (
+            <span className="ilm-touch-eye" aria-hidden style={{ position: 'absolute', left: 8, bottom: 8, width: 26, height: 26, borderRadius: '50%', background: 'rgba(20,20,22,.78)', color: 'var(--il-fg)', placeItems: 'center' }}>
+              <IconArrowsMaximize size={13} stroke={2.4} />
+            </span>
+          )}
+        </button>
+        {!local && (
+          <button type="button" className="ilm-heart" onClick={() => toggleFavourite(model.id)} aria-pressed={!!favourite} aria-label={favourite ? `Remove ${model.name} from favourites` : `Add ${model.name} to favourites`}
+            style={{ position: 'absolute', right: 8, bottom: 8, width: phone ? 36 : 30, height: phone ? 36 : 30, border: 0, padding: 0, borderRadius: '50%', background: 'rgba(20,20,22,.78)', color: favourite ? 'var(--il-ember)' : 'var(--il-fg2)', display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
+            {favourite ? <IconHeartFilled size={14} /> : <IconHeart size={14} stroke={2.2} />}
+          </button>
         )}
-        {hidden && (
-          <span style={{ height: 26, padding: '0 10px', border: '1px solid var(--il-line-strong)', borderRadius: 999, fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6 }}>
-            <IconEyeOff size={12} stroke={2.2} />NSFW · tap to show
+      </div>
+
+      {/* Zone 2 · name, creator, stats → the detail panel */}
+      <button type="button" className="ilm-info" onClick={onOpen} aria-pressed={selected} aria-label={`Details of ${model.name}`}
+        style={{ display: 'flex', alignItems: 'center', gap: 6, margin: phone ? '4px 3px 0' : '4px 4px 0', padding: phone ? '8px 6px 8px 8px' : '9px 8px 9px 10px', border: 0, borderRadius: 12, background: 'transparent', color: 'var(--il-fg)', textAlign: 'left', cursor: 'pointer', minWidth: 0 }}>
+        <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: phone ? 3 : 5 }}>
+          <span style={{ fontSize: phone ? 13 : 14, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={model.name}>{model.name}</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 600, color: 'var(--il-muted)', minWidth: 0 }}>
+            <Avatar creator={model.creator} size={16} />
+            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>by {model.creator?.username || 'unknown'}</span>
           </span>
-        )}
-        <CoverBadge at="tl">{typeLabel(model.type).toUpperCase()}</CoverBadge>
-        {version?.baseModel && <CoverBadge at="tr" tone="ember">{baseModelShort(version.baseModel)}</CoverBadge>}
-        {version && <CoverBadge at="bl" tone="muted">{version.name}{versions > 1 ? ` · ${versions} versions` : ''}</CoverBadge>}
-        {favourite && <span aria-label="Favourite" style={{ position: 'absolute', right: 8, bottom: 8, width: 22, height: 22, borderRadius: '50%', background: 'rgba(20,20,22,.72)', color: 'var(--il-ember)', display: 'grid', placeItems: 'center', pointerEvents: 'none' }}><IconHeartFilled size={12} /></span>}
-      </button>
-      <button type="button" onClick={onOpen} aria-pressed={selected} aria-label={`Open ${model.name}`} style={{ display: 'flex', flexDirection: 'column', gap: phone ? 4 : 6, padding: 0, border: 0, background: 'transparent', color: 'var(--il-fg)', textAlign: 'left', cursor: 'pointer', minWidth: 0 }}>
-        <span style={{ fontSize: phone ? 13 : 14, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '100%' }} title={model.name}>{model.name}</span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 600, color: 'var(--il-muted)', width: '100%' }}>
-          <Avatar creator={model.creator} size={16} />
-          <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>by {model.creator?.username || 'unknown'}</span>
+          {!phone && <Stats stats={model.stats} size={size} />}
         </span>
-        <Stats stats={model.stats} size={size} />
+        <IconChevronRight className="ilm-chev" size={16} stroke={2.6} style={{ flex: 'none' }} />
       </button>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: h, gap: 6 }}>{action}</div>
+
+      {/* Zone 3 · version + Download / Use */}
+      {version && (
+        <div style={{ display: 'flex', flexDirection: phone ? 'column' : 'row', alignItems: phone ? 'stretch' : 'center', gap: 6, padding: phone ? 6 : 8, borderTop: '1px solid var(--il-line-soft)', marginTop: 4, minWidth: 0 }}>
+          <VersionPicker model={model} version={version} onVersion={(v) => setVersionId(v.id)} h={h} />
+          {action}
+        </div>
+      )}
     </div>
   );
 }

@@ -1,5 +1,5 @@
 /**
- * The browser itself (filters · tag groups · big tile grid · 380px detail panel on desktop; the
+ * The browser itself (filters · tag groups · big tile grid · the 500px detail panel on desktop; the
  * phone's browse page / opened model), used by the route (`ModelsScreen`, full-bleed) and by
  * `ModelsModal` (every picker). `PickContext` says what it was opened for.
  */
@@ -8,8 +8,8 @@ import { Panel } from '~/ui';
 import { T } from '~/theme/tokens';
 import { useDownloads } from '@/hooks/useDownloads';
 import { useDownloadsStore } from '@/features/downloads';
-import type { CivitaiModel } from '@/lib/civitai';
-import { useModels } from './modelsStore';
+import type { CivitaiModel, CivitaiModelVersion } from '@/lib/civitai';
+import { useModels, PANEL_W } from './modelsStore';
 import { useShown } from './useShown';
 import { useInstalled } from './useInstalled';
 import { useModelActions } from './useModelActions';
@@ -61,7 +61,7 @@ export function DesktopBrowser() {
   const actions = useModelActions();
 
   const onOpen = useCallback((m: CivitaiModel) => open(m.id), [open]);
-  const onUse = useCallback((m: CivitaiModel) => { const v = actions.versionToUse(m); if (v) actions.use(m, v); }, [actions]);
+  const onUse = useCallback((m: CivitaiModel, picked?: CivitaiModelVersion) => { const v = picked ?? actions.versionToUse(m); if (v) actions.use(m, v); }, [actions]);
   const onLoadMore = useCallback(() => void loadMore(), [loadMore]);
 
   const count = shown.total != null ? `${shown.total} models` : `${shown.items.length}${shown.hasMore ? '+' : ''} models`;
@@ -78,8 +78,8 @@ export function DesktopBrowser() {
           minTile={view === 'grid' ? 240 : 320}
         />
       </main>
-      <Panel side="right" width={panelWidth} min={320} max={560} open={panelOpen} onResize={setPanelWidth} onToggle={() => setPanelOpen(!panelOpen)} tabLabel="Model">
-        <div ref={keepDetail} className="il-scroll" style={{ flex: 1, minHeight: 0 }}>
+      <Panel side="right" width={panelWidth} min={420} max={760} defaultWidth={PANEL_W} open={panelOpen} onResize={setPanelWidth} onToggle={() => setPanelOpen(!panelOpen)} tabLabel="Model">
+        <div ref={keepDetail} className="il-scroll" style={{ flex: 1, minHeight: 0, overflowX: 'hidden' }}>
           {selectedId != null ? (
             <Detail modelId={selectedId} size="desktop" />
           ) : (

@@ -38,7 +38,7 @@ export function PhoneModel({ modelId }: { modelId: number }) {
           {fav ? <IconHeartFilled size={18} /> : <IconHeart size={18} stroke={2.2} />}
         </button>
       </div>
-      <div ref={keepScroll} className="il-scroll" style={{ flex: 1, minHeight: 0, padding: '8px 0 100px', touchAction: 'pan-y' }}>
+      <div ref={keepScroll} className="il-scroll" style={{ flex: 1, minHeight: 0, padding: '8px 0 100px', touchAction: 'pan-y', overflowX: 'hidden' }}>
         <Detail modelId={modelId} size="phone" />
       </div>
       <BackPill onClick={close} />

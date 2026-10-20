@@ -7,7 +7,7 @@
  * position across unmounts (`useKeepScroll`).
  */
 import { useEffect, useRef } from 'react';
-import type { CivitaiModel } from '@/lib/civitai';
+import type { CivitaiModel, CivitaiModelVersion } from '@/lib/civitai';
 import type { View } from './modelsStore';
 import type { Installed } from './useInstalled';
 import { ModelTile } from './ModelTile';
@@ -18,7 +18,7 @@ import { useKeepScroll } from './useKeepScroll';
 export function ModelList({ items, view, selectedId, mask, revealed, favourites, installed, picking, size = 'desktop', loading, loadingMore, error, hasMore, hidden, onOpen, onReveal, onUse, onLoadMore, onRetry, scroll, scrollKey = null, minTile = 240, columns }: {
   items: CivitaiModel[]; view: View; selectedId: number | null; mask: number; revealed: number[]; favourites?: number[]; installed: Installed; picking?: boolean; size?: Size;
   loading: boolean; loadingMore: boolean; error: string | null; hasMore: boolean; hidden: number;
-  onOpen: (m: CivitaiModel) => void; onReveal: (id: number) => void; onUse: (m: CivitaiModel) => void; onLoadMore: () => void; onRetry: () => void;
+  onOpen: (m: CivitaiModel) => void; onReveal: (id: number) => void; onUse: (m: CivitaiModel, v?: CivitaiModelVersion) => void; onLoadMore: () => void; onRetry: () => void;
   scroll?: boolean; scrollKey?: string | null; minTile?: number; columns?: number;
 }) {
   const sentinel = useRef<HTMLDivElement>(null);
@@ -33,7 +33,7 @@ export function ModelList({ items, view, selectedId, mask, revealed, favourites,
 
   const grid = view === 'grid';
   const gridStyle: React.CSSProperties = grid
-    ? { display: 'grid', gridTemplateColumns: columns ? `repeat(${columns}, minmax(0, 1fr))` : `repeat(auto-fill, minmax(${minTile}px, 1fr))`, gap: 8 }
+    ? { display: 'grid', gridTemplateColumns: columns ? `repeat(${columns}, minmax(0, 1fr))` : `repeat(auto-fill, minmax(${minTile}px, 1fr))`, gap: size === 'phone' ? 8 : 12 }
     : { display: 'flex', flexDirection: 'column', gap: 8 };
   const body = loading && items.length === 0 ? (
     <Skeleton style={gridStyle} grid={grid} />
@@ -46,7 +46,7 @@ export function ModelList({ items, view, selectedId, mask, revealed, favourites,
       {hidden > 0 && <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--il-muted)', padding: '0 2px 6px' }}>{hidden} of the loaded models hidden by the NSFW / early access / installed / precision filters</div>}
       <div style={gridStyle}>
         {items.map((m) => grid ? (
-          <ModelTile key={m.id} model={m} size={size} picking={picking} favourite={favourites?.includes(m.id)} selected={m.id === selectedId} installed={installed.model(m)} mask={mask} revealed={revealed.includes(m.id)} onOpen={() => onOpen(m)} onReveal={() => onReveal(m.id)} onUse={() => onUse(m)} />
+          <ModelTile key={m.id} model={m} size={size} picking={picking} favourite={favourites?.includes(m.id)} selected={m.id === selectedId} installed={installed.model(m)} mask={mask} revealed={revealed.includes(m.id)} onOpen={() => onOpen(m)} onReveal={() => onReveal(m.id)} onUse={(v) => onUse(m, v)} />
         ) : (
           <ModelRow key={m.id} model={m} picking={picking} selected={m.id === selectedId} installed={installed.model(m)} mask={mask} revealed={revealed.includes(m.id)} onOpen={() => onOpen(m)} onReveal={() => onReveal(m.id)} onUse={() => onUse(m)} />
         ))}

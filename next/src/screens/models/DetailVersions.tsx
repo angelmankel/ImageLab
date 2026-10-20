@@ -1,5 +1,5 @@
 /**
- * The version card (rule 13): a version switch, then every file of the chosen version — name,
+ * The version card (rule 13): the version picker (item 32: a dropdown, never a sideways strip), then every file of the chosen version — name,
  * fp · size · format · GB · hash, download count — with Installed ✓ or a Download button on
  * the real download manager, and the path the file lives at (or will land in) on the server.
  */
@@ -7,7 +7,8 @@ import { IconCheck } from '@tabler/icons-react';
 import type { CivitaiModel, CivitaiModelVersion } from '@/lib/civitai';
 import { formatDate } from '@/features/model-metadata/civitai';
 import { baseModelShort, fmtCount, fmtSizeKB, folderForType, shortHash } from './civitaiQuery';
-import { Label, SegPill, type Size } from './bits';
+import { Label, type Size } from './bits';
+import { VersionPicker } from './VersionPicker';
 import { DownloadButton } from './DownloadButton';
 import type { Installed } from './useInstalled';
 
@@ -19,15 +20,12 @@ export function DetailVersions({ model, version, onVersion, installed, size }: {
   const main = files.find((f) => f.primary) ?? files[0];
   const serverName = main ? installed.serverName(main.name) : undefined;
   const path = serverName ? (installed.hashKey(main!) ?? `${folderForType(model.type)}/${serverName}`) : main ? `${folderForType(model.type)}/${main.name}` : '';
-  const versionItems = model.modelVersions.map((v) => ({ key: String(v.id), label: v.name }));
 
   return (
-    <div style={{ background: 'var(--il-card)', borderRadius: 16, padding: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, minWidth: 0 }}>
+    <div style={{ background: 'var(--il-card)', borderRadius: 16, padding: 10, display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
         {!phone && <Label>VERSION</Label>}
-        <div className="il-scroll-x" style={{ flex: phone ? 1 : 'none', minWidth: 0, maxWidth: '100%', overflowX: 'auto' }}>
-          <SegPill size={size} small={!phone} fill={phone && versionItems.length <= 4} label="Version" value={String(version.id)} onChange={(k) => onVersion(Number(k))} items={versionItems} />
-        </div>
+        <VersionPicker model={model} version={version} onVersion={(v) => onVersion(v.id)} h={phone ? 44 : 32} showBase />
       </div>
       <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--il-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
         {[version.baseModel ? baseModelShort(version.baseModel) : '', formatDate(version.publishedAt ?? version.createdAt), version.stats?.downloadCount != null ? `${fmtCount(version.stats.downloadCount)} downloads` : '', version.availability === 'EarlyAccess' ? 'Early access' : ''].filter(Boolean).join(' · ')}

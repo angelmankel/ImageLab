@@ -500,10 +500,13 @@ export function fmtCount(n: number | undefined | null): string {
   return String(v);
 }
 
+/** "6.5 GB", "144 MB", "3.2 MB", "48 KB" (an embedding is kilobytes: it read "0 MB", item 32). */
 export function fmtSizeKB(kb: number | undefined | null): string {
-  if (!kb) return '';
+  if (!kb || kb < 0) return '';
+  if (kb < 1024) return `${Math.max(1, Math.round(kb))} KB`;
   const mb = kb / 1024;
-  return mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB` : `${Math.round(mb)} MB`;
+  if (mb >= 1024) return `${(mb / 1024).toFixed(1)} GB`;
+  return mb < 10 ? `${mb.toFixed(1)} MB` : `${Math.round(mb)} MB`;
 }
 
 /** The first 8 of the AutoV2 / SHA256 hash, for the file line. */

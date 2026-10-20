@@ -1,0 +1,35 @@
+/* Models browser (fix list item 32): a tile's three click zones each say what they do on hover. */
+
+/* Zone 1 · the picture → the model viewer (big modal). Darkens, a "View" pill rises, zoom cursor. */
+.ilm-cover { cursor: zoom-in; }
+.ilm-cover .ilm-veil { position: absolute; inset: 0; display: grid; place-items: center; background: transparent; transition: background-color .15s ease; pointer-events: none; }
+.ilm-cover .ilm-eye { height: 34px; padding: 0 14px; border-radius: 999px; background: rgba(20, 20, 22, .84); color: var(--il-fg); font-size: 12px; font-weight: 800;
+  display: flex; align-items: center; gap: 7px; opacity: 0; transform: translateY(4px); transition: opacity .15s ease, transform .15s ease; }
+.ilm-cover:hover .ilm-veil, .ilm-cover:focus-visible .ilm-veil { background: rgba(10, 10, 12, .32); }
+.ilm-cover:hover .ilm-eye, .ilm-cover:focus-visible .ilm-eye { opacity: 1; transform: none; }
+.ilm-cover img { transition: transform .25s ease; }
+.ilm-cover:hover img { transform: scale(1.03); }
+/* Touch: no hover, so the view mark stays as a small corner pill. */
+.ilm-touch-eye { display: none; }
+@media (hover: none) {
+  .ilm-touch-eye { display: grid; }
+  .ilm-cover .ilm-eye { display: none; }
+}
+
+/* Zone 2 · name, creator, stats → the detail panel. Lifts, the chevron slides. */
+.ilm-info { transition: background-color .12s ease; }
+.ilm-info:hover, .ilm-info:focus-visible { background: var(--il-card-on); }
+.ilm-info .ilm-chev { color: var(--il-dim); transition: color .12s ease, transform .12s ease; }
+.ilm-info:hover .ilm-chev, .ilm-info:focus-visible .ilm-chev, .ilm-info[aria-pressed='true'] .ilm-chev { color: var(--il-ember-hi); transform: translateX(2px); }
+
+/* Zone 3 · the action bar (version picker + Download / Use): the shared Button's own feedback. */
+.ilm-vsel { transition: border-color .12s ease, background-color .12s ease; }
+.ilm-vsel:hover:not(:disabled) { border-color: var(--il-ember-line); background: var(--il-card-on); }
+
+/* The favourite heart on the cover. */
+.ilm-heart { transition: transform .12s ease, background-color .12s ease; }
+.ilm-heart:hover { transform: scale(1.08); background: rgba(20, 20, 22, .95); }
+
+/* Detail panel thumbnails. */
+.ilm-thumb { transition: transform .12s ease, opacity .12s ease; }
+.ilm-thumb:hover { transform: translateY(-1px); }

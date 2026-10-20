@@ -201,6 +201,11 @@ test('toggleIn, folderForType, formatting', () => {
   assert.equal(Q.fmtCount(312), '312');
   assert.equal(Q.fmtSizeKB(6_500 * 1024), '6.3 GB');
   assert.equal(Q.fmtSizeKB(228 * 1024), '228 MB');
+  // An embedding is kilobytes (item 32: it read "0 MB").
+  assert.equal(Q.fmtSizeKB(48.3), '48 KB');
+  assert.equal(Q.fmtSizeKB(0.2), '1 KB');
+  assert.equal(Q.fmtSizeKB(3.2 * 1024), '3.2 MB');
+  assert.equal(Q.fmtSizeKB(0), '');
   assert.equal(Q.shortHash({ AutoV2: 'A1B2C3D4E5' }), 'a1b2c3d4');
   assert.equal(Q.shortHash({ SHA256: 'FFFFFFFFFF' }), 'ffffffff');
   assert.equal(Q.baseModelShort('Wan Video 2.2 T2V-A14B'), 'Wan 2.2');

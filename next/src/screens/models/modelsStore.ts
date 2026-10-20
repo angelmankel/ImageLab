@@ -15,7 +15,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { CivitaiModel } from '@/lib/civitai';
-import { T } from '~/theme/tokens';
 import {
   DEFAULT_FILTERS, sanitizeFilters, clearAllFilters, clearFilter, planSearch, effectiveFilters,
   type ModelFilters, type FilterKey, type ModelKindKey,
@@ -23,6 +22,9 @@ import {
 import { runSearchPlan, hasApiKey, CivitaiError } from './civitaiApi';
 
 /** Downloaded = what is on the pod (the servers' CivitAI-known files); CivitAI = the catalog. */
+
+/** The detail panel's default width (item 32: wider than the 380 it was). */
+export const PANEL_W = 500;
 export type Source = 'civitai' | 'installed';
 export type View = 'grid' | 'list';
 
@@ -140,7 +142,7 @@ export const useModels = create<ModelsState>()(
       followed: EMPTY_STR,
       revealed: [],
       panelOpen: true,
-      panelWidth: T.size.modelsPanel,
+      panelWidth: PANEL_W,
       moreOpen: false,
       tagsOpen: null,
       sheetOpen: false,
@@ -238,13 +240,15 @@ export const useModels = create<ModelsState>()(
     }),
     {
       name: 'imagelab.next.models.v1',
-      partialize: (s) => ({ v: 2, filters: s.filters, source: s.source, view: s.view, favourites: s.favourites, followed: s.followed, panelOpen: s.panelOpen, panelWidth: s.panelWidth, hasDownloadedOnce: s.hasDownloadedOnce }),
+      partialize: (s) => ({ v: 3, filters: s.filters, source: s.source, view: s.view, favourites: s.favourites, followed: s.followed, panelOpen: s.panelOpen, panelWidth: s.panelWidth, hasDownloadedOnce: s.hasDownloadedOnce }),
       merge: (saved, current) => {
         const p = (saved ?? {}) as Partial<ModelsState> & { v?: number };
         const hasDownloadedOnce = !!p.hasDownloadedOnce;
         // v1 saves carry the old Month + Soft defaults; once, they take the new AllTime + X ones.
         const filters = sanitizeFilters(p.filters);
         if ((p.v ?? 1) < 2) { filters.period = DEFAULT_FILTERS.period; filters.nsfwMask = DEFAULT_FILTERS.nsfwMask; }
+        // v3 (item 32): the detail panel is wider; an older, narrower save grows once.
+        if ((p.v ?? 1) < 3 && typeof p.panelWidth === 'number') p.panelWidth = Math.max(p.panelWidth, PANEL_W);
         return {
           ...current, ...p,
           filters,

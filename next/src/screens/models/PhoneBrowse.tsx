@@ -8,7 +8,7 @@ import { useCallback } from 'react';
 import { IconFilter } from '@tabler/icons-react';
 import { BackPill } from '~/ui';
 import { useRoute } from '~/app/routeStore';
-import type { CivitaiModel } from '@/lib/civitai';
+import type { CivitaiModel, CivitaiModelVersion } from '@/lib/civitai';
 import { MODEL_TYPES, SORTS, SORT_SHORT, PERIODS, PERIOD_LABEL, NSFW_LEVELS, KIND_LABEL, typeLabel, toggleIn, maskForLevel, levelForMask, activeFilters, baseModelShort, type Sort, type Period, type NsfwLevelKey } from './civitaiQuery';
 import { useModels } from './modelsStore';
 import { useShown } from './useShown';
@@ -46,7 +46,7 @@ export function PhoneBrowse() {
   const actions = useModelActions();
   const active = activeFilters(f).filter((a) => !(kind && a.key === 'types')).length + tagCount;
   const onOpen = useCallback((m: CivitaiModel) => open(m.id), [open]);
-  const onUse = useCallback((m: CivitaiModel) => { const v = actions.versionToUse(m); if (v) actions.use(m, v); }, [actions]);
+  const onUse = useCallback((m: CivitaiModel, picked?: CivitaiModelVersion) => { const v = picked ?? actions.versionToUse(m); if (v) actions.use(m, v); }, [actions]);
   const onLoadMore = useCallback(() => void loadMore(), [loadMore]);
 
   const summary = [
