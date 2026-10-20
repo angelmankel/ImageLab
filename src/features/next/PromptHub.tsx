@@ -29,6 +29,8 @@ import { PromptGeneratorButton } from '@/features/layers/PromptGeneratorButton';
 import { applyWithUndo } from '@/features/layers/PresetLibraryModal';
 import { applyToVideo } from '@/features/video/VideoPromptTools';
 import { useVideo } from '@/features/video/videoStore';
+import { PromptPanel } from '@/features/studio/StudioPanels';
+import { useStudio } from '@/features/studio/studioStore';
 import { inputViewUrl } from '@/features/studio/ImageInput';
 import { useModeHost } from '@/features/workspace/modeHost';
 import { CivitaiLibrary } from './CivitaiLibrary';
@@ -42,32 +44,52 @@ const TABS: { value: HubTab; label: string; icon: ReactNode }[] = [
   { value: 'mine', label: 'Mine', icon: <IconBookmark size={15} /> },
 ];
 
-/** The current prompt of a kind, as text: the image's compiled positive, or the video prompt. */
-export function useCurrentPrompt(kind: PromptKind): { positive: string; negative: string } {
+/** Which step the hub serves. Workflow borrows the image Library and Mine, writing its shared prompt. */
+export type HubKind = 'image' | 'video' | 'workflow';
+/** The saved-prompt kind a hub kind reads and writes. */
+export const promptKindOf = (kind: HubKind): PromptKind => (kind === 'video' ? 'video' : 'image');
+
+/** Replace the Workflow step's prompt (the shared one, or the workflow's own) with Undo. */
+function applyToWorkflow(text: string, name: string) {
+  const st = useStudio.getState();
+  const before = st.path && st.useShared[st.path] === false ? st.ownPrompt[st.path] ?? '' : st.sharedPrompt;
+  st.setPrompt(text);
+  const id = `wf-prompt-${Date.now()}`;
+  notifications.show({
+    id, color: 'teal', autoClose: 6000, title: `Used “${name}”`,
+    message: <Button size="compact-xs" variant="light" mt={4} onClick={() => { useStudio.getState().setPrompt(before); notifications.hide(id); }}>Undo</Button>,
+  });
+}
+
+/** The current prompt of a kind, as text: the image's compiled positive, the video prompt, or the workflow's. */
+export function useCurrentPrompt(kind: HubKind): { positive: string; negative: string } {
   const layers = useStore(s => s.layers);
   const vPos = useVideo(s => s.positive);
   const vNeg = useVideo(s => s.negative);
+  const wf = useStudio(s => (s.path && s.useShared[s.path] === false ? s.ownPrompt[s.path] ?? '' : s.sharedPrompt));
   if (kind === 'video') return { positive: vPos, negative: vNeg };
+  if (kind === 'workflow') return { positive: wf, negative: '' };
   const main = (k: 'positive' | 'negative') => layers.find(l => l.kind === k)?.text ?? '';
   return { positive: main('positive'), negative: main('negative') };
 }
 
 /** Put a whole prompt into the step's box, with Undo. */
-export function usePrompt(kind: PromptKind) {
+export function usePrompt(kind: HubKind) {
   const engine = useVideo(s => s.engine);
   return (p: { positive: string; negative?: string }, name: string) => {
     if (kind === 'video') applyToVideo(engine === 'h3' || !p.negative ? { positive: p.positive } : { positive: p.positive, negative: p.negative }, name);
+    else if (kind === 'workflow') applyToWorkflow(p.positive, name);
     else applyWithUndo(p.negative ? { positive: p.positive, negative: p.negative } : { positive: p.positive }, name);
   };
 }
 
-export function PromptHub({ kind, large = false }: { kind: PromptKind; large?: boolean }) {
+export function PromptHub({ kind, large = false }: { kind: HubKind; large?: boolean }) {
   const tab = useNext(s => s.hubTab);
   const setTab = useNext(s => s.setHubTab);
   return (
     <div className="flex flex-col gap-2.5">
       <Segmented ariaLabel="Prompt source" size={large ? 'md' : 'sm'} value={tab} onChange={setTab} options={TABS} />
-      {tab === 'write' && (kind === 'video' ? <VideoWrite large={large} /> : <ImageWrite large={large} />)}
+      {tab === 'write' && (kind === 'video' ? <VideoWrite large={large} /> : kind === 'workflow' ? <WorkflowWrite large={large} /> : <ImageWrite large={large} />)}
       {tab === 'library' && <CivitaiLibrary kind={kind} large={large} />}
       {tab === 'mine' && <MinePrompts kind={kind} large={large} />}
     </div>
@@ -250,6 +272,35 @@ function VideoWrite({ large }: { large: boolean }) {
         </Fold>
       )}
       <Text size="xs" c="dimmed" className="flex items-center gap-1"><IconBooks size={12} /> Library and Mine put a prompt straight in here.</Text>
+    </div>
+  );
+}
+
+// ── Workflow ────────────────────────────────────────────────────────────────
+
+/** The Workflow step's prompt: keywords for this workflow, the shared prompt, where it is sent. */
+function WorkflowWrite({ large }: { large: boolean }) {
+  const { positive } = useCurrentPrompt('workflow');
+  const path = useStudio(s => s.path);
+  const targetId = useStudio(s => s.targetId());
+  const venice = useStore(s => s.venice);
+  const ready = aiReady(venice);
+  const hint = ready ? undefined : `${aiNotReadyHint(venice)} to use the AI pens`;
+  const apply = usePrompt('workflow');
+  if (!path) return <Text size="xs" c="dimmed" px={4} py="sm" ta="center">Pick a workflow first.</Text>;
+  if (!targetId) return <Text size="xs" c="dimmed" px={4} py="sm" ta="center">This workflow has no text box to write a prompt into.</Text>;
+  return (
+    <div className="flex flex-col gap-3">
+      <PromptPanel large={large} />
+      <div className="scroll-x-thin flex items-center gap-1.5" style={{ touchAction: 'pan-x' }}>
+        <PromptGeneratorButton variant="button" label="Write it" target={{ kind: 'text', current: positive, apply: (t) => apply({ positive: t }, 'AI prompt') }} />
+        <AiButton label="Improve" icon={<IconWand size={14} />} disabled={!ready || !positive.trim()} title={hint ?? 'Rewrite the prompt richer, same idea'}
+          run={async (signal) => {
+            const text = await expandPromptFragment(positive, 'positive', 'improve', venice, signal);
+            if (!signal.aborted && text.trim()) apply({ positive: text.trim() }, 'Improve');
+          }} />
+        <SaveToMine kind="image" positive={positive} />
+      </div>
     </div>
   );
 }

@@ -20,6 +20,7 @@
  * "Classic workspace" goes back to the old `WorkspaceView` shells.
  */
 import { useEffect, type ReactNode } from 'react';
+import { onApp } from '@/lib/appEvents';
 import { ActionIcon, Stack, Text, Tooltip } from '@mantine/core';
 import { IconLayoutGrid, IconPencil } from '@tabler/icons-react';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
@@ -37,14 +38,13 @@ import { useVideoRun } from '@/features/video/videoRun';
 import { useWorkflowRun } from '@/features/studio/studioRun';
 import { useDesktopLayout } from '@/features/desktop/desktopLayoutStore';
 import { ResultsGrid } from '@/features/desktop/ResultsGrid';
-import { WorkflowSettingsColumn } from '@/features/desktop/SettingsColumn';
-import { WorkflowCreate } from '@/features/workspace/mobileCreate';
 import { useWorkflowLibrary } from '@/features/studio/useWorkflowLibrary';
 import type { ObjectInfo } from '@/lib/workflowGraph';
 import { Stage } from './Stage';
 import { StageBar } from './StageBar';
 import { ImageStep, ImageStepBody } from './ImageStep';
 import { VideoStep, VideoStepBody } from './VideoStep';
+import { WorkflowStep, WorkflowStepBody } from './WorkflowStep';
 import { ImageRunBar, VideoRunBar, WorkflowRunBar } from './RunBars';
 import { useNext } from './nextStore';
 
@@ -105,7 +105,7 @@ function Desktop({ mode, ...hosts }: { mode: WorkspaceMode } & Hosts) {
   );
 }
 
-/** The step's full interface. Workflow keeps the classic section column until its own step lands. */
+/** The step's full interface. */
 function StepPanel({ mode, videoHost, workflowHost, info, infoError }: { mode: WorkspaceMode } & Hosts) {
   if (mode === 'image') return <ImageStep />;
   if (mode === 'video') {
@@ -114,13 +114,7 @@ function StepPanel({ mode, videoHost, workflowHost, info, infoError }: { mode: W
   }
   if (!workflowHost) return <Dead title="No ComfyUI server" body="Add one in Settings, then come back." />;
   if (infoError) return <Dead title="Cannot reach ComfyUI" body={infoError} />;
-  if (!info) return <Dead title="Reading the server…" body="Fetching the node catalogue." />;
-  return (
-    <div className="flex h-full min-h-0 flex-col" aria-label="Workflow step" data-pad-start>
-      <div className="shrink-0 border-b border-border-default p-2.5"><WorkflowRunBar host={workflowHost} info={info} /></div>
-      <WorkflowSettingsColumn host={workflowHost} info={info} />
-    </div>
-  );
+  return <WorkflowStep host={workflowHost} info={info} />;
 }
 
 /** The right column: the image history, or the run store's results grid. The stage renders the viewer. */
@@ -146,6 +140,9 @@ function Mobile({ mode, ...hosts }: { mode: WorkspaceMode } & Hosts) {
   const pane = useNext(s => s.mobilePane);
   const setPane = useNext(s => s.setMobilePane);
   const gallery = pane === 'gallery';
+  // The quick search sends the phone to a tab; the controller's ZL / ZR flip between the step and the gallery.
+  useEffect(() => onApp('mobile-tab', (t) => setPane(t === 'gallery' ? 'gallery' : 'step')), [setPane]);
+  useEffect(() => onApp('pad-tab', () => setPane(useNext.getState().mobilePane === 'gallery' ? 'step' : 'gallery')), [setPane]);
   return (
     <div className="absolute inset-0 flex flex-col bg-bg-base" style={{ overscrollBehavior: 'none', touchAction: 'manipulation' }}>
       <div className="shrink-0 bg-bg-panel" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
@@ -181,7 +178,7 @@ function MobileStep({ mode, videoHost, workflowHost, info, infoError }: { mode: 
   } else {
     if (!workflowHost) return <Dead title="No ComfyUI server" body="Add one in Settings, then come back." />;
     if (infoError) return <Dead title="Cannot reach ComfyUI" body={infoError} />;
-    body = <WorkflowCreate host={workflowHost} library={library} onSwipeToResult={() => {}} />;
+    body = <WorkflowStepBody host={workflowHost} library={library} large />;
     footer = <WorkflowRunBar host={workflowHost} info={info} large />;
   }
   return (

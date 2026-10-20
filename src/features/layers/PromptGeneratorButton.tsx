@@ -23,8 +23,13 @@ import { cn } from '@/lib/cn';
  * Phones (under 48em) get a full-screen window instead: a 340px popover beside a button has no room
  * there, went off the screen, and jumped around while the keyboard opened and closed.
  */
-/** Where the result goes. Default: the image's positive layers. `video`: one prose prompt for the Video panel. */
-export type PromptGeneratorTarget = { kind: 'video'; engine: VideoPromptEngine; current: string; apply: (text: string) => void };
+/**
+ * Where the result goes. Default: the image's positive layers. `video`: one prose prompt for the
+ * Video panel. `text`: one comma-joined prompt string (the Workflow step's shared prompt).
+ */
+export type PromptGeneratorTarget =
+  | { kind: 'video'; engine: VideoPromptEngine; current: string; apply: (text: string) => void }
+  | { kind: 'text'; current: string; apply: (text: string) => void };
 
 export function PromptGeneratorButton({ variant = 'text', target, label = 'Write it' }: { variant?: 'text' | 'icon' | 'button'; target?: PromptGeneratorTarget; label?: string }) {
   const [open, setOpen] = useState(false);
@@ -132,9 +137,18 @@ function PromptGeneratorPopover({ onClose, phone = false, target }: { onClose: (
     abortRef.current = ctrl;
     try {
       const seed = source === 'idea' ? idea : compiledPositive;
-      if (target) {
+      if (target?.kind === 'video') {
         const text = await generateVideoPrompt({ seed, source, engine: target.engine, settings: venice, signal: ctrl.signal });
         if (ctrl.signal.aborted) return;
+        if (!text) { setError('AI returned nothing — try rephrasing.'); return; }
+        target.apply(text);
+        onClose();
+        return;
+      }
+      if (target?.kind === 'text') {
+        const parts = await generateLayerSet({ seed, source, settings: venice, signal: ctrl.signal });
+        if (ctrl.signal.aborted) return;
+        const text = parts.map(p => p.text.trim()).filter(Boolean).join(', ');
         if (!text) { setError('AI returned nothing — try rephrasing.'); return; }
         target.apply(text);
         onClose();
@@ -218,9 +232,11 @@ function PromptGeneratorPopover({ onClose, phone = false, target }: { onClose: (
         )}
 
         <p className="text-[10.5px] leading-snug text-fg-muted">
-          {target
+          {target?.kind === 'video'
             ? <>Replaces the video prompt with one written for {target.engine === 'h3' ? 'MiniMax H3: scene, a timeline, camera, and an "Audio:" line' : 'Wan: scene, motion and camera'}.</>
-            : <>Replaces every <span className="font-semibold text-fg-tertiary">positive</span> layer with a fresh set. Negative layers stay untouched.</>}
+            : target?.kind === 'text'
+              ? <>Replaces the prompt with a fresh one: subject, setting, light, style.</>
+              : <>Replaces every <span className="font-semibold text-fg-tertiary">positive</span> layer with a fresh set. Negative layers stay untouched.</>}
         </p>
 
         {error && (

@@ -13,18 +13,19 @@ import { IconExternalLink, IconPhotoUp, IconRefresh, IconTextCaption } from '@ta
 import { Segmented } from '@/components/blocks/Segmented';
 import { useStore } from '@/lib/store';
 import { civitaiThumbUrl, type CivitaiImage, type NsfwFilter } from '@/lib/civitai';
-import type { PromptKind } from '@/lib/promptMine';
+
 import { aiNotReadyHint, aiReady, generateVideoPrompt } from '@/lib/venice';
 import { loadNsfw, saveNsfw, useCivitaiGallery, useInstalledCivitai } from '@/features/layers/civitaiPrompts';
 import { urlToImageState } from '@/features/inputImage/imageOps';
 import { sendUrlToVideo } from '@/features/video/sendToVideo';
+import { sendToWorkflow } from '@/features/workspace/sendTo';
 import { useVideo } from '@/features/video/videoStore';
-import { usePrompt } from './PromptHub';
+import { promptKindOf, usePrompt, type HubKind } from './PromptHub';
 
 const NSFW: { value: NsfwFilter; label: string }[] = [{ value: 'all', label: 'All' }, { value: 'sfw', label: 'SFW' }, { value: 'nsfw', label: 'NSFW' }];
 
-export function CivitaiLibrary({ kind, large }: { kind: PromptKind; large: boolean }) {
-  const installed = useInstalledCivitai(kind === 'video' ? 'video' : 'image');
+export function CivitaiLibrary({ kind, large }: { kind: HubKind; large: boolean }) {
+  const installed = useInstalledCivitai(promptKindOf(kind));
   const [picked, setPicked] = useState<number | null>(null);
   const [nsfw, setNsfw] = useState<NsfwFilter>(loadNsfw);
   useEffect(() => { saveNsfw(nsfw); }, [nsfw]);
@@ -39,6 +40,7 @@ export function CivitaiLibrary({ kind, large }: { kind: PromptKind; large: boole
 
   const use = async (img: CivitaiImage) => {
     const m = img.meta!;
+    if (kind === 'workflow') { apply({ positive: m.prompt! }, `a CivitAI prompt for ${model?.model ?? 'this model'}`); return; }
     if (kind === 'image') {
       apply({ positive: m.prompt!, negative: m.negativePrompt || undefined }, `a CivitAI prompt for ${model?.model ?? 'this model'}`);
       const patch: Record<string, number | boolean> = {};
@@ -64,6 +66,7 @@ export function CivitaiLibrary({ kind, large }: { kind: PromptKind; large: boole
     setBusyUrl(img.url);
     try {
       if (kind === 'video') { await sendUrlToVideo(url, name, { open: false }); return; }
+      if (kind === 'workflow') { await sendToWorkflow({ url, filename: name, kind: 'image' }); return; }
       const state = await urlToImageState(url, name);
       useStore.getState().setWorkflow({ inputImage: state });
       useStore.getState().setStatus(`Input image set from CivitAI — ${state.width}×${state.height}`, 'ok');

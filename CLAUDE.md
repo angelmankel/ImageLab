@@ -383,8 +383,15 @@ mounts it unless Settings → Workspace → **Classic workspace** is on (`next/n
   `features/video/sections.tsx` (`FastBlock`, `WanStepsFields`, `NagBlock`, `EncodeBlock`…); the
   classic sections are compositions of the same pieces. Under the chips: the recipe presets, the
   sweep (folded, open while one runs) and the reset row.
-- **Workflow step** still shows the classic section column / phone list inside the new shell
-  until its own step lands (Phase 3).
+- **Workflow step** (`next/WorkflowStep.tsx`): the open workflow as a chip (its editor is the
+  picker, Refresh, Focus mode, Open ComfyUI), the prompt hub in `kind: 'workflow'` (Write = the
+  studio `PromptPanel` — keywords, the shared prompt, "Sent to" — with "Write it" through the
+  generator's `text` target and Improve; Library and Mine are the image ones, writing the shared
+  prompt with Undo), then every widget as a chip: Pinned first, then one row per node, each
+  editor the classic `ParamField` / `ImageInput` with the pin inside; `formatParamValue`
+  (`lib/chips.ts`) reads the value. No Simple / Advanced anywhere in the new shell; the quick
+  search's "show section" filters the Image chips to that row, and its phone tab events switch
+  the step / gallery pane.
 
 ## Desktop layout
 

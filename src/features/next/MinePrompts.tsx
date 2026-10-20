@@ -18,15 +18,16 @@ import { aiNotReadyHint, aiReady, generatePromptSet } from '@/lib/venice';
 import { AiModelPicker } from '@/features/ai/AiModelPicker';
 import { useVideo } from '@/features/video/videoStore';
 import { useMine } from './mineStore';
-import { usePrompt } from './PromptHub';
+import { promptKindOf, usePrompt, type HubKind } from './PromptHub';
 
-export function MinePrompts({ kind, large }: { kind: PromptKind; large: boolean }) {
+export function MinePrompts({ kind: hub, large }: { kind: HubKind; large: boolean }) {
+  const kind = promptKindOf(hub);
   const items = useMine(s => s.items);
   const remove = useMine(s => s.remove);
   const restore = useMine(s => s.restore);
   const [query, setQuery] = useState('');
   const [startersOpen, setStartersOpen] = useState(false);
-  const apply = usePrompt(kind);
+  const apply = usePrompt(hub);
   const mine = useMemo(() => filterMine(items, kind, query), [items, kind, query]);
 
   const del = (p: MinePrompt) => {
@@ -57,16 +58,16 @@ export function MinePrompts({ kind, large }: { kind: PromptKind; large: boolean 
           </div>
         ))}
       </div>
-      {kind === 'image' && <Starters open={startersOpen} onToggle={() => setStartersOpen(v => !v)} query={query} />}
+      {kind === 'image' && <Starters hub={hub} open={startersOpen} onToggle={() => setStartersOpen(v => !v)} query={query} />}
     </div>
   );
 }
 
 /** The built-in presets, with the model family's quality tags in front. */
-function Starters({ open, onToggle, query }: { open: boolean; onToggle: () => void; query: string }) {
+function Starters({ hub, open, onToggle, query }: { hub: HubKind; open: boolean; onToggle: () => void; query: string }) {
   const checkpoint = useStore(s => s.workflow.checkpoints[0]?.name);
   const typeHasTags = useStore(s => !!profileById(s.workflow.modelProfile)?.tags.length);
-  const apply = usePrompt('image');
+  const apply = usePrompt(hub);
   const fam = familyForCheckpoint(checkpoint, typeHasTags);
   const q = query.trim().toLowerCase();
   const visible = PROMPT_PRESETS.filter(p => !q || `${p.name} ${p.category} ${p.positive}`.toLowerCase().includes(q));

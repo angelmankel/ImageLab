@@ -86,3 +86,15 @@ test('changed values fill the chip', () => {
   assert.deepEqual({ ...v.vae }, { value: 'x', changed: true });
   assert.deepEqual({ ...v.quality }, { value: '3/5', changed: true });
 });
+
+test('formatParamValue reads widgets the way a chip does', () => {
+  assert.equal(c.formatParamValue({ type: 'INT' }, 30), '30');
+  assert.equal(c.formatParamValue({ type: 'FLOAT' }, 7.5), '7.5');
+  assert.equal(c.formatParamValue({ type: 'INT', seedLike: true }, 123456789012345), '123456789012345');
+  assert.equal(c.formatParamValue({ type: 'BOOLEAN' }, true), 'on');
+  assert.equal(c.formatParamValue({ type: 'BOOLEAN' }, false), 'off');
+  assert.equal(c.formatParamValue({ type: 'COMBO' }, 'models/sub/ponyDiffusionV6XL.safetensors'), 'ponyDiffusionV6XL');
+  assert.equal(c.formatParamValue({ type: 'STRING' }, 'a very long prompt that goes on and on and on'), 'a very long prompt that…');
+  assert.equal(c.formatParamValue({ type: 'STRING' }, ''), '—');
+  assert.equal(c.formatParamValue({ type: 'STRING' }, null), '—');
+});

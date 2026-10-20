@@ -126,3 +126,13 @@ export function imageChipValues(
     passes: { value: w.passCount ? String(w.passCount) : 'none', changed: w.passCount > 0 },
   };
 }
+
+/** A ComfyUI widget's value as a chip reads it: numbers plain, booleans on / off, text shortened. */
+export function formatParamValue(p: { type: string; seedLike?: boolean }, value: unknown, max = 24): string {
+  if (value == null || value === '') return '—';
+  if (p.type === 'BOOLEAN') return value ? 'on' : 'off';
+  if (typeof value === 'number') return p.seedLike ? String(value) : fmtNum(value, 4);
+  const s = String(value).replace(/\s+/g, ' ').trim();
+  const base = p.type === 'COMBO' ? s.replace(/^.*[\\/]/, '').replace(/\.(safetensors|ckpt|pt|pth|bin|sft|gguf|png|jpe?g|webp)$/i, '') : s;
+  return base.length > max ? `${base.slice(0, max - 1)}…` : base || '—';
+}

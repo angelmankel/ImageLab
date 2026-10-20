@@ -6,7 +6,7 @@
  * `features/inputImage`, `features/controls`), so nothing is lost and nothing is duplicated.
  * The search box on top finds a chip by name across the rows.
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Text, TextInput } from '@mantine/core';
 import { IconSearch } from '@tabler/icons-react';
 import { DimensionsField, SelectField, SliderField } from '@/components/fields';
@@ -24,6 +24,7 @@ import { EnhancementSettings, DENOISE_ENDS } from '@/features/controls/Generatio
 import { PipelinePanel } from '@/features/controls/PipelinePanel';
 import { PanelToolbar } from '@/features/controls/PanelToolbar';
 import { InputImageSection } from '@/features/inputImage';
+import { usePanelTabs } from '@/features/panel/panelTabsStore';
 import { Chip, ChipPopover, ChipRow, type ChipPreset } from './ChipPopover';
 
 interface Def { id: ImageChipId; row: string; label: string; keywords: string[] }
@@ -47,6 +48,8 @@ const DEFS: Def[] = [
   { id: 'passes', row: 'Passes', label: 'Passes', keywords: ['upscale', 'resize', 'remove background', 'refine', 'pipeline', 'post'] },
 ];
 const ROWS = ['Model', 'Size', 'Quality', 'Input', 'Passes'];
+/** The quick search's "show section" (a classic section id) → the row it lives in here. */
+const SECTION_ROW: Record<string, string> = { prompts: '', models: 'Model', parameters: 'Quality', composition: 'Size', enhancement: 'Loopback', input: 'Input', passes: 'Passes' };
 
 const STEP_PRESETS = [8, 12, 20, 30, 40];
 const CFG_PRESETS = [1, 3, 5, 7, 9];
@@ -68,6 +71,10 @@ export function ImageChips({ large = false }: { large?: boolean }) {
   const { profile } = useModelProfile();
   const [query, setQuery] = useState('');
   const [tagsOpen, setTagsOpen] = useState(false);
+  // The quick search asked for a section: filter the chips down to its row.
+  const reveal = usePanelTabs(s => s.reveal);
+  const clearReveal = usePanelTabs(s => s.clearReveal);
+  useEffect(() => { if (reveal) { setQuery(SECTION_ROW[reveal] ?? ''); clearReveal(); } }, [reveal, clearReveal]);
 
   const defaults = useMemo(() => ({ ...defaultWorkflow(), ...(profile?.defaults ?? {}) }), [profile]);
   const quality = useMemo(() => {
