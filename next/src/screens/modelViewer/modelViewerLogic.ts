@@ -200,6 +200,26 @@ export function clampIndex(i: number, len: number): number {
   return Math.min(Math.max(0, Math.floor(i)), len - 1);
 }
 
+// ── preloading ─────────────────────────────────────────────────────────────
+
+/**
+ * The indices to keep decoded around `index`, nearest first: the current one, then +1, −1, +2,
+ * −2 … out to `radius`, only those inside `[0, length)`.
+ */
+export function neighbourOrder(index: number, length: number, radius = 2): number[] {
+  const out: number[] = [];
+  const push = (i: number) => { if (i >= 0 && i < length && !out.includes(i)) out.push(i); };
+  push(index);
+  for (let d = 1; d <= radius; d++) { push(index + d); push(index - d); }
+  return out;
+}
+
+/** Is `index` within `within` of the last item, so the next page should load now? */
+export function nearEnd(index: number, length: number, within = 3): boolean {
+  if (length <= 0) return false;
+  return index >= length - 1 - within;
+}
+
 // ── licence chips ──────────────────────────────────────────────────────────
 
 export interface LicenceChip { label: string; ok?: boolean; tone?: 'ember' | 'muted' }

@@ -5,13 +5,36 @@
  * area). On desktop the ‹ › buttons sit in their own narrow columns beside the picture.
  */
 import { IconChevronLeft, IconChevronRight, IconEyeOff } from '@tabler/icons-react';
-import type { CSSProperties } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import type { CivitaiImage } from '@/lib/civitai';
 import { civitaiThumbUrl, civitaiVideoUrl, isCivitaiVideo, previewStill } from '@/lib/civitai';
 import { IconBtn } from '~/ui';
+import { whenReady } from './preload';
 
 export const PICTURE_WIDTH = 1600;
 export const EDGE_COL = 44;
+/** How long a page swap waits for the new picture to decode before showing it anyway. */
+const SWAP_CAP_MS = 150;
+
+/** The URL `Picture` shows for a sample (the preload hook warms exactly this one). */
+export function pictureUrl(img: CivitaiImage): string {
+  return civitaiThumbUrl(previewStill(img, PICTURE_WIDTH), PICTURE_WIDTH);
+}
+
+/**
+ * The `<img src>` is swapped only once the new picture is decoded (a preloaded neighbour is
+ * already), else after `SWAP_CAP_MS` — so paging never flashes blank and never waits either.
+ */
+function useSwapWhenDecoded(url: string): string {
+  const [shown, setShown] = useState(url);
+  useEffect(() => {
+    if (!url) { setShown(''); return; }
+    let live = true;
+    void whenReady(url, SWAP_CAP_MS).then(() => { if (live) setShown(url); });
+    return () => { live = false; };
+  }, [url]);
+  return shown;
+}
 
 export function Picture({ image, hidden, onReveal, loading, empty, edges, canPrev, canNext, onPrev, onNext, style }: {
   image: CivitaiImage | undefined; hidden: boolean; onReveal: () => void; loading: boolean;
@@ -20,7 +43,10 @@ export function Picture({ image, hidden, onReveal, loading, empty, edges, canPre
   edges: boolean; canPrev: boolean; canNext: boolean; onPrev: () => void; onNext: () => void; style?: CSSProperties;
 }) {
   const media: CSSProperties = { width: '100%', height: '100%', objectFit: 'contain', display: 'block' };
-  const url = image ? civitaiThumbUrl(previewStill(image, PICTURE_WIDTH), PICTURE_WIDTH) : '';
+  const video = !!image && isCivitaiVideo(image);
+  const url = image ? pictureUrl(image) : '';
+  // Clips swap at once (the <video> element is its own); stills wait for their decode (capped).
+  const shown = useSwapWhenDecoded(video || hidden ? '' : url) || url;
 
   const body = !image ? (
     <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--il-muted)' }}>{loading ? 'Loading samples…' : empty}</span>
@@ -28,10 +54,10 @@ export function Picture({ image, hidden, onReveal, loading, empty, edges, canPre
     <button type="button" onClick={onReveal} style={{ height: 32, padding: '0 14px', border: '1px solid var(--il-line-strong)', borderRadius: 999, background: 'var(--il-elev)', color: 'var(--il-fg)', fontSize: 11, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
       <IconEyeOff size={13} stroke={2.2} />NSFW · tap to show
     </button>
-  ) : isCivitaiVideo(image) ? (
+  ) : video ? (
     <video key={image.url} src={civitaiVideoUrl(image.url, PICTURE_WIDTH)} poster={url} muted loop autoPlay playsInline style={media} />
   ) : (
-    <img key={image.url} src={url} alt="" decoding="async" style={media} />
+    <img src={shown} alt="" decoding="async" style={media} />
   );
 
   const area = (

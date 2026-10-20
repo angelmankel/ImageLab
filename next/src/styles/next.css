@@ -49,6 +49,10 @@ a { color: var(--il-ember); } a:hover { color: var(--il-ember-hi); }
   -webkit-backdrop-filter: var(--il-blur);
   border: 1px solid rgba(255, 255, 255, .08);
 }
+/* Under an open fullscreen viewer (`<html data-viewer-open>`, set by the viewer) the glass drops
+   its blur: a backdrop blur is re-rendered every frame the compositor draws, and the viewer's
+   open animation needs that budget — the dock is behind the backdrop anyway. */
+html[data-viewer-open] .il-glass { backdrop-filter: none; -webkit-backdrop-filter: none; background: rgba(20, 20, 22, .92); }
 
 /* Focus ring (keyboard only). */
 :focus-visible { outline: 2px solid var(--il-ember); outline-offset: 2px; border-radius: 6px; }

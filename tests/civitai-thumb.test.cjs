@@ -13,6 +13,8 @@ const B = 'https://image.civitai.com/xG1nk/cbce1b3e';
 test('a video gets a still first-frame JPEG, not the .mp4', () => {
   assert.equal(civitaiThumbUrl(`${B}/original=true/94317504.mp4`, 450), `${B}/anim=false,transcode=true,width=450/94317504.jpeg`);
   assert.equal(civitaiThumbUrl(`${B}/original=true/1.jpeg`, 450, { video: true }), `${B}/anim=false,transcode=true,width=450/1.jpeg`);
+  // a second pass over a video still keeps the transcode flags (the tiles call thumb(previewStill(x)))
+  assert.equal(civitaiThumbUrl(`${B}/anim=false,transcode=true,width=512/94317504.jpeg`, 450), `${B}/anim=false,transcode=true,width=450/94317504.jpeg`);
   assert.ok(isCivitaiVideo({ url: 'x.jpeg', type: 'video' }));
   assert.ok(!isCivitaiVideo({ url: 'x.jpeg', type: 'image' }));
 });

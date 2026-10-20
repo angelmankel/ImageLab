@@ -110,3 +110,24 @@ test('licenceChips: the same facts as the detail head', () => {
   const plain = L.licenceChips({ allowCommercialUse: [], allowNoCredit: true, allowDerivatives: true, allowDifferentLicense: true }, false);
   assert.deepEqual(plain.map((c) => c.label), ['Commercial', 'Rent', 'Sell', 'No credit needed', 'Derivatives']);
 });
+
+test('neighbourOrder: current first, then +1, −1, +2, −2, clipped to the list', () => {
+  assert.deepEqual(L.neighbourOrder(5, 20), [5, 6, 4, 7, 3]);
+  assert.deepEqual(L.neighbourOrder(0, 20), [0, 1, 2]);
+  assert.deepEqual(L.neighbourOrder(19, 20), [19, 18, 17]);
+  assert.deepEqual(L.neighbourOrder(1, 3), [1, 2, 0]);
+  assert.deepEqual(L.neighbourOrder(0, 1), [0]);
+  assert.deepEqual(L.neighbourOrder(0, 0), []);
+  assert.deepEqual(L.neighbourOrder(3, 10, 1), [3, 4, 2]);
+});
+
+test('nearEnd: within 3 of the last item, never on an empty list', () => {
+  assert.equal(L.nearEnd(0, 20), false);
+  assert.equal(L.nearEnd(15, 20), false);
+  assert.equal(L.nearEnd(16, 20), true);
+  assert.equal(L.nearEnd(19, 20), true);
+  assert.equal(L.nearEnd(0, 2), true);
+  assert.equal(L.nearEnd(0, 0), false);
+  assert.equal(L.nearEnd(5, 10, 1), false);
+  assert.equal(L.nearEnd(8, 10, 1), true);
+});

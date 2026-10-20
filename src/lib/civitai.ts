@@ -145,8 +145,11 @@ export function civitaiThumbUrl(url: string, width: number, opts: { video?: bool
   const w = Math.max(64, Math.round(width));
   const m = url.match(/^(https?:\/\/[^/]+\/[^/]+\/[^/]+)\/(?:([^/?#]*=[^/?#]*)\/)?([^/?#]+)(\?.*)?$/);
   if (!m) return url;
-  const [, prefix, , file, query = ''] = m;
-  if (opts.video || isCivitaiVideo({ url })) {
+  const [, prefix, options = '', file, query = ''] = m;
+  // Already a still of a video (`anim=false,transcode=true,…/x.jpeg`): keep those flags, only the
+  // width changes. Without `transcode=true` the CDN answers a `.jpeg` name with the MP4 itself,
+  // which an <img> cannot show — that was every dead tile for a model whose first sample is a clip.
+  if (opts.video || isCivitaiVideo({ url }) || /(^|,)transcode=true(,|$)/.test(options)) {
     return `${prefix}/anim=false,transcode=true,width=${w}/${file.replace(/\.[^.]+$/, '')}.jpeg${query}`;
   }
   return `${prefix}/width=${w}/${file}${query}`;

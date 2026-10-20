@@ -1,7 +1,8 @@
 /**
  * Rule 1 + 7: the stage. The toolbar is its own 52px row; the picture gets the rest, centred,
- * `object-fit: contain`, nothing over it. Pan and zoom (`useStageZoom`), a click opens the
- * fullscreen viewer: the original ImageLab viewer with the history pager for images
+ * `object-fit: contain`, nothing over it. Pan and zoom (`useStageZoom`: wheel, trackpad pinch,
+ * two-finger pinch, drag), a click or tap that did not move opens the fullscreen viewer: the
+ * original ImageLab viewer with the history pager for images
  * (`FullscreenViewer`), `FullscreenImage` for video / workflow results. The live preview replaces
  * the picture while this step's job runs; its progress is a thin line under the toolbar row.
  */
@@ -32,7 +33,7 @@ export function StageColumn({ step, phone = false }: { step: Step; phone?: boole
     if (media.source === 'image') { if (history.length || media.live) openViewer(); return; }
     if (media.item) setRunFull(media.index); else if (media.live) setRunFull('live');
   };
-  const zoom = useStageZoom(ref, shown, isVideo ? undefined : open);
+  const zoom = useStageZoom(ref, shown, isVideo ? undefined : open, !isVideo);
   const canOpen = !!media.item || !!media.live;
 
   const noOverlay = () => !viewerOpen && runFull === null;
@@ -53,7 +54,7 @@ export function StageColumn({ step, phone = false }: { step: Step; phone?: boole
         )}
       </div>
       <div ref={ref} {...(isVideo ? {} : zoom.handlers)} aria-label="Stage"
-        style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--il-bg-deep)', overflow: 'hidden', touchAction: 'none', cursor: zoom.state.zoom > 1 ? 'grab' : shown ? 'zoom-in' : 'default', position: 'relative', userSelect: 'none' }}>
+        style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--il-bg-deep)', overflow: 'hidden', touchAction: shown && !isVideo ? 'none' : 'auto', cursor: zoom.state.zoom > 1 ? 'grab' : shown ? 'zoom-in' : 'default', position: 'relative', userSelect: 'none' }}>
         {shown ? (
           isVideo ? (
             <video key={shown} src={shown} controls playsInline loop style={{ maxWidth: '100%', maxHeight: '100%', display: 'block', outline: 'none' }} />
@@ -71,7 +72,7 @@ export function StageColumn({ step, phone = false }: { step: Step; phone?: boole
         )}
       </div>
       {viewerOpen && media.source === 'image' && (history.length > 0 || !!media.live) && (
-        <FullscreenViewer list={history} index={viewerIndex} onIndexChange={(i) => { const e = history[i]; if (e) select(e); }} onClose={closeViewer} />
+        <FullscreenViewer list={history} index={viewerIndex} onIndexChange={(i) => { const e = history[i]; if (e) select(e); }} onClose={closeViewer} instantClose />
       )}
       {runFull !== null && (
         <FullscreenImage
@@ -80,6 +81,7 @@ export function StageColumn({ step, phone = false }: { step: Step; phone?: boole
           liveUrl={runFull === 'live' ? media.live : null}
           onIndexChange={(i) => { setRunFull(i); media.pick(i); }}
           onClose={() => setRunFull(null)}
+          instantClose
           pageCaption={runFull === 'live' ? 'Live preview' : media.items[runFull]?.filename}
         />
       )}

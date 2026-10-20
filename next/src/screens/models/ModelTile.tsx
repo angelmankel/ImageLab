@@ -6,6 +6,7 @@
  * fullscreen model viewer; a tap on the name / body opens the detail panel. An adult cover
  * (beyond the NSFW level) stays hidden until tapped.
  */
+import { useEffect, useState } from 'react';
 import { IconCheck, IconEyeOff, IconHeartFilled, IconPlus } from '@tabler/icons-react';
 import type { CivitaiModel } from '@/lib/civitai';
 import { civitaiThumbUrl, previewStill } from '@/lib/civitai';
@@ -31,6 +32,9 @@ export function ModelTile({ model, selected, installed, mask, revealed, favourit
 }) {
   const phone = size === 'phone';
   const { version, image, imageIndex } = coverImage(model, null, mask);
+  // A cover whose link is dead falls back to the plain card colour instead of a broken-image icon.
+  const [broken, setBroken] = useState(false);
+  useEffect(() => setBroken(false), [image?.url]);
   const hidden = !!image && isBeyondMask(image.nsfwLevel, mask) && !revealed;
   const url = image ? civitaiThumbUrl(previewStill(image, TILE_THUMB), TILE_THUMB) : '';
   const versions = model.modelVersions.length;
@@ -77,7 +81,7 @@ export function ModelTile({ model, selected, installed, mask, revealed, favourit
           background: hidden || !url ? (hidden ? 'var(--il-elev)' : COVER_FALLBACK) : 'var(--il-bg-deep)', overflow: 'hidden', cursor: 'pointer', color: 'var(--il-muted)',
         }}
       >
-        {!hidden && url && <img src={url} alt="" loading="lazy" decoding="async" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
+        {!hidden && url && !broken && <img src={url} alt="" loading="lazy" decoding="async" onError={() => setBroken(true)} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
         {hidden && (
           <span style={{ height: 26, padding: '0 10px', border: '1px solid var(--il-line-strong)', borderRadius: 999, fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6 }}>
             <IconEyeOff size={12} stroke={2.2} />NSFW · tap to show

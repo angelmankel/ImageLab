@@ -84,7 +84,7 @@ function ImageOutput({ step, index }: { step: Step; index: number }) {
       liked={!!current?.liked}
       onLike={current ? () => toggleLiked(current.id) : undefined}
       viewer={viewerOpen && (history.length > 0 || !!liveFrame) ? (
-        <FullscreenViewer list={history} index={viewerIndex} onIndexChange={(i) => { const e = history[i]; if (e) select(e); }} onClose={closeViewer} />
+        <FullscreenViewer list={history} index={viewerIndex} onIndexChange={(i) => { const e = history[i]; if (e) select(e); }} onClose={closeViewer} instantClose />
       ) : null}
     />
   );
@@ -142,6 +142,7 @@ function RunOutput({ mode, step, index }: { mode: 'video' | 'workflow'; step: St
           liveUrl={full === 'live' ? preview : null}
           onIndexChange={(n) => { setFull(n); setPicked(items[n]?.key ?? null); }}
           onClose={() => setFull(null)}
+          instantClose
           pageCaption={full === 'live' ? 'Live preview' : items[full]?.filename}
         />
       ) : null}

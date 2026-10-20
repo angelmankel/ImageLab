@@ -1,6 +1,6 @@
 /**
- * Rule 9: ember logo + "ImageLab", session name ▾, status pill ("This pod · B200"), "Queue 2 · ↓ 1".
- * Nothing else. The queue pill opens the queue list (rule 15); the session menu is the named set
+ * Rule 9: ember logo + "ImageLab", session name ▾, then on the right: clock, keyboard shortcuts,
+ * fullscreen, status pill ("This pod · B200"), "Queue 2 · ↓ 1". Nothing else. The queue pill opens the queue list (rule 15); the session menu is the named set
  * of steps (one session for now: the current one).
  */
 import { useState } from 'react';
@@ -17,6 +17,9 @@ import { Pill, Count, Dot } from '~/ui';
 import { T } from '~/theme/tokens';
 import { QueueList } from './QueueList';
 import { useGpuName } from './useGpuName';
+import { Clock } from './topbar/Clock';
+import { ShortcutsCard } from './topbar/ShortcutsCard';
+import { FullscreenBtn } from './topbar/FullscreenBtn';
 
 export function Logo({ size = 32 }: { size?: number }) {
   return (
@@ -108,6 +111,9 @@ export function TopBar() {
       </div>
       <SessionMenu />
       <div style={{ flex: 1 }} />
+      <Clock />
+      <ShortcutsCard />
+      <FullscreenBtn />
       <StatusPill />
       <QueuePill />
     </div>

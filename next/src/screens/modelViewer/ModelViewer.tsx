@@ -11,8 +11,9 @@
  *   │ thumb strip 84                           │ a │  │ sections … (scroll)  │
  *   └──────────────────────────────────────────┴───┘  └ ‹ Back pill ─────────┘
  */
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CivitaiImage } from '@/lib/civitai';
+import { isCivitaiVideo } from '@/lib/civitai';
 import { useIsPhone } from '~/app/useIsPhone';
 import { BackPill } from '~/ui';
 import { useModels } from '~/screens/models/modelsStore';
@@ -21,8 +22,10 @@ import { useModelViewer } from './viewerStore';
 import { useViewerModel } from './useViewerModel';
 import { useViewerKeys } from './useViewerKeys';
 import { useHorizontalSwipe } from './useHorizontalSwipe';
+import { nearEnd } from './modelViewerLogic';
+import { usePreloadAround } from './preload';
 import { TopRow } from './TopRow';
-import { Picture } from './Picture';
+import { Picture, pictureUrl } from './Picture';
 import { ThumbStrip } from './ThumbStrip';
 import { MetaColumn } from './MetaColumn';
 
@@ -53,6 +56,13 @@ export function ModelViewer() {
   }, [index, images.length, gallery, setImage]);
   const keys = useMemo(() => ({ close, prev, next }), [close, prev, next]);
   useViewerKeys(true, keys);
+
+  // Warm the pictures around the shown one (not the hidden ones, not the clips), and fetch the
+  // next gallery page a few images before the end so the strip never stalls.
+  const urls = useMemo(() => images.map((img) => (isCivitaiVideo(img) || isHidden(img) ? '' : pictureUrl(img))), [images, isHidden]);
+  usePreloadAround(urls, index);
+  const { hasMore, loadMore } = gallery;
+  useEffect(() => { if (hasMore && nearEnd(index, images.length)) void loadMore(); }, [hasMore, loadMore, index, images.length]);
 
   const pictureRef = useRef<HTMLDivElement>(null);
   useHorizontalSwipe(pictureRef, { enabled: phone, onLeft: next, onRight: prev });

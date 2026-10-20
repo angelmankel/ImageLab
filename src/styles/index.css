@@ -177,6 +177,12 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   animation: view-loading-sweep 900ms ease-in-out infinite;
 }
 
+/* The fullscreen viewer's chrome (buttons, badges, the info panel) mounts after the picture has
+   landed and fades in; no fill mode, so the pull-down's inline opacity owns it afterwards. */
+@keyframes viewer-chrome-in { from { opacity: 0; } }
+.viewer-chrome-in { animation: viewer-chrome-in 160ms ease-out; }
+@media (prefers-reduced-motion: reduce) { .viewer-chrome-in { animation-duration: 80ms; } }
+
 /* Slideshow transitions — applied to the FullscreenImage viewer when the
    slideshow is playing. Each pair runs in parallel on the outgoing /
    incoming image stacks so they cross-blend smoothly. */

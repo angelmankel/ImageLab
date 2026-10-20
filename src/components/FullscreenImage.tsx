@@ -22,7 +22,7 @@ import {
 } from '@/lib/storage';
 import { cn } from '@/lib/cn';
 import { playOrMute, videoHasAudio } from '@/lib/videoAudio';
-import { CLOSE_MS, EASE_OUT, animateClose, animateOpen, reducedMotion, registerViewer } from './viewerTransition';
+import { CLOSE_MS, EASE_OUT, OPEN_MS, animateClose, animateOpen, reducedMotion, registerViewer } from './viewerTransition';
 
 /**
  * Generic, reusable fullscreen image viewer.
@@ -79,7 +79,17 @@ type Props = {
   liveUrl?: string | null;
   /** Extra controls at the start of the top-right cluster. */
   toolbarExtra?: ReactNode;
+  /**
+   * Close on the spot: the picture and chrome vanish on the frame the close is asked for, the
+   * backdrop fades under 100 ms, then `onClose`. No shrink-back into the thumbnail, and a single
+   * tap closes at once — no double-tap window, so no double-tap zoom (pinch and wheel remain).
+   * The next UI. Off, the close is the shared-element transition and a tap waits out the window.
+   */
+  instantClose?: boolean;
 };
+
+/** The instant close's backdrop fade. */
+const INSTANT_CLOSE_MS = 80;
 
 const DEFAULT_SLIDESHOW_MS = 3000;
 
@@ -91,6 +101,7 @@ const DEFAULT_SLIDESHOW_MS = 3000;
 const IMAGE_BOX = 'block h-[100dvh] w-screen select-none object-contain';
 
 const SIDES = [-1, 0, 1] as const;
+const NO_URLS: readonly string[] = [];
 
 export function FullscreenImage({
   items,
@@ -105,6 +116,7 @@ export function FullscreenImage({
   pageCaption,
   liveUrl,
   toolbarExtra,
+  instantClose = false,
 }: Props) {
   const item = items[index];
   const live = !!liveUrl;
@@ -130,6 +142,12 @@ export function FullscreenImage({
   const pullRef = useRef<HTMLDivElement>(null);
   const naturalRef = useRef<{ w: number; h: number } | null>(null);
   const closing = useRef(false);
+  // The open frame carries the backdrop and one picture, nothing else: the chrome (Mantine
+  // buttons, tooltips, the info panel), the neighbour slides and the off-screen preloads all
+  // wait until the picture has landed, so nothing competes with it for the main thread or the
+  // image decoders. `settled` flips when the open transition resolves.
+  const [settled, setSettled] = useState(false);
+  const settledRef = useRef(false);
 
   // Slideshow transition (persisted). The chosen effect only applies when `playing === true`;
   // manual prev/next slides on the pager instead.
@@ -157,13 +175,14 @@ export function FullscreenImage({
   }, [url, playing, transition]);
 
   const len = items.length;
-  // Phones: prev/next sit low where a thumb reaches.
-  const narrow = useMediaQuery('(max-width: 48em)') ?? false;
+  // Phones: prev/next sit low where a thumb reaches. Read at once, not in an effect: an effect
+  // would re-render the whole viewer a frame into its open.
+  const narrow = useMediaQuery('(max-width: 48em)', false, { getInitialValueInEffect: false });
   const canPage = len > 1 && !live;
 
   const keys = items.map(i => i.key);
   const pager = usePager({ keys, index, onIndexChange, enabled: canPage, animate: !playing });
-  usePreloadAround(items.map(i => i.url), index);
+  usePreloadAround(settled ? items.map(i => i.url) : NO_URLS, index);
 
   // Buttons and keys wrap around; the slide always goes the way that was asked.
   const prev = () => { if (canPage) pager.goTo(index > 0 ? index - 1 : len - 1, -1); };
@@ -180,9 +199,14 @@ export function FullscreenImage({
     const pull = pullRef.current;
     const fromBackdrop = backdropRef.current ? Number(getComputedStyle(backdropRef.current).opacity) || 1 : 1;
     const done = () => onCloseRef.current();
-    if (!slide || !item || live) {
-      // Nothing to shrink (a live frame, or no item): a quick fade.
-      if (backdropRef.current) backdropRef.current.animate([{ opacity: fromBackdrop }, { opacity: 0 }], { duration: 150, fill: 'forwards' }).finished.then(done, done);
+    // Still held for its decode (inline opacity 0): nothing is on screen to shrink, so fade.
+    if (instantClose || !slide || !item || live || slide.style.opacity === '0') {
+      // On the spot: everything but the backdrop is gone this frame (no measuring, no FLIP), the
+      // backdrop fades briefly, and only then does the owner unmount the tree — the teardown
+      // never lands on the frame the close was asked for.
+      if (root) for (const child of Array.from(root.children)) if (child !== backdropRef.current) (child as HTMLElement).style.visibility = 'hidden';
+      const ms = instantClose ? INSTANT_CLOSE_MS : 150;
+      if (backdropRef.current) backdropRef.current.animate([{ opacity: fromBackdrop }, { opacity: 0 }], { duration: ms, easing: 'ease-out', fill: 'forwards' }).finished.then(done, done);
       else done();
       return;
     }
@@ -190,18 +214,27 @@ export function FullscreenImage({
       pull.animate([{ transform: pull.style.transform }, { transform: 'none' }], { duration: reducedMotion() ? 100 : CLOSE_MS, easing: EASE_OUT, fill: 'forwards' });
     }
     animateClose(slide, backdropRef.current, chrome, item.key, naturalRef.current, 'none', fromBackdrop).then(done, done);
-  }, [item, live]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [item, live, instantClose]); // eslint-disable-line react-hooks/exhaustive-deps
   const onCloseRef = useRef(onClose); onCloseRef.current = onClose;
 
-  // Open: grow out of whatever shows this result on the page, with the chrome fading in after.
+  // Open: grow out of whatever shows this result on the page once its bitmap is decoded; the
+  // chrome mounts (and fades in) after the picture has landed.
   useLayoutEffect(() => {
+    let alive = true;
+    const settle = () => {
+      if (!alive || settledRef.current) return;
+      settledRef.current = true;
+      setSettled(true);
+      if (naturalRef.current) setSize(naturalRef.current);
+    };
     const slide = slideRef.current;
-    const chrome = [topBarRef.current, navRef.current].filter((c): c is HTMLDivElement => !!c);
     if (!slide || !item || live) {
-      backdropRef.current?.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200, easing: 'ease-out' });
+      backdropRef.current?.animate([{ opacity: 0 }, { opacity: 1 }], { duration: OPEN_MS, easing: 'ease-out' });
+      settle();
       return;
     }
-    void animateOpen(slide, backdropRef.current, chrome, item.key, null);
+    void animateOpen(slide, backdropRef.current, [], item.key, null, { decode: true, cancelled: () => closing.current }).then(settle);
+    return () => { alive = false; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // The controller (and anything else) drives the same animations.
@@ -270,6 +303,8 @@ export function FullscreenImage({
     resetKey: item?.key ?? index,
     onTap: close,
     onDrag,
+    // Instant close means instant on a tap too: no double-tap window (so no double-tap zoom).
+    instantTap: instantClose,
   });
 
   useEffect(() => { setSize(null); }, [item?.key, index]);
@@ -299,7 +334,7 @@ export function FullscreenImage({
   /** The item drawn on a side: the one leaving (ghost) while a slide runs, else the neighbour. */
   const slideItem = (side: -1 | 0 | 1): FullscreenItem | undefined => {
     if (side === 0) return item;
-    if (live) return undefined;
+    if (live || !settled) return undefined;
     if (pager.ghost?.side === side) return items.find(i => i.key === pager.ghost!.key);
     return items[index + side];
   };
@@ -353,12 +388,12 @@ export function FullscreenImage({
                     {isVideoUrl(u) ? (
                       <video
                         key={u} src={u} autoPlay muted={!videoHasAudio(u)} loop playsInline className={IMAGE_BOX} style={panStyle}
-                        onLoadedMetadata={(e) => { const n = { w: e.currentTarget.videoWidth, h: e.currentTarget.videoHeight }; naturalRef.current = n; setSize(n); playOrMute(e.currentTarget); }}
+                        onLoadedMetadata={(e) => { const n = { w: e.currentTarget.videoWidth, h: e.currentTarget.videoHeight }; naturalRef.current = n; if (settledRef.current) setSize(n); playOrMute(e.currentTarget); }}
                       />
                     ) : (
                       <img
                         src={u} alt="" draggable={false} className={IMAGE_BOX} style={panStyle}
-                        onLoad={(e) => { const n = { w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight }; naturalRef.current = n; setSize(n); }}
+                        onLoad={(e) => { const n = { w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight }; naturalRef.current = n; if (settledRef.current) setSize(n); }}
                       />
                     )}
                   </KenBurnsWrap>
@@ -385,8 +420,8 @@ export function FullscreenImage({
       )}
 
       {/* Prev / next — hidden while the slideshow plays, as in v1. */}
-      {canPage && !playing && (
-        <div ref={navRef} className="pointer-events-none absolute inset-0 z-10">
+      {settled && canPage && !playing && (
+        <div ref={navRef} className="viewer-chrome-in pointer-events-none absolute inset-0 z-10">
           <ActionIcon
             {...chrome}
             size={narrow ? 56 : 'xl'}
@@ -412,7 +447,7 @@ export function FullscreenImage({
         </div>
       )}
 
-      {infoSlot && (
+      {settled && infoSlot && (
         <div
           onClick={(e) => e.stopPropagation()}
           onPointerDown={(e) => e.stopPropagation()}
@@ -424,7 +459,7 @@ export function FullscreenImage({
             // On a phone the panel spans under the top bar, so its header starts below it.
             paddingTop: narrow ? 'calc(env(safe-area-inset-top, 0px) + 62px)' : undefined,
           }}
-          className={`absolute right-0 top-0 z-10 flex h-full w-[340px] max-w-[85vw] flex-col transition-transform duration-200 ${
+          className={`viewer-chrome-in absolute right-0 top-0 z-10 flex h-full w-[340px] max-w-[85vw] flex-col transition-transform duration-200 ${
             infoOpen ? 'translate-x-0' : 'pointer-events-none translate-x-full'
           }`}
         >
@@ -444,9 +479,9 @@ export function FullscreenImage({
 
       {/* Top bar: one row, badges left and controls right, so the two can never overlap — the
           badges wrap onto a second line first. Padded below the notch / status bar. */}
-      <div
+      {settled && <div
         ref={topBarRef}
-        className="pointer-events-none !absolute inset-x-0 top-0 z-20 flex items-start justify-between gap-2 pl-4 transition-[padding] duration-200"
+        className="viewer-chrome-in pointer-events-none !absolute inset-x-0 top-0 z-20 flex items-start justify-between gap-2 pl-4 transition-[padding] duration-200"
         style={{
           paddingTop: 'calc(env(safe-area-inset-top, 0px) + 16px)',
           paddingRight: infoSlot && infoOpen && !narrow ? 356 : 16,
@@ -515,9 +550,9 @@ export function FullscreenImage({
             <IconX size="1.2rem" />
           </ActionIcon>
         </Group>
-      </div>
+      </div>}
 
-      {playing && !live && (
+      {settled && playing && !live && (
         <Text size="xs" c="dimmed" className="pointer-events-none !absolute bottom-4 left-1/2 z-10 -translate-x-1/2">
           Slideshow playing — press S to pause
         </Text>

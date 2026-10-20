@@ -21,6 +21,7 @@ export function LibraryViewer({ items, index, onIndexChange, onClose, phone }: {
       index={index}
       onIndexChange={onIndexChange}
       onClose={onClose}
+      instantClose
       pageCaption={item.entry?.positive ? undefined : item.filename}
     />
   );

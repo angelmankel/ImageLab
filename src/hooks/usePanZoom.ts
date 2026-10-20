@@ -21,6 +21,11 @@ type Options = {
   onDrag?: (phase: DragPhase, dx: number, dy: number) => void;
   /** A press that didn't drag (a tap), reported after the double-tap window has passed. */
   onTap?: () => void;
+  /**
+   * Report a tap at once, on the frame it lands, instead of waiting out the double-tap window —
+   * which gives up double-tap zoom (pinch and wheel still zoom). Off by default.
+   */
+  instantTap?: boolean;
 };
 
 export type PanZoom = {
@@ -46,7 +51,7 @@ export type PanZoom = {
  */
 export function usePanZoom(
   containerRef: RefObject<HTMLElement | null>,
-  { resetKey, onDrag, onTap }: Options,
+  { resetKey, onDrag, onTap, instantTap = false }: Options,
 ): PanZoom {
   const [zoom, setZoom] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
@@ -254,6 +259,8 @@ export function usePanZoom(
     downPosRef.current = null;
     if (!down) return;
     if (Math.hypot(e.clientX - down.x, e.clientY - down.y) > CLICK_BUFFER) return;
+    // No double-tap to wait for: the tap is the tap.
+    if (instantTap) { cbRef.current.onTap?.(); return; }
     const now = performance.now();
     const last = lastTapRef.current;
     if (last && now - last.t < DOUBLE_TAP_MS && Math.hypot(e.clientX - last.x, e.clientY - last.y) < DOUBLE_TAP_PX) {

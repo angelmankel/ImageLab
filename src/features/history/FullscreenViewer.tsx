@@ -14,6 +14,8 @@ type Props = {
   index: number;
   onIndexChange: (i: number) => void;
   onClose: () => void;
+  /** Close on the spot instead of shrinking back into the thumbnail (see `FullscreenImage`). */
+  instantClose?: boolean;
 };
 
 /**
@@ -22,7 +24,7 @@ type Props = {
  * sidebar showing the entry's metadata. The slideshow play/pause state is
  * shared with the model-metadata modal via localStorage.
  */
-export function FullscreenViewer({ list, index, onIndexChange, onClose }: Props) {
+export function FullscreenViewer({ list, index, onIndexChange, onClose, instantClose }: Props) {
   const servers = useStore(s => s.servers);
   const liveUrl = useLiveFrame();
   const livePreview = useViewerPrefs(s => s.livePreview);
@@ -49,6 +51,7 @@ export function FullscreenViewer({ list, index, onIndexChange, onClose }: Props)
       index={index}
       onIndexChange={onIndexChange}
       onClose={onClose}
+      instantClose={instantClose}
       playing={playing}
       onPlayingChange={setPlaying}
       initialInfoOpen={viewerInfoOpen}
