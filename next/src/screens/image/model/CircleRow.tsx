@@ -1,10 +1,11 @@
 /**
  * The row of circles (rule 4): one per entry — picture or initials, name under, weight or role
  * badge, dimmed when off / not downloaded / not on the server, ember ring on the selected one —
- * and a dashed green "+ Add" at the end when the kind can grow (`onAdd`). Scrolls sideways when
- * there are many.
+ * and a dashed green "+ Add" at the end when the kind can grow (`onAdd`). A removable entry has
+ * its × on the circle's top-right corner (`onRemove`; Donny 10-20: Remove is part of the bubble,
+ * not the card). Scrolls sideways when there are many.
  */
-import { IconPlus } from '@tabler/icons-react';
+import { IconPlus, IconX } from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
 import { Thumb } from './Thumb';
 import { readModelMeta } from './useModelMeta';
@@ -13,8 +14,8 @@ import { metaWithPending } from './pendingLogic';
 
 const CIRCLE = 56;
 
-export function CircleRow({ entries, selectedId, onSelect, onAdd, showWeight = true }: {
-  entries: ModelEntry[]; selectedId?: string; onSelect: (id: string) => void; onAdd?: () => void; showWeight?: boolean;
+export function CircleRow({ entries, selectedId, onSelect, onAdd, onRemove, showWeight = true }: {
+  entries: ModelEntry[]; selectedId?: string; onSelect: (id: string) => void; onAdd?: () => void; onRemove?: (id: string) => void; showWeight?: boolean;
 }) {
   const hashes = useStore((s) => s.modelHashes);
   const civitai = useStore((s) => s.civitaiByHash);
@@ -27,9 +28,10 @@ export function CircleRow({ entries, selectedId, onSelect, onAdd, showWeight = t
         const badge = state ?? e.badge ?? (showWeight && !e.isBase && !e.noWeight ? fmtWeight(e.weight) : undefined);
         const dim = !e.on || !!state;
         const label = e.name ? meta.label : 'none';
+        const removable = !!onRemove && !e.fixed;
         return (
+          <div key={e.id} style={{ position: 'relative', width: 64, flex: 'none' }}>
           <button
-            key={e.id}
             type="button"
             onClick={() => onSelect(e.id)}
             aria-pressed={selected}
@@ -49,6 +51,13 @@ export function CircleRow({ entries, selectedId, onSelect, onAdd, showWeight = t
               {label}{e.on ? '' : ' · off'}
             </span>
           </button>
+          {removable && (
+            <button type="button" onClick={() => onRemove!(e.id)} aria-label={`Remove ${label}`} title="Remove"
+              style={{ position: 'absolute', top: -2, right: 2, width: 20, height: 20, padding: 0, border: '2px solid var(--il-panel)', borderRadius: '50%', background: 'var(--il-err)', color: '#fff', display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
+              <IconX size={11} stroke={3} />
+            </button>
+          )}
+          </div>
         );
       })}
       {onAdd && (

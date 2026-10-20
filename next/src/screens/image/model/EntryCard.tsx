@@ -1,6 +1,7 @@
 /**
  * The selected entry (rule 4): picture, name, Change ▾, CivitAI ↗, On/Off, the kind's own parts
- * (trigger words, a guide image…), Strength with tap presets + slider, "More", Remove. ONE card for
+ * (trigger words, a guide image…), Strength with tap presets + slider, "More" (Remove is the × on the
+ * entry's circle, `CircleRow`). ONE card for
  * every kind of every step: the api says what the entry can do (switch, weight, remove) and hands
  * in its per-kind pieces (`KindApi.card`). A pending entry (not downloaded yet) carries the strip
  * with the Download button; a missing one (named, but no server lists it) says so.
@@ -106,14 +107,11 @@ export function EntryCard({ entry, api, onChange }: { entry: ModelEntry; api: Ki
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingTop: 2 }}>{moreNode}</div>
       )}
 
-      {(moreNode || api.remove) && (
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 2 }}>
-          {moreNode ? (
-            <ActionPill tone="ghost" onClick={() => setMore((v) => !v)}>
-              {more ? 'Less' : moreHint ? `More · ${moreHint}` : 'More'} <IconChevronDown size={13} stroke={2.6} style={{ transform: more ? 'rotate(180deg)' : undefined }} />
-            </ActionPill>
-          ) : <span />}
-          {api.remove && !entry.fixed && <ActionPill tone="danger" onClick={() => api.remove!(entry.id)}>Remove</ActionPill>}
+      {moreNode && (
+        <div style={{ display: 'flex', alignItems: 'center', marginTop: 2 }}>
+          <ActionPill tone="ghost" onClick={() => setMore((v) => !v)}>
+            {more ? 'Less' : moreHint ? `More · ${moreHint}` : 'More'} <IconChevronDown size={13} stroke={2.6} style={{ transform: more ? 'rotate(180deg)' : undefined }} />
+          </ActionPill>
         </div>
       )}
     </div>

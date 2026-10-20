@@ -84,7 +84,7 @@ export function ModelList({ kinds = IMAGE_KINDS, initialKind, useApi = useKindAp
     <div style={{ display: 'flex', flexDirection: 'column', gap: T.gap.md }}>
       {anyPending && <PendingPoller />}
       {kinds.length > 1 && <Tabs items={kinds.map((k) => ({ key: k, label: labels?.[k] ?? KINDS[k].label }))} value={kind} onChange={setKind} />}
-      <CircleRow entries={entries} selectedId={selected?.id} onSelect={select} onAdd={canAdd ? () => setPicker({ mode: 'add' }) : undefined} showWeight={!!spec.weight} />
+      <CircleRow entries={entries} selectedId={selected?.id} onSelect={select} onAdd={canAdd ? () => setPicker({ mode: 'add' }) : undefined} onRemove={api.remove} showWeight={!!spec.weight} />
       {selected ? (
         <EntryCard key={`${kind}:${selected.id}`} entry={selected} api={api} onChange={() => setPicker({ mode: 'change', id: selected.id })} />
       ) : (
