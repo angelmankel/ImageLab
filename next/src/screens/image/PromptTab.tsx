@@ -15,7 +15,7 @@ import { Button } from '~/ui';
 import { useIsPhone } from '~/app/useIsPhone';
 import { usePromptText } from './usePromptText';
 import { WriteItModal } from './WriteItModal';
-import { LibraryModal } from './LibraryModal';
+import { StartersModal } from './starters/StartersModal';
 import { PromptCard } from './prompt/PromptCard';
 import { TileGrid } from './prompt/TileGrid';
 import { NegativePills } from './prompt/NegativePills';
@@ -95,7 +95,7 @@ export function PromptTab({ large = false }: { large?: boolean }) {
         ? <NegativePills tiles={tiles} on={negOn} onToggle={toggle} />
         : <TileGrid tiles={tiles} on={posOn} typed={typed} onToggle={toggle} />}
       <WriteItModal opened={writing} onClose={() => setWriting(false)} />
-      <LibraryModal opened={starters} onClose={() => setStarters(false)} />
+      <StartersModal opened={starters} onClose={() => setStarters(false)} />
     </>
   );
 }
