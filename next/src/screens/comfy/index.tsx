@@ -6,3 +6,4 @@
 export { ComfyScreen } from './ComfyScreen';
 export { ComfyPhoneScreen } from './ComfyPhoneScreen';
 export { useStepWorkflow, stepWorkflowNow, useWorkflowStore, type StepWorkflowRef } from './workflowStore';
+export { ensureStepWorkflowOpen } from './ensureStepWorkflow';

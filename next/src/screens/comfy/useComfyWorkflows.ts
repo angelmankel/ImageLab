@@ -18,6 +18,7 @@ import { useRoute } from '~/app/routeStore';
 import { saveWorkflowFile } from './comfyApi';
 import { editorNodeCount, epochMs, workflowFileName, workflowKind } from './comfyHelpers';
 import { useWorkflowStore, workflowKey, type ComfyKind } from './workflowStore';
+import { ensureStepWorkflowOpen } from './ensureStepWorkflow';
 
 export interface ComfyWorkflowRow extends SavedWorkflow {
   key: string;
@@ -63,13 +64,16 @@ export function useComfyWorkflows(server: Server | null, kind: ComfyKind) {
   /** Load it, add a workflow step that runs it, remember which, and go to the step. */
   const addAsStep = useCallback(async (w: ComfyWorkflowRow) => {
     if (!host) return;
-    await open(w.path);
     const stepId = useSteps.getState().addStep('workflow', w.name);
     const store = useWorkflowStore.getState();
     store.setStepWorkflow(stepId, { host, serverId: server?.id ?? null, path: w.path, name: w.name, kind });
     store.markUsed(w.key);
+    // Load it into the Studio store from the step's host, so the step's Generate runs it.
+    try { await ensureStepWorkflowOpen(stepId); } catch (err) {
+      notifications.show({ color: 'red', title: 'Could not open the workflow', message: err instanceof Error ? err.message : String(err) });
+    }
     useRoute.getState().go('step');
-  }, [host, server?.id, kind, open]);
+  }, [host, server?.id, kind]);
 
   const select = useCallback(async (w: ComfyWorkflowRow) => {
     await open(w.path);

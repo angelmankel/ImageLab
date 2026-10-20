@@ -16,6 +16,9 @@ import { FChip, Label, MenuPill, SegPill, type Size } from './bits';
 
 type Patch = (p: Partial<ModelFilters>) => void;
 
+/** The types the desktop chip row leaves out (FilterBar's ROW_TYPES); they live in the panel. */
+const MORE_TYPES = MODEL_TYPES.filter((t) => ['DoRA', 'AestheticGradient', 'Detection', 'Other'].includes(t));
+
 function Group({ label, children, size }: { label: string; children: ReactNode; size: Size }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
@@ -80,11 +83,9 @@ export function FilterFields({ f, set, size, inline }: { f: ModelFilters; set: P
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: phone ? 12 : 10 }}>
-      {!inline && (
-        <Group label="TYPE" size={size}>
-          <Chips>{MODEL_TYPES.map((t) => <FChip key={t} size={size} on={f.types.includes(t)} onClick={() => set({ types: toggleIn(f.types, t) })}>{typeLabel(t)}</FChip>)}</Chips>
-        </Group>
-      )}
+      <Group label={inline ? 'MORE TYPES' : 'TYPE'} size={size}>
+        <Chips>{(inline ? MORE_TYPES : MODEL_TYPES).map((t) => <FChip key={t} size={size} on={f.types.includes(t)} onClick={() => set({ types: toggleIn(f.types, t) })}>{typeLabel(t)}</FChip>)}</Chips>
+      </Group>
       <Group label={inline ? 'MORE BASE MODELS' : 'BASE MODEL'} size={size}>
         <Chips>
           {!inline && MAIN_BASE_MODELS.map((b) => <FChip key={b} size={size} on={f.baseModels.includes(b)} onClick={() => set({ baseModels: toggleIn(f.baseModels, b) })}>{baseModelShort(b)}</FChip>)}

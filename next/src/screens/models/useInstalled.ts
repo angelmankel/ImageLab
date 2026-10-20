@@ -35,10 +35,22 @@ export interface Installed {
   hashKey: (f: FileLike) => string | undefined;
 }
 
+// Every tile and button asks for this; the index is built once per (hashes, serverInfo) pair.
+let last: { hashes: unknown; serverInfo: unknown; value: Installed } | null = null;
+
 export function useInstalled(): Installed {
   const hashes = useStore((s) => s.modelHashes);
   const serverInfo = useStore((s) => s.serverInfo);
   return useMemo(() => {
+    if (last && last.hashes === hashes && last.serverInfo === serverInfo) return last.value;
+    const value = buildInstalled(hashes, serverInfo);
+    last = { hashes, serverInfo, value };
+    return value;
+  }, [hashes, serverInfo]);
+}
+
+function buildInstalled(hashes: ReturnType<typeof useStore.getState>['modelHashes'], serverInfo: Record<string, ServerInfo>): Installed {
+  {
     const names = [...serverNames(serverInfo)];
     const index = buildInstalledIndex(hashes.map((h) => h.hash), names);
     const byBase = new Map<string, string>();
@@ -59,7 +71,7 @@ export function useInstalled(): Installed {
         return (hashes.find((h) => want.has(h.hash.toUpperCase())) ?? hashes.find((h) => h.filename === base))?.key;
       },
     };
-  }, [hashes, serverInfo]);
+  }
 }
 
 /** The Installed source: every hashed server file that CivitAI knows, one item per CivitAI model. */

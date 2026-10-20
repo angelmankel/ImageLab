@@ -21,6 +21,7 @@ import { Avatar, EmberBtn, GhostBtn, Label, Stats, Tag, type Size } from './bits
 import { DetailGallery } from './DetailGallery';
 import { DetailVersions } from './DetailVersions';
 import { DetailSample } from './DetailSample';
+import { useVersionDownload } from './DownloadButton';
 
 export function Detail({ modelId, size }: { modelId: number; size: Size }) {
   const phone = size === 'phone';
@@ -39,6 +40,7 @@ export function Detail({ modelId, size }: { modelId: number; size: Size }) {
   const toggleFollow = useModels((s) => s.toggleFollow);
   const installed = useInstalled();
   const actions = useModelActions();
+  const { download } = useVersionDownload();
   const steps = useSteps((s) => s.steps);
   const setActive = useSteps((s) => s.setActive);
   const [descOpen, setDescOpen] = useState(false);
@@ -72,7 +74,13 @@ export function Detail({ modelId, size }: { modelId: number; size: Size }) {
   const commercial = m.allowCommercialUse ?? [];
   const early = isEarlyAccess(m);
 
-  const useIn = (stepId?: string) => { if (!version) return; if (stepId) setActive(stepId); actions.useInStep(version, m.type); };
+  // Installed → into the step; not yet → start the download (the button says so).
+  const useIn = (stepId?: string) => {
+    if (!version) return;
+    if (!installedFile) { void download(version, m.type); return; }
+    if (stepId) setActive(stepId);
+    actions.useInStep(version, m.type);
+  };
 
   const header = !phone && (
     <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>

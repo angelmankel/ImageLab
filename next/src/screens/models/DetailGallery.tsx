@@ -11,8 +11,9 @@ import { civitaiThumbUrl, civitaiVideoUrl, isCivitaiVideo, previewStill } from '
 import { isBeyondMask } from './civitaiQuery';
 import { COVER_FALLBACK, GhostBtn, type Size } from './bits';
 
-function Media({ img, width, reveal, blurred, style, cover = true }: { img: CivitaiImage; width: number; reveal: () => void; blurred: boolean; style?: React.CSSProperties; cover?: boolean }) {
-  const video = isCivitaiVideo(img);
+function Media({ img, width, reveal, blurred, style, cover = true, still }: { img: CivitaiImage; width: number; reveal: () => void; blurred: boolean; style?: React.CSSProperties; cover?: boolean; still?: boolean }) {
+  // Thumbnails are stills even for clips: a grid of autoplaying videos is a lot of decoding for nothing.
+  const video = !still && isCivitaiVideo(img);
   const base: React.CSSProperties = { width: '100%', height: '100%', objectFit: cover ? 'cover' : 'contain', display: 'block', filter: blurred ? 'blur(18px)' : undefined, transform: blurred ? 'scale(1.1)' : undefined, ...style };
   return (
     <>
@@ -90,7 +91,7 @@ export function DetailGallery({ images, index, onSelect, mask, size, hasMore, on
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 6 }}>
         {images.map((img, i) => (
           <button key={img.url + i} type="button" aria-label={`Image ${i + 1}`} aria-pressed={i === index} onClick={() => onSelect(i)} style={{ padding: 0, border: 0, aspectRatio: '1', borderRadius: 10, overflow: 'hidden', position: 'relative', background: COVER_FALLBACK, outline: i === index ? '2px solid var(--il-ember)' : undefined, outlineOffset: -2, cursor: 'pointer' }}>
-            <Media img={img} width={180} blurred={isBlurred(img)} reveal={() => reveal(img.url)} />
+            <Media img={img} width={180} blurred={isBlurred(img)} reveal={() => reveal(img.url)} still />
           </button>
         ))}
       </div>

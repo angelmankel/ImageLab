@@ -17,6 +17,9 @@ import { useInstalledWanFiles } from '@/features/video/videoControls';
 import { useModeHost } from '@/features/workspace/modeHost';
 import { useVideoRun } from '@/features/video/videoRun';
 import { useWorkflowRun } from '@/features/studio/studioRun';
+import { notifications } from '@mantine/notifications';
+import { useSteps } from '~/app/stepsStore';
+import { ensureStepWorkflowOpen } from '~/screens/comfy';
 
 export function AppEffects() {
   useComfyConnection();
@@ -33,5 +36,15 @@ export function AppEffects() {
   useEffect(() => { useWorkflowRun.getState().setHost(workflowHost); }, [workflowHost]);
   useEffect(() => useVideoRun.getState().attach(), []);
   useEffect(() => useWorkflowRun.getState().attach(), []);
+  // A workflow step runs only when its workflow is the studio store's open one: load it when the
+  // step becomes active (the ComfyUI screen's "Use as step" loads it too).
+  const activeId = useSteps((s) => s.activeId);
+  const activeKind = useSteps((s) => s.steps.find((x) => x.id === s.activeId)?.kind);
+  useEffect(() => {
+    if (activeKind !== 'workflow') return;
+    ensureStepWorkflowOpen(activeId).catch((err: unknown) => {
+      notifications.show({ color: 'red', message: `Could not open this step's workflow: ${err instanceof Error ? err.message : String(err)}` });
+    });
+  }, [activeId, activeKind]);
   return null;
 }
