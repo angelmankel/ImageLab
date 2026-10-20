@@ -13,3 +13,5 @@ export { VideoInputTab } from './VideoInputTab';
 export { useVideoStepRun, type StepRun } from './useVideoStepRun';
 export { runVideoStep, setStartFrameFrom, setStartFrameFile, uploadToVideoHost, taskOf } from './videoChain';
 export * from './videoStepLogic';
+export { useVideoKindApi, VIDEO_SCOPE } from './useVideoKindApi';
+export { VIDEO_KINDS, videoLabels, videoSpec, videoEntries } from './videoKinds';

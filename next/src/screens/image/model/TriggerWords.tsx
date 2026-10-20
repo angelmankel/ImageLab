@@ -4,6 +4,7 @@
  * (`useStore().layers`, the same text the Prompt tab edits). "Auto" is the main app's per-model
  * keyword switch (`workflow.modelKeywords`): when on, every trigger word joins the prompt at
  * generate time without being in the text; tapping a word turns it off so nothing doubles.
+ * Another step passes its own prompt as `text` + `onText` (the Video step's motion prompt).
  */
 import { Chip } from '~/ui';
 import { useStore } from '@/lib/store';
@@ -11,15 +12,18 @@ import { hasWord, toggleWord } from './promptWords';
 
 export interface AutoWords { on: boolean; set: (on: boolean) => void }
 
-export function TriggerWords({ words, auto, title = 'Trigger words · tap to add to the prompt' }: {
+export function TriggerWords({ words, auto, title = 'Trigger words · tap to add to the prompt', text: ownText, onText }: {
   words: string[]; auto?: AutoWords; title?: string;
+  /** The prompt to edit when it is not the Image step's positive layer. */
+  text?: string; onText?: (next: string) => void;
 }) {
   const layers = useStore((s) => s.layers);
   const main = layers.find((l) => l.kind === 'positive');
-  const text = main?.text ?? '';
+  const text = onText ? ownText ?? '' : main?.text ?? '';
   if (!words.length) return null;
 
   const tap = (word: string) => {
+    if (onText) { onText(toggleWord(ownText ?? '', word)); if (auto?.on) auto.set(false); return; }
     const st = useStore.getState();
     const cur = st.layers.find((l) => l.kind === 'positive');
     const next = toggleWord(cur?.text ?? '', word);

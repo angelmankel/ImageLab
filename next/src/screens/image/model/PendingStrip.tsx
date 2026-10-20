@@ -9,7 +9,7 @@ import { notifications } from '@mantine/notifications';
 import { useStore } from '@/lib/store';
 import { useDownloadsStore } from '@/features/downloads';
 import { T } from '~/theme/tokens';
-import { downloadProgress, folderForKind, type PendingRecord } from './pendingLogic';
+import { downloadProgress, recordFolder, type PendingRecord } from './pendingLogic';
 
 export function PendingStrip({ record }: { record: PendingRecord }) {
   const rows = useDownloadsStore((s) => s.rows);
@@ -19,7 +19,7 @@ export function PendingStrip({ record }: { record: PendingRecord }) {
   const busy = p?.status === 'downloading';
 
   const download = async () => {
-    const r = await start(record.versionId, folderForKind(record.kind));
+    const r = await start(record.versionId, recordFolder(record));
     if (r.errors.length) notifications.show({ color: 'red', title: 'Download refused', message: r.errors.join('\n') });
     else notifications.show({ color: 'ember', message: `Downloading ${record.modelName} on ${r.accepted} server${r.accepted === 1 ? '' : 's'}` });
   };

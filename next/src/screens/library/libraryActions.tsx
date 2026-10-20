@@ -8,7 +8,7 @@ import { Button, TextInput } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
 import { useStore } from '@/lib/store';
-import { usePromptFrom, reuseSettingsFrom, sendToStep } from '~/app/actions';
+import { usePromptFrom, reuseSettingsFrom, recallFrom, sendToStep } from '~/app/actions';
 import { useRoute } from '~/app/routeStore';
 import { T } from '~/theme/tokens';
 import { useLibrary } from './libraryStore';
@@ -25,6 +25,13 @@ export function applyPrompt(it: LibItem) {
 export function applySettings(it: LibItem) {
   if (!it.entry) return;
   reuseSettingsFrom(it.entry);
+  toStep();
+}
+
+/** Everything back into the step: workflow, input image and prompt. */
+export function recallItem(it: LibItem) {
+  if (!it.entry) return;
+  recallFrom(it.entry);
   toStep();
 }
 

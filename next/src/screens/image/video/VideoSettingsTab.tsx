@@ -165,7 +165,7 @@ export function VideoSettingsTab() {
                 <Chip small on={v.upscale.method === 'model'} onClick={() => v.set({ upscale: { ...v.upscale, method: 'model' } })}>Upscale model</Chip>
                 <Chip small on={v.upscale.method === 'resize'} onClick={() => v.set({ upscale: { ...v.upscale, method: 'resize' } })}>Plain resize</Chip>
               </ChipGroup>
-              {v.upscale.method === 'model' && <FilePickRow label="Upscale model" value={v.upscale.model} files={server.upscaleModels} engine={v.engine} onPick={(model) => v.set({ upscale: { ...v.upscale, model } })} />}
+              {v.upscale.method === 'model' && <FilePickRow label="Upscale model" value={v.upscale.model} files={server.upscaleModels} onPick={(model) => v.set({ upscale: { ...v.upscale, model } })} />}
             </>
           )}
         </Section>
@@ -174,7 +174,7 @@ export function VideoSettingsTab() {
             <Chip small on={!v.interpolate.on} onClick={() => v.set({ interpolate: { ...v.interpolate, on: false } })}>Off</Chip>
             {[2, 3, 4].map((n) => <Chip key={n} small on={v.interpolate.on && v.interpolate.multiplier === n} onClick={() => v.set({ interpolate: { ...v.interpolate, on: true, multiplier: n } })}>{n}×</Chip>)}
           </ChipGroup>
-          {v.interpolate.on && <FilePickRow label="RIFE / FILM model" value={v.interpolate.model} files={server.interpolationModels ?? []} engine={v.engine} onPick={(model) => v.set({ interpolate: { ...v.interpolate, model } })} />}
+          {v.interpolate.on && <FilePickRow label="RIFE / FILM model" value={v.interpolate.model} files={server.interpolationModels ?? []} onPick={(model) => v.set({ interpolate: { ...v.interpolate, model } })} />}
         </Section>
         {fields.colorMatch && (
           <Section title="Colour match to the start frame">

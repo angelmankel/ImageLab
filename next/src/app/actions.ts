@@ -41,6 +41,19 @@ export function reuseSettingsFrom(entry: HistoryEntry): void {
 }
 
 /**
+ * Recall EVERYTHING from a history entry (Donny, 10-20): the full saved workflow (models, size,
+ * sampler, seed, Loopback, the input image it was made from) and its prompt layers — the old
+ * app's toolbar Recall, through the store's own `recallSelected`.
+ */
+export function recallFrom(entry: HistoryEntry): void {
+  const st = useStore.getState();
+  st.selectHistoryEntry(entry);
+  st.recallSelected();
+  useSteps.getState().updateStep(useSteps.getState().steps[0].id, { edited: true });
+  notifications.show({ title: 'Recalled', message: `Everything from that image is back in the step${entry.model ? ` · ${entry.model}` : ''}`, color: 'teal', autoClose: 3000 });
+}
+
+/**
  * Make this image the input of a step (default: the next step after the active one, or the first
  * step after the Image step). Video / Workflow steps get it through the main app's upload path
  * (the start frame, the workflow's image input); Image / Upscale steps keep it as the step's input,

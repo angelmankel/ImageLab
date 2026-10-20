@@ -14,7 +14,8 @@ export interface ModelPick {
   thumb?: string;
 }
 
-export type PickKind = 'checkpoint' | 'lora' | 'embedding' | 'controlnet' | 'vae' | 'upscale';
+import type { PickKind } from './kindSpecs';
+export type { PickKind };
 
 export interface ModelsModalProps {
   opened: boolean;

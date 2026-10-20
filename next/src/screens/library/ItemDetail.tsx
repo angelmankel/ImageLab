@@ -9,7 +9,7 @@ import { Tooltip } from '@mantine/core';
 import { IconDownload, IconStar, IconStarFilled, IconTrash } from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
 import { settingsCells, whenLabel, type LibItem } from './libraryLogic';
-import { applyPrompt, applySettings, confirmDelete, downloadItem, toggleFav } from './libraryActions';
+import { applyPrompt, applySettings, confirmDelete, downloadItem, toggleFav, recallItem } from './libraryActions';
 import { AddToCollectionMenu } from './AddToCollectionMenu';
 import { SendToStepMenu } from './SendToStepMenu';
 
@@ -72,8 +72,9 @@ export function ItemDetail({ item, phone, onOpen, onDeleted, pager }: {
         </div>
       )}
 
+      <button type="button" className="lib-act primary" style={btn} disabled={!e} title={e ? 'Everything from this image back into the step: models, settings, seed, input image and prompt' : noEntry} onClick={() => recallItem(item)}>Recall everything</button>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 6 }}>
-        <button type="button" className="lib-act primary" style={btn} disabled={!e} title={noEntry} onClick={() => applyPrompt(item)}>Use prompt</button>
+        <button type="button" className="lib-act" style={btn} disabled={!e} title={noEntry} onClick={() => applyPrompt(item)}>Use prompt</button>
         <button type="button" className="lib-act strong" style={btn} disabled={!e} title={noEntry} onClick={() => applySettings(item)}>Reuse settings</button>
         <SendToStepMenu item={item} position={phone ? 'top' : 'bottom'}>
           <button type="button" className="lib-act" style={btn}>Send to step<span style={{ color: 'var(--il-muted)' }}>▾</span></button>

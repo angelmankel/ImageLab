@@ -16,3 +16,5 @@ export { startWorkflowStepRun, workflowStepSource, prevStepOutputNow, uploadSour
 export { useWorkflowStepHost, markStepEdited } from './useWorkflowStepHost';
 export { useWorkflowStepStore, useKeptSeeds, keptSeedsNow } from './workflowStepStore';
 export * from './workflowStepLogic';
+export { useWorkflowKindApi, WORKFLOW_SCOPE } from './useWorkflowKindApi';
+export { loaderKind, workflowKinds, strengthWidgets, workflowEntries, matchOption } from './workflowKinds';

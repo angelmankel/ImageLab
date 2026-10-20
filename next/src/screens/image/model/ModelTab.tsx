@@ -1,6 +1,7 @@
-/** The Model tab of the Image step (rule 4): the universal list with all four kinds. */
+/** The Model tab of the Image step (rule 4): the universal list with the Image step's four kinds. */
 import { ModelList } from './ModelList';
+import { IMAGE_KINDS } from './kindSpecs';
 
 export function ModelTab() {
-  return <ModelList kinds={['checkpoint', 'lora', 'embedding', 'controlnet']} />;
+  return <ModelList kinds={IMAGE_KINDS} />;
 }

@@ -5,7 +5,11 @@
  * file. Imports nothing, so `tests/pendingLogic.test.cjs` loads it from source.
  */
 
-export type PendingKind = 'checkpoint' | 'lora' | 'embedding' | 'controlnet';
+/** Every kind the list component knows (`kindSpecs.ModelKind` is this type). */
+export type PendingKind = 'checkpoint' | 'lora' | 'embedding' | 'controlnet' | 'vae' | 'clip' | 'upscale' | 'other';
+
+/** The `ServerInfo` lists a kind's files can appear in. */
+export type ServerList = 'models' | 'diffusionModels' | 'loras' | 'embeddings' | 'controlnets' | 'vaes' | 'textEncoders' | 'upscaleModels';
 
 export interface PendingRecord {
   /** `kind:file` (file lower-cased) — one record per kind + file. */
@@ -28,6 +32,12 @@ export interface PendingRecord {
   /** The pending checkpoint's merge ratio (other kinds keep their weight on the store entry). */
   weight: number;
   addedAt: number;
+  /** Which step's store holds the waiting entry: undefined = the Image step's workflow; 'video' / 'workflow' otherwise. */
+  scope?: string;
+  /** The ComfyUI folder the download goes to when the kind's default is wrong (Wan experts: `diffusion_models`). */
+  folder?: string;
+  /** The server list the file will show up in when the kind's default is wrong. */
+  list?: ServerList;
 }
 
 /** What a pick must carry for a record (structural: the modal's `ModelPick` fits). */
@@ -52,14 +62,20 @@ export function pendingKey(kind: PendingKind, file: string): string {
   return `${kind}:${file.toLowerCase()}`;
 }
 
-export function recordFromPick(kind: PendingKind, pick: PickLike, now: number, entryId?: string, userOn = true, weight = 0.5): PendingRecord {
+export interface RecordHome { scope?: string; folder?: string; list?: ServerList }
+
+export function recordFromPick(kind: PendingKind, pick: PickLike, now: number, entryId?: string, userOn = true, weight = 0.5, home: RecordHome = {}): PendingRecord {
   const file = expectedFileName(kind, pick);
-  return {
+  const r: PendingRecord = {
     key: pendingKey(kind, file), kind, file, entryId,
     modelId: pick.model.id, versionId: pick.version.id, modelName: pick.model.name, versionName: pick.version.name,
     modelType: pick.model.type, baseModel: pick.version.baseModel ?? pick.model.baseModel,
     trainedWords: [...(pick.version.trainedWords ?? [])], thumb: pick.thumb, userOn, weight, addedAt: now,
   };
+  if (home.scope) r.scope = home.scope;
+  if (home.folder) r.folder = home.folder;
+  if (home.list) r.list = home.list;
+  return r;
 }
 
 /**
@@ -78,12 +94,16 @@ export function findInstalledName(list: readonly string[], expected: string, kin
   return undefined;
 }
 
-/** Records that have landed (with the server's name for the file) and those still waiting. */
-export function reconcile(records: readonly PendingRecord[], listsByKind: Record<PendingKind, readonly string[]>): { landed: Array<{ record: PendingRecord; file: string }>; waiting: PendingRecord[] } {
+/**
+ * Records that have landed (with the server's name for the file) and those still waiting. `lists`
+ * is keyed by kind (the kind's default list) and, for records that name one, by `ServerList`.
+ */
+export function reconcile(records: readonly PendingRecord[], lists: Partial<Record<string, readonly string[]>>): { landed: Array<{ record: PendingRecord; file: string }>; waiting: PendingRecord[] } {
   const landed: Array<{ record: PendingRecord; file: string }> = [];
   const waiting: PendingRecord[] = [];
   for (const r of records) {
-    const file = findInstalledName(listsByKind[r.kind] ?? [], r.file, r.kind);
+    const list = (r.list && lists[r.list]) ?? lists[r.kind] ?? [];
+    const file = findInstalledName(list, r.file, r.kind);
     if (file) landed.push({ record: r, file }); else waiting.push(r);
   }
   return { landed, waiting };
@@ -91,7 +111,47 @@ export function reconcile(records: readonly PendingRecord[], listsByKind: Record
 
 /** The ComfyUI folder the download manager puts each kind in. */
 export function folderForKind(kind: PendingKind): string {
-  return kind === 'checkpoint' ? 'checkpoints' : kind === 'lora' ? 'loras' : kind === 'embedding' ? 'embeddings' : 'controlnet';
+  switch (kind) {
+    case 'checkpoint': return 'checkpoints';
+    case 'lora': return 'loras';
+    case 'embedding': return 'embeddings';
+    case 'controlnet': return 'controlnet';
+    case 'vae': return 'vae';
+    case 'clip': return 'text_encoders';
+    case 'upscale': return 'upscale_models';
+    default: return 'other';
+  }
+}
+
+/** The `ServerInfo` list a kind's files are listed in by default. */
+export function listForKind(kind: PendingKind): ServerList {
+  switch (kind) {
+    case 'checkpoint': return 'models';
+    case 'lora': return 'loras';
+    case 'embedding': return 'embeddings';
+    case 'controlnet': return 'controlnets';
+    case 'vae': return 'vaes';
+    case 'clip': return 'textEncoders';
+    case 'upscale': return 'upscaleModels';
+    default: return 'models';
+  }
+}
+
+/** Where a pending record's download goes and which list it lands in (its own say, else the kind's default). */
+export const recordFolder = (r: Pick<PendingRecord, 'kind' | 'folder'>): string => r.folder ?? folderForKind(r.kind);
+
+/** True when a named file is not on any server list yet (an empty list = not known, never "missing"). */
+export function isMissing(files: readonly string[], name: string, kind: PendingKind): boolean {
+  if (!name || !files.length) return false;
+  return !findInstalledName(files, name, kind);
+}
+
+/** Two file names are the same file: equal base names, case ignored (embeddings: by stem). */
+export function sameFile(a: string, b: string, kind: PendingKind = 'lora'): boolean {
+  if (!a || !b) return false;
+  const x = baseName(a).toLowerCase();
+  const y = baseName(b).toLowerCase();
+  return x === y || (kind === 'embedding' && stripExt(x) === stripExt(y));
 }
 
 export interface DownloadRowLike { version_id: number; status: 'downloading' | 'completed' | 'failed' | 'cancelled'; percent: number; error?: string | null }

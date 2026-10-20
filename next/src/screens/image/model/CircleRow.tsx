@@ -1,19 +1,20 @@
 /**
- * The row of circles (rule 4): one per entry — picture or initials, name under, weight badge,
- * dimmed when off, ember ring on the selected one — and a dashed green "+ Add" at the end.
- * Scrolls sideways when there are many.
+ * The row of circles (rule 4): one per entry — picture or initials, name under, weight or role
+ * badge, dimmed when off / not downloaded / not on the server, ember ring on the selected one —
+ * and a dashed green "+ Add" at the end when the kind can grow (`onAdd`). Scrolls sideways when
+ * there are many.
  */
 import { IconPlus } from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
 import { Thumb } from './Thumb';
 import { readModelMeta } from './useModelMeta';
-import { fmtWeight, type ModelEntry } from './kinds';
+import { fmtWeight, type ModelEntry } from './kindSpecs';
 import { metaWithPending } from './pendingLogic';
 
 const CIRCLE = 56;
 
 export function CircleRow({ entries, selectedId, onSelect, onAdd, showWeight = true }: {
-  entries: ModelEntry[]; selectedId?: string; onSelect: (id: string) => void; onAdd: () => void; showWeight?: boolean;
+  entries: ModelEntry[]; selectedId?: string; onSelect: (id: string) => void; onAdd?: () => void; showWeight?: boolean;
 }) {
   const hashes = useStore((s) => s.modelHashes);
   const civitai = useStore((s) => s.civitaiByHash);
@@ -22,43 +23,47 @@ export function CircleRow({ entries, selectedId, onSelect, onAdd, showWeight = t
       {entries.map((e) => {
         const meta = metaWithPending(readModelMeta(e.name, hashes, civitai), e.pending);
         const selected = e.id === selectedId;
-        const badge = e.pending ? 'not downloaded' : e.badge ?? (showWeight && !e.isBase ? fmtWeight(e.weight) : undefined);
-        const dim = !e.on || !!e.pending;
+        const state = e.pending ? 'not downloaded' : e.missing ? 'not on server' : undefined;
+        const badge = state ?? e.badge ?? (showWeight && !e.isBase && !e.noWeight ? fmtWeight(e.weight) : undefined);
+        const dim = !e.on || !!state;
+        const label = e.name ? meta.label : 'none';
         return (
           <button
             key={e.id}
             type="button"
             onClick={() => onSelect(e.id)}
             aria-pressed={selected}
-            title={e.pending ? `${e.pending.modelName} · not downloaded yet` : (meta.name ?? meta.label)}
+            title={e.pending ? `${e.pending.modelName} · not downloaded yet` : e.missing ? `${e.name} · not on this server` : (meta.name ?? label)}
             style={{ width: 64, flex: 'none', border: 0, background: 'transparent', padding: 0, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, color: selected ? 'var(--il-fg)' : dim ? 'var(--il-dim)' : 'var(--il-fg2)' }}
           >
             <span style={{ position: 'relative', width: CIRCLE, height: CIRCLE, flex: 'none' }}>
-              <Thumb label={meta.label} images={meta.images} size={CIRCLE} round
+              <Thumb label={e.name ? meta.label : '?'} images={meta.images} size={CIRCLE} round
                 style={{ border: `3px solid ${selected ? 'var(--il-ember)' : 'var(--il-line-strong)'}`, opacity: dim ? 0.45 : 1, boxSizing: 'border-box' }} />
               {badge && (
-                <span style={{ position: 'absolute', right: e.pending ? -10 : -6, bottom: -4, fontSize: e.pending ? 8 : 10, fontWeight: 800, borderRadius: 999, padding: '2px 6px', whiteSpace: 'nowrap', background: e.pending ? 'var(--il-card-on)' : selected ? 'var(--il-ember)' : 'var(--il-card-on)', color: e.pending ? 'var(--il-muted)' : selected ? 'var(--il-bg)' : 'var(--il-fg)', opacity: e.on || e.pending ? 1 : 0.6 }}>
+                <span style={{ position: 'absolute', right: state ? -10 : -6, bottom: -4, fontSize: state ? 8 : 10, fontWeight: 800, borderRadius: 999, padding: '2px 6px', whiteSpace: 'nowrap', background: state ? 'var(--il-card-on)' : selected ? 'var(--il-ember)' : 'var(--il-card-on)', color: state ? 'var(--il-muted)' : selected ? 'var(--il-bg)' : 'var(--il-fg)', opacity: e.on || state ? 1 : 0.6 }}>
                   {badge}
                 </span>
               )}
             </span>
             <span style={{ fontSize: 10, fontWeight: selected ? 800 : 700, maxWidth: 64, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {meta.label}{e.on ? '' : ' · off'}
+              {label}{e.on ? '' : ' · off'}
             </span>
           </button>
         );
       })}
-      <button
-        type="button"
-        onClick={onAdd}
-        aria-label="Add"
-        style={{ width: 64, flex: 'none', border: 0, background: 'transparent', padding: 0, cursor: 'pointer', color: 'var(--il-ok)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}
-      >
-        <span style={{ width: CIRCLE, height: CIRCLE, borderRadius: '50%', border: '2px dashed var(--il-ok)', background: 'color-mix(in srgb, var(--il-ok) 8%, transparent)', display: 'grid', placeItems: 'center' }}>
-          <IconPlus size={18} stroke={2.8} />
-        </span>
-        <span style={{ fontSize: 10, fontWeight: 800 }}>Add</span>
-      </button>
+      {onAdd && (
+        <button
+          type="button"
+          onClick={onAdd}
+          aria-label="Add"
+          style={{ width: 64, flex: 'none', border: 0, background: 'transparent', padding: 0, cursor: 'pointer', color: 'var(--il-ok)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}
+        >
+          <span style={{ width: CIRCLE, height: CIRCLE, borderRadius: '50%', border: '2px dashed var(--il-ok)', background: 'color-mix(in srgb, var(--il-ok) 8%, transparent)', display: 'grid', placeItems: 'center' }}>
+            <IconPlus size={18} stroke={2.8} />
+          </span>
+          <span style={{ fontSize: 10, fontWeight: 800 }}>Add</span>
+        </button>
+      )}
     </div>
   );
 }

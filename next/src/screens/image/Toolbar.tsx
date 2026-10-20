@@ -5,12 +5,12 @@
  */
 import { useState } from 'react';
 import { notifications } from '@mantine/notifications';
-import { IconArrowsMaximize, IconZoomIn, IconZoomOut, IconCrop, IconBrush, IconColumns2, IconRefresh, IconArrowRight, IconHeart, IconHeartFilled, IconDownload, IconMaximize } from '@tabler/icons-react';
+import { IconArrowsMaximize, IconZoomIn, IconZoomOut, IconCrop, IconBrush, IconColumns2, IconRefresh, IconHistory, IconArrowRight, IconHeart, IconHeartFilled, IconDownload, IconMaximize } from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
 import { urlToImageState } from '@/features/inputImage/imageOps';
 import { EditImageModal } from '@/features/inputImage/EditImageModal';
 import type { Step } from '~/app/stepsStore';
-import { reuseSettingsFrom, sendToStep } from '~/app/actions';
+import { recallFrom, reuseSettingsFrom, sendToStep } from '~/app/actions';
 import { IconBtn, Sep } from '~/ui';
 import { T } from '~/theme/tokens';
 import { StageBadge } from './StageBadge';
@@ -75,6 +75,7 @@ export function Toolbar({ step, media, zoom, onFullscreen, canFullscreen, phone 
         <IconBtn icon={<IconColumns2 size={16} stroke={2.2} />} label="Compare with the previous result" onClick={() => soon('Compare')} style={round} disabled={!has} />
         <Sep />
         <IconBtn icon={<IconRefresh size={16} stroke={2.2} />} label="Vary — same settings, new seed" onClick={vary} style={round} disabled={!has} />
+        <IconBtn icon={<IconHistory size={16} stroke={2.2} />} label="Recall — everything from this image back into the step" onClick={() => { if (entry) recallFrom(entry); }} style={round} disabled={!entry} />
         <IconBtn icon={<IconArrowRight size={16} stroke={2.2} />} label="Send to the next step" onClick={() => { if (media.item) sendToStep({ url: media.item.url, entry: entry ?? undefined }); }} style={round} disabled={!has} />
         <IconBtn icon={liked ? <IconHeartFilled size={16} /> : <IconHeart size={16} stroke={2.2} />} label={liked ? 'Remove from favourites' : 'Favourite'} on={liked} onClick={() => { if (entry) toggleLiked(entry.id); }} style={{ ...round, color: liked ? 'var(--il-ember)' : undefined }} disabled={!entry} />
         <IconBtn icon={<IconDownload size={16} stroke={2.2} />} label="Download" onClick={() => { if (media.item) void download(media.item.url, media.item.filename); }} style={round} disabled={!has} />
