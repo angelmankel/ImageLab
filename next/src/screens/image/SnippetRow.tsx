@@ -3,14 +3,15 @@
  * library's own order, a tap only lights a chip (on = in the prompt). Header: the name, then
  * "Browse all" (with how many did not fit) and a + for the inline new-snippet form. Under it the
  * ones in the prompt as a one-line strip with ×, then the category pills (plain text, the active
- * one filled like the history filters; a negative category drops its "Negative ·" prefix), then
+ * one filled like the history filters, the edges fade while there is more to scroll; a negative
+ * category drops its "Negative ·" prefix), then
  * the chip area, two rows high.
  */
-import { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { IconPlus, IconX } from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
 import type { LayerKind } from '@/lib/types';
-import { Chip, useWheelSideways } from '~/ui';
+import { Chip, useEdgeFade, useWheelSideways } from '~/ui';
 import { categoriesWith, inCategory, inPromptSnippets, ofKind, pickTab, previewText } from './snippets/snippetLogic';
 import { addAndInsert, removeFromPrompt, toggleSnippet, useInPrompt } from './snippets/snippetActions';
 import { useSnippetsUi } from './snippets/snippetsStore';
@@ -35,6 +36,8 @@ export function SnippetRow({ kind }: { kind: LayerKind }) {
   const [adding, setAdding] = useState(false);
   const [browsing, setBrowsing] = useState(false);
   const wheelRef = useWheelSideways<HTMLDivElement>();
+  const fade = useEdgeFade<HTMLDivElement>();
+  const catsRef = useCallback((el: HTMLDivElement | null) => { wheelRef(el); fade.ref(el); }, [wheelRef, fade.ref]);
 
   const mine = useMemo(() => ofKind(snippets, kind), [snippets, kind]);
   const cats = useMemo(() => categoriesWith(categories, mine), [categories, mine]);
@@ -81,7 +84,7 @@ export function SnippetRow({ kind }: { kind: LayerKind }) {
       )}
 
       {cats.length > 1 && (
-        <div ref={wheelRef} role="tablist" aria-label="Snippet categories" className="il-scroll-x" data-no-swipe style={{ display: 'flex', gap: 4, touchAction: 'pan-x pan-y', marginBottom: 8 }}>
+        <div ref={catsRef} role="tablist" aria-label="Snippet categories" className="il-scroll-x" data-no-swipe style={{ display: 'flex', gap: 4, touchAction: 'pan-x pan-y', marginBottom: 8, ...fade.style }}>
           {cats.map((c) => {
             const on = c.id === tab;
             return (

@@ -8,3 +8,4 @@ export { Switch } from './Switch';
 export { Card, Eyebrow, Row } from './Card';
 export { GlassBar, BackPill } from './Glass';
 export { useWheelSideways } from './useWheelSideways';
+export { useEdgeFade } from './useEdgeFade';
