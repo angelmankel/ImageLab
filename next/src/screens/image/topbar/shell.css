@@ -1,0 +1,13 @@
+/* Shell hover states (fix list 36 / 20 / 19): tab strip, left-panel title, Home tiles, footer parts. */
+.il-tabstrip::-webkit-scrollbar { display: none; }
+.il-tab-x:hover, .il-tab-new:hover, .il-chev:hover { background: var(--il-card-on) !important; color: var(--il-fg) !important; }
+.il-session-title:hover { background: var(--il-elev) !important; }
+.il-home-tile { transition: border-color .12s, transform .12s; }
+.il-home-tile:hover { border-color: var(--il-line-strong) !important; }
+.il-home-tile:focus-visible { outline: 2px solid var(--il-ember); outline-offset: 2px; }
+.il-home-new:hover { border-color: var(--il-ember) !important; color: var(--il-ember) !important; }
+@media (hover: hover) and (pointer: fine) {
+  .il-home-tile .il-home-more { opacity: 0; transition: opacity .12s; }
+  .il-home-tile:hover .il-home-more, .il-home-tile:focus-within .il-home-more { opacity: 1; }
+}
+.il-foot-part:hover { background: var(--il-elev) !important; color: var(--il-fg) !important; }

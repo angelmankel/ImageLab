@@ -19,10 +19,12 @@ import { ContextMenuHost } from './contextMenu';
 import { DragLayer, SendToSheet } from '~/dnd';
 import { UiEffects } from '~/ui/UiEffects';
 import './sessionMenus'; // boots the sessions store (fix list 20 / 36) + its right-click entries
+import { useFullscreenHotkey } from './fullscreen';
 
 export function App() {
   const phone = useIsPhone();
   useCreditNewResults();
+  useFullscreenHotkey();
   return (
     <ErrorBoundary label="ImageLab">
       {phone ? <PhoneShell /> : <DesktopShell />}

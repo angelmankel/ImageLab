@@ -19,6 +19,8 @@ import { LibraryScreen } from '~/screens/library';
 import { ModelsScreen } from '~/screens/models';
 import { ComfyScreen } from '~/screens/comfy';
 import { SettingsScreen } from '~/screens/settings';
+import { HomeScreen } from '~/screens/home/HomeScreen';
+import { Footer } from './footer/Footer';
 
 export function DesktopShell() {
   const screen = useRoute((s) => s.screen);
@@ -31,6 +33,7 @@ export function DesktopShell() {
         <div style={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex' }}>
           <ErrorBoundary label={screen}>
             {screen === 'step' && <ImageScreen />}
+            {screen === 'home' && <HomeScreen />}
             {screen === 'library' && <LibraryScreen />}
             {screen === 'models' && <ModelsScreen />}
             {screen === 'comfy' && <ComfyScreen />}
@@ -38,6 +41,7 @@ export function DesktopShell() {
           </ErrorBoundary>
         </div>
       </div>
+      <Footer />
     </div>
   );
 }

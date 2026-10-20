@@ -43,7 +43,8 @@ export function migrateLegacy(
   id: string, firstStepId: string, now: number,
 ): Session {
   const base = makeSession(id, firstStepId, now);
-  const raw = legacy?.steps?.length ? legacy.steps : null;
+  // The old built-in name of step 1 ("Portrait · SDXL") was a placeholder, not a choice: the eyebrow now shows the step's name.
+  const raw = legacy?.steps?.length ? legacy.steps.map((s) => (s.name === 'Portrait · SDXL' ? { ...s, name: 'Image' } : s)) : null;
   const steps = !raw ? base.steps : raw[0].kind === 'image' ? raw : [base.steps[0], ...raw.filter((s) => s.kind !== 'image')];
   const activeId = steps.some((s) => s.id === legacy?.activeId) ? legacy!.activeId! : steps[0].id;
   const nm = (legacy?.sessionName ?? '').trim();

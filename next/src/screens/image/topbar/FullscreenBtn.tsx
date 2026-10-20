@@ -6,6 +6,7 @@
 import { useEffect, useState } from 'react';
 import { IconMaximize, IconMinimize } from '@tabler/icons-react';
 import { IconBtn } from '~/ui';
+import { toggleFullscreen } from '~/app/fullscreen';
 
 export function FullscreenBtn() {
   const [full, setFull] = useState(() => typeof document !== 'undefined' && !!document.fullscreenElement);
@@ -15,15 +16,11 @@ export function FullscreenBtn() {
     return () => document.removeEventListener('fullscreenchange', sync);
   }, []);
   if (typeof document === 'undefined' || !document.fullscreenEnabled) return null;
-  const toggle = () => {
-    const p = document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
-    p?.catch(() => { /* refused (no user gesture / policy): the icon stays as it was */ });
-  };
   return (
     <IconBtn
       icon={full ? <IconMinimize size={18} /> : <IconMaximize size={18} />}
-      label={full ? 'Exit fullscreen' : 'Fullscreen'}
-      onClick={toggle}
+      label={full ? 'Exit fullscreen (F)' : 'Fullscreen (F)'}
+      onClick={toggleFullscreen}
       on={full}
     />
   );

@@ -10,11 +10,13 @@ import { LibraryPhoneScreen } from '~/screens/library';
 import { ModelsPhoneScreen } from '~/screens/models';
 import { ComfyPhoneScreen } from '~/screens/comfy';
 import { SettingsPhoneScreen } from '~/screens/settings';
+import { HomePhoneScreen } from '~/screens/home/HomePhoneScreen';
 import { AppEffects } from './imageBridge';
 import { PhoneStepScreen } from './PhoneStepScreen';
 
 function Screen() {
   const screen = useRoute((s) => s.screen);
+  if (screen === 'home') return <HomePhoneScreen />;
   if (screen === 'library') return <LibraryPhoneScreen />;
   if (screen === 'models') return <ModelsPhoneScreen />;
   if (screen === 'comfy') return <ComfyPhoneScreen />;

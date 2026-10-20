@@ -1,66 +1,43 @@
 /**
- * Rule 9: ember logo + "ImageLab", session name ▾, then on the right: clock, keyboard shortcuts,
- * fullscreen, status pill ("This pod · B200"), "Queue 2 · ↓ 1". Nothing else. The queue pill opens the queue list (rule 15); the session menu is the named set
- * of steps (one session for now: the current one).
+ * The top nav (fix list 36 / 19): ← Home · logo + wordmark (also → Home) · | · the session tab
+ * strip (fills the width) · | · server chip ("This pod · B200") · "Queue 2 · ↓ 1" · mute · fullscreen
+ * far right. The clock and the keyboard shortcuts live in the footer (`Footer.tsx`). The queue
+ * pill opens the queue list (rule 15). No session component here: the session's name is the left
+ * panel's title (`SessionTitle`).
  */
 import { useState } from 'react';
-import { Menu, Modal, Popover, TextInput } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
-import { IconFolder, IconListDetails, IconArrowDown, IconCheck, IconPencil, IconPlus } from '@tabler/icons-react';
+import { Popover } from '@mantine/core';
+import { IconListDetails, IconArrowDown, IconArrowLeft } from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
 import { servedFromHost } from '@/lib/storage';
 import { canRunImages } from '@/lib/serverRoles';
 import { useDownloadsStore } from '@/features/downloads/store';
 import { useModeHost } from '@/features/workspace/modeHost';
-import { useSteps } from '~/app/stepsStore';
+import { useRoute } from '~/app/routeStore';
 import { useQueue } from '~/app/queue';
-import { Pill, Count, Dot } from '~/ui';
+import { Pill, Count, Dot, IconBtn } from '~/ui';
 import { T } from '~/theme/tokens';
 import { QueueList } from './QueueList';
 import { useGpuName } from './useGpuName';
-import { Clock } from './topbar/Clock';
-import { ShortcutsCard } from './topbar/ShortcutsCard';
 import { FullscreenBtn } from './topbar/FullscreenBtn';
+import { MuteToggle } from '~/ui/MuteToggle';
+import './topbar/shell.css';
+import { SessionTabs } from './topbar/SessionTabs';
+
+/** The tall hairline that frames the tab strip (fix list 36: after the logo, before the right-side items). */
+function Divider() {
+  return <span aria-hidden style={{ width: 1, height: 26, background: 'var(--il-line-strong)', margin: '0 6px', flex: 'none' }} />;
+}
+
+export function Wordmark({ size = 17 }: { size?: number }) {
+  return <span style={{ fontWeight: 800, fontSize: size, letterSpacing: '-.4px', whiteSpace: 'nowrap' }}>Image<span style={{ color: 'var(--il-ember)' }}>Lab</span></span>;
+}
 
 export function Logo({ size = 32 }: { size?: number }) {
   return (
     <div aria-hidden style={{ width: size, height: size, borderRadius: Math.round(size * 0.31), background: 'var(--il-ember)', display: 'grid', placeItems: 'center', flex: 'none' }}>
       <svg width={size * 0.62} height={size * 0.62} viewBox="0 0 24 24" fill="none"><path d="M12 2.5c1 3.5 5.5 5.5 5.5 10.5a5.5 5.5 0 0 1-11 0c0-2 .8-3.4 1.8-4.6.3 1.6 1.2 2.6 2.4 2.6 1.6 0 2.3-1.8 1.3-4.5C11.6 5.2 11.6 3.8 12 2.5z" fill="#141416" /><circle cx="12" cy="14.5" r="2.2" fill="#FFF1E6" /></svg>
     </div>
-  );
-}
-
-/** The session name with its menu: the current session (checked), rename, new. */
-function SessionMenu() {
-  const name = useSteps((s) => s.sessionName);
-  const rename = useSteps((s) => s.renameSession);
-  const [renaming, setRenaming] = useState(false);
-  const [draft, setDraft] = useState(name);
-  return (
-    <>
-      <Menu position="bottom-start" shadow="lg" width={240} withinPortal zIndex={T.z.popover}>
-        <Menu.Target>
-          <span style={{ display: 'inline-flex' }}>
-            <Pill onClick={() => {}} style={{ marginLeft: 8, color: 'var(--il-fg)', fontSize: 13 }} title="Session">
-              <IconFolder size={15} color="var(--il-muted)" />{name}<span style={{ color: 'var(--il-muted)' }}>▾</span>
-            </Pill>
-          </span>
-        </Menu.Target>
-        <Menu.Dropdown>
-          <Menu.Label>Sessions</Menu.Label>
-          <Menu.Item leftSection={<IconCheck size={14} />}>{name}</Menu.Item>
-          <Menu.Divider />
-          <Menu.Item leftSection={<IconPencil size={14} />} onClick={() => { setDraft(name); setRenaming(true); }}>Rename…</Menu.Item>
-          <Menu.Item leftSection={<IconPlus size={14} />} onClick={() => notifications.show({ title: 'Sessions', message: 'Saving more than one session is coming.', color: 'gray', autoClose: 2500 })}>New session</Menu.Item>
-        </Menu.Dropdown>
-      </Menu>
-      <Modal opened={renaming} onClose={() => setRenaming(false)} title="Rename the session" size="xs" zIndex={T.z.modal} centered>
-        <form onSubmit={(e) => { e.preventDefault(); rename(draft); setRenaming(false); }} style={{ display: 'flex', gap: 6 }}>
-          <TextInput value={draft} onChange={(e) => setDraft(e.currentTarget.value)} data-autofocus style={{ flex: 1 }} aria-label="Session name" />
-          <button type="submit" style={{ height: 36, padding: '0 14px', border: 0, borderRadius: 999, background: 'var(--il-ember)', color: 'var(--il-bg)', fontWeight: 800, fontSize: 12, cursor: 'pointer' }}>Save</button>
-        </form>
-      </Modal>
-    </>
   );
 }
 
@@ -107,19 +84,23 @@ function QueuePill() {
 }
 
 export function TopBar() {
+  const screen = useRoute((s) => s.screen);
+  const home = screen === 'home';
   return (
-    <div style={{ height: T.size.topBar, flex: 'none', display: 'flex', alignItems: 'center', gap: T.gap.sm, padding: '0 16px', borderBottom: '1px solid var(--il-line)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginRight: T.gap.sm }}>
-        <Logo />
-        <span style={{ fontWeight: 800, fontSize: 17, letterSpacing: '-.4px' }}>Image<span style={{ color: 'var(--il-ember)' }}>Lab</span></span>
-      </div>
-      <SessionMenu />
-      <div style={{ flex: 1 }} />
-      <Clock />
-      <ShortcutsCard />
-      <FullscreenBtn />
+    <div style={{ height: T.size.topBar, flex: 'none', display: 'flex', alignItems: 'center', gap: T.gap.sm, padding: '0 12px 0 10px', borderBottom: '1px solid var(--il-line)' }}>
+      <IconBtn icon={<IconArrowLeft size={20} stroke={2.4} />} label="Home: all sessions" onClick={() => useRoute.getState().go('home')} on={home} />
+      <button type="button" onClick={() => useRoute.getState().go('home')} aria-label="ImageLab: all sessions"
+        style={{ display: 'flex', alignItems: 'center', gap: 9, marginLeft: 2, border: 0, padding: 0, background: 'transparent', color: 'var(--il-fg)', cursor: 'pointer', flex: 'none' }}>
+        <Logo size={30} />
+        <Wordmark />
+      </button>
+      <Divider />
+      <SessionTabs />
+      <Divider />
       <StatusPill />
       <QueuePill />
+      <MuteToggle />
+      <FullscreenBtn />
     </div>
   );
 }

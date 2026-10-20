@@ -43,8 +43,10 @@ interface SessionsState {
   /** Close a tab; the last one stays (returns false). The session itself is kept (Home lists it). */
   closeTab: (id: string) => boolean;
   moveTab: (from: number, to: number) => void;
-  /** Delete a session for good. The current one → the next open tab, or a fresh session. */
-  remove: (id: string) => void;
+  /** Delete a session. The current one → the next open tab, or a fresh session. Returns it (for Undo). */
+  remove: (id: string) => Session | null;
+  /** Undo of `remove`: the session comes back (not opened). */
+  restore: (s: Session) => void;
   /** A copy with fresh step ids, opened next to the current tab. Returns the new id. */
   duplicate: (id: string) => string;
   rename: (id: string, name: string) => void;
@@ -154,18 +156,22 @@ export const useSessions = create<SessionsState>()(
 
       remove: (id) => {
         const st = get();
-        if (!st.sessions[id]) return;
+        if (!st.sessions[id]) return null;
         if (id === st.currentId) {
           const other = st.openIds.find((x) => x !== id) ?? byRecent(Object.values(st.sessions).filter((s) => s.id !== id))[0]?.id;
           if (other) get().open(other);
           else get().create();
         }
+        const gone = get().sessions[id];
         set((s) => {
           const sessions = { ...s.sessions };
           delete sessions[id];
           return { sessions, openIds: s.openIds.filter((x) => x !== id) };
         });
+        return gone ?? null;
       },
+
+      restore: (s) => set((st) => ({ sessions: { ...st.sessions, [s.id]: s } })),
 
       duplicate: (id) => {
         const st = get();
@@ -310,3 +316,11 @@ export function newSessionFromImage(image: ImageLike | HistoryEntry): string {
 
 /** The title a tab / tile shows. */
 export const sessionLabel = (s: Pick<Session, 'name'>): string => displayName(s.name);
+
+/** Delete a session with a 3 s "Session deleted · Undo" note (Home ⋯, tab menu). Its pictures stay in History. */
+export async function deleteSession(id: string): Promise<void> {
+  const gone = useSessions.getState().remove(id);
+  if (!gone) return;
+  const { undoNote } = await import('./undoNote');
+  undoNote('Session deleted', () => useSessions.getState().restore(gone));
+}

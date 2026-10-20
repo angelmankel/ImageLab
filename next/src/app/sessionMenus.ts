@@ -6,7 +6,7 @@
 import { IconCopy, IconLayoutGrid, IconSquarePlus, IconTrash, IconX } from '@tabler/icons-react';
 import { registerMenu } from './contextMenu';
 import { useRoute } from './routeStore';
-import { newSessionFromImage, useSessions, type ImageLike, type Session } from './sessionsStore';
+import { deleteSession, newSessionFromImage, useSessions, type ImageLike, type Session } from './sessionsStore';
 
 registerMenu<Session>('tab', [
   { id: 'dup', label: 'Duplicate', icon: IconCopy, group: 'edit', action: (s) => { useSessions.getState().duplicate(s.id); } },
@@ -27,7 +27,7 @@ registerMenu<Session>('tab', [
   },
   {
     id: 'delete', label: 'Delete session', icon: IconTrash, danger: true, group: 'danger', order: 100,
-    action: (s) => { useSessions.getState().remove(s.id); },
+    action: (s) => { void deleteSession(s.id); },
   },
 ]);
 

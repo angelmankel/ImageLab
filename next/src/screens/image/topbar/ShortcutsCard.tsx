@@ -1,6 +1,7 @@
 /**
  * Top-bar keyboard button + the shortcuts card (rule 9). The card lists ONLY keys the next UI
  * really handles; each row names where. Keep it in sync when a shortcut is added or removed:
+ *   F fullscreen ................. app/fullscreen.ts (useFullscreenHotkey, mounted in App)
  *   Ctrl/⌘+Enter generate ........ screens/image/GenerateBar.tsx (useShortcut 'cmd+Enter')
  *   ← → on the stage ............. screens/image/Stage.tsx (useShortcut ArrowLeft/ArrowRight)
  *   viewer Esc ← → S ............. @/components/FullscreenImage.tsx (+ VideoFullscreen Esc)
@@ -21,6 +22,11 @@ const MOD = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/i.test(navigato
 
 type Row = { keys: string[][]; what: string };
 const GROUPS: { title: string; rows: Row[] }[] = [
+  { title: 'App', rows: [
+    { keys: [['F']], what: 'Fullscreen on / off (not while typing)' },
+    { keys: [['H']], what: 'Hints on / off' },
+    { keys: [['Middle-click']], what: 'Close a session tab' },
+  ] },
   { title: 'Step', rows: [
     { keys: [[MOD, 'Enter']], what: 'Generate (also while typing)' },
     { keys: [['←'], ['→']], what: 'Step through the results' },
@@ -42,9 +48,6 @@ const GROUPS: { title: string; rows: Row[] }[] = [
     { keys: [['Esc']], what: 'Clear the search' },
     { keys: [['←'], ['→']], what: 'Preview: previous / next image' },
     { keys: [['Esc']], what: 'Preview: close' },
-  ] },
-  { title: 'App', rows: [
-    { keys: [['H']], what: 'Hints on / off' },
   ] },
   { title: 'Dialogs', rows: [
     { keys: [[MOD, 'Enter']], what: '“Write it”: run' },
@@ -80,13 +83,15 @@ function Keys({ keys }: { keys: string[][] }) {
   );
 }
 
-export function ShortcutsCard() {
+/** `trigger` = what opens the card (the footer's small "Shortcuts" part); default the 36px icon button. */
+export function ShortcutsCard({ trigger, position = 'bottom-end' }: { trigger?: (open: boolean, toggle: () => void) => ReactNode; position?: 'bottom-end' | 'top-start' } = {}) {
   const [open, setOpen] = useState(false);
+  const toggle = () => setOpen((o) => !o);
   return (
-    <Popover opened={open} onChange={setOpen} position="bottom-end" shadow="lg" withinPortal zIndex={T.z.modal}>
+    <Popover opened={open} onChange={setOpen} position={position} shadow="lg" withinPortal zIndex={T.z.modal}>
       <Popover.Target>
         <span style={{ display: 'inline-flex' }}>
-          <IconBtn icon={<IconKeyboard size={18} />} label="Keyboard shortcuts" onClick={() => setOpen((o) => !o)} on={open} tooltip={!open} />
+          {trigger ? trigger(open, toggle) : <IconBtn icon={<IconKeyboard size={18} />} label="Keyboard shortcuts" onClick={toggle} on={open} tooltip={!open} />}
         </span>
       </Popover.Target>
       <Popover.Dropdown style={{
