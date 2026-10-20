@@ -1,10 +1,13 @@
 /**
  * The providers list on the AI helper pane: one row per added provider — radio (make it the
  * active one) · name · key-state dot (green tested, ember untested, dim no key) · its model ·
- * › opens its page — then "+ Add provider", a picker of the supported providers not added yet.
+ * › opens its page · × removes it straight from the row (not Local; FIXLIST 5, with a 3 s Undo) —
+ * then "+ Add provider", a picker of the supported providers not added yet.
  */
 import { useState } from 'react';
-import { IconChevronRight, IconPlus } from '@tabler/icons-react';
+import { IconChevronRight, IconPlus, IconX } from '@tabler/icons-react';
+import { Button } from '@mantine/core';
+import { notifications } from '@mantine/notifications';
 import { useStore } from '@/lib/store';
 import { addableProviders, keyState, providerSpec, shortModelName, type AiProviderEntry, type AiProviderId } from '@/lib/aiProviders';
 import { Chip, Dot, Row } from '~/ui';
@@ -12,6 +15,23 @@ import { openProviderPage } from './useOpenProvider';
 
 const DOT: Record<ReturnType<typeof keyState>, string> = { ok: 'var(--il-ok)', pending: 'var(--il-ember)', none: 'var(--il-dim)' };
 const DOT_TITLE: Record<ReturnType<typeof keyState>, string> = { ok: 'Tested, works', pending: 'Not tested yet', none: 'No key' };
+
+/** Remove a provider from its row; Undo (3 s) puts the whole AI setup back as it was (key, models, active). */
+function removeWithUndo(id: AiProviderId) {
+  const before = useStore.getState().ai;
+  useStore.getState().removeAiProvider(id);
+  const nid = `il-ai-removed-${id}-${Date.now()}`;
+  notifications.show({
+    id: nid,
+    autoClose: 3000,
+    message: (
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontWeight: 700 }}>
+        {providerSpec(id).name} removed<span aria-hidden style={{ color: 'var(--il-muted)' }}>·</span>
+        <Button size="compact-xs" variant="light" onClick={() => { useStore.setState({ ai: before }); notifications.hide(nid); }}>Undo</Button>
+      </span>
+    ),
+  });
+}
 
 function ProviderRow({ entry, active, first, onActivate }: { entry: AiProviderEntry; active: boolean; first?: boolean; onActivate: () => void }) {
   const spec = providerSpec(entry.id);
@@ -38,6 +58,19 @@ function ProviderRow({ entry, active, first, onActivate }: { entry: AiProviderEn
         </span>
         <IconChevronRight size={16} stroke={2.2} style={{ color: 'var(--il-dim)', flex: 'none' }} />
       </button>
+      {entry.id === 'local' ? (
+        <span aria-hidden style={{ width: 40, flex: 'none' }} />
+      ) : (
+        <button
+          type="button" onClick={() => removeWithUndo(entry.id)} aria-label={`Remove ${spec.name}`}
+          title={`Remove ${spec.name} (forgets its key and models here)${active ? '; Local becomes the active provider' : ''}`}
+          style={{ width: 40, height: 40, flex: 'none', border: 0, borderRadius: 999, background: 'transparent', color: 'var(--il-dim)', display: 'grid', placeItems: 'center', cursor: 'pointer', padding: 0 }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--il-err)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--il-dim)'; }}
+        >
+          <IconX size={15} stroke={2.4} />
+        </button>
+      )}
     </div>
   );
 }
