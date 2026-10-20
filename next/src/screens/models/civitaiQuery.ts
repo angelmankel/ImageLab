@@ -207,10 +207,10 @@ export function buildModelsQuery(f: ModelFilters, o: QueryOptions = {}): string 
   if (f.checkpointType) qp.set('checkpointType', f.checkpointType);
   appendAll(qp, 'fileFormats', f.fileFormats);
   const mask = f.nsfwMask & ALL_LEVELS;
-  // None = G only: ask the API to drop NSFW models outright. Otherwise send both the flag and the
-  // mask (`browsingLevel` is the bitfield; the mask is also enforced client-side).
+  // None = G only: ask the API to drop NSFW models outright. Otherwise only the flag goes out:
+  // /models answers HTTP 400 (ZodError, "expected number") to a `browsingLevel` query param
+  // (checked 10-19), so the level mask is enforced client-side only. /images does accept it.
   qp.set('nsfw', mask > 1 ? 'true' : 'false');
-  if (mask && mask !== ALL_LEVELS) qp.set('browsingLevel', String(mask));
   appendAll(qp, 'ids', f.ids.map(String));
   return qp.toString();
 }

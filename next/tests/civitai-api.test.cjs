@@ -8,14 +8,14 @@ const Q = require('../src/screens/models/civitaiQuery.ts');
 const params = (s) => new URLSearchParams(s);
 const base = () => ({ ...Q.DEFAULT_FILTERS });
 
-test('defaults: only limit, sort, period, nsfw and the browsing level go out', () => {
+test('defaults: only limit, sort, period and nsfw go out (never browsingLevel: /models rejects it)', () => {
   const p = params(Q.buildModelsQuery(base()));
-  assert.deepEqual([...p.keys()].sort(), ['browsingLevel', 'limit', 'nsfw', 'period', 'sort']);
+  assert.deepEqual([...p.keys()].sort(), ['limit', 'nsfw', 'period', 'sort']);
   assert.equal(p.get('limit'), '40');
   assert.equal(p.get('sort'), 'Most Downloaded');
   assert.equal(p.get('period'), 'Month');
   assert.equal(p.get('nsfw'), 'true');
-  assert.equal(p.get('browsingLevel'), '7');
+  assert.equal(p.get('browsingLevel'), null);
 });
 
 test('every /models parameter is wired', () => {
@@ -60,7 +60,7 @@ test('page is used when there is no cursor; limit is clamped', () => {
 test('NSFW "None" asks the API to drop NSFW models; client-only filters never go out', () => {
   const p = params(Q.buildModelsQuery({ ...base(), nsfwMask: 1, fp: ['fp16'], installed: 'only', earlyAccess: 'hide' }));
   assert.equal(p.get('nsfw'), 'false');
-  assert.equal(p.get('browsingLevel'), '1');
+  assert.equal(p.get('browsingLevel'), null, 'the level mask is client-side only');
   assert.equal(p.get('fp'), null);
   assert.equal(p.get('installed'), null);
   assert.equal(p.get('earlyAccess'), null);
