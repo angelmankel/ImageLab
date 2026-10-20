@@ -1,5 +1,6 @@
 /**
- * The Input tab: the input image for img2img / inpaint. Steps 2+: "Use previous step's output"
+ * The Input tab: the Image step's output size first (aspect + longest side, `settings/SizeControl`;
+ * moved here from Settings, Donny 10-20), then the input image for img2img / inpaint. Steps 2+: "Use previous step's output"
  * (chained) with that output shown; any step: drop / upload / paste, "From history" (the main
  * app's past-generations browser), Edit (the main app's editor: crop, rotate, filters, remove
  * background), Clear, and the Denoise slider. Logic from `features/inputImage` and the main
@@ -14,6 +15,7 @@ import { EditImageModal } from '@/features/inputImage/EditImageModal';
 import { useSteps, type Step } from '~/app/stepsStore';
 import { Switch, SliderRow, Chip } from '~/ui';
 import { usePrevStepOutput } from './useStepOutput';
+import { SizeControl } from './settings/SizeControl';
 
 const SIZES = [768, 1024, 1280, 1536, 2048];
 
@@ -62,6 +64,7 @@ export function InputTab({ step }: { step: Step; phone?: boolean }) {
 
   return (
     <>
+      {step.kind === 'image' && <SizeControl />}
       {!first && (
         <div style={{ background: 'var(--il-card)', borderRadius: 14, padding: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
           <Switch label="Use previous step's output" checked={step.chained && !step.input} onChange={(on) => { updateStep(step.id, { chained: on }); if (on) setStepInput(step.id, null); }} />

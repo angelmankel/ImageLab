@@ -21,7 +21,9 @@ export function Tabs<K extends string>({ items, value, onChange, compact, fill =
             title={it.title}
             onClick={() => onChange(it.key)}
             style={{
-              flex: fill ? 1 : 'none', height: compact ? 26 : 32, padding: '0 12px', border: 0, borderRadius: 999,
+              // A label may be icon + text: Tailwind's preflight makes the <svg> a block, so lay them out in one centred row.
+              flex: fill ? 1 : 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, minWidth: 0,
+              height: compact ? 26 : 32, padding: '0 12px', border: 0, borderRadius: 999,
               background: on ? 'var(--il-card-on)' : 'transparent', color: on ? 'var(--il-fg)' : 'var(--il-muted)',
               fontWeight: 800, fontSize: compact ? 11 : 12, cursor: 'pointer', whiteSpace: 'nowrap',
             }}

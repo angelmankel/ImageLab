@@ -39,7 +39,7 @@ export function ThumbStrip({ images, index, onSelect, isHidden, hasMore, onMore,
   }, [index]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <div ref={setRow} className="il-scroll-x" style={{ height: STRIP_H, display: 'flex', alignItems: 'center', gap: 6, padding: '0 10px', overflowX: 'auto', background: 'var(--il-bg)', borderTop: '1px solid var(--il-line)', touchAction: 'pan-x' }}>
+    <div ref={setRow} className="il-scroll-x" style={{ height: STRIP_H, display: 'flex', alignItems: 'center', gap: 6, padding: '0 10px', overflowX: 'auto', background: 'var(--il-bg)', borderTop: '1px solid var(--il-line)', touchAction: 'pan-x pan-y' }}>
       {images.map((img, i) => {
         const on = i === index;
         const hidden = isHidden(img);

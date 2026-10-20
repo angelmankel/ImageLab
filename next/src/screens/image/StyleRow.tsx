@@ -27,7 +27,7 @@ export function StyleRow() {
         <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--il-muted)' }}>Style</span>
         {current === 'custom' && <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--il-ember-hi)' }} title={layer?.text}>custom</span>}
       </div>
-      <div className="il-scroll-x" style={{ display: 'flex', gap: 10, touchAction: 'pan-x' }}>
+      <div className="il-scroll-x" data-no-swipe style={{ display: 'flex', gap: 10, touchAction: 'pan-x pan-y' }}>
         {STYLES.map((s) => {
           const on = s.id === current;
           return (
