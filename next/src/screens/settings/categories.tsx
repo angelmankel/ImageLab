@@ -4,7 +4,7 @@
  * so the search is data-driven (settingsLogic.ts), plus the component that renders its control.
  */
 import type { ReactElement } from 'react';
-import { IconBulb, IconCube, IconInfoCircle, IconPalette, IconServer, IconSparkles, IconVolume } from '@tabler/icons-react';
+import { IconBrush, IconBulb, IconCube, IconInfoCircle, IconPalette, IconServer, IconSparkles, IconVolume } from '@tabler/icons-react';
 import type { CategoryId, SearchableRow } from './settingsLogic';
 
 export type { CategoryId };
@@ -21,6 +21,7 @@ export const CATEGORIES: readonly Category[] = [
   { id: 'ai', label: 'AI helper', description: 'The provider and model that write, improve and read prompts. Keys stay in this browser; calls go straight from this tab to the active provider.', icon: IconSparkles },
   { id: 'models', label: 'Models & CivitAI', description: 'CivitAI access and how model previews play.', icon: IconCube },
   { id: 'appearance', label: 'Appearance', description: 'Sizes and looks of the library.', icon: IconPalette },
+  { id: 'themes', label: 'Themes', description: 'Colours, fonts, size, shape and motion. Every change shows at once.', icon: IconBrush },
   { id: 'sounds', label: 'Sounds', description: 'Volume, mute, and which sounds play: queued, done, clicks, toggles, hover.', icon: IconVolume },
   { id: 'hints', label: 'Hints', description: 'The help text on every parameter: on or off (H), and each text, editable.', icon: IconBulb },
   { id: 'about', label: 'About', description: 'This app, the classic UI, and where your settings live.', icon: IconInfoCircle },

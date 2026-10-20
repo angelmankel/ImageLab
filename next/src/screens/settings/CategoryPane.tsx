@@ -5,6 +5,7 @@
 import { categoryById, type CategoryId } from './categories';
 import { groupedRows, rowsOf } from './registry';
 import { RowGroup, SettingRow } from './SettingRow';
+import { ThemesPane } from './themes/ThemesPane';
 
 export function CategoryPane({ id, header = true }: { id: CategoryId; header?: boolean }) {
   const cat = categoryById(id);
@@ -19,7 +20,7 @@ export function CategoryPane({ id, header = true }: { id: CategoryId; header?: b
       ) : (
         <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--il-muted)', padding: '0 0 10px', lineHeight: 1.45 }}>{cat.description}</div>
       )}
-      {groups.map((g, gi) => (
+      {id === 'themes' ? <ThemesPane /> : groups.map((g, gi) => (
         <RowGroup key={g.title ?? `_${gi}`} title={g.title}>
           {g.rows.map((r, i) => <SettingRow key={r.id} def={r} first={i === 0} />)}
         </RowGroup>

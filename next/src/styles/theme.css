@@ -1,0 +1,77 @@
+/* Item 35, Settings → Themes: the CSS half. theme/applyTheme.ts writes every --il-* var and these
+   data-attributes on <html>: data-motion (subtle | off), data-grad (accent), data-bg (glow |
+   aurora | fade), data-oled, data-shadows (none | deep), data-prompt-font (mono). Loaded after
+   next.css. Without a saved theme every value below equals the Ember look. */
+
+:root {
+  --il-accent2: #F0BC3A;
+  --il-on-accent: #0F0F11;
+  --il-accent-fill: linear-gradient(var(--il-ember), var(--il-ember));
+  --il-bg-art: none;
+  --il-font-prompt: var(--il-font);
+  --il-density: 1;
+  --il-corners: 1;
+  --il-shadow-sm: 0 2px 8px rgba(0, 0, 0, .4);
+  --il-shadow-md: 0 8px 24px rgba(0, 0, 0, .4);
+  --il-shadow-lg: 0 14px 40px rgba(0, 0, 0, .45);
+  --il-glow: 35%;
+  --il-glass-pct: 72%;
+  /* Animation speed: every themed duration is `<t> × --il-motion × --il-dur`. */
+  --il-dur: 1;
+  /* Mantine's accent scale (mantineTheme.ts `ember`), derived from the accent. */
+  --il-acc-0: color-mix(in srgb, var(--il-ember-hi) 18%, white);
+  --il-acc-1: color-mix(in srgb, var(--il-ember-hi) 40%, white);
+  --il-acc-2: color-mix(in srgb, var(--il-ember-hi) 70%, white);
+  --il-acc-3: var(--il-ember-hi);
+  --il-acc-4: color-mix(in srgb, var(--il-ember) 55%, var(--il-ember-hi));
+  --il-acc-5: var(--il-ember);
+  --il-acc-6: color-mix(in srgb, var(--il-ember), black 12%);
+  --il-acc-7: color-mix(in srgb, var(--il-ember), black 25%);
+  --il-acc-8: color-mix(in srgb, var(--il-ember), black 42%);
+  --il-acc-9: color-mix(in srgb, var(--il-ember), black 62%);
+  /* The main app's sheet (reused viewer) hard-codes its primary text; follow the theme. */
+  --color-fg-primary: var(--il-fg);
+}
+
+/* ---- Motion: Full 1 · Subtle .5 · Off 0. The system's reduced-motion setting always wins. */
+html[data-motion="subtle"] { --il-motion: .5; }
+html[data-motion="off"] { --il-motion: 0; }
+@media (prefers-reduced-motion: reduce) { :root, html[data-motion] { --il-motion: 0 !important; } }
+/* Off: every decorative transition / animation is instant (0.01ms so transitionend still fires).
+   Spinners, progress sweeps and the slideshow's own transitions keep running. */
+html[data-motion="off"] *, html[data-motion="off"] *::before, html[data-motion="off"] *::after {
+  transition-duration: .01ms !important; transition-delay: 0s !important;
+}
+html[data-motion="off"] *:not(.mantine-Loader-root):not(.mantine-Loader-root *):not(.il-sweep):not([class*="ss-anim"]):not([class*="spin"]) {
+  animation-duration: .01ms !important; animation-delay: 0s !important; animation-iteration-count: 1 !important;
+}
+
+/* ---- Gradients. Accent: everything filled with the accent (primary buttons, badges, progress,
+   switches, slider bars) gets the accent → second colour gradient. */
+html[data-grad="accent"] :is([style*="background: var(--il-ember);"], [style*="background-color: var(--il-ember);"], .il-btn-primary:not(:disabled), .il-slider .mantine-Slider-bar, .il-switch .mantine-Switch-track[data-checked], .il-switch input:checked + .mantine-Switch-track) {
+  background-image: var(--il-accent-fill) !important;
+}
+/* Background art (glow / aurora / fade): one wash pinned to the window, seen through every
+   page / panel / deepest surface so it reads as one continuous background. */
+html[data-bg] body,
+html[data-bg] :is([style*="background: var(--il-bg);"], [style*="background: var(--il-panel);"], [style*="background: var(--il-bg-deep);"]) {
+  background-image: var(--il-bg-art) !important;
+  background-attachment: fixed !important;
+}
+
+/* ---- Shadows: None / Soft (default) / Deep, on the floating layers Mantine draws. */
+html[data-shadows] :is(.mantine-Popover-dropdown, .mantine-Menu-dropdown, .mantine-Combobox-dropdown, .mantine-HoverCard-dropdown, .mantine-Modal-content, .mantine-Drawer-content) {
+  box-shadow: var(--il-shadow-lg) !important;
+}
+html[data-shadows] .mantine-Notification-root { box-shadow: var(--il-shadow-md) !important; }
+
+/* ---- Prompt font (Same as UI / Mono): the prompt boxes are the textareas labelled "…prompt". */
+html[data-prompt-font] textarea[aria-label$="rompt"] { font-family: var(--il-font-prompt) !important; }
+
+/* ---- OLED: the scroll bars and selection keep reading on pure black. */
+html[data-oled] body { background-color: #000; }
+
+/* The Motion tiles' little demo: a dot that travels as far as the setting allows. */
+@keyframes il-demo { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(calc(46px * var(--il-motion-demo, 1))); } }
+.il-motion-demo { animation: il-demo calc(1.4s * var(--il-dur, 1)) ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .il-motion-demo { animation: none; } }

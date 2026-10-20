@@ -1,4 +1,4 @@
-import { createTheme, type MantineColorsTuple } from '@mantine/core';
+import { createTheme, mergeThemeOverrides, type MantineColorsTuple, type MantineThemeOverride } from '@mantine/core';
 import { T } from './tokens';
 import { viewerLayerRef } from './scrollShards';
 
@@ -21,9 +21,10 @@ const dark: MantineColorsTuple = [
   T.color.bgDeep,     // 9
 ];
 
-const ember: MantineColorsTuple = [
-  '#FFF1E6', '#FFDFC2', '#FFC996', '#FFB36B', '#F89A4C', '#F0863A', '#D9702A', '#B85A1F', '#8F4417', '#5A2A0D',
-];
+/** The accent's ten shades are CSS vars (styles/theme.css derives them from --il-ember / --il-ember-hi),
+ *  so a theme's accent recolours every Mantine part too (item 35). */
+const ember = Array.from({ length: 10 }, (_, i) => `var(--il-acc-${i})`) as unknown as MantineColorsTuple;
+const rad = (px: number) => `calc(${px}px * var(--il-corners, 1))`;
 
 export const emberTheme = createTheme({
   fontFamily: T.font,
@@ -32,7 +33,7 @@ export const emberTheme = createTheme({
   primaryShade: 5,
   colors: { dark, ember },
   defaultRadius: 'md',
-  radius: { xs: '8px', sm: '10px', md: '12px', lg: '14px', xl: '16px' },
+  radius: { xs: rad(8), sm: rad(10), md: rad(12), lg: rad(14), xl: rad(16) },
   fontSizes: { xs: '11px', sm: '12px', md: '13px', lg: '14px', xl: '16px' },
   components: {
     // Item 26: every tooltip near-instant with a quick fade, in the dark `.il-tip` card.
@@ -68,3 +69,19 @@ export const emberTheme = createTheme({
     Drawer: { defaultProps: { removeScrollProps: { shards: [viewerLayerRef] } } },
   },
 });
+
+/** Mantine's own transition lengths (ms) at speed 1. */
+const DURATIONS = { Tooltip: 90, Popover: 150, Menu: 150, Combobox: 150, Modal: 200, Drawer: 200 } as const;
+
+/**
+ * The Ember theme with Mantine's transitions scaled by the Themes motion setting (item 35):
+ * `factor` = speed × (motion on ? 1 : 0); 0 = every Mantine transition instant.
+ */
+export function themeWithMotion(factor: number): MantineThemeOverride {
+  if (factor === 1) return emberTheme;
+  const components: Record<string, { defaultProps: { transitionProps: { duration: number } } }> = {};
+  for (const [name, ms] of Object.entries(DURATIONS)) {
+    components[name] = { defaultProps: { transitionProps: { duration: Math.round(ms * factor) } } };
+  }
+  return mergeThemeOverrides(emberTheme, { components });
+}

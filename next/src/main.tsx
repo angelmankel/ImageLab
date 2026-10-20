@@ -1,12 +1,12 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { MantineProvider } from '@mantine/core';
 import { ModalsProvider } from '@mantine/modals';
 import { Notifications } from '@mantine/notifications';
 import '@fontsource-variable/manrope';
 import '@fontsource-variable/inter';
 import './styles/next.css';
-import { emberTheme } from '~/theme/mantineTheme';
+import './styles/theme.css';
+import { ThemedMantine, ThemeRoot } from '~/theme/ThemeRoot';
 import { App } from '~/app/App';
 
 // Installable app: register the service worker in built copies only (the dev server has none).
@@ -19,11 +19,11 @@ if (import.meta.env.PROD && 'serviceWorker' in navigator) {
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <MantineProvider defaultColorScheme="dark" forceColorScheme="dark" theme={emberTheme}>
+    <ThemedMantine>
       <ModalsProvider>
         <Notifications position={window.matchMedia('(max-width: 767px)').matches ? 'top-center' : 'bottom-right'} limit={3} autoClose={3000} />
-        <App />
+        <ThemeRoot app={App} />
       </ModalsProvider>
-    </MantineProvider>
+    </ThemedMantine>
   </StrictMode>,
 );

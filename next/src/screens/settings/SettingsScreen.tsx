@@ -46,7 +46,7 @@ export function SettingsScreen() {
         <CategoryList />
       </aside>
       <div className="il-scroll" style={{ flex: 1, minWidth: 0, minHeight: 0, overflowY: 'auto', touchAction: 'pan-y' }}>
-        <div style={{ maxWidth: 760, margin: '0 auto', padding: '18px 24px 48px', boxSizing: 'border-box' }}>
+        <div style={{ maxWidth: !searching && category === 'themes' ? 1100 : 760, margin: '0 auto', padding: '18px 24px 48px', boxSizing: 'border-box' }}>
           {searching
             ? <SearchResults onOpen={(c) => { setCategory(c); setQuery(''); }} />
             : category === 'ai' && provider

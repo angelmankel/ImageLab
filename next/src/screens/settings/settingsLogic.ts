@@ -6,8 +6,8 @@
  * the one-line summaries the phone list shows under each category. No imports.
  */
 
-export type CategoryId = 'servers' | 'ai' | 'models' | 'appearance' | 'sounds' | 'hints' | 'about';
-export const CATEGORY_IDS: readonly CategoryId[] = ['servers', 'ai', 'models', 'appearance', 'sounds', 'hints', 'about'];
+export type CategoryId = 'servers' | 'ai' | 'models' | 'appearance' | 'themes' | 'sounds' | 'hints' | 'about';
+export const CATEGORY_IDS: readonly CategoryId[] = ['servers', 'ai', 'models', 'appearance', 'themes', 'sounds', 'hints', 'about'];
 
 /** What the search reads from a row; the registry's rows carry more (group, control). */
 export interface SearchableRow {
@@ -159,4 +159,9 @@ export function appearanceSummary(tilePx: number): string {
 export function soundsSummary(volume: number): string {
   const pct = Math.round(volume * 100);
   return pct ? `Volume ${pct}%` : 'Off';
+}
+
+/** Themes (item 35): "Ember · OLED · 110%". */
+export function themesSummary(paletteName: string, oled: boolean, scale: number): string {
+  return [paletteName, oled ? 'OLED' : '', Math.round(scale * 100) !== 100 ? `${Math.round(scale * 100)}%` : ''].filter(Boolean).join(' · ');
 }

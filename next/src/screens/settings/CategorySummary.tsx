@@ -9,8 +9,10 @@ import { useSoundStore } from '@/lib/sounds';
 import { useHints } from '~/ui/hints';
 import { useNext } from '@/features/next/nextStore';
 import { aiStatusLine } from '@/lib/aiProviders';
+import { useTheme } from '~/theme/themeStore';
+import { PRESETS } from '~/theme/themeModel';
 import type { CategoryId } from './categories';
-import { aiSummary, appearanceSummary, modelsSummary, serversSummary, soundsSummary } from './settingsLogic';
+import { aiSummary, appearanceSummary, modelsSummary, serversSummary, soundsSummary, themesSummary } from './settingsLogic';
 import { useServersUp } from './useServersUp';
 
 function Servers() {
@@ -36,6 +38,15 @@ function Appearance() {
   return <>{appearanceSummary(tile)}</>;
 }
 
+function Themes() {
+  const id = useTheme((s) => s.theme.paletteId);
+  const saved = useTheme((s) => s.saved);
+  const oled = useTheme((s) => s.theme.oled);
+  const scale = useTheme((s) => s.theme.scale);
+  const name = PRESETS.find((p) => p.id === id)?.name ?? saved.find((p) => p.id === id)?.name ?? 'Your palette';
+  return <>{themesSummary(name, oled, scale)}</>;
+}
+
 function Sounds() {
   const volume = useSoundStore((s) => s.volume);
   const muted = useSoundStore((s) => s.muted);
@@ -53,7 +64,7 @@ function Hints() {
   return <>{on ? 'On' : 'Off'}{edited ? ` · ${edited} edited` : ''}</>;
 }
 
-const SUMMARY: Record<CategoryId, () => JSX.Element> = { servers: Servers, ai: Ai, models: Models, appearance: Appearance, sounds: Sounds, hints: Hints, about: About };
+const SUMMARY: Record<CategoryId, () => JSX.Element> = { servers: Servers, ai: Ai, models: Models, appearance: Appearance, themes: Themes, sounds: Sounds, hints: Hints, about: About };
 
 export function CategorySummary({ id }: { id: CategoryId }) {
   const S = SUMMARY[id];

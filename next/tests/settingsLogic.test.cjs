@@ -51,7 +51,7 @@ test('searchRows: best first, registry order on ties, empty for an empty query',
 
 test('countByCategory / groupByCategory', () => {
   const counts = L.countByCategory(ROWS, 'key');
-  assert.deepEqual(counts, { servers: 0, ai: 1, models: 1, appearance: 0, sounds: 0, hints: 0, about: 0 });
+  assert.deepEqual(counts, { servers: 0, ai: 1, models: 1, appearance: 0, themes: 0, sounds: 0, hints: 0, about: 0 });
   const groups = L.groupByCategory(L.searchRows(ROWS, 'key'));
   assert.deepEqual(groups.map((g) => [g.category, g.rows.map((r) => r.id)]), [['ai', ['ai.key']], ['models', ['models.key']]]);
   assert.deepEqual(L.groupByCategory([]), []);
@@ -103,4 +103,9 @@ test('phone summaries', () => {
   assert.equal(L.appearanceSummary(200), 'Library tiles 200px');
   assert.equal(L.soundsSummary(0), 'Off');
   assert.equal(L.soundsSummary(0.5), 'Volume 50%');
+});
+
+test('themesSummary: palette, OLED, scale when not 100%', () => {
+  assert.equal(L.themesSummary('Ember', false, 1), 'Ember');
+  assert.equal(L.themesSummary('Ocean', true, 1.1), 'Ocean · OLED · 110%');
 });
