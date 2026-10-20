@@ -12,6 +12,7 @@ import { settingsCells, whenLabel, type LibItem } from './libraryLogic';
 import { applyPrompt, applySettings, confirmDelete, downloadItem, toggleFav, recallItem } from './libraryActions';
 import { AddToCollectionMenu } from './AddToCollectionMenu';
 import { SendToStepMenu } from './SendToStepMenu';
+import { makePayload, nameFromUrl, useImageDrag } from '~/dnd';
 
 export function ItemDetail({ item, phone, onOpen, onDeleted, pager }: {
   item: LibItem; phone?: boolean; onOpen: () => void; onDeleted?: () => void; pager?: string;
@@ -19,6 +20,7 @@ export function ItemDetail({ item, phone, onOpen, onDeleted, pager }: {
   const servers = useStore((s) => s.servers);
   const [more, setMore] = useState(false);
   const e = item.entry;
+  const drag = useImageDrag(() => makePayload({ url: item.url, name: e?.filename ?? nameFromUrl(item.url), kind: item.kind, key: item.key, entryId: e?.id, source: 'collection' }));
   const cells = settingsCells(e);
   const server = e ? servers.find((s) => s.id === e.serverId)?.name : undefined;
   const h = phone ? 44 : 40;
@@ -37,7 +39,7 @@ export function ItemDetail({ item, phone, onOpen, onDeleted, pager }: {
       >
         {item.kind === 'video'
           ? <video key={item.key} src={item.url} autoPlay muted loop playsInline style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
-          : <img key={item.key} src={item.url} alt="" draggable={false} style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />}
+          : <img key={item.key} src={item.url} alt="" {...drag} style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />}
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 11, fontWeight: 700, color: 'var(--il-muted)', padding: '0 2px' }}>

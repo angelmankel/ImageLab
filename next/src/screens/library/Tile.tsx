@@ -9,6 +9,7 @@ import { memo, useState } from 'react';
 import { IconArrowsMaximize, IconCheck, IconPlayerPlayFilled, IconStarFilled } from '@tabler/icons-react';
 import { durationLabel, prettyModel, whenLabel, type LibItem } from './libraryLogic';
 import { useAutoplayVideo } from './useVideoAutoplay';
+import { makePayload, nameFromUrl, useImageDrag } from '~/dnd';
 
 export const Tile = memo(function Tile({ item, selected, selecting, picked, radius, onClick, onOpen }: {
   item: LibItem; selected: boolean; selecting: boolean; picked: boolean; radius: number;
@@ -18,6 +19,8 @@ export const Tile = memo(function Tile({ item, selected, selecting, picked, radi
   const [broken, setBroken] = useState(false);
   const videoRef = useAutoplayVideo(item.url, item.kind === 'video' && !broken);
   const ring = picked || (selected && !selecting);
+  // A drag source app-wide (fix list 42): onto a drop zone, a collection, the rail, a tab.
+  const drag = useImageDrag(() => (broken ? null : makePayload({ url: item.url, name: item.entry?.filename ?? nameFromUrl(item.url), kind: item.kind, key: item.key, entryId: item.entry?.id, source: 'collection' })));
   const model = item.entry ? prettyModel(item.entry.workflow?.checkpoints?.[0]?.name || item.entry.model || '') : '';
 
   return (
@@ -28,6 +31,7 @@ export const Tile = memo(function Tile({ item, selected, selecting, picked, radi
       aria-pressed={selecting ? picked : selected}
       onClick={() => onClick(item)}
       onDoubleClick={() => onOpen(item)}
+      {...drag}
       style={{ borderRadius: radius, outline: ring ? '3px solid var(--il-ember)' : undefined, outlineOffset: -3 }}
     >
       {broken ? (

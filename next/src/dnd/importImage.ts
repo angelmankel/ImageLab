@@ -83,3 +83,15 @@ export function withExt(name: string, mime: string): string {
   const ext = mime === 'image/jpeg' ? 'jpg' : mime === 'image/webp' ? 'webp' : mime === 'video/mp4' ? 'mp4' : mime === 'video/webm' ? 'webm' : mime === 'image/gif' ? 'gif' : 'png';
   return `${name || 'image'}.${ext}`;
 }
+
+/**
+ * A drop as a step's input picture (`{ url, name }`, what `step.input` holds): one of the app's
+ * own results keeps its server URL; a file, a blob: / data: URL or a picture from another site is
+ * read now and kept as a data URL (a blob: URL dies with the page, a foreign URL may refuse a
+ * later fetch).
+ */
+export async function dropToStepInput(item: DropItem): Promise<{ url: string; name: string }> {
+  if (item.kind === 'url' && item.payload && /^https?:/i.test(item.url)) return { url: item.url, name: item.name };
+  const st = await dropToImageState(item);
+  return { url: st.dataUrl, name: st.name };
+}

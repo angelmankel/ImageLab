@@ -16,6 +16,7 @@ import type { CivitaiImage } from '@/lib/civitai';
 import { civitaiThumbUrl, civitaiVideoUrl, isCivitaiVideo, previewStill } from '@/lib/civitai';
 import { IconBtn } from '~/ui';
 import { whenReady } from './preload';
+import { makePayload, nameFromUrl, useImageDrag } from '~/dnd';
 
 export const PICTURE_WIDTH = 1600;
 export const EDGE_COL = 44;
@@ -56,6 +57,8 @@ export function Picture({ image, hidden, onReveal, loading, empty, edges, canPre
   const url = image ? pictureUrl(image) : '';
   // Clips swap at once (the <video> element is its own); stills wait for their decode (capped).
   const shown = useSwapWhenDecoded(video || hidden ? '' : url) || url;
+  // The picture is a drag source (fix list 42): onto an input, a collection, the rail, a tab.
+  const drag = useImageDrag(() => (url && !hidden ? makePayload({ url, name: nameFromUrl(image?.url ?? url, 'civitai.png'), source: 'model' }) : null));
 
   const body = !image ? (
     <div style={CENTRE}><span style={{ fontSize: 12, fontWeight: 700, color: 'var(--il-muted)' }}>{loading ? 'Loading samples…' : empty}</span></div>
@@ -68,7 +71,7 @@ export function Picture({ image, hidden, onReveal, loading, empty, edges, canPre
   ) : video ? (
     <video key={image.url} src={civitaiVideoUrl(image.url, PICTURE_WIDTH)} poster={url} muted loop autoPlay playsInline style={MEDIA} />
   ) : (
-    <img src={shown} alt="" decoding="async" style={MEDIA} />
+    <img src={shown} alt="" decoding="async" {...drag} style={MEDIA} />
   );
 
   const area = (

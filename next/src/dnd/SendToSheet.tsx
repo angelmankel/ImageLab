@@ -7,6 +7,7 @@ import { Modal } from '@mantine/core';
 import { IconPhoto, IconFolder, IconLayoutGrid, IconPlus, IconArrowRight } from '@tabler/icons-react';
 import { T } from '~/theme/tokens';
 import { useDropTargets, useTargets } from './targets';
+import { GlobalTargets } from './GlobalTargets';
 
 const GROUP_LABEL: Record<string, string> = { input: 'Use as input', collection: 'Add to a collection', session: 'Sessions', step: 'Steps' };
 const GROUP_ICON: Record<string, typeof IconPhoto> = { input: IconPhoto, collection: IconFolder, session: IconLayoutGrid, step: IconPlus };
@@ -18,6 +19,8 @@ export function SendToSheet() {
   const usable = sending ? targets.filter((t) => !t.accept || t.accept(sending)) : [];
   const groups = Array.from(new Set(usable.map((t) => t.group)));
   return (
+    <>
+    <GlobalTargets />
     <Modal opened={!!sending} onClose={close} title="Send to…" centered size="sm" zIndex={T.z.popover} styles={{ body: { paddingTop: 4 } }}>
       {sending && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
@@ -43,5 +46,6 @@ export function SendToSheet() {
         );
       })}
     </Modal>
+    </>
   );
 }

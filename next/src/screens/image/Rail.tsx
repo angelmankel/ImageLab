@@ -16,6 +16,7 @@ import { useRoute, type Screen } from '~/app/routeStore';
 import { useSteps, STEP_LABEL, type Step } from '~/app/stepsStore';
 import { KIND_ICON, addStepWithPicker } from '~/app/stepKindPicker';
 import { menuProps } from '~/app/contextMenu';
+import { useRailDrop } from '~/dnd';
 import { Tip } from '~/ui/Tip';
 import { T } from '~/theme/tokens';
 import { useStepOutput } from './useStepOutput';
@@ -176,8 +177,10 @@ const PLACES: Array<{ key: Screen; label: string; icon: typeof IconHistory }> = 
 export function Rail() {
   const screen = useRoute((s) => s.screen);
   const go = useRoute((s) => s.go);
+  // Drop a picture on the rail → the step-kind picker → a new step with it as its input (fix list 42).
+  const drop = useRailDrop();
   return (
-    <nav aria-label="Steps" style={{ width: T.size.rail, flex: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '14px 0 12px', borderRight: '1px solid var(--il-line)', zIndex: T.z.rail, overflow: 'hidden' }}>
+    <nav aria-label="Steps" {...drop.props} style={{ boxShadow: drop.over ? 'inset 0 0 0 2px var(--il-ember)' : drop.active ? 'inset 0 0 0 2px var(--il-ember-line)' : undefined, background: drop.over ? 'var(--il-ember-soft)' : undefined, width: T.size.rail, flex: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '14px 0 12px', borderRight: '1px solid var(--il-line)', zIndex: T.z.rail, overflow: 'hidden' }}>
       <div className="il-eyebrow" style={{ marginBottom: 10 }}>Steps</div>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minHeight: 0, maxHeight: '64%' }}>
         <StepChain />
