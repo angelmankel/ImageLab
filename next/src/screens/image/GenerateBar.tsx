@@ -3,7 +3,7 @@
  * dice (a new random seed each press); while this step's own job runs it is Stop, with a thin
  * progress along its bottom. Several presses while one runs = queued (ComfyUI queues; so does the
  * store). Image step → the main app's `fireFromStore`; video → `./video`'s `useVideoStepRun`
- * (chains the previous step's output, then `startVideoRun`); workflow → `startWorkflowRun`.
+ * (chains the previous step's output, then `startVideoRun`); workflow → the step's `startWorkflowStepRun`.
  * Ctrl/⌘+Enter generates, inside a text box too.
  */
 import { Tooltip } from '@mantine/core';
@@ -14,14 +14,14 @@ import { useStore } from '@/lib/store';
 import { jobActivity } from '@/lib/jobActivity';
 import { useShortcut, ShortcutPriority } from '@/hooks/useShortcut';
 import { fireFromStore, NO_PASSES } from '@/features/generate/GenerateButton';
-import { startWorkflowRun, useWorkflowRun } from '@/features/studio/studioRun';
+import { useWorkflowRun } from '@/features/studio/studioRun';
 import { useObjectInfo } from '@/features/studio/useStudioRun';
 import { useModeHost } from '@/features/workspace/modeHost';
-import { useStudio } from '@/features/studio/studioStore';
 import { useStepWorkflow } from '~/screens/comfy';
 import type { Step } from '~/app/stepsStore';
 import { cancelQueueRow } from '~/app/queue';
 import { useVideoStepRun } from './video';
+import { startWorkflowStepRun } from './workflow';
 
 /** What the step's Generate does and whether it is running. Pure of look; the phone dock uses it too. */
 export function useStepRun(step: Step): { run: (newSeed?: boolean) => void; stop: () => void; busy: boolean; busyLabel: string; progress: number | null; disabled: string | null } {
@@ -36,7 +36,6 @@ export function useStepRun(step: Step): { run: (newSeed?: boolean) => void; stop
   const stepWf = useStepWorkflow(step.kind === 'workflow' ? step.id : null);
   const wfHost = stepWf?.host ?? workflowHost;
   const { info } = useObjectInfo(step.kind === 'workflow' ? wfHost : null);
-  const studioPath = useStudio((s) => s.path);
 
   if (step.kind === 'image') {
     const activity = jobActivity(jobs, submitting, online);
@@ -52,15 +51,13 @@ export function useStepRun(step: Step): { run: (newSeed?: boolean) => void; stop
   }
   if (step.kind === 'video') return video;
   if (step.kind === 'workflow') {
+    // The step's own runner opens its workflow, uploads the chained picture, re-rolls the seeds
+    // (dice = every seed; Generate = only the unlocked ones) and queues the run.
     return {
-      run: () => {
-        if (!wfHost) return;
-        if (stepWf && studioPath !== stepWf.path) { notifications.show({ title: 'Open the workflow first', message: `Open “${stepWf.name}” on the ComfyUI screen, then Generate runs it.`, color: 'yellow', autoClose: 4000 }); return; }
-        void startWorkflowRun(wfHost, info);
-      },
+      run: (newSeed = false) => { if (wfHost) void startWorkflowStepRun(step, wfHost, info, newSeed); },
       stop: () => cancelQueueRow('workflow-run'),
       busy: workflow.busy, busyLabel: workflow.status ?? 'Running', progress: workflow.progress,
-      disabled: !wfHost ? 'No server' : !info ? 'Reading the server…' : !stepWf && !studioPath ? 'Pick a workflow on the ComfyUI screen' : null,
+      disabled: !wfHost ? 'No server' : !info ? 'Reading the server…' : !stepWf ? 'Pick a workflow in the step' : null,
     };
   }
   return { run: () => notifications.show({ title: 'Coming soon', message: "This step's workflow is coming.", color: 'gray', autoClose: 2500 }), stop: () => {}, busy: false, busyLabel: '', progress: null, disabled: null };
