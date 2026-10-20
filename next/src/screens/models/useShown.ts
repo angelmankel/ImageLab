@@ -41,8 +41,18 @@ export function useShown(): Shown {
     const types = kindTypes(kind) ?? filters.types;
     let pool: CivitaiModel[];
     let hidden: number;
-    if (source === 'installed') {
-      const q = filters.query.trim();
+    const q = filters.query.trim();
+    if (source === 'installed' && q) {
+      // A typed search always searches CivitAI (Donny, 10-20: "the search is only searching what
+      // is loaded"): the installed matches lead, then the API's results that are not installed.
+      const mine = installedModels.filter((m) => (matchesText(m, q) || m.modelVersions.some((v) => v.files.some((f) => f.name.toLowerCase().includes(q.toLowerCase()))))
+        && (!types.length || types.includes(m.type as never)));
+      const seen = new Set(mine.map((m) => m.id));
+      const fromApi = narrowPage(items, filters, installed.known ? installed.model : undefined)
+        .filter((m) => (!kind || types.includes(m.type as never)) && !seen.has(m.id));
+      pool = [...mine, ...fromApi];
+      hidden = items.length - fromApi.length;
+    } else if (source === 'installed') {
       pool = installedModels.filter((m) =>
         matchesText(m, q) || (q && m.modelVersions.some((v) => v.files.some((f) => f.name.toLowerCase().includes(q.toLowerCase())))))
         .filter((m) => (!types.length || types.includes(m.type as never))
@@ -60,6 +70,6 @@ export function useShown(): Shown {
     return { items: list, hidden, pool };
   }, [source, filters, kind, selectedTags, items, installed, installedModels, favourites]);
 
-  if (source === 'installed') return { ...shown, loading: false, loadingMore: false, error: null, hasMore: false, total: shown.items.length };
+  if (source === 'installed' && !filters.query.trim()) return { ...shown, loading: false, loadingMore: false, error: null, hasMore: false, total: shown.items.length };
   return { ...shown, loading, loadingMore, error, hasMore: !!nextCursor, total: selectedTags.length > 1 ? null : totalItems };
 }

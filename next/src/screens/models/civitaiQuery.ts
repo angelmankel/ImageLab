@@ -84,15 +84,35 @@ export function levelForMask(mask: number): NsfwLevelKey {
   for (const l of NSFW_LEVELS) if ((m & ~l.mask) === 0) return l.key;
   return 'x';
 }
-/** Does an item (model or image) with this `nsfwLevel` bitfield pass the chosen mask?
+/** The /images API's `nsfw` enum for a level mask: the highest step the mask reaches. */
+export function nsfwEnumForMask(mask: number): 'None' | 'Soft' | 'Mature' | 'X' {
+  const m = mask & ALL_LEVELS;
+  if (m & (LEVEL_BITS.X | LEVEL_BITS.XXX)) return 'X';
+  if (m & LEVEL_BITS.R) return 'Mature';
+  if (m & (LEVEL_BITS.PG | LEVEL_BITS.PG13)) return 'Soft';
+  return 'None';
+}
+/** /images answers `nsfwLevel` as a name ("None" | "Soft" | "Mature" | "X"), /models as bits: one bitfield. */
+export function levelBits(nsfwLevel: number | string | undefined | null): number {
+  if (typeof nsfwLevel === 'number') return nsfwLevel;
+  switch (nsfwLevel) {
+    case 'None': return LEVEL_BITS.G;
+    case 'Soft': return LEVEL_BITS.PG13;
+    case 'Mature': return LEVEL_BITS.R;
+    case 'X': return LEVEL_BITS.X;
+    case 'XXX': case 'Blocked': return LEVEL_BITS.XXX;
+    default: return 0;
+  }
+}
+/** Does an item (model or image) with this `nsfwLevel` pass the chosen mask?
  *  An unrated item (0) counts as G. */
-export function passesMask(nsfwLevel: number | undefined | null, mask: number): boolean {
-  const lvl = nsfwLevel ?? 0;
+export function passesMask(nsfwLevel: number | string | undefined | null, mask: number): boolean {
+  const lvl = levelBits(nsfwLevel);
   return lvl === 0 ? (mask & 1) !== 0 : (lvl & mask) !== 0;
 }
 /** Is an image "adult" relative to the mask (blur it until tapped)? */
-export function isBeyondMask(nsfwLevel: number | undefined | null, mask: number): boolean {
-  const lvl = nsfwLevel ?? 0;
+export function isBeyondMask(nsfwLevel: number | string | undefined | null, mask: number): boolean {
+  const lvl = levelBits(nsfwLevel);
   return lvl !== 0 && (lvl & ~mask) !== 0 && (lvl & mask) === 0;
 }
 
@@ -255,8 +275,12 @@ export function buildImagesQuery(q: ImagesQuery): string {
   if (q.modelVersionId) qp.set('modelVersionId', String(q.modelVersionId));
   if (q.username) qp.set('username', q.username);
   if (q.postId) qp.set('postId', String(q.postId));
+  // /images hides every adult picture unless asked outright (checked 10-20: no `nsfw` = 80 safe
+  // pictures, `nsfw=X` = 100 mixed for the same version), so the level mask always goes out as the
+  // API's enum too; an explicit true / false wins.
   if (q.nsfw === true) qp.set('nsfw', 'true');
   else if (q.nsfw === false) qp.set('nsfw', 'false');
+  else qp.set('nsfw', nsfwEnumForMask(q.nsfwMask ?? ALL_LEVELS));
   if (q.nsfwMask && q.nsfwMask !== ALL_LEVELS) qp.set('browsingLevel', String(q.nsfwMask & ALL_LEVELS));
   if (q.sort) qp.set('sort', q.sort);
   if (q.period) qp.set('period', q.period);

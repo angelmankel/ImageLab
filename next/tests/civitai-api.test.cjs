@@ -85,7 +85,10 @@ test('images query: every parameter, withMeta by default', () => {
   assert.equal(p.get('cursor'), 'c');
   assert.equal(p.get('withMeta'), 'true');
   const both = params(Q.buildImagesQuery({ modelVersionId: 1, nsfw: 'all', withMeta: false, page: 2 }));
-  assert.equal(both.get('nsfw'), null);
+  assert.equal(both.get('nsfw'), 'X', 'no mask = every level: the API hides adult pictures unless asked');
+  assert.equal(params(Q.buildImagesQuery({ modelVersionId: 1, nsfwMask: 15 })).get('nsfw'), 'Mature');
+  assert.equal(params(Q.buildImagesQuery({ modelVersionId: 1, nsfwMask: 7 })).get('nsfw'), 'Soft');
+  assert.equal(params(Q.buildImagesQuery({ modelVersionId: 1, nsfwMask: 1 })).get('nsfw'), 'None');
   assert.equal(both.get('withMeta'), null);
   assert.equal(both.get('page'), '2');
 });
@@ -247,4 +250,15 @@ test('a text search never sends a period (CivitAI answers 0 to query + Month)', 
   assert.equal(p.get('period'), null);
   const q = params(Q.buildModelsQuery({ ...base(), period: 'Month' }));
   assert.equal(q.get('period'), 'Month');
+});
+
+test('image levels come as names: they map to bits for the mask checks', () => {
+  assert.equal(Q.levelBits('X'), 16);
+  assert.equal(Q.levelBits('None'), 1);
+  assert.equal(Q.levelBits(8), 8);
+  assert.equal(Q.passesMask('X', 63), true);
+  assert.equal(Q.passesMask('X', 7), false);
+  assert.equal(Q.isBeyondMask('Mature', 7), true);
+  assert.equal(Q.isBeyondMask('Soft', 7), false);
+  assert.equal(Q.nsfwEnumForMask(63), 'X');
 });
