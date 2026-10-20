@@ -375,8 +375,16 @@ mounts it unless Settings → Workspace → **Classic workspace** is on (`next/n
   with a click inside another overlay (`closeCameFromNestedClick` in `ui/popover.tsx`: a Select's
   option list, a modal) — without it Mantine's click-outside would unmount the modal with the
   popover.
-- **Video and Workflow steps** still show the classic section columns / phone lists inside the new
-  shell until their own steps land (Phase 2 / 3).
+- **Video step** (`next/VideoStep.tsx`, chips in `next/VideoChips.tsx`, readings in
+  `lib/videoChips.ts`, tested): the prompt hub with the motion prompt, then rows Mode (engine,
+  task, start / end frame, reference pictures) · Models · LoRAs · Size & length · Speed (Fast or
+  Turbo) · Sampling · Guidance (Wan's patches, H3's VRAM patches) · Upscale · Finish; the rows
+  follow the engine (`visibleVideoChips`). Every editor is a piece exported one by one from
+  `features/video/sections.tsx` (`FastBlock`, `WanStepsFields`, `NagBlock`, `EncodeBlock`…); the
+  classic sections are compositions of the same pieces. Under the chips: the recipe presets, the
+  sweep (folded, open while one runs) and the reset row.
+- **Workflow step** still shows the classic section column / phone list inside the new shell
+  until its own step lands (Phase 3).
 
 ## Desktop layout
 

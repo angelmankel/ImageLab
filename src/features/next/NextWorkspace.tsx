@@ -37,13 +37,14 @@ import { useVideoRun } from '@/features/video/videoRun';
 import { useWorkflowRun } from '@/features/studio/studioRun';
 import { useDesktopLayout } from '@/features/desktop/desktopLayoutStore';
 import { ResultsGrid } from '@/features/desktop/ResultsGrid';
-import { VideoSettingsColumn, WorkflowSettingsColumn } from '@/features/desktop/SettingsColumn';
-import { VideoCreate, WorkflowCreate } from '@/features/workspace/mobileCreate';
+import { WorkflowSettingsColumn } from '@/features/desktop/SettingsColumn';
+import { WorkflowCreate } from '@/features/workspace/mobileCreate';
 import { useWorkflowLibrary } from '@/features/studio/useWorkflowLibrary';
 import type { ObjectInfo } from '@/lib/workflowGraph';
 import { Stage } from './Stage';
 import { StageBar } from './StageBar';
 import { ImageStep, ImageStepBody } from './ImageStep';
+import { VideoStep, VideoStepBody } from './VideoStep';
 import { ImageRunBar, VideoRunBar, WorkflowRunBar } from './RunBars';
 import { useNext } from './nextStore';
 
@@ -104,17 +105,12 @@ function Desktop({ mode, ...hosts }: { mode: WorkspaceMode } & Hosts) {
   );
 }
 
-/** The step's full interface. Video and Workflow keep the classic section columns until their own steps land. */
+/** The step's full interface. Workflow keeps the classic section column until its own step lands. */
 function StepPanel({ mode, videoHost, workflowHost, info, infoError }: { mode: WorkspaceMode } & Hosts) {
   if (mode === 'image') return <ImageStep />;
   if (mode === 'video') {
     if (!videoHost) return <Dead title="No ComfyUI server" body="Add one in Settings, then come back." />;
-    return (
-      <div className="flex h-full min-h-0 flex-col" aria-label="Video step" data-pad-start>
-        <div className="shrink-0 border-b border-border-default p-2.5"><VideoRunBar host={videoHost} /></div>
-        <VideoSettingsColumn host={videoHost} />
-      </div>
-    );
+    return <VideoStep host={videoHost} />;
   }
   if (!workflowHost) return <Dead title="No ComfyUI server" body="Add one in Settings, then come back." />;
   if (infoError) return <Dead title="Cannot reach ComfyUI" body={infoError} />;
@@ -180,7 +176,7 @@ function MobileStep({ mode, videoHost, workflowHost, info, infoError }: { mode: 
     footer = <ImageRunBar large />;
   } else if (mode === 'video') {
     if (!videoHost) return <Dead title="No ComfyUI server" body="Add one in Settings, then come back." />;
-    body = <VideoCreate host={videoHost} onSwipeToResult={() => {}} />;
+    body = <VideoStepBody host={videoHost} large />;
     footer = <VideoRunBar host={videoHost} large />;
   } else {
     if (!workflowHost) return <Dead title="No ComfyUI server" body="Add one in Settings, then come back." />;
