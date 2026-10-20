@@ -16,6 +16,9 @@ import { T } from '~/theme/tokens';
 import { Thumb } from './Thumb';
 import { TriggerWords, type AutoWords } from './TriggerWords';
 import { metaLine, useModelMeta } from './useModelMeta';
+import { metaWithPending } from './pendingLogic';
+import { PendingStrip } from './PendingStrip';
+import { openModelViewer } from './viewerBridge';
 import { fmtWeight, type KindApi, type ModelEntry } from './kinds';
 import { PREPROCESSORS, useControlnets, type ControlNetImage, type Preprocessor } from './controlnetStore';
 
@@ -45,17 +48,25 @@ function ActionPill({ children, onClick, tone = 'card', title, disabled }: { chi
 }
 
 export function EntryCard({ entry, api, onChange }: { entry: ModelEntry; api: KindApi; onChange: () => void }) {
-  const meta = useModelMeta(entry.name);
+  const meta = metaWithPending(useModelMeta(entry.name), entry.pending);
   const [more, setMore] = useState(false);
   const { kind, spec } = api;
   const showWeight = !(kind === 'checkpoint' && entry.isBase);
+  const pending = entry.pending;
 
   return (
-    <div style={{ border: '1px solid var(--il-line-strong)', borderRadius: T.radius.xl, background: 'var(--il-card)', padding: T.pad.card, display: 'flex', flexDirection: 'column', gap: 14, opacity: entry.on ? 1 : 0.7 }}>
+    <div style={{ border: `1px ${pending ? 'dashed' : 'solid'} var(--il-line-strong)`, borderRadius: T.radius.xl, background: 'var(--il-card)', padding: T.pad.card, display: 'flex', flexDirection: 'column', gap: 14, opacity: entry.on && !pending ? 1 : 0.8 }}>
+      {pending && <PendingStrip record={pending} />}
       <div style={{ display: 'flex', gap: 12 }}>
-        <Thumb label={meta.label} images={meta.images} size={88} />
+        <button type="button" onClick={() => void openModelViewer({ file: entry.name })} aria-label={`Open ${meta.name ?? meta.label} full screen`} title="Open full screen"
+          style={{ border: 0, padding: 0, background: 'transparent', cursor: 'pointer', flex: 'none', borderRadius: T.radius.lg, opacity: pending ? 0.6 : 1 }}>
+          <Thumb label={meta.label} images={meta.images} size={88} />
+        </button>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 14, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={entry.name}>{meta.name ?? meta.label}</div>
+          <div style={{ fontSize: 14, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'flex', alignItems: 'center', gap: 6 }} title={entry.name}>
+            <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{meta.name ?? meta.label}</span>
+            {pending && <span style={{ flex: 'none', fontSize: 9, fontWeight: 800, letterSpacing: '.4px', textTransform: 'uppercase', borderRadius: 999, padding: '2px 7px', background: 'var(--il-card-on)', color: 'var(--il-muted)' }}>not downloaded</span>}
+          </div>
           <div style={{ fontSize: 11, color: 'var(--il-muted)', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={entry.name}>
             {metaLine(meta)}{meta.name && meta.name !== meta.label ? ` · ${meta.label}` : ''}
           </div>

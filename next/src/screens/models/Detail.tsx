@@ -74,13 +74,16 @@ export function Detail({ modelId, size }: { modelId: number; size: Size }) {
   const commercial = m.allowCommercialUse ?? [];
   const early = isEarlyAccess(m);
 
-  // Installed → into the step; not yet → start the download (the button says so).
+  // A picker open → hand the pick over (downloading first when needed). Else: installed → into the
+  // step; not yet → start the download (the button says so).
   const useIn = (stepId?: string) => {
     if (!version) return;
+    if (actions.picking) { actions.pick(m, version); return; }
     if (!installedFile) { void download(version, m.type); return; }
     if (stepId) setActive(stepId);
     actions.useInStep(version, m.type);
   };
+  const useLabel = actions.picking ? (installedFile ? 'Use this version' : 'Add & download') : installedFile ? `Use in ${actions.stepName}` : 'Download, then use';
 
   const header = !phone && (
     <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
@@ -140,16 +143,16 @@ export function Detail({ modelId, size }: { modelId: number; size: Size }) {
 
         <div style={{ display: 'flex', gap: 6 }}>
           <EmberBtn size={size} h={phone ? 48 : 40} style={{ flex: 1, fontSize: phone ? 14 : 13, borderRadius: phone ? 14 : 12 }} onClick={() => useIn()} disabled={!version}>
-            {installedFile ? `Use in ${actions.stepName}` : 'Download, then use'}
+            {useLabel}
           </EmberBtn>
-          <Menu position="top-end" withinPortal shadow="md" zIndex={300}>
+          {!actions.picking && <Menu position="top-end" withinPortal shadow="md" zIndex={300}>
             <Menu.Target>
               <button type="button" aria-label="Choose the step" style={{ width: phone ? 48 : 40, height: phone ? 48 : 40, border: 0, borderRadius: phone ? 14 : 12, background: 'var(--il-card-on)', color: 'var(--il-fg)', fontWeight: 800, fontSize: 13, display: 'grid', placeItems: 'center', cursor: 'pointer' }}>▾</button>
             </Menu.Target>
             <Menu.Dropdown style={{ background: 'var(--il-card)', border: '1px solid var(--il-line-strong)', borderRadius: 12, padding: 4 }}>
               {steps.map((s, i) => <Menu.Item key={s.id} onClick={() => useIn(s.id)} style={{ borderRadius: 8, fontSize: 12, fontWeight: 700 }}>Use in step {i + 1} · {s.name}</Menu.Item>)}
             </Menu.Dropdown>
-          </Menu>
+          </Menu>}
         </div>
         {phone && inst.installed > 0 && (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, height: 44, borderRadius: 14, background: 'var(--il-card)', color: 'var(--il-ok)', fontSize: 13, fontWeight: 800 }}>

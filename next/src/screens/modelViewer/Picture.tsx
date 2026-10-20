@@ -1,0 +1,51 @@
+/**
+ * The picture area (rule 1: nothing overlays it). The selected sample `object-fit: contain` on
+ * the deep backdrop; a clip plays muted in place. An adult sample beyond the NSFW level is NOT
+ * drawn: the "NSFW · tap to show" pill stands in its place (the one thing allowed in the empty
+ * area). On desktop the ‹ › buttons sit in their own narrow columns beside the picture.
+ */
+import { IconChevronLeft, IconChevronRight, IconEyeOff } from '@tabler/icons-react';
+import type { CSSProperties } from 'react';
+import type { CivitaiImage } from '@/lib/civitai';
+import { civitaiThumbUrl, civitaiVideoUrl, isCivitaiVideo, previewStill } from '@/lib/civitai';
+import { IconBtn } from '~/ui';
+
+export const PICTURE_WIDTH = 1600;
+export const EDGE_COL = 44;
+
+export function Picture({ image, hidden, onReveal, loading, empty, edges, canPrev, canNext, onPrev, onNext, style }: {
+  image: CivitaiImage | undefined; hidden: boolean; onReveal: () => void; loading: boolean;
+  /** What to say when there is no image at all. */
+  empty: string;
+  edges: boolean; canPrev: boolean; canNext: boolean; onPrev: () => void; onNext: () => void; style?: CSSProperties;
+}) {
+  const media: CSSProperties = { width: '100%', height: '100%', objectFit: 'contain', display: 'block' };
+  const url = image ? civitaiThumbUrl(previewStill(image, PICTURE_WIDTH), PICTURE_WIDTH) : '';
+
+  const body = !image ? (
+    <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--il-muted)' }}>{loading ? 'Loading samples…' : empty}</span>
+  ) : hidden ? (
+    <button type="button" onClick={onReveal} style={{ height: 32, padding: '0 14px', border: '1px solid var(--il-line-strong)', borderRadius: 999, background: 'var(--il-elev)', color: 'var(--il-fg)', fontSize: 11, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+      <IconEyeOff size={13} stroke={2.2} />NSFW · tap to show
+    </button>
+  ) : isCivitaiVideo(image) ? (
+    <video key={image.url} src={civitaiVideoUrl(image.url, PICTURE_WIDTH)} poster={url} muted loop autoPlay playsInline style={media} />
+  ) : (
+    <img key={image.url} src={url} alt="" decoding="async" style={media} />
+  );
+
+  const area = (
+    <div style={{ minWidth: 0, minHeight: 0, width: '100%', height: '100%', background: 'var(--il-bg-deep)', display: 'grid', placeItems: 'center', overflow: 'hidden', ...style }}>
+      {body}
+    </div>
+  );
+
+  if (!edges) return area;
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: `${EDGE_COL}px minmax(0, 1fr) ${EDGE_COL}px`, minHeight: 0, height: '100%' }}>
+      <div style={{ display: 'grid', placeItems: 'center' }}><IconBtn icon={<IconChevronLeft size={20} stroke={2.2} />} label="Previous image" onClick={onPrev} disabled={!canPrev} tooltip={false} /></div>
+      {area}
+      <div style={{ display: 'grid', placeItems: 'center' }}><IconBtn icon={<IconChevronRight size={20} stroke={2.2} />} label="Next image" onClick={onNext} disabled={!canNext} tooltip={false} /></div>
+    </div>
+  );
+}

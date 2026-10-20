@@ -8,6 +8,7 @@ import { useStore } from '@/lib/store';
 import { Thumb } from './Thumb';
 import { readModelMeta } from './useModelMeta';
 import { fmtWeight, type ModelEntry } from './kinds';
+import { metaWithPending } from './pendingLogic';
 
 const CIRCLE = 56;
 
@@ -19,23 +20,24 @@ export function CircleRow({ entries, selectedId, onSelect, onAdd, showWeight = t
   return (
     <div className="il-scroll-x" style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '2px 2px 0', touchAction: 'pan-x pan-y' }}>
       {entries.map((e) => {
-        const meta = readModelMeta(e.name, hashes, civitai);
+        const meta = metaWithPending(readModelMeta(e.name, hashes, civitai), e.pending);
         const selected = e.id === selectedId;
-        const badge = e.badge ?? (showWeight && !e.isBase ? fmtWeight(e.weight) : undefined);
+        const badge = e.pending ? 'not downloaded' : e.badge ?? (showWeight && !e.isBase ? fmtWeight(e.weight) : undefined);
+        const dim = !e.on || !!e.pending;
         return (
           <button
             key={e.id}
             type="button"
             onClick={() => onSelect(e.id)}
             aria-pressed={selected}
-            title={meta.name ?? meta.label}
-            style={{ width: 64, flex: 'none', border: 0, background: 'transparent', padding: 0, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, color: selected ? 'var(--il-fg)' : e.on ? 'var(--il-fg2)' : 'var(--il-dim)' }}
+            title={e.pending ? `${e.pending.modelName} · not downloaded yet` : (meta.name ?? meta.label)}
+            style={{ width: 64, flex: 'none', border: 0, background: 'transparent', padding: 0, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, color: selected ? 'var(--il-fg)' : dim ? 'var(--il-dim)' : 'var(--il-fg2)' }}
           >
             <span style={{ position: 'relative', width: CIRCLE, height: CIRCLE, flex: 'none' }}>
               <Thumb label={meta.label} images={meta.images} size={CIRCLE} round
-                style={{ border: `3px solid ${selected ? 'var(--il-ember)' : 'var(--il-line-strong)'}`, opacity: e.on ? 1 : 0.45, boxSizing: 'border-box' }} />
+                style={{ border: `3px solid ${selected ? 'var(--il-ember)' : 'var(--il-line-strong)'}`, opacity: dim ? 0.45 : 1, boxSizing: 'border-box' }} />
               {badge && (
-                <span style={{ position: 'absolute', right: -6, bottom: -4, fontSize: 10, fontWeight: 800, borderRadius: 999, padding: '2px 6px', background: selected ? 'var(--il-ember)' : 'var(--il-card-on)', color: selected ? 'var(--il-bg)' : 'var(--il-fg)', opacity: e.on ? 1 : 0.6 }}>
+                <span style={{ position: 'absolute', right: e.pending ? -10 : -6, bottom: -4, fontSize: e.pending ? 8 : 10, fontWeight: 800, borderRadius: 999, padding: '2px 6px', whiteSpace: 'nowrap', background: e.pending ? 'var(--il-card-on)' : selected ? 'var(--il-ember)' : 'var(--il-card-on)', color: e.pending ? 'var(--il-muted)' : selected ? 'var(--il-bg)' : 'var(--il-fg)', opacity: e.on || e.pending ? 1 : 0.6 }}>
                   {badge}
                 </span>
               )}

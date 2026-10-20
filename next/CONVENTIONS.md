@@ -67,3 +67,16 @@ Zustand selectors are compared by reference: never return a fresh array/object f
 - Phone: every scroll container needs `touch-action: pan-y`; sliders: track `touch-action: pan-y`, thumb `touch-none`. Nothing overlays the picture. Use `GlassBar` / `BackPill`.
 - Write small files, one component each, a short header comment saying what it is and which rule it serves.
 - Finish with a report: what you built (files), what is wired to real logic vs stubbed, anything another owner must do, and known gaps.
+
+## Favourites (models)
+Model favourites (♥ on a tile / in the detail panel, the **Favourites** filter) live in the
+browser's persisted store: `screens/models/modelsStore.ts`, key `imagelab.next.models.v1`
+(zustand/persist → localStorage, `navigator.storage.persist()` asked on the first ♥), as CivitAI
+model ids. That is the durable place: the pod is ephemeral (its volume is pod-local and goes with
+it) and ImageLabCore's `/imagelab/api/favorites` stores starred *images* under
+`output/imagelab_favorites/`, not models — so nothing model-related is written to the pod.
+The filter fetches the list by `/models?ids=…`, which works on any pod, offline against the
+IDB cache, and with no API key. CivitAI's own account favourites (`favorites=true`, needs the key
+in Settings → CivitAI) are a separate opt-in toggle in the Filters panel, never merged with the
+local list. The same store keeps the followed creators and the "has downloaded once" flag behind
+the **Downloaded**-by-default rule.

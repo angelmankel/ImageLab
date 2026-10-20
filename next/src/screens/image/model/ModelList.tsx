@@ -2,9 +2,11 @@
  * The universal model list (rule 4): a kind switch, the row of circles, the selected entry's
  * card, and the picker window. One component for every kind; the Image step shows all four, the
  * Upscale / Video steps can pass a smaller `kinds`. State is the main app's workflow through
- * `useKindApi`; which circle is selected is local.
+ * `useKindApi`; which circle is selected is local. A pick that is not downloaded yet becomes a
+ * pending entry (dimmed, "not downloaded", editable, a Download button) until its file lands.
  */
 import { useCallback, useMemo, useState } from 'react';
+import { notifications } from '@mantine/notifications';
 import { useResourceAvailability } from '@/hooks/useResourceAvailability';
 import { useModelProfile } from '@/hooks/useModelProfileSync';
 import { bucketFits } from '@/lib/modelProfiles';
@@ -14,7 +16,10 @@ import { T } from '~/theme/tokens';
 import { ALL_KINDS, KINDS, useKindApi, type ModelKind } from './kinds';
 import { CircleRow } from './CircleRow';
 import { EntryCard } from './EntryCard';
-import { ModelPickerModal } from './ModelPickerModal';
+import { ModelsModalBridge } from './ModelsModalBridge';
+import type { ModelPick } from './pickTypes';
+import { usePendingModels } from './pendingModels';
+import { PendingPoller, usePendingReconcile } from './usePendingReconcile';
 
 type Picker = { mode: 'add' } | { mode: 'change'; id: string };
 
@@ -27,6 +32,8 @@ export function ModelList({ kinds = ALL_KINDS, initialKind }: { kinds?: readonly
   const api = useKindApi(kind);
   const { profile } = useModelProfile();
   const availability = useResourceAvailability(kind === 'controlnet' ? 'checkpoint' : kind);
+  const anyPending = usePendingModels((s) => Object.keys(s.records).length > 0);
+  usePendingReconcile();
 
   const selected = api.entries.find((e) => e.id === selectedBy[kind]) ?? api.entries[0];
   const select = useCallback((id: string) => setSelectedBy((m) => ({ ...m, [kind]: id })), [kind]);
@@ -38,22 +45,25 @@ export function ModelList({ kinds = ALL_KINDS, initialKind }: { kinds?: readonly
     return undefined;
   }, [kind, profile]);
 
-  const onPick = (file: string) => {
+  const onPick = (pick: ModelPick) => {
     if (!picker) return;
-    if (picker.mode === 'change') {
-      api.rename(picker.id, file);
-      select(picker.id);
+    let id: string | undefined;
+    if (pick.installed && pick.file) {
+      if (picker.mode === 'change') { api.rename(picker.id, pick.file); id = picker.id; }
+      else id = api.entries.find((e) => e.name === pick.file)?.id ?? api.add(pick.file);
     } else {
-      const existing = api.entries.find((e) => e.name === file);
-      const id = existing?.id ?? api.add(file);
-      if (id) select(id);
+      id = picker.mode === 'change' ? api.changeToPending(picker.id, pick) : api.addPending(pick);
+      if (!id) notifications.show({ color: 'yellow', message: 'That version has no file to download' });
+      else notifications.show({ color: 'ember', message: `${pick.model.name} added · download it from the card` });
     }
+    if (id) select(id);
     setPicker(null);
   };
 
   const spec = KINDS[kind];
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: T.gap.md }}>
+      {anyPending && <PendingPoller />}
       <Tabs items={kinds.map((k) => ({ key: k, label: KINDS[k].label }))} value={kind} onChange={setKind} />
       <CircleRow entries={api.entries} selectedId={selected?.id} onSelect={select} onAdd={() => setPicker({ mode: 'add' })} />
       {selected ? (
@@ -64,15 +74,13 @@ export function ModelList({ kinds = ALL_KINDS, initialKind }: { kinds?: readonly
           No {spec.one} yet · tap + Add
         </button>
       )}
-      <ModelPickerModal
+      <ModelsModalBridge
         opened={!!picker}
         onClose={() => setPicker(null)}
+        kind={kind}
         title={picker?.mode === 'change' ? `Change the ${spec.one}` : `Add a ${spec.one}`}
-        files={api.files}
-        selected={api.entries.map((e) => e.name)}
         onPick={onPick}
-        fits={fits}
-        availability={kind === 'controlnet' ? undefined : availability}
+        fallback={{ files: api.files, selected: api.entries.map((e) => e.name), fits, availability: kind === 'controlnet' ? undefined : availability }}
       />
     </div>
   );

@@ -2,7 +2,8 @@
  * Download a CivitAI version through the existing download manager (rule 13). The logic is the
  * old `features/browser/TileDownload`'s: the version is "on disk" when every online server lists
  * its primary file (or its hash is on a server), "sync" when some do, "downloading" while the
- * manager reports it. `start` fires at every online server that lacks the file.
+ * manager reports it. `start` fires at every online server that lacks the file. The first
+ * download ever flips the list off its Downloaded default (`markDownloaded`).
  */
 import { IconCheck, IconDownload, IconLoader2 } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
@@ -13,6 +14,7 @@ import { primaryFile } from '@/features/model-metadata/civitai';
 import type { CivitaiModelVersion } from '@/lib/civitai';
 import { folderForType } from './civitaiQuery';
 import { useInstalled } from './useInstalled';
+import { useModels } from './modelsStore';
 import { EmberBtn, GhostBtn, RoundAction, type Size } from './bits';
 
 export type DownloadState = 'download' | 'sync' | 'on-disk' | 'downloading' | 'offline';
@@ -39,7 +41,10 @@ export function useVersionDownload() {
     if (state === 'on-disk' || state === 'downloading' || state === 'offline') return;
     const r = await start(v.id, modelType ? folderForType(modelType) : undefined, state === 'sync' ? missing : undefined);
     if (r.errors.length) notifications.show({ color: 'red', title: 'Download refused', message: r.errors.join('\n') });
-    else notifications.show({ color: 'ember', message: `Downloading ${v.name} on ${r.accepted} server${r.accepted === 1 ? '' : 's'}` });
+    else {
+      notifications.show({ color: 'ember', message: `Downloading ${v.name} on ${r.accepted} server${r.accepted === 1 ? '' : 's'}` });
+      if (r.accepted > 0) useModels.getState().markDownloaded();
+    }
   };
 
   return { stateOf, download, online: online.length };
@@ -51,8 +56,8 @@ const LABEL: Record<DownloadState, string> = { download: 'Download', sync: 'Sync
  * One version's download control. `shape`: 'pill' (tile / file row: "↓ Download"), 'round' (phone
  * row, 44px), 'icon' (28px ring for "download the latest" on a partly installed tile).
  */
-export function DownloadButton({ version, modelType, shape = 'pill', size = 'desktop', h }: {
-  version: CivitaiModelVersion; modelType?: string; shape?: 'pill' | 'round' | 'icon'; size?: Size; h?: number;
+export function DownloadButton({ version, modelType, shape = 'pill', size = 'desktop', h, style }: {
+  version: CivitaiModelVersion; modelType?: string; shape?: 'pill' | 'round' | 'icon'; size?: Size; h?: number; style?: React.CSSProperties;
 }) {
   const { stateOf, download } = useVersionDownload();
   const { state } = stateOf(version);
@@ -79,11 +84,11 @@ export function DownloadButton({ version, modelType, shape = 'pill', size = 'des
     );
   }
   if (state === 'on-disk') {
-    return <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: size === 'phone' ? 13 : 12, fontWeight: 800, color: 'var(--il-ok)', flex: 'none' }}><IconCheck size={13} stroke={3} />Installed</span>;
+    return <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: size === 'phone' ? 13 : 12, fontWeight: 800, color: 'var(--il-ok)', flex: 'none', ...style }}><IconCheck size={13} stroke={3} />Installed</span>;
   }
   return (
-    <span onClick={stop} onPointerDown={stop} style={{ display: 'inline-flex' }}>
-      <EmberBtn size={size} h={h} label={label} disabled={state === 'offline' || state === 'downloading'} onClick={() => void download(version, modelType)}>
+    <span onClick={stop} onPointerDown={stop} style={{ display: 'inline-flex', ...style }}>
+      <EmberBtn size={size} h={h} label={label} disabled={state === 'offline' || state === 'downloading'} onClick={() => void download(version, modelType)} style={style?.flex ? { flex: 1, width: '100%' } : undefined}>
         {icon}{state === 'downloading' ? 'Downloading' : state === 'sync' ? 'Sync' : 'Download'}
       </EmberBtn>
     </span>

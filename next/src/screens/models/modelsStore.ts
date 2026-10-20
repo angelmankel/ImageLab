@@ -1,32 +1,43 @@
 /**
- * The Models screen's state (rule 13): filters (persisted), the loaded pages, the opened model,
- * local favourites / followed creators (CivitAI's own lists are used instead when a key is set),
- * and the layout bits (grid/list, detail panel, the phone's Filters sheet).
+ * The Models picker's state (rule 13 + the models-picker brief): filters (persisted), the loaded
+ * pages, the opened model, the picked tags, the picker's kind lock, local favourites / followed
+ * creators, the "has downloaded once" flag behind the Downloaded default, and the layout bits.
+ *
+ * Favourites live HERE, in the browser's persisted store (localStorage via zustand/persist +
+ * `navigator.storage.persist()`), because the pod is ephemeral and its favourites API is for
+ * images — see CONVENTIONS.md → Favourites.
  *
  * Fetching: one AbortController; a filter change restarts from the top; "load more" follows the
- * cursor. Pages come through `civitaiApi`'s in-memory cache, so going back to a filter set that
- * was open a minute ago costs nothing.
+ * cursor. Pages come through `civitaiApi`'s in-memory cache.
  */
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { CivitaiModel } from '@/lib/civitai';
 import { T } from '~/theme/tokens';
 import {
-  DEFAULT_FILTERS, sanitizeFilters, clearAllFilters, clearFilter, planSearch,
-  type ModelFilters, type FilterKey,
+  DEFAULT_FILTERS, sanitizeFilters, clearAllFilters, clearFilter, planSearch, effectiveFilters,
+  type ModelFilters, type FilterKey, type ModelKindKey,
 } from './civitaiQuery';
 import { runSearchPlan, hasApiKey, CivitaiError } from './civitaiApi';
 
+/** Downloaded = what is on the pod (the servers' CivitAI-known files); CivitAI = the catalog. */
 export type Source = 'civitai' | 'installed';
 export type View = 'grid' | 'list';
 
 const PAGE_SIZE = 40;
 const EMPTY_IDS: number[] = [];
+const EMPTY_STR: string[] = [];
 
 interface ModelsState {
   filters: ModelFilters;
   source: Source;
   view: View;
+  /** The picker's kind (a step's "Change ▾"); null = the free browser. Not persisted. */
+  kind: ModelKindKey | null;
+  /** Picked tags (tag browsing); the first is the API's `tag`, the rest rank client-side. */
+  selectedTags: string[];
+  /** Once true, the list no longer defaults to Downloaded. */
+  hasDownloadedOnce: boolean;
 
   items: CivitaiModel[];
   loading: boolean;
@@ -35,19 +46,18 @@ interface ModelsState {
   nextCursor: string | null;
   totalItems: number | null;
 
-  /** The opened model (detail panel / phone page) and which version + sample image is shown. */
   selectedId: number | null;
   selectedVersionId: number | null;
   selectedImage: number;
 
   favourites: number[];
   followed: string[];
-  /** Model ids whose NSFW cover was tapped open this session. */
   revealed: number[];
 
   panelOpen: boolean;
   panelWidth: number;
   moreOpen: boolean;
+  tagsOpen: string | null;
   sheetOpen: boolean;
 
   setFilters: (patch: Partial<ModelFilters>) => void;
@@ -55,6 +65,10 @@ interface ModelsState {
   clearOne: (key: FilterKey) => void;
   setSource: (s: Source) => void;
   setView: (v: View) => void;
+  setKind: (k: ModelKindKey | null) => void;
+  toggleTag: (tag: string) => void;
+  clearTags: () => void;
+  markDownloaded: () => void;
   refresh: () => Promise<void>;
   loadMore: () => Promise<void>;
   open: (id: number, versionId?: number | null) => void;
@@ -67,6 +81,7 @@ interface ModelsState {
   setPanelOpen: (on: boolean) => void;
   setPanelWidth: (w: number) => void;
   setMoreOpen: (on: boolean) => void;
+  setTagsOpen: (group: string | null) => void;
   setSheetOpen: (on: boolean) => void;
 }
 
@@ -78,12 +93,28 @@ function messageOf(e: unknown): string {
   return e instanceof Error ? e.message : 'CivitAI search failed';
 }
 
+/** The filters a search really uses (kind lock + picked tags). */
+export function searchFilters(s: Pick<ModelsState, 'filters' | 'kind' | 'selectedTags'>): ModelFilters {
+  return effectiveFilters(s.filters, s.kind, s.selectedTags);
+}
+
+/** Ask the browser to keep this origin's storage: favourites are the one thing a pod wipe cannot restore. */
+let persistAsked = false;
+function askPersist() {
+  if (persistAsked || typeof navigator === 'undefined' || !navigator.storage?.persist) return;
+  persistAsked = true;
+  void navigator.storage.persist().catch(() => undefined);
+}
+
 export const useModels = create<ModelsState>()(
   persist(
     (set, get) => ({
       filters: DEFAULT_FILTERS,
-      source: 'civitai',
+      source: 'installed',
       view: 'grid',
+      kind: null,
+      selectedTags: EMPTY_STR,
+      hasDownloadedOnce: false,
       items: [],
       loading: false,
       loadingMore: false,
@@ -94,29 +125,57 @@ export const useModels = create<ModelsState>()(
       selectedVersionId: null,
       selectedImage: 0,
       favourites: EMPTY_IDS,
-      followed: [],
+      followed: EMPTY_STR,
       revealed: [],
       panelOpen: true,
       panelWidth: T.size.modelsPanel,
       moreOpen: false,
+      tagsOpen: null,
       sheetOpen: false,
 
       setFilters: (patch) => {
         set({ filters: { ...get().filters, ...patch } });
         void get().refresh();
       },
-      clearAll: () => { set({ filters: clearAllFilters(get().filters) }); void get().refresh(); },
+      clearAll: () => { set({ filters: clearAllFilters(get().filters), selectedTags: EMPTY_STR }); void get().refresh(); },
       clearOne: (key) => { set({ filters: clearFilter(get().filters, key) }); void get().refresh(); },
-      setSource: (source) => set({ source }),
+      setSource: (source) => {
+        set({ source });
+        // Leaving Downloaded for the catalog with nothing loaded yet: fetch the first page.
+        const s = get();
+        if (source === 'civitai' && s.items.length === 0 && !s.loading) void s.refresh();
+      },
       setView: (view) => set({ view }),
+      setKind: (kind) => {
+        if (kind === get().kind) return;
+        set({ kind, selectedId: null, selectedVersionId: null });
+        void get().refresh();
+      },
+      toggleTag: (tag) => {
+        const t = tag.trim().toLowerCase();
+        if (!t) return;
+        const cur = get().selectedTags;
+        const next = cur.includes(t) ? cur.filter((x) => x !== t) : [...cur, t];
+        // Only the API's one tag (the first) changes the request; the rest rank what is loaded.
+        const refetch = next[0] !== cur[0];
+        set({ selectedTags: next });
+        if (refetch) void get().refresh();
+      },
+      clearTags: () => { const had = get().selectedTags.length > 0; set({ selectedTags: EMPTY_STR }); if (had) void get().refresh(); },
+      markDownloaded: () => {
+        if (get().hasDownloadedOnce) return;
+        // The first download ever: from now on the list opens on all of CivitAI, not just the pod.
+        set({ hasDownloadedOnce: true, source: 'civitai' });
+        if (get().items.length === 0) void get().refresh();
+      },
 
       refresh: async () => {
         ctrl?.abort();
         const c = new AbortController();
         ctrl = c;
         const my = ++seq;
-        const { filters, favourites, followed } = get();
-        const plan = planSearch(filters, { hasKey: hasApiKey(), favouriteIds: favourites, followedUsers: followed });
+        const s = get();
+        const plan = planSearch(searchFilters(s), { hasKey: hasApiKey(), favouriteIds: s.favourites, followedUsers: s.followed });
         set({ loading: true, error: null, items: [], nextCursor: null, totalItems: null });
         try {
           const page = await runSearchPlan(plan, { limit: PAGE_SIZE }, c.signal);
@@ -129,13 +188,13 @@ export const useModels = create<ModelsState>()(
       },
 
       loadMore: async () => {
-        const { nextCursor, loadingMore, loading, filters, favourites, followed } = get();
-        if (loadingMore || loading || !nextCursor) return;
+        const s = get();
+        if (s.loadingMore || s.loading || !s.nextCursor) return;
         const my = seq;
-        const plan = planSearch(filters, { hasKey: hasApiKey(), favouriteIds: favourites, followedUsers: followed });
+        const plan = planSearch(searchFilters(s), { hasKey: hasApiKey(), favouriteIds: s.favourites, followedUsers: s.followed });
         set({ loadingMore: true });
         try {
-          const page = await runSearchPlan(plan, { limit: PAGE_SIZE, cursor: nextCursor }, ctrl?.signal);
+          const page = await runSearchPlan(plan, { limit: PAGE_SIZE, cursor: s.nextCursor }, ctrl?.signal);
           if (my !== seq) return;
           const seen = new Set(get().items.map((m) => m.id));
           set({ loadingMore: false, items: [...get().items, ...page.items.filter((m) => !seen.has(m.id))], nextCursor: page.nextCursor });
@@ -149,20 +208,30 @@ export const useModels = create<ModelsState>()(
       close: () => set({ selectedId: null, selectedVersionId: null, selectedImage: 0 }),
       selectVersion: (id) => set({ selectedVersionId: id, selectedImage: 0 }),
       selectImage: (i) => set({ selectedImage: i }),
-      toggleFavourite: (id) => set((s) => ({ favourites: s.favourites.includes(id) ? s.favourites.filter((x) => x !== id) : [...s.favourites, id] })),
-      toggleFollow: (u) => set((s) => ({ followed: s.followed.includes(u) ? s.followed.filter((x) => x !== u) : [...s.followed, u] })),
+      toggleFavourite: (id) => { askPersist(); set((s) => ({ favourites: s.favourites.includes(id) ? s.favourites.filter((x) => x !== id) : [...s.favourites, id] })); },
+      toggleFollow: (u) => { askPersist(); set((s) => ({ followed: s.followed.includes(u) ? s.followed.filter((x) => x !== u) : [...s.followed, u] })); },
       reveal: (id) => set((s) => (s.revealed.includes(id) ? s : { revealed: [...s.revealed, id] })),
       setPanelOpen: (panelOpen) => set({ panelOpen }),
       setPanelWidth: (panelWidth) => set({ panelWidth }),
       setMoreOpen: (moreOpen) => set({ moreOpen }),
+      setTagsOpen: (tagsOpen) => set({ tagsOpen }),
       setSheetOpen: (sheetOpen) => set({ sheetOpen }),
     }),
     {
       name: 'imagelab.next.models.v1',
-      partialize: (s) => ({ filters: s.filters, source: s.source, view: s.view, favourites: s.favourites, followed: s.followed, panelOpen: s.panelOpen, panelWidth: s.panelWidth }),
+      partialize: (s) => ({ filters: s.filters, source: s.source, view: s.view, favourites: s.favourites, followed: s.followed, panelOpen: s.panelOpen, panelWidth: s.panelWidth, hasDownloadedOnce: s.hasDownloadedOnce }),
       merge: (saved, current) => {
         const p = (saved ?? {}) as Partial<ModelsState>;
-        return { ...current, ...p, filters: sanitizeFilters(p.filters) };
+        const hasDownloadedOnce = !!p.hasDownloadedOnce;
+        return {
+          ...current, ...p,
+          filters: sanitizeFilters(p.filters),
+          hasDownloadedOnce,
+          // Downloaded is the default until something has been downloaded once.
+          source: hasDownloadedOnce ? (p.source ?? current.source) : 'installed',
+          favourites: Array.isArray(p.favourites) ? p.favourites.filter((n) => Number.isInteger(n)) : EMPTY_IDS,
+          followed: Array.isArray(p.followed) ? p.followed.filter((u) => typeof u === 'string') : EMPTY_STR,
+        };
       },
     },
   ),

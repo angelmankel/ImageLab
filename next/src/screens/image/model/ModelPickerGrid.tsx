@@ -14,6 +14,7 @@ import { Chip } from '~/ui';
 import { T } from '~/theme/tokens';
 import { Thumb } from './Thumb';
 import { readModelMeta, type ModelMeta } from './useModelMeta';
+import { openModelViewer } from './viewerBridge';
 
 export function ModelPickerGrid({ files, selected, onPick, fits, availability, tile = 104, maxHeight }: {
   /** Every file of this kind the servers offer. */
@@ -93,24 +94,33 @@ export function ModelPickerGrid({ files, selected, onPick, fits, availability, t
           const on = isSelected(f);
           const a = availability?.(f);
           const dim = a ? !a.enabled : false;
+          const title = a && a.servers.length ? `${m.name ?? m.label}\nOn ${a.servers.join(', ')}` : a ? `${m.name ?? m.label}\nNot installed on the current server` : (m.name ?? m.label);
           return (
-            <button
-              key={f}
-              type="button"
-              onClick={() => onPick(f)}
-              aria-pressed={on}
-              title={a && a.servers.length ? `${m.name ?? m.label}\nOn ${a.servers.join(', ')}` : a ? `${m.name ?? m.label}\nNot installed on the current server` : (m.name ?? m.label)}
-              style={{ border: 0, background: 'transparent', padding: 0, cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 5, alignItems: 'stretch', textAlign: 'left', color: 'var(--il-fg)', opacity: dim ? 0.45 : 1, minWidth: 0 }}
-            >
-              <span style={{ position: 'relative', display: 'block', aspectRatio: '1', borderRadius: T.radius.md, overflow: 'hidden', outline: on ? '3px solid var(--il-ember)' : undefined, outlineOffset: -3 }}>
+            <div key={f} style={{ display: 'flex', flexDirection: 'column', gap: 5, minWidth: 0, opacity: dim ? 0.45 : 1 }}>
+              <button
+                type="button"
+                onClick={() => void openModelViewer({ file: f })}
+                aria-label={`Open ${m.name ?? m.label} full screen`}
+                title="Open full screen"
+                style={{ position: 'relative', display: 'block', aspectRatio: '1', borderRadius: T.radius.md, overflow: 'hidden', outline: on ? '3px solid var(--il-ember)' : undefined, outlineOffset: -3, border: 0, padding: 0, background: 'transparent', cursor: 'pointer', width: '100%' }}
+              >
                 <Thumb label={m.label} images={m.images} size={tile} style={{ width: '100%', height: '100%', borderRadius: T.radius.md }} />
                 {m.bucket !== 'Unknown' && (
                   <span style={{ position: 'absolute', left: 6, bottom: 6, fontSize: 10, fontWeight: 800, borderRadius: 999, padding: '2px 7px', background: 'rgba(20,20,22,.78)', color: 'var(--il-fg2)' }}>{m.bucket}</span>
                 )}
                 {on && <span style={{ position: 'absolute', right: 6, top: 6, fontSize: 10, fontWeight: 800, borderRadius: 999, padding: '2px 7px', background: 'var(--il-ember)', color: 'var(--il-bg)' }}>✓</span>}
-              </span>
-              <span style={{ fontSize: 11, fontWeight: 700, lineHeight: 1.25, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflowWrap: 'anywhere' }}>{m.name ?? m.label}</span>
-            </button>
+              </button>
+              <button
+                type="button"
+                onClick={() => onPick(f)}
+                aria-pressed={on}
+                title={`${title}\nTap to pick`}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, minHeight: 30, padding: '4px 8px', border: 0, borderRadius: 999, background: on ? 'var(--il-ember-soft)' : 'var(--il-card-on)', color: on ? 'var(--il-ember-hi)' : 'var(--il-fg)', cursor: 'pointer', textAlign: 'left', minWidth: 0 }}
+              >
+                <span style={{ flex: 1, minWidth: 0, fontSize: 11, fontWeight: 700, lineHeight: 1.25, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflowWrap: 'anywhere' }}>{m.name ?? m.label}</span>
+                <span aria-hidden style={{ flex: 'none', fontSize: 12, fontWeight: 800, color: on ? 'var(--il-ember-hi)' : 'var(--il-ok)' }}>{on ? '✓' : '+'}</span>
+              </button>
+            </div>
           );
         })}
         {!shown.length && (

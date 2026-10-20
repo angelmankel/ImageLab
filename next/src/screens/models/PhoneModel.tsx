@@ -2,6 +2,7 @@
  * Phone 3 of the Models-Phone board: a model opened full screen. Name + ♥ on top, then one scroll
  * (`touch-action: pan-y`) with the full-bleed gallery and everything else from `Detail`; the
  * centred Back pill closes it (and the phone's back button works: opening pushes one history entry).
+ * In the picker modal the pill reads "Back" too and returns to the list.
  */
 import { useEffect } from 'react';
 import { IconHeart, IconHeartFilled } from '@tabler/icons-react';

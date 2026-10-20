@@ -119,7 +119,10 @@ export interface ModelFilters {
   nsfwMask: number;
   /** Minimum rating (1–5), 0 = any. */
   rating: number;
+  /** The local ♥ list (fetched by `ids`). */
   favorites: boolean;
+  /** CivitAI's own favourites (`favorites=true`, needs the API key). */
+  accountFavorites: boolean;
   followed: boolean;
   hidden: boolean;
   earlyAccess: Tri;
@@ -143,7 +146,7 @@ export interface ModelFilters {
 
 export const DEFAULT_FILTERS: ModelFilters = {
   query: '', tag: '', username: '', types: [], baseModels: [], sort: 'Most Downloaded', period: 'Month',
-  nsfwMask: 7, rating: 0, favorites: false, followed: false, hidden: false, earlyAccess: 'any',
+  nsfwMask: 7, rating: 0, favorites: false, accountFavorites: false, followed: false, hidden: false, earlyAccess: 'any',
   supportsGeneration: false, primaryFileOnly: false, allowNoCredit: false, allowDerivatives: false,
   allowDifferentLicenses: false, commercialUse: [], fileFormats: [], fp: [], checkpointType: '',
   installed: 'any', ids: [], catalog: 'civitai',
@@ -191,7 +194,7 @@ export function buildModelsQuery(f: ModelFilters, o: QueryOptions = {}): string 
   qp.set('sort', f.sort);
   qp.set('period', f.period);
   if (f.rating > 0) qp.set('rating', String(f.rating));
-  if (f.favorites) qp.set('favorites', 'true');
+  if (f.accountFavorites) qp.set('favorites', 'true');
   if (f.followed) qp.set('followed', 'true');
   if (f.hidden) qp.set('hidden', 'true');
   if (f.primaryFileOnly) qp.set('primaryFileOnly', 'true');
@@ -421,6 +424,7 @@ export function activeFilters(f: ModelFilters): ActiveFilter[] {
   if (f.username.trim()) out.push({ key: 'username', label: `by ${f.username.trim()}` });
   if (f.rating > 0) out.push({ key: 'rating', label: `${f.rating}★+` });
   if (f.favorites) out.push({ key: 'favorites', label: 'Favourites' });
+  if (f.accountFavorites) out.push({ key: 'accountFavorites', label: 'CivitAI favourites' });
   if (f.followed) out.push({ key: 'followed', label: 'Followed' });
   if (f.hidden) out.push({ key: 'hidden', label: 'Hidden' });
   if (f.earlyAccess !== 'any') out.push({ key: 'earlyAccess', label: f.earlyAccess === 'only' ? 'Early access' : 'No early access' });
@@ -488,20 +492,46 @@ export interface SearchPlan {
 }
 
 /**
- * CivitAI's `favorites` / `followed` flags need the account's key. Without one the screen keeps
- * its own lists: favourites are fetched by `ids`, followed creators one request per username.
+ * The local ♥ list is the durable one (it lives in the browser, the pod does not): "Favourites"
+ * is always fetched by `ids`. CivitAI's account favourites and `followed` need the key; without
+ * one, followed creators come from the local Follow list, one request per username.
  */
 export function planSearch(f: ModelFilters, ctx: { hasKey: boolean; favouriteIds: readonly number[]; followedUsers: readonly string[] }): SearchPlan {
-  if (ctx.hasKey) return { filters: f };
   let filters = f;
   if (f.favorites) {
     if (!ctx.favouriteIds.length) return { filters: { ...f, favorites: false }, empty: true };
     filters = { ...filters, favorites: false, ids: [...new Set([...f.ids, ...ctx.favouriteIds])] };
   }
-  if (f.followed) {
+  if (f.accountFavorites && !ctx.hasKey) filters = { ...filters, accountFavorites: false };
+  if (f.followed && !ctx.hasKey) {
     filters = { ...filters, followed: false };
     if (!ctx.followedUsers.length) return { filters, empty: true };
     if (!filters.username.trim()) return { filters, usernames: ctx.followedUsers.slice(0, 8) };
   }
   return { filters };
+}
+
+// ── the picker's kind lock ─────────────────────────────────────────────────
+
+/** What a step's picker asks for; `vae` / `upscale` map to CivitAI's VAE / Upscaler types. */
+export type ModelKindKey = 'checkpoint' | 'lora' | 'embedding' | 'controlnet' | 'vae' | 'upscale';
+
+export const KIND_TYPES: Record<ModelKindKey, ModelType[]> = {
+  checkpoint: ['Checkpoint'],
+  lora: ['LORA', 'LoCon', 'DoRA'],
+  embedding: ['TextualInversion'],
+  controlnet: ['Controlnet'],
+  vae: ['VAE'],
+  upscale: ['Upscaler'],
+};
+export const KIND_LABEL: Record<ModelKindKey, string> = { checkpoint: 'Checkpoints', lora: 'LoRAs', embedding: 'Embeddings', controlnet: 'ControlNets', vae: 'VAEs', upscale: 'Upscalers' };
+
+export function kindTypes(kind: ModelKindKey | null | undefined): ModelType[] | null {
+  return kind ? KIND_TYPES[kind] : null;
+}
+
+/** The filters a search really uses: the picker's kind replaces the type chips; the first chosen tag is the API's one `tag`. */
+export function effectiveFilters(f: ModelFilters, kind: ModelKindKey | null | undefined, selectedTags: readonly string[]): ModelFilters {
+  const types = kindTypes(kind);
+  return { ...f, types: types ?? f.types, tag: selectedTags[0] ?? f.tag };
 }

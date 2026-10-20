@@ -1,18 +1,23 @@
 /**
- * What a model can do to the active step (rule 13): "Use in step" puts an installed file into
- * the step's workflow (main store: addCheckpoint / addLora / addEmbedding), a sample's generation
- * data goes to the step through `~/app/actions.applyGenerationData`, Delete removes the file from
- * the server through the ImageLab node. Every action lands on the step screen.
+ * What a model can do (rule 13 + the picker brief): `pick` hands a `ModelPick` to whoever opened
+ * the picker (downloading first when the file is not on the pod — the pick fires at once with
+ * `installed: false`); without a picker, "Use in step" puts an installed file into the step's
+ * workflow (main store: addCheckpoint / addLora / addEmbedding). A sample's generation data goes
+ * to the step through `~/app/actions.applyGenerationData`; Delete removes the file from the pod.
  */
 import { notifications } from '@mantine/notifications';
 import { useStore } from '@/lib/store';
 import { deleteModel } from '@/lib/comfy';
-import type { CivitaiImageMeta, CivitaiModelVersion } from '@/lib/civitai';
+import type { CivitaiImageMeta, CivitaiModel, CivitaiModelVersion } from '@/lib/civitai';
+import { civitaiThumbUrl, previewStill } from '@/lib/civitai';
 import { applyGenerationData } from '~/app/actions';
 import { useRoute } from '~/app/routeStore';
 import { useActiveStep } from '~/app/stepsStore';
 import { primaryFile } from '@/features/model-metadata/civitai';
 import { useInstalled } from './useInstalled';
+import { usePick } from './pickContext';
+import { buildPick, pickFile } from './pick';
+import { useVersionDownload } from './DownloadButton';
 
 /** The meta of a CivitAI sample as `applyGenerationData` wants it (size split into width/height). */
 export function metaForStep(meta: CivitaiImageMeta, image?: { width?: number; height?: number }): Parameters<typeof applyGenerationData>[0] {
@@ -34,14 +39,39 @@ export function useModelActions() {
   const installed = useInstalled();
   const servers = useStore((s) => s.servers);
   const serverInfo = useStore((s) => s.serverInfo);
+  const ctx = usePick();
+  const { download, stateOf } = useVersionDownload();
 
-  const usePrompt = (meta: CivitaiImageMeta, image?: { width?: number; height?: number }) => { applyGenerationData(metaForStep(meta, image), 'prompt'); go('step'); };
-  const useSettings = (meta: CivitaiImageMeta, image?: { width?: number; height?: number }) => { applyGenerationData(metaForStep(meta, image), 'settings'); go('step'); };
+  const leave = () => { if (ctx.close) ctx.close(); else go('step'); };
 
-  /** Put the version's installed file into the active step. Returns false when nothing fits. */
-  const useInStep = (version: CivitaiModelVersion, modelType: string): boolean => {
+  const usePrompt = (meta: CivitaiImageMeta, image?: { width?: number; height?: number }) => { applyGenerationData(metaForStep(meta, image), 'prompt'); leave(); };
+  const useSettings = (meta: CivitaiImageMeta, image?: { width?: number; height?: number }) => { applyGenerationData(metaForStep(meta, image), 'settings'); leave(); };
+
+  /** The server file name for a version, when one of its files is on the pod. */
+  const serverFileOf = (version: CivitaiModelVersion): string | undefined => {
     const file = version.files.find((f) => installed.file(f)) ?? primaryFile(version);
-    const name = file ? installed.serverName(file.name) : undefined;
+    return file ? installed.serverName(file.name) : undefined;
+  };
+
+  /**
+   * The picker's primary action: hand the pick to the opener. Not on the pod yet → the download
+   * starts and the pick still fires (`installed: false`), so the step can hold the entry disabled
+   * until the file lands.
+   */
+  const pick = (model: CivitaiModel, version: CivitaiModelVersion): boolean => {
+    if (!ctx.onPick) return false;
+    const serverFile = serverFileOf(version);
+    const img = version.images?.[0];
+    const p = buildPick(model, version, { serverFile, thumb: img ? civitaiThumbUrl(previewStill(img, 450), 450) : undefined });
+    if (!serverFile && stateOf(version).state !== 'offline') void download(version, model.type);
+    ctx.onPick(p);
+    ctx.close?.();
+    return true;
+  };
+
+  /** Without a picker: put the version's installed file into the active step. */
+  const useInStep = (version: CivitaiModelVersion, modelType: string): boolean => {
+    const name = serverFileOf(version);
     if (!name) { notifications.show({ color: 'yellow', message: 'Download it first — the file is not on a server yet' }); return false; }
     const s = useStore.getState();
     const t = modelType;
@@ -51,9 +81,12 @@ export function useModelActions() {
     else if (t === 'VAE') s.setWorkflow({ vae: name });
     else { notifications.show({ color: 'yellow', message: `${t} files are not something a step loads` }); return false; }
     notifications.show({ color: 'ember', message: `${name.split('/').pop()} added to ${step.name}` });
-    go('step');
+    leave();
     return true;
   };
+
+  /** Use = pick when a picker is open, else into the step. */
+  const use = (model: CivitaiModel, version: CivitaiModelVersion): boolean => (ctx.onPick ? pick(model, version) : useInStep(version, model.type));
 
   const copy = async (text: string, what = 'Copied') => {
     try { await navigator.clipboard.writeText(text); notifications.show({ color: 'ember', message: what }); }
@@ -75,5 +108,8 @@ export function useModelActions() {
     for (const s of targets) void useStore.getState().refreshServerInfo(s.id);
   };
 
-  return { usePrompt, useSettings, useInStep, copy, deleteFile, stepName: step.name };
+  /** The version a tile acts on: the installed one, else the first. */
+  const versionToUse = (model: CivitaiModel): CivitaiModelVersion | undefined => model.modelVersions.find((v) => installed.version(v)) ?? model.modelVersions[0];
+
+  return { usePrompt, useSettings, useInStep, pick, use, copy, deleteFile, versionToUse, serverFileOf, pickFile, stepName: step.name, picking: !!ctx.onPick, kind: ctx.kind };
 }

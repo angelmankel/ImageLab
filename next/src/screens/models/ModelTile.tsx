@@ -1,47 +1,80 @@
 /**
- * A model card in the desktop grid (Models-Desktop board): cover 3:4 with type / base / version
- * badges, name, creator, stats, and a bottom row that says Installed ✓ + Use, "2 of 3 versions" +
- * ↓, or size + Download. An adult cover (beyond the NSFW level) stays hidden until tapped.
+ * A model card in the grid (the picker brief: big tiles, 220–260 wide on desktop, 2 per row on
+ * the phone): cover 3:4 with type / base / version badges, name, creator, stats, and a bottom row
+ * that says Installed ✓ + Use, "2 of 3 versions" + ↓, or size + Download. With a picker open the
+ * primary action is Use (installed) or "Add & download". A tap on the PICTURE opens the
+ * fullscreen model viewer; a tap on the name / body opens the detail panel. An adult cover
+ * (beyond the NSFW level) stays hidden until tapped.
  */
-import { IconCheck, IconEyeOff } from '@tabler/icons-react';
+import { IconCheck, IconEyeOff, IconHeartFilled, IconPlus } from '@tabler/icons-react';
 import type { CivitaiModel } from '@/lib/civitai';
 import { civitaiThumbUrl, previewStill } from '@/lib/civitai';
 import { primaryFile } from '@/features/model-metadata/civitai';
 import { baseModelShort, fmtSizeKB, isBeyondMask, typeLabel, type InstalledState } from './civitaiQuery';
-import { Avatar, CoverBadge, COVER_FALLBACK, GhostBtn, Stats } from './bits';
+import { Avatar, CoverBadge, COVER_FALLBACK, EmberBtn, GhostBtn, Stats, type Size } from './bits';
 import { DownloadButton } from './DownloadButton';
+import { openModelViewer } from './viewerBridge';
 
-export const TILE_THUMB = 450;
+export const TILE_THUMB = 560;
 
 /** The sample to show on a cover: the first one inside the NSFW level, else the first. */
 export function coverImage(m: CivitaiModel, versionId: number | null | undefined, mask: number) {
   const v = m.modelVersions.find((x) => x.id === versionId) ?? m.modelVersions[0];
   const imgs = v?.images ?? [];
-  return { version: v, image: imgs.find((i) => !isBeyondMask(i.nsfwLevel, mask)) ?? imgs[0] };
+  const idx = imgs.findIndex((i) => !isBeyondMask(i.nsfwLevel, mask));
+  return { version: v, image: imgs[idx >= 0 ? idx : 0], imageIndex: Math.max(0, idx) };
 }
 
-export function ModelTile({ model, selected, installed, mask, revealed, onOpen, onReveal, onUse }: {
-  model: CivitaiModel; selected: boolean; installed: InstalledState; mask: number; revealed: boolean;
+export function ModelTile({ model, selected, installed, mask, revealed, favourite, picking, size = 'desktop', onOpen, onReveal, onUse }: {
+  model: CivitaiModel; selected: boolean; installed: InstalledState; mask: number; revealed: boolean; favourite?: boolean; picking?: boolean; size?: Size;
   onOpen: () => void; onReveal: () => void; onUse: () => void;
 }) {
-  const { version, image } = coverImage(model, null, mask);
+  const phone = size === 'phone';
+  const { version, image, imageIndex } = coverImage(model, null, mask);
   const hidden = !!image && isBeyondMask(image.nsfwLevel, mask) && !revealed;
   const url = image ? civitaiThumbUrl(previewStill(image, TILE_THUMB), TILE_THUMB) : '';
   const versions = model.modelVersions.length;
   const file = version ? primaryFile(version) : null;
   const all = installed.total > 0 && installed.installed === installed.total;
   const some = installed.installed > 0 && !all;
+  const anyInstalled = installed.installed > 0;
+
+  const onCover = () => {
+    if (hidden) { onReveal(); return; }
+    void openModelViewer({ modelId: model.id, versionId: version?.id ?? null, imageIndex }).then((opened) => { if (!opened) onOpen(); });
+  };
+
+  const h = phone ? 36 : 30;
+  const action = picking ? (
+    anyInstalled
+      ? <EmberBtn h={h} size={size} onClick={onUse} style={{ flex: 1 }} label={`Use ${model.name}`}><IconCheck size={12} stroke={3} />Use</EmberBtn>
+      : <EmberBtn h={h} size={size} onClick={onUse} style={{ flex: 1 }} label={`Add ${model.name} and download it`}><IconPlus size={12} stroke={3} />Add & download</EmberBtn>
+  ) : all ? (
+    <>
+      <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 800, color: 'var(--il-ok)' }}><IconCheck size={13} stroke={3} />Installed</span>
+      <GhostBtn h={h} size={size} onClick={onUse} label={`Use ${model.name} in the step`}>Use</GhostBtn>
+    </>
+  ) : some ? (
+    <>
+      <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--il-muted)' }}>{installed.installed} of {installed.total} versions</span>
+      {version && <DownloadButton version={version} modelType={model.type} shape="icon" />}
+    </>
+  ) : (
+    <>
+      <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--il-muted)' }}>{fmtSizeKB(file?.sizeKB)}</span>
+      {version && <DownloadButton version={version} modelType={model.type} h={h} size={size} />}
+    </>
+  );
 
   return (
-    <div style={{ background: 'var(--il-card)', borderRadius: 16, padding: 10, display: 'flex', flexDirection: 'column', gap: 7, outline: selected ? '2px solid var(--il-ember)' : undefined, outlineOffset: -2, minWidth: 0 }}>
+    <div style={{ background: 'var(--il-card)', borderRadius: 16, padding: phone ? 8 : 10, display: 'flex', flexDirection: 'column', gap: phone ? 6 : 7, outline: selected ? '2px solid var(--il-ember)' : undefined, outlineOffset: -2, minWidth: 0 }}>
       <button
         type="button"
-        aria-label={`Open ${model.name}${hidden ? ' (NSFW, hidden)' : ''}`}
-        aria-pressed={selected}
-        onClick={hidden ? onReveal : onOpen}
+        aria-label={`${hidden ? 'Show the NSFW cover of' : 'View'} ${model.name}`}
+        onClick={onCover}
         style={{
           position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', padding: 0, border: 0, aspectRatio: '3 / 4', borderRadius: 14,
-          background: hidden || !url ? (hidden ? 'var(--il-elev)' : COVER_FALLBACK) : undefined, overflow: 'hidden', cursor: 'pointer', color: 'var(--il-muted)',
+          background: hidden || !url ? (hidden ? 'var(--il-elev)' : COVER_FALLBACK) : 'var(--il-bg-deep)', overflow: 'hidden', cursor: 'pointer', color: 'var(--il-muted)',
         }}
       >
         {!hidden && url && <img src={url} alt="" loading="lazy" decoding="async" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
@@ -53,31 +86,17 @@ export function ModelTile({ model, selected, installed, mask, revealed, onOpen, 
         <CoverBadge at="tl">{typeLabel(model.type).toUpperCase()}</CoverBadge>
         {version?.baseModel && <CoverBadge at="tr" tone="ember">{baseModelShort(version.baseModel)}</CoverBadge>}
         {version && <CoverBadge at="bl" tone="muted">{version.name}{versions > 1 ? ` · ${versions} versions` : ''}</CoverBadge>}
+        {favourite && <span aria-label="Favourite" style={{ position: 'absolute', right: 8, bottom: 8, width: 22, height: 22, borderRadius: '50%', background: 'rgba(20,20,22,.72)', color: 'var(--il-ember)', display: 'grid', placeItems: 'center', pointerEvents: 'none' }}><IconHeartFilled size={12} /></span>}
       </button>
-      <div style={{ fontSize: 13, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={model.name}>{model.name}</div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 600, color: 'var(--il-muted)' }}>
-        <Avatar creator={model.creator} size={16} />
-        <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>by {model.creator?.username || 'unknown'}</span>
-      </div>
-      <Stats stats={model.stats} />
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 28, gap: 6 }}>
-        {all ? (
-          <>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 800, color: 'var(--il-ok)' }}><IconCheck size={13} stroke={3} />Installed</span>
-            <GhostBtn onClick={onUse} label={`Use ${model.name} in the step`}>Use</GhostBtn>
-          </>
-        ) : some ? (
-          <>
-            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--il-muted)' }}>{installed.installed} of {installed.total} versions</span>
-            {version && <DownloadButton version={version} modelType={model.type} shape="icon" />}
-          </>
-        ) : (
-          <>
-            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--il-muted)' }}>{fmtSizeKB(file?.sizeKB)}</span>
-            {version && <DownloadButton version={version} modelType={model.type} />}
-          </>
-        )}
-      </div>
+      <button type="button" onClick={onOpen} aria-pressed={selected} aria-label={`Open ${model.name}`} style={{ display: 'flex', flexDirection: 'column', gap: phone ? 4 : 6, padding: 0, border: 0, background: 'transparent', color: 'var(--il-fg)', textAlign: 'left', cursor: 'pointer', minWidth: 0 }}>
+        <span style={{ fontSize: phone ? 13 : 14, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '100%' }} title={model.name}>{model.name}</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 600, color: 'var(--il-muted)', width: '100%' }}>
+          <Avatar creator={model.creator} size={16} />
+          <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>by {model.creator?.username || 'unknown'}</span>
+        </span>
+        <Stats stats={model.stats} size={size} />
+      </button>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: h, gap: 6 }}>{action}</div>
     </div>
   );
 }

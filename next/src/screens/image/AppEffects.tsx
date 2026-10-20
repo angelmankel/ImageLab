@@ -20,6 +20,7 @@ import { useWorkflowRun } from '@/features/studio/studioRun';
 import { notifications } from '@mantine/notifications';
 import { useSteps } from '~/app/stepsStore';
 import { ensureStepWorkflowOpen } from '~/screens/comfy';
+import { usePendingReconcile } from '~/screens/image/model';
 
 export function AppEffects() {
   useComfyConnection();
@@ -30,6 +31,8 @@ export function AppEffects() {
   useVideoServerProbe();
   useTabStatus();
   useInstalledWanFiles();
+  // Models added before their download: flip them on when the file lands, whichever tab is open.
+  usePendingReconcile();
   const videoHost = useModeHost('video');
   const workflowHost = useModeHost('workflow');
   useEffect(() => { useVideoRun.getState().setHost(videoHost); }, [videoHost]);

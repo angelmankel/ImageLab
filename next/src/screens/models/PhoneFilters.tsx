@@ -5,11 +5,13 @@
  */
 import { Drawer } from '@mantine/core';
 import { T } from '~/theme/tokens';
+import type { CivitaiModel } from '@/lib/civitai';
 import { useModels } from './modelsStore';
 import { FilterFields } from './FilterFields';
 import { EmberBtn } from './bits';
 
-export function PhoneFilters({ count }: { count: number }) {
+export function PhoneFilters({ count, pool }: { count: number; pool: CivitaiModel[] }) {
+  const kind = useModels((s) => s.kind);
   const open = useModels((s) => s.sheetOpen);
   const setOpen = useModels((s) => s.setSheetOpen);
   const f = useModels((s) => s.filters);
@@ -24,7 +26,7 @@ export function PhoneFilters({ count }: { count: number }) {
       position="bottom"
       size="92%"
       withCloseButton={false}
-      zIndex={T.z.sheet}
+      zIndex={T.z.modal + 10}
       overlayProps={{ backgroundOpacity: 0.6, blur: 0 }}
       styles={{
         content: { background: 'rgba(28,28,33,.94)', backdropFilter: T.blur, WebkitBackdropFilter: T.blur, borderRadius: '24px 24px 0 0', borderTop: '1px solid rgba(255,255,255,.08)', boxShadow: '0 -10px 30px rgba(0,0,0,.35)', display: 'flex', flexDirection: 'column' },
@@ -37,7 +39,7 @@ export function PhoneFilters({ count }: { count: number }) {
         <button type="button" onClick={clearAll} style={{ border: 0, background: 'transparent', color: 'var(--il-ember)', fontSize: 12, fontWeight: 700, padding: 0, cursor: 'pointer' }}>Clear all</button>
       </div>
       <div className="il-scroll" style={{ flex: 1, minHeight: 0, padding: '0 16px 8px', touchAction: 'pan-y' }}>
-        <FilterFields f={f} set={set} size="phone" />
+        <FilterFields f={f} set={set} size="phone" lockedKind={kind} pool={pool} />
       </div>
       <div style={{ flex: 'none', padding: `8px 16px calc(12px + var(--il-safe-bottom))` }}>
         <EmberBtn size="phone" h={48} style={{ width: '100%', fontSize: 14, borderRadius: 14 }} onClick={() => setOpen(false)}>

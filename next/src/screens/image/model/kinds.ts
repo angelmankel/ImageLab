@@ -3,11 +3,18 @@
  * Embeds · ControlNet) and one hook that reads each kind's entries from the main app's workflow
  * (`@/lib/store`) and writes back through its actions. The components never touch the store
  * directly for entries: they go through `useKindApi`.
+ *
+ * Pending models (picked before they are downloaded — models-picker brief, item 5) are records in
+ * `pendingModels.ts`: a LoRA / embedding / ControlNet gets its store entry at once, switched OFF
+ * so the graph never loads a missing file (the user's On/Off lives on the record meanwhile); a
+ * checkpoint has no off switch, so a pending one is the record alone until it lands.
  */
 import { useCallback, useMemo } from 'react';
 import { useStore } from '@/lib/store';
 import type { WorkflowEmbedding } from '@/lib/types';
 import { useControlnets, type ControlNetEntry } from './controlnetStore';
+import { usePendingModels } from './pendingModels';
+import { expectedFileName, pendingKey, recordFromPick, type PendingRecord, type PickLike } from './pendingLogic';
 
 export type ModelKind = 'checkpoint' | 'lora' | 'embedding' | 'controlnet';
 
@@ -45,6 +52,8 @@ export interface ModelEntry {
   badge?: string;
   /** The base checkpoint: no ratio, carries the VAE and the model type. */
   isBase?: boolean;
+  /** Set while the file is not on a server yet: dimmed, "not downloaded", a Download button. */
+  pending?: PendingRecord;
 }
 
 export interface KindApi {
@@ -53,8 +62,12 @@ export interface KindApi {
   entries: ModelEntry[];
   /** Every file of this kind the servers offer. */
   files: string[];
-  /** Adds one and returns its id. */
+  /** Adds an installed file and returns the entry id. */
   add: (name: string) => string | undefined;
+  /** Adds a model that is not downloaded yet (a pending record); undefined when the pick names no file. */
+  addPending: (pick: PickLike) => string | undefined;
+  /** Points an entry at a not-yet-downloaded model (checkpoints: adds a pending one beside it). */
+  changeToPending: (id: string, pick: PickLike) => string | undefined;
   remove: (id: string) => void;
   rename: (id: string, name: string) => void;
   setOn: (id: string, on: boolean) => void;
@@ -62,6 +75,7 @@ export interface KindApi {
 }
 
 const NO_EMBEDDINGS: WorkflowEmbedding[] = Object.freeze([]) as unknown as WorkflowEmbedding[];
+const PENDING_ID = 'pending:';
 
 /** Subscribes to every kind's slice (hooks must not branch) and returns the api for `kind`. */
 export function useKindApi(kind: ModelKind): KindApi {
@@ -69,21 +83,31 @@ export function useKindApi(kind: ModelKind): KindApi {
   const loras = useStore((s) => s.workflow.loras);
   const embeddings = useStore((s) => s.workflow.embeddings) ?? NO_EMBEDDINGS;
   const controlnets = useControlnets((s) => s.entries);
+  const records = usePendingModels((s) => s.records);
   const server = useStore((s) => s.server);
   const cn = useControlnets;
+  const pm = usePendingModels;
 
   const entries = useMemo<ModelEntry[]>(() => {
+    const pendingOf = (name: string) => records[pendingKey(kind, name)];
+    const withPending = (e: ModelEntry): ModelEntry => {
+      const p = pendingOf(e.name);
+      return p ? { ...e, pending: p, on: p.userOn } : e;
+    };
     switch (kind) {
-      case 'checkpoint':
-        return checkpoints.map((c, i) => ({ id: c.id, name: c.name, on: true, weight: c.ratio, isBase: i === 0, badge: i === 0 && checkpoints.length > 1 ? 'Base' : undefined }));
+      case 'checkpoint': {
+        const real = checkpoints.map((c, i) => ({ id: c.id, name: c.name, on: true, weight: c.ratio, isBase: i === 0, badge: i === 0 && checkpoints.length > 1 ? 'Base' : undefined }));
+        const pending = Object.values(records).filter((r) => r.kind === 'checkpoint').map((r) => ({ id: PENDING_ID + r.key, name: r.file, on: r.userOn, weight: r.weight, pending: r }));
+        return [...real, ...pending];
+      }
       case 'lora':
-        return loras.map((l) => ({ id: l.id, name: l.name, on: l.on, weight: l.strength }));
+        return loras.map((l) => withPending({ id: l.id, name: l.name, on: l.on, weight: l.strength }));
       case 'embedding':
-        return embeddings.map((e) => ({ id: e.id, name: e.name, on: e.on, weight: e.strength }));
+        return embeddings.map((e) => withPending({ id: e.id, name: e.name, on: e.on, weight: e.strength }));
       case 'controlnet':
-        return controlnets.map((c: ControlNetEntry) => ({ id: c.id, name: c.name, on: c.on, weight: c.strength }));
+        return controlnets.map((c: ControlNetEntry) => withPending({ id: c.id, name: c.name, on: c.on, weight: c.strength }));
     }
-  }, [kind, checkpoints, loras, embeddings, controlnets]);
+  }, [kind, checkpoints, loras, embeddings, controlnets, records]);
 
   const files = server[KINDS[kind].list];
 
@@ -97,13 +121,13 @@ export function useKindApi(kind: ModelKind): KindApi {
     }
   }, [kind, cn]);
 
-  const remove = useCallback((id: string) => {
+  const storeSetOn = useCallback((id: string, on: boolean) => {
     const st = useStore.getState();
     switch (kind) {
-      case 'checkpoint': return st.removeCheckpoint(id);
-      case 'lora': return st.removeLora(id);
-      case 'embedding': return st.removeEmbedding(id);
-      case 'controlnet': return cn.getState().remove(id);
+      case 'checkpoint': return; // a checkpoint is either in the merge or removed
+      case 'lora': return st.updateLora(id, { on });
+      case 'embedding': return st.updateEmbedding(id, { on });
+      case 'controlnet': return cn.getState().update(id, { on });
     }
   }, [kind, cn]);
 
@@ -117,17 +141,56 @@ export function useKindApi(kind: ModelKind): KindApi {
     }
   }, [kind, cn]);
 
-  const setOn = useCallback((id: string, on: boolean) => {
+  const addPending = useCallback((pick: PickLike) => {
+    const file = expectedFileName(kind, pick);
+    if (!file) return undefined;
+    const key = pendingKey(kind, file);
+    const existing = pm.getState().records[key];
+    if (kind === 'checkpoint') {
+      if (!existing) pm.getState().add(recordFromPick(kind, pick, Date.now(), undefined, true, 0.5));
+      return PENDING_ID + key;
+    }
+    const found = entries.find((e) => e.name === file);
+    const id = found?.id ?? add(file);
+    if (!id) return undefined;
+    storeSetOn(id, false);
+    if (!existing) pm.getState().add(recordFromPick(kind, pick, Date.now(), id, found?.on ?? true));
+    return id;
+  }, [kind, entries, add, storeSetOn, pm]);
+
+  const changeToPending = useCallback((id: string, pick: PickLike) => {
+    if (kind === 'checkpoint' || id.startsWith(PENDING_ID)) return addPending(pick);
+    const file = expectedFileName(kind, pick);
+    if (!file) return undefined;
+    const was = entries.find((e) => e.id === id);
+    if (was?.pending) pm.getState().remove(was.pending.key);
+    rename(id, file);
+    storeSetOn(id, false);
+    pm.getState().add(recordFromPick(kind, pick, Date.now(), id, was?.on ?? true));
+    return id;
+  }, [kind, entries, addPending, rename, storeSetOn, pm]);
+
+  const remove = useCallback((id: string) => {
+    if (id.startsWith(PENDING_ID)) { pm.getState().remove(id.slice(PENDING_ID.length)); return; }
+    const was = entries.find((e) => e.id === id);
+    if (was?.pending) pm.getState().remove(was.pending.key);
     const st = useStore.getState();
     switch (kind) {
-      case 'checkpoint': return; // a checkpoint is either in the merge or removed
-      case 'lora': return st.updateLora(id, { on });
-      case 'embedding': return st.updateEmbedding(id, { on });
-      case 'controlnet': return cn.getState().update(id, { on });
+      case 'checkpoint': return st.removeCheckpoint(id);
+      case 'lora': return st.removeLora(id);
+      case 'embedding': return st.removeEmbedding(id);
+      case 'controlnet': return cn.getState().remove(id);
     }
-  }, [kind, cn]);
+  }, [kind, cn, pm, entries]);
+
+  const setOn = useCallback((id: string, on: boolean) => {
+    const e = entries.find((x) => x.id === id);
+    if (e?.pending) { pm.getState().update(e.pending.key, { userOn: on }); return; }
+    storeSetOn(id, on);
+  }, [entries, storeSetOn, pm]);
 
   const setWeight = useCallback((id: string, v: number) => {
+    if (id.startsWith(PENDING_ID)) { pm.getState().update(id.slice(PENDING_ID.length), { weight: v }); return; }
     const st = useStore.getState();
     switch (kind) {
       case 'checkpoint': return st.updateCheckpoint(id, { ratio: v });
@@ -135,9 +198,9 @@ export function useKindApi(kind: ModelKind): KindApi {
       case 'embedding': return st.updateEmbedding(id, { strength: v });
       case 'controlnet': return cn.getState().update(id, { strength: v });
     }
-  }, [kind, cn]);
+  }, [kind, cn, pm]);
 
-  return { kind, spec: KINDS[kind], entries, files, add, remove, rename, setOn, setWeight };
+  return { kind, spec: KINDS[kind], entries, files, add, addPending, changeToPending, remove, rename, setOn, setWeight };
 }
 
 /** A short weight for the circle badge: 0.8, 1, 1.25. */

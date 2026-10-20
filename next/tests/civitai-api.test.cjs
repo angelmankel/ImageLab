@@ -22,7 +22,7 @@ test('every /models parameter is wired', () => {
   const f = {
     ...base(), query: ' cat ', tag: 'anime', username: 'wai', types: ['Checkpoint', 'LORA'],
     baseModels: ['Illustrious', 'SDXL 1.0'], sort: 'Newest', period: 'Week', nsfwMask: 63, rating: 4,
-    favorites: true, followed: true, hidden: true, earlyAccess: 'only', supportsGeneration: true,
+    accountFavorites: true, followed: true, hidden: true, earlyAccess: 'only', supportsGeneration: true,
     primaryFileOnly: true, allowNoCredit: true, allowDerivatives: true, allowDifferentLicenses: true,
     commercialUse: ['Rent', 'Sell'], fileFormats: ['SafeTensor'], checkpointType: 'Merge', ids: [1, 22],
   };
@@ -204,20 +204,39 @@ test('toggleIn, folderForType, formatting', () => {
   assert.equal(Q.typeLabel('LoCon'), 'LyCORIS');
 });
 
-test('planSearch: favourites and followed without a key use the local lists', () => {
-  const f = { ...base(), favorites: true, followed: true };
-  const withKey = Q.planSearch(f, { hasKey: true, favouriteIds: [], followedUsers: [] });
-  assert.equal(withKey.filters.favorites, true);
+test('planSearch: local favourites always go by ids; account favourites and followed need the key', () => {
+  const f = { ...base(), favorites: true, accountFavorites: true, followed: true };
+  const withKey = Q.planSearch(f, { hasKey: true, favouriteIds: [5], followedUsers: [] });
+  assert.equal(withKey.filters.favorites, false);
+  assert.deepEqual(withKey.filters.ids, [5]);
+  assert.equal(withKey.filters.accountFavorites, true);
   assert.equal(withKey.filters.followed, true);
   assert.equal(withKey.usernames, undefined);
   const none = Q.planSearch({ ...base(), favorites: true }, { hasKey: false, favouriteIds: [], followedUsers: [] });
   assert.equal(none.empty, true);
   const local = Q.planSearch(f, { hasKey: false, favouriteIds: [5, 6], followedUsers: ['a', 'b'] });
-  assert.equal(local.filters.favorites, false);
+  assert.equal(local.filters.accountFavorites, false);
   assert.equal(local.filters.followed, false);
   assert.deepEqual(local.filters.ids, [5, 6]);
   assert.deepEqual(local.usernames, ['a', 'b']);
-  assert.equal(params(Q.buildModelsQuery(local.filters)).getAll('ids').join(), '5,6');
+  const p = params(Q.buildModelsQuery(local.filters));
+  assert.equal(p.getAll('ids').join(), '5,6');
+  assert.equal(p.get('favorites'), null);
+  assert.equal(params(Q.buildModelsQuery(withKey.filters)).get('favorites'), 'true');
   const named = Q.planSearch({ ...base(), followed: true, username: 'zed' }, { hasKey: false, favouriteIds: [], followedUsers: ['a'] });
   assert.equal(named.usernames, undefined, 'an explicit creator wins');
+});
+
+test('the picker kind locks the types; the first chosen tag is the API tag', () => {
+  assert.deepEqual(Q.kindTypes('lora'), ['LORA', 'LoCon', 'DoRA']);
+  assert.deepEqual(Q.kindTypes('vae'), ['VAE']);
+  assert.deepEqual(Q.kindTypes('upscale'), ['Upscaler']);
+  assert.equal(Q.kindTypes(null), null);
+  const f = { ...base(), types: ['Checkpoint'], tag: 'old' };
+  const e = Q.effectiveFilters(f, 'embedding', ['anime', 'style']);
+  assert.deepEqual(e.types, ['TextualInversion']);
+  assert.equal(e.tag, 'anime');
+  const free = Q.effectiveFilters(f, null, []);
+  assert.deepEqual(free.types, ['Checkpoint']);
+  assert.equal(free.tag, 'old');
 });
