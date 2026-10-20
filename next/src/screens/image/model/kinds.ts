@@ -79,7 +79,7 @@ export function useKindApi(kind: ModelKind): KindApi {
       case 'lora':
         return loras.map((l) => ({ id: l.id, name: l.name, on: l.on, weight: l.strength }));
       case 'embedding':
-        return embeddings.map((e) => ({ id: e.id, name: e.name, on: e.on, weight: e.strength, badge: e.target === 'negative' ? 'neg' : undefined }));
+        return embeddings.map((e) => ({ id: e.id, name: e.name, on: e.on, weight: e.strength }));
       case 'controlnet':
         return controlnets.map((c: ControlNetEntry) => ({ id: c.id, name: c.name, on: c.on, weight: c.strength }));
     }
@@ -90,7 +90,7 @@ export function useKindApi(kind: ModelKind): KindApi {
   const add = useCallback((name: string) => {
     const st = useStore.getState();
     switch (kind) {
-      case 'checkpoint': st.addCheckpoint(name); return st.workflow.checkpoints.at(-1)?.id ?? useStore.getState().workflow.checkpoints.at(-1)?.id;
+      case 'checkpoint': st.addCheckpoint(name); return useStore.getState().workflow.checkpoints.at(-1)?.id;
       case 'lora': st.addLora(name); return useStore.getState().workflow.loras.at(-1)?.id;
       case 'embedding': st.addEmbedding(name); return useStore.getState().workflow.embeddings?.at(-1)?.id;
       case 'controlnet': return cn.getState().add(name);

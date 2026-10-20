@@ -27,6 +27,14 @@ export function SizeControl() {
     setManual(false);
     setWorkflow(sizeFor(aspectById(id)!, roundTo(longestOf(width, height), SLIDER_STEP)));
   };
+  /** Off = back on the grid: the nearest aspect at the current longest side. */
+  const setManualMode = (on: boolean) => {
+    setManual(on);
+    if (!on && !isPresetSize(width, height)) {
+      const a = aspectById(aspectOf(width, height)) ?? aspectById('1:1')!;
+      setWorkflow(sizeFor(a, roundTo(longestOf(width, height), SLIDER_STEP)));
+    }
+  };
   const pickLongest = (l: number) => {
     const a = aspectById(aspect);
     setWorkflow(a ? sizeFor(a, l) : scaleToLongest(width, height, l));
@@ -51,7 +59,7 @@ export function SizeControl() {
           {LONGEST_SIDES.map((l) => <Chip key={l} on={chip === l} onClick={() => pickLongest(l)}>{l}</Chip>)}
         </div>
         <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid var(--il-line-strong)' }}>
-          <Switch label="Set width and height myself" checked={manual} onChange={setManual} />
+          <Switch label="Set width and height myself" checked={manual} onChange={setManualMode} />
         </div>
         {manual && (
           <>

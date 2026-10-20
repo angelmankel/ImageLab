@@ -103,7 +103,7 @@ export function ModelPickerGrid({ files, selected, onPick, fits, availability, t
               style={{ border: 0, background: 'transparent', padding: 0, cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 5, alignItems: 'stretch', textAlign: 'left', color: 'var(--il-fg)', opacity: dim ? 0.45 : 1, minWidth: 0 }}
             >
               <span style={{ position: 'relative', display: 'block', aspectRatio: '1', borderRadius: T.radius.md, overflow: 'hidden', outline: on ? '3px solid var(--il-ember)' : undefined, outlineOffset: -3 }}>
-                <Thumb label={m.label} images={m.images} size={tile * 2} style={{ width: '100%', height: '100%', borderRadius: T.radius.md }} />
+                <Thumb label={m.label} images={m.images} size={tile} style={{ width: '100%', height: '100%', borderRadius: T.radius.md }} />
                 {m.bucket !== 'Unknown' && (
                   <span style={{ position: 'absolute', left: 6, bottom: 6, fontSize: 10, fontWeight: 800, borderRadius: 999, padding: '2px 7px', background: 'rgba(20,20,22,.78)', color: 'var(--il-fg2)' }}>{m.bucket}</span>
                 )}

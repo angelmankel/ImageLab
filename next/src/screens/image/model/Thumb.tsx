@@ -28,7 +28,8 @@ export function Thumb({ label, images, size, round, style }: {
   label: string; images: string[]; size: number; round?: boolean; style?: React.CSSProperties;
 }) {
   const [i, setI] = useState(0);
-  useEffect(() => { setI(0); }, [images]);
+  const key = images.join('\n');
+  useEffect(() => { setI(0); }, [key]);
   const url = smallThumb(images[i], size);
   const [a, b] = hue(label);
   return (
