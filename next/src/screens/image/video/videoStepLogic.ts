@@ -112,8 +112,8 @@ export function blockReason(input: {
   if (!input.host) return 'No video server';
   if (input.task === 'i2v' && input.chained && input.hasPrev && !input.prevHasOutput) return `Step ${input.prevIndex + 1} has no image yet`;
   if (!input.prompt.trim()) return 'Write a motion prompt first';
-  if (input.task === 'i2v' && !(input.chained && input.hasPrev) && !input.startImage) return 'Pick a start picture in Input';
-  if (input.task === 'ref' && input.refs === 0) return 'Add a reference picture in Input';
+  if (input.task === 'i2v' && !(input.chained && input.hasPrev) && !input.startImage) return 'Pick a start picture in Composition';
+  if (input.task === 'ref' && input.refs === 0) return 'Add a reference picture in Composition';
   return null;
 }
 

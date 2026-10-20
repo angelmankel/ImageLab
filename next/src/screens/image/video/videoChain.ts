@@ -71,7 +71,7 @@ export async function runVideoStep(step: Step, host: string, newSeed = false): P
     const res = stepInputNow(step.id);
     const start = resolveStart({ resolved: res, startImage: v.startImage });
     if (start.source === 'none') {
-      fail('No start picture', res?.kind === 'waiting' ? `Step ${useSteps.getState().steps.indexOf(res.from) + 1} has no output yet.` : 'Pick a start picture in the Input tab.');
+      fail('No start picture', res?.kind === 'waiting' ? `Step ${useSteps.getState().steps.indexOf(res.from) + 1} has no output yet.` : 'Pick a start picture in Composition.');
       return;
     }
     if (start.source === 'prev' && !(await setStartFrameFrom(start.prev.url, start.prev.name))) return;

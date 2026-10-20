@@ -49,7 +49,7 @@ export function VideoSettingsTab() {
     <>
       <Section title="Task">
         <ChipGroup>{tasksFor(v.engine).map((t) => <Chip key={t.key} on={task === t.key} onClick={() => setTask(t.key)}>{t.label}</Chip>)}</ChipGroup>
-        <div style={muted}>{task === 'i2v' ? 'The start picture is in Input: the previous step\'s output, or one of yours.' : task === 'ref' ? 'Up to 9 reference pictures in Input; name them <Picture 1>… in the prompt.' : 'Text alone.'}</div>
+        <div style={muted}>{task === 'i2v' ? 'The start picture is in Composition: the previous step\'s output, or one of yours.' : task === 'ref' ? 'Up to 9 reference pictures in Composition; name them <Picture 1>… in the prompt.' : 'Text alone.'}</div>
       </Section>
 
       <Section title="Size" value={`${width} × ${height}`}>

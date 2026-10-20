@@ -1,17 +1,18 @@
 /**
  * Rule 3: the step panel. A sticky dark block (edge to edge, #0F0F11) = the workflow row + the 4
- * tabs Prompt · Model · Settings · Input; one tab body at a time, scrolling; at the bottom the
+ * tabs Prompt · Composition · Model · Parameters (fix list 25; icons only when narrow); one tab body at a time, scrolling; at the bottom the
  * Generate group (left out on the phone: the dock has Generate). Which tab bodies render is per
  * `step.kind` (`TABS_BY_KIND`): the Image step's own tabs, the Video step's (`./video`), the
  * Workflow step's through `./workflowBridge` (another owner's folder, loaded when it exists);
  * an Upscale step keeps the Image Input tab (its chain input) until its workflow comes.
  */
-import { useEffect, useRef, type ComponentType, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ComponentType } from 'react';
 import { IconAlignLeft, IconCube, IconAdjustmentsHorizontal, IconPhoto } from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
 import { useVideo } from '@/features/video/videoStore';
 import { useSteps, type Step, type StepKind } from '~/app/stepsStore';
 import { Tabs } from '~/ui';
+import { Tip } from '~/ui/Tip';
 import { useLayout, type StepTab } from './layoutStore';
 import { WorkflowRow } from './WorkflowRow';
 import { GenerateBar } from './GenerateBar';
@@ -23,12 +24,34 @@ import { VideoPromptTab, VideoModelTab, VideoSettingsTab, VideoInputTab } from '
 import { WorkflowTab } from './workflowBridge';
 import './stepMenuEntries';
 
-const TABS: Array<{ key: StepTab; label: ReactNode; title: string }> = [
-  { key: 'prompt', label: <><IconAlignLeft size={15} stroke={2.2} />Prompt</>, title: 'Prompt' },
-  { key: 'model', label: <><IconCube size={15} stroke={2.2} />Model</>, title: 'Model' },
-  { key: 'settings', label: <><IconAdjustmentsHorizontal size={15} stroke={2.2} />Settings</>, title: 'Settings' },
-  { key: 'input', label: <><IconPhoto size={15} stroke={2.2} />Input</>, title: 'Input' },
+/** Fix list 25: Prompt · Composition · Model · Parameters (keys stay 'input' / 'settings' so saved state and callers keep working). */
+const TAB_DEFS: Array<{ key: StepTab; title: string; Icon: typeof IconAlignLeft }> = [
+  { key: 'prompt', title: 'Prompt', Icon: IconAlignLeft },
+  { key: 'input', title: 'Composition', Icon: IconPhoto },
+  { key: 'model', title: 'Model', Icon: IconCube },
+  { key: 'settings', title: 'Parameters', Icon: IconAdjustmentsHorizontal },
 ];
+
+/** Below this width of the tab row the words go and each tab is its icon with a tooltip. */
+const WORDS_MIN = 372;
+
+/** The phone has no hover for tooltips: there the words stay and the icons go when it is narrow. */
+function StepTabs({ tab, setTab, phone }: { tab: StepTab; setTab: (t: StepTab) => void; phone: boolean }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [wide, setWide] = useState(true);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([e]) => setWide(e.contentRect.width >= WORDS_MIN));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const items = TAB_DEFS.map(({ key, title, Icon }) => ({
+    key,
+    label: wide ? <><Icon size={15} stroke={2.2} />{title}</> : phone ? title : <Tip label={title}><span style={{ display: 'grid', placeItems: 'center' }} aria-label={title}><Icon size={17} stroke={2.2} /></span></Tip>,
+  }));
+  return <div ref={ref}><Tabs<StepTab> items={items} value={tab} onChange={setTab} itemPad={wide || phone ? 9 : 12} hug={wide || phone} /></div>;
+}
 
 type TabProps = { step: Step; phone?: boolean };
 type TabBodies = Partial<Record<StepTab, ComponentType<TabProps>>>;
@@ -68,7 +91,7 @@ function ComingSoon({ step }: { step: Step }) {
   return (
     <div style={{ background: 'var(--il-card)', borderRadius: 16, padding: '28px 14px', textAlign: 'center' }}>
       <div style={{ fontSize: 14, fontWeight: 800 }}>This step's workflow is coming</div>
-      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--il-muted)', marginTop: 6 }}>{step.kind === 'upscale' ? 'Chain it to the previous step in the Input tab.' : 'Generate runs this step with its saved settings.'}</div>
+      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--il-muted)', marginTop: 6 }}>{step.kind === 'upscale' ? 'Chain it to the previous step in Composition.' : 'Generate runs this step with its saved settings.'}</div>
     </div>
   );
 }
@@ -88,7 +111,7 @@ export function StepPanel({ phone = false, stepId }: { phone?: boolean; stepId?:
         <WorkflowRow step={step} />
         <div style={{ height: 1, background: 'var(--il-line-soft)', margin: '0 10px' }} />
         <div style={{ padding: '6px 10px 10px' }}>
-          <Tabs<StepTab> items={TABS} value={tab} onChange={setTab} />
+          <StepTabs tab={tab} setTab={setTab} phone={phone} />
         </div>
       </div>
       <div className="il-scroll" style={{ flex: 1, minHeight: 0, padding: '10px 10px 12px', display: 'flex', flexDirection: 'column', gap: 8, touchAction: 'pan-y' }}>

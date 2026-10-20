@@ -68,7 +68,7 @@ export function workflowStepSource(step: Step, host: string, info: ObjectInfo | 
       // The step as it is NOW in the store (the Input tab may have changed it since the handler was made).
       const image = st.params.find(isImageParam);
       const chain = chainInputFrom(stepInputNow(step.id), !!image);
-      if (chain.kind === 'waiting') return { error: 'The previous step has no output yet — generate it first, or pick a picture in Input' };
+      if (chain.kind === 'waiting') return { error: 'The previous step has no output yet — generate it first, or pick a picture in Composition' };
       if (chain.kind === 'chained' || chain.kind === 'explicit') {
         try {
           const ref = await uploadSource(host, chain.src);

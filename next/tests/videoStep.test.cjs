@@ -71,11 +71,11 @@ test('why Generate is off', () => {
   assert.equal(L.blockReason({ ...base, host: null }), 'No video server');
   assert.equal(L.blockReason({ ...base, prevHasOutput: false }), 'Step 1 has no image yet');
   assert.equal(L.blockReason({ ...base, prompt: '  ' }), 'Write a motion prompt first');
-  assert.equal(L.blockReason({ ...base, chained: false }), 'Pick a start picture in Input');
+  assert.equal(L.blockReason({ ...base, chained: false }), 'Pick a start picture in Composition');
   assert.equal(L.blockReason({ ...base, chained: false, startImage: 'imagelab/x.png' }), null);
   assert.equal(L.blockReason({ ...base, task: 't2v', chained: false }), null);
   assert.equal(L.blockReason({ ...base, task: 't2v', prevHasOutput: false }), null);
-  assert.equal(L.blockReason({ ...base, task: 'ref', chained: false }), 'Add a reference picture in Input');
+  assert.equal(L.blockReason({ ...base, task: 'ref', chained: false }), 'Add a reference picture in Composition');
   assert.equal(L.blockReason({ ...base, task: 'ref', chained: false, refs: 2 }), null);
 });
 

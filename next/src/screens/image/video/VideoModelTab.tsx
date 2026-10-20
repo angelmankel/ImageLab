@@ -32,7 +32,7 @@ export function VideoModelTab() {
     <>
       <Section title="Engine">
         <Tabs<Engine> items={[{ key: 'wan', label: 'Wan 2.2' }, { key: 'h3', label: 'MiniMax H3' }]} value={engine} onChange={(e) => set({ engine: e })} />
-        <div style={muted}>{h3 ? 'One 33B omni model: video with its own stereo sound, 24 fps, up to 15 s. Slower per clip.' : `Two 14B experts, silent, 16 fps, quick with the lightx2v speed LoRAs. ${mode === 't2v' ? 'Text' : 'Image'} → Video has its own pair (the task is in Settings).`}</div>
+        <div style={muted}>{h3 ? 'One 33B omni model: video with its own stereo sound, 24 fps, up to 15 s. Slower per clip.' : `Two 14B experts, silent, 16 fps, quick with the lightx2v speed LoRAs. ${mode === 't2v' ? 'Text' : 'Image'} → Video has its own pair (the task is in Parameters).`}</div>
       </Section>
 
       <ModelList kinds={VIDEO_KINDS} useApi={useVideoKindApi} labels={videoLabels(engine)} />
