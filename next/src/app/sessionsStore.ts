@@ -281,7 +281,8 @@ export interface ImageLike {
  * exactly that, seed fixed. Opens the new session on its step and returns its id.
  */
 export function newSessionFromImage(image: ImageLike | HistoryEntry): string {
-  const like = 'filename' in image ? null : image;
+  // A HistoryEntry has a promptId; a history Tile or drag payload has url / key / entryId (a Tile also has filename, so not that).
+  const like = 'promptId' in image && 'serverId' in image ? null : (image as ImageLike);
   const id = like ? like.entryId ?? like.key : (image as HistoryEntry).id;
   const entry: HistoryEntry | null = !like ? (image as HistoryEntry) : like.entry ?? (id ? useStore.getState().history.find((h) => h.id === id) ?? null : null);
   const key = like?.key ?? entry?.id ?? null;
