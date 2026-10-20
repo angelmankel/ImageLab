@@ -33,7 +33,8 @@ const SELECT_STYLES = {
   option: { fontSize: 12, fontWeight: 600 },
 };
 
-function Pick({ label, value, options, onChange }: { label: string; value: string; options: Array<{ value: string; label: string }>; onChange: (v: string) => void }) {
+/** A dropdown that is also a search box (Donny 10-20: autocomplete): type to filter, Enter / tap picks. Only real options can be picked. */
+function Pick({ label, value, options, onChange, searchable = true }: { label: string; value: string; options: Array<{ value: string; label: string }>; onChange: (v: string) => void; searchable?: boolean }) {
   const data = options.some((o) => o.value === value) || !value ? options : [{ value, label: value }, ...options];
   return (
     <Select
@@ -42,6 +43,9 @@ function Pick({ label, value, options, onChange }: { label: string; value: strin
       value={value}
       onChange={(v) => v && onChange(v)}
       allowDeselect={false}
+      searchable={searchable}
+      nothingFoundMessage="No match"
+      onFocus={(e) => e.currentTarget.select()}
       size="xs"
       rightSection={<IconChevronDown size={14} stroke={2.6} />}
       rightSectionWidth={22}
@@ -70,8 +74,8 @@ export function SamplingRows() {
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: T.gap.md }}>
-      <Row label="Sampler"><Pick label="Sampler" value={w.sampler} options={samplers.map((s) => ({ value: s, label: s }))} onChange={(sampler) => set({ sampler })} /></Row>
-      <Row label="Scheduler"><Pick label="Scheduler" value={w.scheduler} options={schedulers.map((s) => ({ value: s, label: s }))} onChange={(scheduler) => set({ scheduler })} /></Row>
+      <Row label="Sampler" wide><Pick label="Sampler" value={w.sampler} options={samplers.map((s) => ({ value: s, label: s }))} onChange={(sampler) => set({ sampler })} /></Row>
+      <Row label="Scheduler" wide><Pick label="Scheduler" value={w.scheduler} options={schedulers.map((s) => ({ value: s, label: s }))} onChange={(scheduler) => set({ scheduler })} /></Row>
       <Row label="Seed" wide>
         <input
           aria-label="Seed"
@@ -98,7 +102,7 @@ export function SamplingRows() {
         </span>
       </Row>}
       <Row label="Clip skip">
-        <Pick label="Clip skip" value={String(clip)} options={CLIP_SKIPS.map((n) => ({ value: String(n), label: n === -1 ? 'off' : String(n) }))} onChange={(v) => set({ clipSkip: Number(v) })} />
+        <Pick searchable={false} label="Clip skip" value={String(clip)} options={CLIP_SKIPS.map((n) => ({ value: String(n), label: n === -1 ? 'off' : String(n) }))} onChange={(v) => set({ clipSkip: Number(v) })} />
       </Row>
     </div>
   );

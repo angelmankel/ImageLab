@@ -34,7 +34,7 @@ export function Pick({ label, value, options, onChange, placeholder }: { label: 
       placeholder={placeholder}
       onChange={(v) => { if (v != null) onChange(v); }}
       allowDeselect={false}
-      searchable={options.length > 12}
+      searchable
       size="xs"
       rightSection={<IconChevronDown size={14} stroke={2.6} />}
       rightSectionWidth={26}

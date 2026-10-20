@@ -114,7 +114,7 @@ function BaseCheckpointMore() {
     <>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--il-fg2)' }}>VAE</span>
-        <Select data={options} value={vae || BUILT_IN_VAE} onChange={(v) => setWorkflow({ vae: !v || v === BUILT_IN_VAE ? '' : v })} allowDeselect={false} size="xs" radius="md"
+        <Select data={options} value={vae || BUILT_IN_VAE} onChange={(v) => setWorkflow({ vae: !v || v === BUILT_IN_VAE ? '' : v })} allowDeselect={false} searchable nothingFoundMessage="No match" size="xs" radius="md"
           comboboxProps={{ withinPortal: true, zIndex: T.z.popover }} styles={SELECT_STYLES} aria-label="VAE" />
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
