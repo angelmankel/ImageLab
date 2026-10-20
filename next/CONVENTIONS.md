@@ -50,6 +50,7 @@ Radii: pills 999, cards 14, panels 16, chips 999. Tight: panel padding 10, card 
 Nothing ever overlaps the picture. No Simple/Advanced. No preset slots. No mode tabs.
 
 ## Logic reuse (import from `@/`, never copy)
+- **The Image step = base image + Loopback, no Passes** (Donny, 10-19): `GenerateBar` and the phone bridge call `fireFromStore(newSeed, NO_PASSES)`, which drops the shared saved workflow's Passes / legacy finishing flags at queue time without saving. Loopback is part of the base image and has its own section in the Settings tab. Upscale and refine are step 2's job.
 - Generation store: `@/lib/store` (`useStore`: workflow, layers, servers, serverInfo, jobs, history, cancelJob, setWorkflow, add/update/remove Checkpoint/Lora/Embedding, pushHistory…).
 - Queue/run: `@/lib/comfy.ts`, `@/lib/comfyBus.ts` (ONE websocket per host — never `new WebSocket`), `@/lib/comfyRunner.ts`, `@/features/generate/*` (how the old app submits an image job — find `queuePrompt`/`generate`).
 - Video + workflow runs: `@/features/video/videoRun.ts`, `@/features/studio/studioRun.ts`, `@/features/workspace/modeHost.ts`.

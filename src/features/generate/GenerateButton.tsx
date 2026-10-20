@@ -1,4 +1,4 @@
-import { prepareSeeds } from '@/lib/pipeline';
+import { prepareSeeds, withPipeline } from '@/lib/pipeline';
 import { useShortcut, ShortcutPriority } from '@/hooks/useShortcut';
 import { useStore } from '@/lib/store';
 import { useCanvasStore } from '@/lib/canvasStore';
@@ -46,15 +46,23 @@ import { modelTrainedWords } from '@/components/models/modelInfo';
  * cursor only advances on a *successful* queue, so a blocked attempt doesn't
  * silently skip a server.
  */
-export async function fireFromStore(newSeed = false) {
+/**
+ * `override` is merged into the workflow that is QUEUED, never saved: the next UI passes
+ * `NO_PASSES` so its Image step runs the base image (with Loopback) and none of the Passes the shared
+ * saved workflow still carries from the classic UI (those belong to its own Upscale step).
+ */
+/** No Passes and no legacy finishing flags (Loopback stays: it is part of the base image). */
+export const NO_PASSES: Partial<WorkflowState> = Object.freeze(withPipeline([]));
+
+export async function fireFromStore(newSeed = false, override?: Partial<WorkflowState>) {
   if (useStore.getState().isSubmitting) return;
   useStore.setState({ isSubmitting: true });
-  try { await queueFromStore(newSeed); }
+  try { await queueFromStore(newSeed, override); }
   catch (error) { useStore.getState().setStatus(error instanceof Error ? error.message : 'Could not queue generation', 'error'); }
   finally { useStore.setState({ isSubmitting: false }); }
 }
 
-async function queueFromStore(newSeed: boolean) {
+async function queueFromStore(newSeed: boolean, override?: Partial<WorkflowState>) {
   const st = useStore.getState();
   const { layers, setStatus } = st;
 
@@ -95,6 +103,7 @@ async function queueFromStore(newSeed: boolean) {
   let workflow: WorkflowState = liveLayer
     ? { ...baseWorkflow, width: liveLayer.bounds.w, height: liveLayer.bounds.h }
     : baseWorkflow;
+  if (override) workflow = { ...workflow, ...override };
 
   // Layer-targeted gens always go through the inpaint pipeline now (#38
   // collapsed the three layer types into one). The capture pulls in the

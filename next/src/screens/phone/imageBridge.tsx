@@ -9,7 +9,7 @@
  */
 import type { ComponentType } from 'react';
 import * as ImageScreens from '~/screens/image';
-import { fireFromStore } from '@/features/generate/GenerateButton';
+import { fireFromStore, NO_PASSES } from '@/features/generate/GenerateButton';
 import { useStore } from '@/lib/store';
 import { useComfyConnection } from '@/hooks/useComfyConnection';
 import { useModelProfileSync } from '@/hooks/useModelProfileSync';
@@ -61,8 +61,8 @@ function useFallbackGenerate(): GenerateApi {
   const mine = step.id === firstImage;
   const running = (!!row && rowIsStep(row.stepId, step.id, mine)) || (submitting && mine);
   return {
-    generate: () => { void fireFromStore(false); },
-    generateRandom: () => { void fireFromStore(true); },
+    generate: () => { void fireFromStore(false, NO_PASSES); },
+    generateRandom: () => { void fireFromStore(true, NO_PASSES); },
     stop: () => {
       const st = useStore.getState();
       const job = st.jobs.find((j) => j.status === 'running');
