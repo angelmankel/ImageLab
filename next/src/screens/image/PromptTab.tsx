@@ -1,72 +1,101 @@
 /**
- * Rule 6: the Prompt tab. The prompt box; Write it (LLM) · Library · Clear; snippet chips (tap to
- * add); Style thumbs; the Negative prompt as one folding card (header: icon, name, a short
- * reading of what it avoids, chevron; open: the box and the negative snippets inside the card). The text binds to the main
- * store's prompt layers (`usePromptText`), so the job gets exactly what the old app would.
+ * Rule 6 + items 12 / 13: the Prompt tab. The prompt card (one smart box; Prompt / Negative tabs;
+ * ✦ Write it · Starters · clear), then — positive — the ONE grid of style + snippet tiles, or —
+ * negative — the simple category + snippet pills. Tiles and pills write their text INTO the
+ * prompt (no separate parts list). The text binds to the main store's prompt layers
+ * (`usePromptText`); older stacks of layers are folded into that one text (`foldLayers`, same
+ * string the job compiled before), so the job still gets exactly what the box shows.
  */
-import { useState } from 'react';
-import { IconBan, IconChevronDown, IconX } from '@tabler/icons-react';
+import { useEffect, useMemo, useState } from 'react';
 import { useStore } from '@/lib/store';
 import { aiReady } from '@/lib/ai';
+import type { Snippet } from '@/lib/types';
+import { useWorkspace } from '@/features/workspace/workspaceStore';
+import { Button } from '~/ui';
+import { useIsPhone } from '~/app/useIsPhone';
 import { usePromptText } from './usePromptText';
-import { SnippetRow } from './SnippetRow';
-import { StyleRow } from './StyleRow';
 import { WriteItModal } from './WriteItModal';
 import { LibraryModal } from './LibraryModal';
+import { PromptCard } from './prompt/PromptCard';
+import { TileGrid } from './prompt/TileGrid';
+import { NegativePills } from './prompt/NegativePills';
+import { useTiles } from './prompt/useTiles';
+import { useTileEdit } from './prompt/tileStore';
+import { appendPiece, applyEdit, foldLayers, partsBySnippet, promptParts, removeRange, snippetTextFor } from './prompt/promptSections';
+import { typedText } from './prompt/SmartPromptBox';
 
-const btn = (accent: boolean): React.CSSProperties => ({ height: 34, padding: '0 12px', border: 0, borderRadius: 999, background: 'var(--il-card-on)', color: accent ? 'var(--il-ember-hi)' : 'var(--il-fg2)', fontWeight: 700, fontSize: 12, cursor: 'pointer' });
+type Text = ReturnType<typeof usePromptText>;
+
+/** Keep the store at one text per kind while the tab is open (other screens may add layers). */
+function useFoldedLayers(pos: Text, neg: Text) {
+  const layers = useStore((s) => s.layers);
+  useEffect(() => {
+    if (!foldLayers(layers)) return;
+    pos.flush(); neg.flush();
+    const st = useStore.getState();
+    const f = foldLayers(st.layers);
+    if (f) st.setPromptLayers(f);
+  }, [layers]); // eslint-disable-line react-hooks/exhaustive-deps
+}
 
 export function PromptTab({ large = false }: { large?: boolean }) {
-  const prompt = usePromptText('positive');
-  const negative = usePromptText('negative');
+  const phone = useIsPhone();
+  const pos = usePromptText('positive');
+  const neg = usePromptText('negative');
+  useFoldedLayers(pos, neg);
   const ai = useStore((s) => s.ai);
+  const tiles = useTiles();
+  const negative = useTileEdit((s) => s.negative);
+  const setNegative = useTileEdit((s) => s.setNegative);
   const [writing, setWriting] = useState(false);
-  const [library, setLibrary] = useState(false);
-  const [negOpen, setNegOpen] = useState(false);
-  const extraParts = useStore((s) => s.layers.filter((l) => l.kind === 'positive' && l.on && l.text.trim()).length - 1);
+  const [starters, setStarters] = useState(false);
 
+  const posParts = useMemo(() => promptParts(pos.text, tiles.positive, 'positive'), [pos.text, tiles.positive]);
+  const negParts = useMemo(() => promptParts(neg.text, tiles.negative, 'negative'), [neg.text, tiles.negative]);
+  const posOn = useMemo(() => partsBySnippet(posParts), [posParts]);
+  const negOn = useMemo(() => partsBySnippet(negParts), [negParts]);
+  const typed = useMemo(() => typedText(pos.text, posParts), [pos.text, posParts]);
+
+  const put = (t: Text, next: string) => { t.set(next); t.flush(); };
+  /** A tile / pill tap: its text goes in (each kind it has) or comes out. */
+  const toggle = (s: Snippet) => {
+    useWorkspace.getState().touchSnippet(s.id);
+    const p = posOn.get(s.id);
+    const n = negOn.get(s.id);
+    if (p || n) {
+      if (p) put(pos, applyEdit(pos.text, removeRange(pos.text, p.start, p.end)));
+      if (n) put(neg, applyEdit(neg.text, removeRange(neg.text, n.start, n.end)));
+      return;
+    }
+    const pt = snippetTextFor(s, 'positive');
+    const nt = snippetTextFor(s, 'negative');
+    if (pt) put(pos, applyEdit(pos.text, appendPiece(pos.text, pt)));
+    if (nt) put(neg, applyEdit(neg.text, appendPiece(neg.text, nt)));
+  };
+
+  const size = phone ? 'lg' : 'sm';
   return (
     <>
-      <div style={{ background: 'var(--il-card)', borderRadius: 16, padding: '10px 12px 10px' }}>
-        <textarea aria-label="Prompt" rows={large ? 5 : 6} value={prompt.text} onChange={(e) => prompt.set(e.target.value)} onBlur={prompt.flush}
-          placeholder="What do you want to see?"
-          style={{ width: '100%', border: 0, background: 'transparent', color: 'var(--il-fg)', fontSize: 15, lineHeight: 1.5, resize: 'none', outline: 'none', padding: 0, display: 'block' }} />
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10 }}>
-          <button type="button" onClick={() => { prompt.flush(); setWriting(true); }} style={btn(true)} title={aiReady(ai) ? 'Let the AI write the prompt' : 'Set up the AI helper in Settings to write prompts'}>✦ Write it</button>
-          <button type="button" onClick={() => { prompt.flush(); setLibrary(true); }} style={btn(false)}>Library</button>
-          {extraParts > 0 && <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--il-muted)' }} title="More prompt parts are on (snippets, style, written parts)">+{extraParts} part{extraParts === 1 ? '' : 's'}</span>}
-          <div style={{ flex: 1 }} />
-          <button type="button" aria-label="Clear prompt" onClick={() => { prompt.clear(); }} style={{ width: 34, height: 34, border: 0, borderRadius: '50%', background: 'var(--il-card-on)', color: 'var(--il-muted)', display: 'grid', placeItems: 'center', cursor: 'pointer' }}><IconX size={14} stroke={2.4} /></button>
-        </div>
-      </div>
-      <SnippetRow kind="positive" />
-      <StyleRow />
-      <div style={{ background: 'var(--il-card)', borderRadius: 16, overflow: 'hidden' }}>
-        <button type="button" onClick={() => setNegOpen((v) => !v)} aria-expanded={negOpen}
-          style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', height: 48, padding: '0 12px 0 14px', border: 0, background: 'transparent', color: 'var(--il-fg)', textAlign: 'left', cursor: 'pointer' }}>
-          <IconBan size={16} stroke={2.2} style={{ color: 'var(--il-muted)', flex: 'none' }} />
-          <span style={{ fontSize: 13, fontWeight: 800, flex: 'none' }}>Negative prompt</span>
-          <span style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: 600, color: 'var(--il-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'right', opacity: negOpen ? 0 : 1 }}>
-            {negative.text.trim() || 'nothing to avoid yet'}
-          </span>
-          <IconChevronDown size={16} stroke={2.4} style={{ color: 'var(--il-muted)', flex: 'none', transform: negOpen ? 'rotate(180deg)' : undefined, transition: 'transform .15s' }} />
-        </button>
-        {negOpen && (
-          <div style={{ padding: '0 12px 12px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <div style={{ position: 'relative', background: 'var(--il-bg-deep)', borderRadius: 12, padding: '10px 40px 10px 12px' }}>
-              <textarea aria-label="Negative prompt" rows={3} value={negative.text} onChange={(e) => negative.set(e.target.value)} onBlur={negative.flush} placeholder="blurry, lowres, extra fingers…"
-                style={{ width: '100%', border: 0, background: 'transparent', color: 'var(--il-fg)', fontSize: 14, lineHeight: 1.5, resize: 'none', outline: 'none', padding: 0, display: 'block' }} />
-              {negative.text.trim() && (
-                <button type="button" aria-label="Clear negative prompt" onClick={negative.clear} style={{ position: 'absolute', top: 8, right: 8, width: 26, height: 26, border: 0, borderRadius: '50%', background: 'var(--il-card-on)', color: 'var(--il-muted)', display: 'grid', placeItems: 'center', cursor: 'pointer' }}><IconX size={12} stroke={2.4} /></button>
-              )}
-            </div>
-            <div style={{ height: 1, background: 'var(--il-line-soft)' }} />
-            <SnippetRow kind="negative" />
-          </div>
-        )}
-      </div>
+      <PromptCard
+        positive={{ value: pos.text, onChange: pos.set, onBlur: pos.flush }}
+        negative={{ value: neg.text, onChange: neg.set, onBlur: neg.flush }}
+        negativeMode={negative}
+        onMode={setNegative}
+        tiles={tiles}
+        large={large}
+        onClear={(isNeg) => (isNeg ? neg.clear() : pos.clear())}
+        onSaveAsSnippet={(text) => useTileEdit.getState().edit('new', text)}
+        tools={<>
+          <Button tone="card" size={size} style={{ color: 'var(--il-ember-hi)' }} onClick={() => { pos.flush(); setWriting(true); }}
+            tooltip={aiReady(ai) ? 'Let the AI write the prompt' : 'Set up the AI helper in Settings to write prompts'}>✦ Write it</Button>
+          <Button tone="card" size={size} onClick={() => { pos.flush(); setStarters(true); }} tooltip="Start from a picture someone made">Starters</Button>
+        </>}
+      />
+      {negative
+        ? <NegativePills tiles={tiles} on={negOn} onToggle={toggle} />
+        : <TileGrid tiles={tiles} on={posOn} typed={typed} onToggle={toggle} />}
       <WriteItModal opened={writing} onClose={() => setWriting(false)} />
-      <LibraryModal opened={library} onClose={() => setLibrary(false)} />
+      <LibraryModal opened={starters} onClose={() => setStarters(false)} />
     </>
   );
 }

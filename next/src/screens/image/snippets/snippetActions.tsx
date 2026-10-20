@@ -1,45 +1,12 @@
 /**
- * Rule 6: what a tap on a snippet does, on the main store. Toggle = the old chip rule (a preset
- * with `layers` is always inserted whole; a plain snippet goes in as a layer or every layer it
- * made comes out), with `touchSnippet` kept for the main app's recents. Delete offers Undo that
- * puts the snippet back where it was and re-links its layers.
+ * Items 12 + 13: deleting a snippet / tile, with Undo that puts it back where it was and re-links
+ * any layers that pointed at it. (Toggling is now a text edit: `prompt/promptSections`.)
  */
-import { useMemo } from 'react';
 import { Button } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { useStore } from '@/lib/store';
-import type { LayerKind, Snippet } from '@/lib/types';
-import { applyPromptPreset } from '@/lib/promptPresets';
-import { uid } from '@/lib/storage';
-import { useWorkspace } from '@/features/workspace/workspaceStore';
-import { indexOfId, inPromptIds, insertAt } from './snippetLogic';
-
-/** The set of snippet ids with a part in the prompt (memoised on the layers array). */
-export function useInPrompt(): Set<string> {
-  const layers = useStore((s) => s.layers);
-  return useMemo(() => inPromptIds(layers), [layers]);
-}
-
-export function toggleSnippet(s: Snippet, inPrompt: boolean) {
-  const st = useStore.getState();
-  useWorkspace.getState().touchSnippet(s.id);
-  if (s.layers) { st.setPromptLayers(applyPromptPreset(st.layers, s, 'insert', uid)); return; }
-  if (inPrompt) st.removeLayersFromSnippet(s.id); else st.insertSnippetAsLayer(s.id);
-}
-
-/** Take every part of the snippet out of the prompt (the × on the "In prompt" strip). */
-export function removeFromPrompt(id: string) {
-  useStore.getState().removeLayersFromSnippet(id);
-}
-
-/** Save a new snippet to the library and put it in the prompt. Returns its id. */
-export function addAndInsert(input: { name: string; text: string; kind: LayerKind; categoryId: string }): string {
-  const st = useStore.getState();
-  const id = st.addSnippet({ name: input.name.trim(), text: input.text.trim(), kind: input.kind, categoryId: input.categoryId, tag: '', weight: 1 });
-  st.insertSnippetAsLayer(id);
-  useWorkspace.getState().touchSnippet(id);
-  return id;
-}
+import type { Snippet } from '@/lib/types';
+import { indexOfId, insertAt } from './snippetLogic';
 
 /** Delete with Undo: the snippet goes back to its place and its layers point at it again. */
 export function deleteWithUndo(s: Snippet) {
