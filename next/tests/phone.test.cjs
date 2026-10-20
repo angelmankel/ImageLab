@@ -30,8 +30,9 @@ test('seed mode toggles and the button face follows it; running = Stop', () => {
   assert.equal(p.toggleSeedMode('random'), 'set');
   assert.equal(p.generateFace(false, 'set'), 'bolt');
   assert.equal(p.generateFace(false, 'random'), 'dice');
-  assert.equal(p.generateFace(true, 'random'), 'stop');
-  assert.equal(p.generateFace(true, 'set'), 'stop');
+  // Item 46: never Stop; a press while running queues one more.
+  assert.equal(p.generateFace(true, 'random'), 'dice');
+  assert.equal(p.generateFace(true, 'set'), 'bolt');
 });
 
 test('badge text', () => {

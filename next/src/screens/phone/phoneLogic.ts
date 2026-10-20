@@ -29,9 +29,8 @@ export function pressOutcome(heldMs: number, movedPx: number): PressOutcome {
 
 export const toggleSeedMode = (m: SeedMode): SeedMode => (m === 'set' ? 'random' : 'set');
 
-/** What the big button shows. */
-export function generateFace(running: boolean, mode: SeedMode): GenerateFace {
-  if (running) return 'stop';
+/** What the big button shows. Never Stop (item 46): a press while a job runs queues one more; the × on a queue card stops. */
+export function generateFace(_running: boolean, mode: SeedMode): GenerateFace {
   return mode === 'random' ? 'dice' : 'bolt';
 }
 

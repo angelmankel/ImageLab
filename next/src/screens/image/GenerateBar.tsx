@@ -1,15 +1,12 @@
 /**
- * Rule 3 + 15: the Generate button group at the bottom of the step panel. Generate (seed as set) |
- * dice (a new random seed each press); while this step's own job runs it is Stop, with a thin
- * progress along its bottom. Several presses while one runs = queued (ComfyUI queues; so does the
- * store). Image step → the main app's `fireFromStore`; video → `./video`'s `useVideoStepRun`
+ * Rule 3 + 15 + items 18 / 46: the Generate button group at the bottom of the step panel.
+ * ×N (tap to cycle) | Generate (seed as set) | dice (a new random seed each press). It never turns
+ * into Stop: every press queues one more job; a thin line along its bottom shows the running job. Image step → the main app's `fireFromStore`; video → `./video`'s `useVideoStepRun`
  * (chains the previous step's output, then `startVideoRun`); workflow → the step's `startWorkflowStepRun`.
- * Ctrl/⌘+Enter generates, inside a text box too. An Image step carries its Batch stepper at the
- * left of the bar (moved here from Settings on desktop, Donny 10-20; the phone keeps it in Settings).
+ * Ctrl/⌘+Enter generates, inside a text box too.
  */
-import { Tooltip } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import { IconDice5, IconMinus, IconPlus, IconSparkles, IconPlayerStop } from '@tabler/icons-react';
+import { IconDice5, IconSparkles } from '@tabler/icons-react';
 import { useShallow } from 'zustand/react/shallow';
 import { useStore } from '@/lib/store';
 import { jobActivity } from '@/lib/jobActivity';
@@ -20,7 +17,10 @@ import { useObjectInfo } from '@/features/studio/useStudioRun';
 import { useModeHost } from '@/features/workspace/modeHost';
 import { useStepWorkflow } from '~/screens/comfy';
 import type { Step } from '~/app/stepsStore';
-import { cancelQueueRow } from '~/app/queue';
+import { cancelQueueRow, useQueue } from '~/app/queue';
+import { enqueueRun } from '~/app/runQueue';
+import { nextInCycle, useCycleOf } from '~/app/batchCycle';
+import { Tip } from '~/ui';
 import { useVideoStepRun } from './video';
 import { startWorkflowStepRun } from './workflow';
 
@@ -42,7 +42,7 @@ export function useStepRun(step: Step): { run: (newSeed?: boolean) => void; stop
     const activity = jobActivity(jobs, submitting, online);
     const running = jobs.find((j) => j.status === 'running') ?? jobs.find((j) => j.status === 'queued');
     return {
-      run: (newSeed = false) => { void fireFromStore(newSeed, NO_PASSES).then(() => { const st = useStore.getState(); if (st.status.kind === 'error') notifications.show({ title: 'Could not generate', message: st.status.text, color: 'red', autoClose: 3000 }); }); },
+      run: (newSeed = false) => { void enqueueRun(() => fireFromStore(newSeed, NO_PASSES)).then(() => { const st = useStore.getState(); if (st.status.kind === 'error') notifications.show({ title: 'Could not generate', message: st.status.text, color: 'red', autoClose: 3000 }); }); },
       stop: () => { if (running) cancelQueueRow(running.id); },
       busy: !!running || submitting,
       busyLabel: submitting ? 'Queueing…' : running?.status === 'queued' ? 'Queued' : 'Generating',
@@ -64,55 +64,66 @@ export function useStepRun(step: Step): { run: (newSeed?: boolean) => void; stop
   return { run: () => notifications.show({ title: 'Coming soon', message: "This step's workflow is coming.", color: 'gray', autoClose: 2500 }), stop: () => {}, busy: false, busyLabel: '', progress: null, disabled: null };
 }
 
-/** Batch − n + inside the bar: how many images one press queues (the main workflow's `batch`, 1–16). */
-function BatchStepper({ h, busy }: { h: number; busy: boolean }) {
+/**
+ * Item 18: ×N is one tap-to-cycle button (the step's list from the Parameters tab, default 1 / 2 / 3):
+ * how many images one press makes (the main workflow's `batch`).
+ */
+function BatchCycle({ stepId, h }: { stepId: string; h: number }) {
   const batch = useStore((s) => s.workflow.batch);
   const set = useStore((s) => s.setWorkflow);
-  const fg = busy ? 'var(--il-ember-hi)' : 'var(--il-bg)';
-  const btn = (disabled: boolean): React.CSSProperties => ({ width: 22, height: h, border: 0, background: 'transparent', color: fg, display: 'grid', placeItems: 'center', cursor: disabled ? 'default' : 'pointer', opacity: disabled ? 0.4 : 0.85 });
+  const list = useCycleOf(stepId);
   return (
-    <div role="group" aria-label="Batch" title="Images per Generate" style={{ display: 'flex', alignItems: 'center', flex: 'none', paddingLeft: 10 }}>
-      <button type="button" aria-label="One image fewer" disabled={batch <= 1} onClick={() => set({ batch: Math.max(1, batch - 1) })} style={btn(batch <= 1)}><IconMinus size={15} stroke={2.6} /></button>
-      <span style={{ minWidth: 20, textAlign: 'center', color: fg, fontSize: 14, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>×{batch}</span>
-      <button type="button" aria-label="One image more" disabled={batch >= 16} onClick={() => set({ batch: Math.min(16, batch + 1) })} style={btn(batch >= 16)}><IconPlus size={15} stroke={2.6} /></button>
-      <span aria-hidden style={{ width: 1, alignSelf: 'stretch', background: busy ? 'var(--il-line)' : 'rgba(20,20,22,.25)', margin: '10px 0 10px 4px' }} />
-    </div>
+    <>
+      <Tip label={`Images per Generate · tap for ×${nextInCycle(list, batch)} (cycle ${list.join(' / ')}, set in Parameters)`}>
+        <button type="button" className="il-btn" aria-label={`Batch ×${batch}, tap to change`} onClick={() => set({ batch: nextInCycle(list, batch) })}
+          style={{ minWidth: 54, height: h, border: 0, padding: '0 6px 0 14px', background: 'transparent', color: 'var(--il-bg)', fontSize: 15, fontWeight: 800, fontVariantNumeric: 'tabular-nums', display: 'grid', placeItems: 'center', flex: 'none' }}>
+          ×{batch}
+        </button>
+      </Tip>
+      <span aria-hidden style={{ width: 1, alignSelf: 'stretch', background: 'rgba(20,20,22,.25)', margin: '10px 0' }} />
+    </>
   );
 }
 
+/**
+ * Item 46: Generate never becomes Stop. Every press queues one more job with the parameters as they
+ * are now (presses during a submit wait their turn, `enqueueRun`); stopping is the × on a job chip
+ * (the stage's job row) or in the Job queue. The count is this step's jobs still to finish; the thin
+ * line along the bottom is its running job's progress.
+ */
 export function GenerateBar({ step, large = false }: { step: Step; large?: boolean }) {
-  const { run, stop, busy, busyLabel, progress, disabled } = useStepRun(step);
+  const { run, busy, progress, disabled } = useStepRun(step);
+  const pending = useQueue().rows.filter((r) => r.stepId === step.id).length;
   useShortcut('cmd+Enter', (e) => { e.preventDefault(); if (!disabled) run(); }, { priority: ShortcutPriority.Global, skipTyping: false });
   const h = large ? 58 : 54;
   const pct = progress != null ? Math.max(2, Math.round(progress * 100)) : null;
-  const mainStyle: React.CSSProperties = { flex: 1, height: h, border: 0, background: busy ? 'var(--il-card-on)' : 'var(--il-ember)', color: busy ? 'var(--il-ember-hi)' : 'var(--il-bg)', fontSize: 16, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, cursor: disabled ? 'default' : 'pointer', opacity: disabled && !busy ? 0.55 : 1 };
+  const off = !!disabled;
+  const seg: React.CSSProperties = { height: h, border: 0, background: 'transparent', color: 'var(--il-bg)', cursor: off ? 'default' : 'pointer', opacity: off ? 0.55 : 1 };
   return (
     <div style={{ padding: large ? '10px 12px 12px' : '12px 20px 18px', borderTop: '1px solid var(--il-line)', flex: 'none' }}>
-      <div style={{ position: 'relative', display: 'flex', height: h, borderRadius: 999, overflow: 'hidden', background: busy ? 'var(--il-card-on)' : 'var(--il-ember)' }}>
-        {step.kind === 'image' && <BatchStepper h={h} busy={busy} />}
-        {busy ? (
-          <button type="button" onClick={stop} style={mainStyle} aria-label="Stop">
-            <IconPlayerStop size={18} stroke={2.4} />Stop<span style={{ fontSize: 12, fontWeight: 700, color: 'var(--il-muted)' }}>· {busyLabel}{pct != null ? ` ${pct}%` : ''}</span>
+      <div className="il-btn-primary" style={{ position: 'relative', display: 'flex', height: h, borderRadius: 999, overflow: 'hidden', background: 'var(--il-ember)' }}>
+        {step.kind === 'image' && <BatchCycle stepId={step.id} h={h} />}
+        <Tip label={disabled ?? (pending ? `Queue one more (${pending} on the way) · ⌘/Ctrl + Enter` : 'Generate · ⌘/Ctrl + Enter')}>
+          <button type="button" className="il-btn" onClick={() => { if (!off) run(false); }} aria-label="Generate"
+            style={{ ...seg, flex: 1, minWidth: 0, fontSize: 16, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+            <IconSparkles size={18} stroke={2.4} />Generate
+            {pending > 0 && (
+              <span aria-label={`${pending} on the way`} style={{ minWidth: 22, height: 22, padding: '0 7px', borderRadius: 999, background: 'rgba(20,20,22,.82)', color: 'var(--il-ember-hi)', fontSize: 12, fontWeight: 800, display: 'grid', placeItems: 'center', fontVariantNumeric: 'tabular-nums' }}>{pending}</span>
+            )}
           </button>
-        ) : (
-          <Tooltip label={disabled ?? 'Generate (⌘/Ctrl + Enter)'}>
-            <button type="button" onClick={() => { if (!disabled) run(false); }} style={mainStyle} aria-label="Generate">
-              <IconSparkles size={18} stroke={2.4} />Generate
-            </button>
-          </Tooltip>
-        )}
+        </Tip>
         <span aria-hidden style={{ width: 1, background: 'rgba(20,20,22,.25)', margin: '10px 0' }} />
-        <Tooltip label={busy ? 'Queue another with a new seed' : 'Generate with a new random seed'}>
-          <button type="button" onClick={() => { if (!disabled) run(true); }} aria-label="Generate with a random seed"
-            style={{ width: 64, height: h, border: 0, background: busy ? 'var(--il-card-on)' : 'var(--il-ember)', color: busy ? 'var(--il-ember-hi)' : 'var(--il-bg)', display: 'grid', placeItems: 'center', cursor: disabled ? 'default' : 'pointer', opacity: disabled ? 0.55 : 1 }}>
+        <Tip label={pending ? 'Queue one more with a new random seed' : 'Generate with a new random seed'}>
+          <button type="button" className="il-btn" onClick={() => { if (!off) run(true); }} aria-label="Generate with a random seed"
+            style={{ ...seg, width: 64, display: 'grid', placeItems: 'center', flex: 'none' }}>
             <IconDice5 size={22} stroke={2.2} />
           </button>
-        </Tooltip>
+        </Tip>
         {busy && (
-          <div aria-hidden style={{ position: 'absolute', left: 12, right: 12, bottom: 5, height: 3, borderRadius: 2, background: 'rgba(255,255,255,.08)', overflow: 'hidden' }}>
+          <div aria-hidden style={{ position: 'absolute', left: 18, right: 18, bottom: 5, height: 3, borderRadius: 2, background: 'rgba(20,20,22,.22)', overflow: 'hidden', pointerEvents: 'none' }}>
             {pct != null
-              ? <div style={{ height: '100%', width: `${pct}%`, background: 'var(--il-ember)', transition: 'width .2s' }} />
-              : <div className="il-sweep" style={{ height: '100%', width: '33%', background: 'linear-gradient(90deg, transparent, var(--il-ember), transparent)' }} />}
+              ? <div style={{ height: '100%', width: `${pct}%`, background: 'rgba(20,20,22,.75)', transition: 'width .2s' }} />
+              : <div className="il-sweep" style={{ height: '100%', width: '33%', background: 'linear-gradient(90deg, transparent, rgba(20,20,22,.75), transparent)' }} />}
           </div>
         )}
       </div>

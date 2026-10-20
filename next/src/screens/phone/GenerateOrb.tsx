@@ -2,9 +2,9 @@
  * The dock's Generate (rules 11 + 15): a big ember circle in the middle of the tab row.
  *   tap  = generate (bolt: the seed as set; dice: a new random seed)
  *   hold (HOLD_MS) = switch between bolt and dice (a buzz says it switched)
- *   while this step's job runs it is Stop (a ring shows the progress); the bubble on its left
- *   still queues another, and the badge on its right counts the jobs left — a tap on the badge
- *   opens the queue on the Output page.
+ *   it never turns into Stop (item 46): while this step's job runs a ring shows the progress and a
+ *   tap queues one more; the badge on its right counts the jobs left — a tap on the badge opens
+ *   the queue on the Output page, where each card has its ×.
  * Generate is the desktop's own function (`useGenerate` from `~/screens/image`).
  */
 import { useEffect, useRef } from 'react';
