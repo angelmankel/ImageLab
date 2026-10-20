@@ -6,12 +6,10 @@
  * `WorkflowParam` (`/object_info` + the saved graph); the rules are `workflowStepLogic.ts`.
  */
 import { useEffect, useState, type ReactNode } from 'react';
-import { Select } from '@mantine/core';
-import { IconArrowBackUp, IconChevronDown, IconDice5, IconLock, IconLockOpen, IconPin, IconPinned } from '@tabler/icons-react';
+import { IconArrowBackUp, IconDice5, IconLock, IconLockOpen, IconPin, IconPinned } from '@tabler/icons-react';
 import { randomSeed, type WorkflowParam } from '@/features/studio/params';
-import { Chip, IconBtn, Slider, NumberField as UiNumberField } from '~/ui';
+import { Chip, IconBtn, SearchSelect, Slider, NumberField as UiNumberField } from '~/ui';
 import { useIsPhone } from '~/app/useIsPhone';
-import { T } from '~/theme/tokens';
 import { formatNumber, humanize, numberRange, presetsFor } from './workflowStepLogic';
 
 const MAX_CHIPS = 5;
@@ -23,26 +21,11 @@ export const SELECT_STYLES = {
   option: { fontSize: 12, fontWeight: 600 },
 };
 
-/** A plain select in the next look; a value the list lacks is kept as its own option. */
+/** A select in the next look: the shared `SearchSelect` (item 38); a value the list lacks is kept as its own option. */
 export function Pick({ label, value, options, onChange, placeholder }: { label: string; value: string; options: Array<string | { value: string; label: string }>; onChange: (v: string) => void; placeholder?: string }) {
-  const has = options.some((o) => (typeof o === 'string' ? o : o.value) === value);
-  const data = has || !value ? options : [value, ...options];
   return (
-    <Select
-      aria-label={label}
-      data={data}
-      value={value || null}
-      placeholder={placeholder}
-      onChange={(v) => { if (v != null) onChange(v); }}
-      allowDeselect={false}
-      searchable
-      size="xs"
-      rightSection={<IconChevronDown size={14} stroke={2.6} />}
-      rightSectionWidth={26}
-      comboboxProps={{ withinPortal: true, zIndex: T.z.popover, shadow: 'md' }}
-      styles={SELECT_STYLES}
-      style={{ flex: 1, minWidth: 0 }}
-    />
+    <SearchSelect label={label} value={value || null} options={options} onChange={onChange} placeholder={placeholder}
+      missingLabel={(v) => v} style={{ flex: 1, minWidth: 0 }} />
   );
 }
 

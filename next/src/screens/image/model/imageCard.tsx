@@ -5,14 +5,13 @@
  * card through `KindApi.card`; every piece reads and writes the main app's workflow.
  */
 import { useRef } from 'react';
-import { Select } from '@mantine/core';
 import { IconPhotoPlus, IconX } from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
 import { embeddingWords } from '@/lib/embeddings';
 import { modelKeywordState } from '@/lib/modelKeywords';
 import { useModelProfile } from '@/hooks/useModelProfileSync';
 import { modelLabel } from '@/components/models/modelInfo';
-import { Chip, SliderRow, Tabs } from '~/ui';
+import { Chip, SearchSelect, SliderRow, Tabs } from '~/ui';
 import { T } from '~/theme/tokens';
 import { TriggerWords, type AutoWords } from './TriggerWords';
 import { fmtWeight, type ModelKind } from './kindSpecs';
@@ -114,8 +113,7 @@ function BaseCheckpointMore() {
     <>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--il-fg2)' }}>VAE</span>
-        <Select data={options} value={vae || BUILT_IN_VAE} onChange={(v) => setWorkflow({ vae: !v || v === BUILT_IN_VAE ? '' : v })} allowDeselect={false} searchable nothingFoundMessage="No match" size="xs" radius="md"
-          comboboxProps={{ withinPortal: true, zIndex: T.z.popover }} styles={SELECT_STYLES} aria-label="VAE" />
+        <SearchSelect options={options} value={vae || BUILT_IN_VAE} onChange={(v) => setWorkflow({ vae: !v || v === BUILT_IN_VAE ? '' : v })} label="VAE" />
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
         <span style={{ fontWeight: 700, color: 'var(--il-fg2)' }}>Model type</span>
@@ -174,9 +172,8 @@ function ControlNetInput({ id }: { id: string }) {
           {entry.image && <button type="button" aria-label="Remove the guide image" onClick={() => update(id, { image: null })} style={{ border: 0, background: 'transparent', color: 'var(--il-muted)', cursor: 'pointer', display: 'grid', placeItems: 'center', padding: 2 }}><IconX size={14} /></button>}
         </div>
         <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--il-fg2)' }}>Preprocessor</span>
-        <Select data={PREPROCESSORS.map((p) => ({ value: p, label: p === 'none' ? 'None (image as is)' : p }))} value={entry.preprocessor}
-          onChange={(v) => v && update(id, { preprocessor: v as Preprocessor })} allowDeselect={false} size="xs" radius="md"
-          comboboxProps={{ withinPortal: true, zIndex: T.z.popover }} styles={SELECT_STYLES} aria-label="Preprocessor" />
+        <SearchSelect options={PREPROCESSORS.map((p) => ({ value: p, label: p === 'none' ? 'None (image as is)' : p }))} value={entry.preprocessor}
+          onChange={(v) => update(id, { preprocessor: v as Preprocessor })} searchable={false} label="Preprocessor" />
       </div>
     </div>
   );

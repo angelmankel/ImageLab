@@ -60,6 +60,8 @@ export const emberTheme = createTheme({
       classNames: { dropdown: 'il-dd', option: 'il-opt', groupLabel: 'il-glabel', empty: 'il-empty' },
       defaultProps: { spellCheck: false, comboboxProps: { transitionProps: { transition: 'pop', duration: 120 } } },
     },
+    // Every Mantine text box: the ember focus ring of the .il-field shape.
+    Input: { classNames: { input: 'il-minput' } },
     Menu: { classNames: { dropdown: 'il-dd' }, defaultProps: { transitionProps: { transition: 'pop', duration: 120 } } },
     // The model viewer sits above these, outside their DOM: let it scroll (see scrollShards.ts).
     Modal: { defaultProps: { removeScrollProps: { shards: [viewerLayerRef] } } },

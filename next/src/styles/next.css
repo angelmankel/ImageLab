@@ -168,6 +168,24 @@ button[style*="border-radius: 999px"]:not(:disabled):not([style*="transform"]):a
 @media (hover: hover) { .il-field-bare:hover { background: var(--il-card-on); } }
 .il-field-bare:focus-within, .il-field-bare[data-open="true"] { background: var(--il-panel); }
 
+/* Mantine's own text boxes (TextInput, Textarea, Select…) share the focus ring (theme: Input). */
+.il-minput { transition: border-color .12s ease, box-shadow .12s ease; }
+.il-minput:focus, .il-minput:focus-within { border-color: var(--il-ember); box-shadow: 0 0 0 3px rgba(240, 134, 58, .18); }
+
+/* ---- Search pill (item 38): ui/SearchField. */
+.il-search {
+  box-sizing: border-box; display: flex; align-items: center; gap: 8px; min-width: 0; padding: 0 5px 0 12px;
+  background: var(--il-elev); color: var(--il-muted); border: 1px solid transparent; cursor: text;
+  transition: border-color .12s ease, box-shadow .12s ease, color .12s ease;
+}
+.il-search:focus-within { border-color: var(--il-ember-line); box-shadow: 0 0 0 3px rgba(240, 134, 58, .14); color: var(--il-fg2); }
+.il-search input { flex: 1; min-width: 0; height: 100%; border: 0; background: transparent; color: var(--il-fg); font: inherit; font-size: 12px; font-weight: 600; outline: none; padding: 0; }
+.il-search input::placeholder { color: var(--il-muted); }
+.il-search input::-webkit-search-cancel-button { -webkit-appearance: none; }
+.il-search .il-x { width: 28px; height: 28px; flex: none; border: 0; border-radius: 50%; padding: 0; display: grid; place-items: center; background: transparent; color: var(--il-muted); cursor: pointer; }
+.il-search .il-x:hover { background: var(--il-card-on); color: var(--il-fg); }
+@media (pointer: coarse) { .il-search .il-x { width: 36px; height: 36px; } .il-search input { font-size: 16px; } }
+
 /* ---- Slider (item 1): Mantine's, re-dressed through its own vars. Big handle (20px, 26 on touch),
    6px track (8 on touch), ember fill; the whole 26px strip takes the press; vertical pans scroll. */
 .il-slider {
