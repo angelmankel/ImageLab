@@ -4,6 +4,7 @@ import {
   fetchDownloads, startDownload, cancelDownload, type Download,
 } from '@/lib/comfy';
 import { useLibraryStore } from '@/features/library/store';
+import { onePerOrigin } from '@/lib/downloadRows';
 
 /**
  * Feature-scoped store for the downloads panel — separate from the global app
@@ -13,7 +14,8 @@ import { useLibraryStore } from '@/features/library/store';
  * under round-robin routing a model is only *usable* if it's on every server.
  * So `start` fires the download at every online server; servers that already
  * have the file skip it cheaply. `refresh` polls every server and flattens the
- * results into one tagged list.
+ * results into one tagged list. Servers on one origin (a pod's image and video ComfyUI) share one
+ * download manager and one disk, so they count as one server here (`onePerOrigin`).
  */
 
 /** One download, tagged with the server it's running on. */
@@ -78,7 +80,7 @@ export const useDownloadsStore = create<DownloadsState>((set, get) => ({
     if (get().refreshing) return;
     set({ refreshing: true });
     try {
-      const { servers } = useStore.getState();
+      const servers = onePerOrigin(useStore.getState().servers);
       const results = await Promise.allSettled(
         servers.map(async (srv) => {
           const downloads = await fetchDownloads(srv.host);
@@ -141,7 +143,7 @@ export const useDownloadsStore = create<DownloadsState>((set, get) => ({
   start: async (versionId, folder, serverIds) => {
     const { servers, serverInfo } = useStore.getState();
     const online = servers.filter((s) => serverInfo[s.id]);
-    const targets = serverIds ? online.filter((s) => serverIds.includes(s.id)) : online;
+    const targets = onePerOrigin(serverIds ? online.filter((s) => serverIds.includes(s.id)) : online);
     const results = await Promise.allSettled(targets.map((s) => startDownload(s.host, versionId, folder)));
     const accepted = results.filter((r) => r.status === 'fulfilled').length;
     const errors = results.flatMap((r, i) =>
