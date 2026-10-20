@@ -66,9 +66,12 @@ export function Tag({ children, tone = 'fg', outlined, size = 'desktop', onClick
   return onClick ? <button type="button" onClick={onClick} style={style}>{children}</button> : <span style={style}>{children}</span>;
 }
 
-/** "SORT / Most Downloaded ▾": a pill that opens a menu of options. */
-export function MenuPill<K extends string>({ label, value, options, onChange, size = 'desktop', grow }: {
-  label: string; value: K; options: Array<{ key: K; label: string }>; onChange: (k: K) => void; size?: Size; grow?: boolean;
+/**
+ * "SORT / Most Downloaded ▾": a pill that opens a menu of options. `bare`: no fill of its own, for
+ * a segment of a grouped control (the desktop bar's Sort · Period · NSFW).
+ */
+export function MenuPill<K extends string>({ label, value, options, onChange, size = 'desktop', grow, bare }: {
+  label: string; value: K; options: Array<{ key: K; label: string }>; onChange: (k: K) => void; size?: Size; grow?: boolean; bare?: boolean;
 }) {
   const current = options.find((o) => o.key === value)?.label ?? value;
   return (
@@ -79,7 +82,7 @@ export function MenuPill<K extends string>({ label, value, options, onChange, si
           aria-label={`${label}: ${current}`}
           style={{
             height: size === 'phone' ? 44 : 36, padding: size === 'phone' ? '0 10px' : '0 12px', border: 0, borderRadius: size === 'phone' ? 14 : 999,
-            background: size === 'phone' ? 'var(--il-card)' : 'var(--il-elev)', color: 'var(--il-fg)', display: 'flex', alignItems: 'center',
+            background: bare ? 'transparent' : size === 'phone' ? 'var(--il-card)' : 'var(--il-elev)', color: 'var(--il-fg)', display: 'flex', alignItems: 'center',
             justifyContent: 'space-between', gap: 8, flex: grow ? 1 : 'none', minWidth: 0, textAlign: 'left', cursor: 'pointer',
           }}
         >
@@ -87,7 +90,7 @@ export function MenuPill<K extends string>({ label, value, options, onChange, si
             <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: '.5px', color: 'var(--il-muted)' }}>{label.toUpperCase()}</span>
             <span style={{ fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{current}</span>
           </span>
-          <span style={{ color: 'var(--il-muted)' }}>▾</span>
+          <span style={{ color: 'var(--il-muted)', fontSize: bare ? 10 : undefined }}>▾</span>
         </button>
       </Menu.Target>
       <Menu.Dropdown style={{ background: 'var(--il-card)', border: '1px solid var(--il-line-strong)', borderRadius: 12, padding: 4 }}>

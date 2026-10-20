@@ -1,10 +1,14 @@
 /**
  * The history grid's pure part (tested in tests/history.test.cjs): image results and run results
- * as one tile shape, newest first, and the All · Images · Videos · ★ filter.
+ * as one tile shape, newest first, the All · Images · Videos · ★ filter, and the This step / All
+ * scope (`inStep`: which step made a tile).
  */
 export type HistoryFilter = 'all' | 'images' | 'videos' | 'liked';
 
-export interface TileSource { key: string; url: string; kind: 'image' | 'video'; filename: string; createdAt: number }
+/** Which kind of step makes a result: image results come from Image steps, clips from Video, runs from Workflow. */
+export type ResultSource = 'image' | 'video' | 'workflow';
+
+export interface TileSource { key: string; url: string; kind: 'image' | 'video'; filename: string; createdAt: number; source?: ResultSource }
 export interface EntryLike { id: string; liked?: boolean }
 
 export interface Tile<E extends EntryLike = EntryLike> extends TileSource {
@@ -25,4 +29,25 @@ export function filterTiles<E extends EntryLike>(tiles: readonly Tile<E>[], filt
   if (filter === 'videos') return tiles.filter((t) => t.kind === 'video');
   if (filter === 'liked') return tiles.filter((t) => t.liked);
   return [...tiles];
+}
+
+export type HistoryScope = 'step' | 'all';
+export interface StepLike { id: string; kind: string }
+
+/**
+ * Does this tile belong to `step`? A tile tagged with a step that still exists belongs to that
+ * step; an untagged one (made before tagging, or its step was removed) to the first step of the
+ * kind that makes it.
+ */
+export function inStep(tile: { key: string; source?: ResultSource }, step: StepLike, steps: readonly StepLike[], tags: Readonly<Record<string, string>>): boolean {
+  const tag = tags[tile.key];
+  if (tag && steps.some((s) => s.id === tag)) return tag === step.id;
+  return !!tile.source && steps.find((s) => s.kind === tile.source)?.id === step.id;
+}
+
+/** The step a new result is credited to: the active step when it makes that kind, else the first step that does. */
+export function creditStep(source: ResultSource, activeId: string, steps: readonly StepLike[]): string | null {
+  const active = steps.find((s) => s.id === activeId);
+  if (active && active.kind === source) return active.id;
+  return steps.find((s) => s.kind === source)?.id ?? null;
 }

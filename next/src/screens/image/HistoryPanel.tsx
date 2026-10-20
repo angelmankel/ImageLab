@@ -1,6 +1,7 @@
 /**
- * Rule 8: the right panel is history. A filter row only (All · Images · Videos · ★), no title, no
- * search, no date dividers, one grid. Click = show on the stage, double-click = fullscreen, the ★
+ * Rule 8: the right panel is history. A filter row only (This step | All, then All · Images · Videos
+ * · ★), no title, no search, no date dividers, one grid. This step (the default) shows what the
+ * open step made (`inStep`, tags from `resultSteps.ts`). Click = show on the stage, double-click = fullscreen, the ★
  * toggles favourite. Images from the main store's history; videos from the video / workflow run
  * stores. The pure merge + filter is `historyLogic.ts` (tested).
  */
@@ -10,8 +11,11 @@ import { useStore } from '@/lib/store';
 import type { HistoryEntry } from '@/lib/types';
 import { useImageResults, useVideoResults, useWorkflowResults } from '@/features/workspace/results';
 import { useStage } from './stageStore';
-import { filterTiles, mergeTiles, type HistoryFilter, type Tile } from './historyLogic';
+import { useSteps } from '~/app/stepsStore';
+import { filterTiles, inStep, mergeTiles, type HistoryFilter, type HistoryScope, type Tile } from './historyLogic';
+import { useResultSteps } from './resultSteps';
 
+const SCOPES: Array<{ key: HistoryScope; label: string; title: string }> = [{ key: 'step', label: 'This step', title: 'Only what the open step made' }, { key: 'all', label: 'All', title: 'Every generation' }];
 const FILTERS: Array<{ key: HistoryFilter; label: string }> = [{ key: 'all', label: 'All' }, { key: 'images', label: 'Images' }, { key: 'videos', label: 'Videos' }, { key: 'liked', label: '★' }];
 
 function TileView({ tile, selected, onPick, onOpen, onLike }: { tile: Tile<HistoryEntry>; selected: boolean; onPick: () => void; onOpen: () => void; onLike?: () => void }) {
@@ -47,19 +51,35 @@ export function HistoryPanel({ columns = 2, phone = false }: { columns?: number;
   const runKey = useStage((s) => s.runKey);
   const showRun = useStage((s) => s.showRun);
   const [filter, setFilter] = useState<HistoryFilter>('all');
-  const tiles = useMemo(() => filterTiles(mergeTiles(images, videos, runs), filter), [images, videos, runs, filter]);
+  const steps = useSteps((s) => s.steps);
+  const activeId = useSteps((s) => s.activeId);
+  const tags = useResultSteps((s) => s.tags);
+  const scope = useResultSteps((s) => s.scope);
+  const setScope = useResultSteps((s) => s.setScope);
+  const tiles = useMemo(() => {
+    const all = mergeTiles(images.map((i) => ({ ...i, source: 'image' as const })), videos.map((v) => ({ ...v, source: 'video' as const })), runs.map((r) => ({ ...r, source: 'workflow' as const })));
+    const step = steps.find((s) => s.id === activeId);
+    return filterTiles(scope === 'step' && step ? all.filter((t) => inStep(t, step, steps, tags)) : all, filter);
+  }, [images, videos, runs, filter, scope, steps, activeId, tags]);
   const currentKey = runKey ?? (selected ?? newest)?.id ?? null;
 
   return (
     <aside aria-label="History" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', background: 'var(--il-panel)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 12px 8px', flex: 'none' }}>
+      <div className="il-scroll-x" data-no-swipe style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 12px 8px', flex: 'none', touchAction: 'pan-x pan-y' }}>
+        <div role="group" aria-label="Show" style={{ display: 'flex', gap: 2, padding: 2, borderRadius: 999, background: 'var(--il-bg-deep)', flex: 'none' }}>
+          {SCOPES.map((sc) => {
+            const on = sc.key === scope;
+            return <button key={sc.key} type="button" onClick={() => setScope(sc.key)} aria-pressed={on} title={sc.title} style={{ height: 26, padding: '0 10px', border: 0, borderRadius: 999, background: on ? 'var(--il-card-on)' : 'transparent', color: on ? 'var(--il-fg)' : 'var(--il-muted)', fontWeight: 800, fontSize: 11, cursor: 'pointer', whiteSpace: 'nowrap' }}>{sc.label}</button>;
+          })}
+        </div>
+        <span aria-hidden style={{ width: 1, height: 18, background: 'var(--il-line)', flex: 'none' }} />
         {FILTERS.map((f) => {
           const on = f.key === filter;
-          return <button key={f.key} type="button" onClick={() => setFilter(f.key)} aria-pressed={on} style={{ height: 30, padding: '0 12px', border: 0, borderRadius: 999, background: on ? 'var(--il-fg)' : 'var(--il-card)', color: on ? 'var(--il-bg)' : 'var(--il-fg2)', fontWeight: on ? 800 : 700, fontSize: 12, cursor: 'pointer' }}>{f.label}</button>;
+          return <button key={f.key} type="button" onClick={() => setFilter(f.key)} aria-pressed={on} style={{ flex: 'none', height: 30, padding: '0 12px', border: 0, borderRadius: 999, background: on ? 'var(--il-fg)' : 'var(--il-card)', color: on ? 'var(--il-bg)' : 'var(--il-fg2)', fontWeight: on ? 800 : 700, fontSize: 12, cursor: 'pointer' }}>{f.label}</button>;
         })}
       </div>
       <div className="il-scroll" style={{ flex: 1, minHeight: 0, padding: '0 12px 12px', touchAction: 'pan-y' }}>
-        {tiles.length === 0 && <div style={{ padding: '28px 8px', textAlign: 'center', fontSize: 12, fontWeight: 600, color: 'var(--il-muted)' }}>{filter === 'liked' ? 'No favourites yet.' : 'Nothing here yet.'}</div>}
+        {tiles.length === 0 && <div style={{ padding: '28px 8px', textAlign: 'center', fontSize: 12, fontWeight: 600, color: 'var(--il-muted)' }}>{filter === 'liked' ? 'No favourites yet.' : scope === 'step' ? 'This step has made nothing yet.' : 'Nothing here yet.'}</div>}
         <div style={{ display: 'grid', gridTemplateColumns: `repeat(${phone ? 3 : columns}, minmax(0, 1fr))`, gap: 6 }}>
           {tiles.map((t) => (
             <TileView key={t.key} tile={t} selected={t.key === currentKey}

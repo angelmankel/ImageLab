@@ -42,7 +42,7 @@ export function Picture({ image, hidden, onReveal, loading, empty, edges, canPre
   empty: string;
   edges: boolean; canPrev: boolean; canNext: boolean; onPrev: () => void; onNext: () => void; style?: CSSProperties;
 }) {
-  const media: CSSProperties = { width: '100%', height: '100%', objectFit: 'contain', display: 'block' };
+  const media: CSSProperties = { width: '100%', height: '100%', maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', display: 'block' };
   const video = !!image && isCivitaiVideo(image);
   const url = image ? pictureUrl(image) : '';
   // Clips swap at once (the <video> element is its own); stills wait for their decode (capped).
@@ -68,7 +68,8 @@ export function Picture({ image, hidden, onReveal, loading, empty, edges, canPre
 
   if (!edges) return area;
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: `${EDGE_COL}px minmax(0, 1fr) ${EDGE_COL}px`, minHeight: 0, height: '100%' }}>
+    // One row that is the cell's height: an implicit (auto) row grows to the picture's natural size and overflows.
+    <div style={{ display: 'grid', gridTemplateColumns: `${EDGE_COL}px minmax(0, 1fr) ${EDGE_COL}px`, gridTemplateRows: 'minmax(0, 1fr)', minHeight: 0, minWidth: 0, height: '100%', overflow: 'hidden' }}>
       <div style={{ display: 'grid', placeItems: 'center' }}><IconBtn icon={<IconChevronLeft size={20} stroke={2.2} />} label="Previous image" onClick={onPrev} disabled={!canPrev} tooltip={false} /></div>
       {area}
       <div style={{ display: 'grid', placeItems: 'center' }}><IconBtn icon={<IconChevronRight size={20} stroke={2.2} />} label="Next image" onClick={onNext} disabled={!canNext} tooltip={false} /></div>

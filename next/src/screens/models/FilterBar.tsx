@@ -1,26 +1,24 @@
 /**
- * The desktop filter rows above the grid (Models-Desktop board + the picker brief):
- *   row 1 (52) search · SORT ▾ · PERIOD ▾ · NSFW ▾ · Filters (badge) · grid/list
- *   row 2 (44) Downloaded · ★ Favourites · TYPE chips (locked to the picker's kind) · BASE chips
- *              · Followed · Early access · Made on-site · Clear
- *   row 2b     every other filter (FilterFields), when "Filters" is open
- *   tags       the tag groups (TagsRow), an open group's tags
- *   row 3 (32) the active filters and picked tags, each removable · "128 models"
+ * The desktop filter rows above the grid (Models board, rule 13; Donny's 10-20 layout):
+ *   row 1 (52) search · [SORT ▾ · PERIOD ▾ · NSFW ▾] one grouped control · grid/list
+ *   row 2 (44) Source ▾ · Type ▾ · Base ▾ · Tags ▾ · More ▾ (FilterMenus) · the count when row 3 is hidden
+ *   row 3 (32) the active filters and picked tags, each removable · Clear all · "128 models"
+ * Every setting the old chip wall and Filters panel had now lives in one of row 2's menus.
+ * `SearchBox` and `SourceChips` are shared with the phone's browse page.
  */
-import { useEffect, useRef, useState } from 'react';
-import { IconFilter, IconLayoutGrid, IconList, IconSearch, IconX } from '@tabler/icons-react';
-import { Sep } from '~/ui';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { IconLayoutGrid, IconList, IconSearch, IconX } from '@tabler/icons-react';
+import { T } from '~/theme/tokens';
 import type { CivitaiModel } from '@/lib/civitai';
-import {
-  MODEL_TYPES, MAIN_BASE_MODELS, SORTS, PERIODS, PERIOD_LABEL, NSFW_LEVELS, KIND_LABEL, typeLabel, baseModelShort, maskForLevel, levelForMask, toggleIn, activeFilters,
-  type Sort, type Period, type NsfwLevelKey,
-} from './civitaiQuery';
+import { SORTS, PERIODS, PERIOD_LABEL, NSFW_LEVELS, maskForLevel, levelForMask, type Sort, type Period, type NsfwLevelKey } from './civitaiQuery';
+import { activeChips, type ActiveChip } from './filterSummary';
 import { useModels } from './modelsStore';
-import { FChip, Label, MenuPill } from './bits';
-import { FilterFields } from './FilterFields';
-import { TagsRow, SelectedTagChips } from './TagsRow';
+import { FChip, MenuPill } from './bits';
+import { SourceMenu, TypeMenu, BaseMenu, TagsMenu, MoreMenu } from './FilterMenus';
+import { SelectedTagChips } from './TagsRow';
 
-export const ROW_TYPES = MODEL_TYPES.filter((t) => !['AestheticGradient', 'Detection', 'Other', 'DoRA'].includes(t));
+/** Sideways scrollers never page the phone shell and keep both pan axes. */
+const SIDEWAYS = { touchAction: 'pan-x pan-y' } as const;
 
 /** The search box: local text, the store's `query` after 350 ms of quiet. Matches names, tags and creators. */
 export function SearchBox({ height = 36, fontSize = 12, autoFocus }: { height?: number; fontSize?: number; autoFocus?: boolean }) {
@@ -62,86 +60,94 @@ export function SourceChips({ size = 'desktop' as const }: { size?: 'desktop' | 
   );
 }
 
-export function FilterBar({ count, pool }: { count: string; pool: CivitaiModel[] }) {
+/** Sort · Period · NSFW as one rounded control: three compact selects, hairlines between. */
+function SortGroup() {
   const f = useModels((s) => s.filters);
   const set = useModels((s) => s.setFilters);
-  const clearAll = useModels((s) => s.clearAll);
-  const clearOne = useModels((s) => s.clearOne);
-  const kind = useModels((s) => s.kind);
+  const line = <span aria-hidden style={{ width: 1, height: 18, background: 'var(--il-line-strong)', flex: 'none' }} />;
+  return (
+    <div role="group" aria-label="Sort and limits" style={{ height: 36, flex: 'none', display: 'flex', alignItems: 'center', borderRadius: T.radius.pill, background: 'var(--il-elev)', overflow: 'hidden' }}>
+      <MenuPill<Sort> bare label="Sort" value={f.sort} onChange={(sort) => set({ sort })} options={SORTS.map((s) => ({ key: s, label: s }))} />
+      {line}
+      <MenuPill<Period> bare label="Period" value={f.period} onChange={(period) => set({ period })} options={PERIODS.map((p) => ({ key: p, label: PERIOD_LABEL[p] }))} />
+      {line}
+      <MenuPill<NsfwLevelKey> bare label="NSFW" value={levelForMask(f.nsfwMask)} onChange={(k) => set({ nsfwMask: maskForLevel(k) })} options={NSFW_LEVELS.map((l) => ({ key: l.key, label: l.label }))} />
+    </div>
+  );
+}
+
+function ViewToggle() {
   const view = useModels((s) => s.view);
   const setView = useModels((s) => s.setView);
-  const moreOpen = useModels((s) => s.moreOpen);
-  const setMoreOpen = useModels((s) => s.setMoreOpen);
+  return (
+    <div role="group" aria-label="View" style={{ height: 36, display: 'flex', alignItems: 'center', gap: 2, background: 'var(--il-elev)', borderRadius: T.radius.pill, padding: 3, flex: 'none' }}>
+      {(['grid', 'list'] as const).map((v) => (
+        <button key={v} type="button" aria-label={`${v} view`} aria-pressed={view === v} onClick={() => setView(v)} style={{ width: 30, height: 30, border: 0, borderRadius: '50%', background: view === v ? 'var(--il-card-on)' : 'transparent', color: view === v ? 'var(--il-fg)' : 'var(--il-muted)', display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
+          {v === 'grid' ? <IconLayoutGrid size={15} stroke={2.2} /> : <IconList size={15} stroke={2.4} />}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** One removable active filter: "Downloaded ×". */
+function ActivePill({ chip, onRemove }: { chip: ActiveChip; onRemove: () => void }) {
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: T.gap.xs, height: 22, padding: '0 4px 0 9px', borderRadius: T.radius.pill, background: 'var(--il-card)', border: '1px solid var(--il-line-strong)', color: 'var(--il-fg2)', fontSize: 11, fontWeight: 700, flex: 'none' }}>
+      <span style={{ maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis' }}>{chip.label}</span>
+      <button type="button" aria-label={`Remove ${chip.label} filter`} onClick={onRemove} style={{ width: 16, height: 16, padding: 0, border: 0, borderRadius: '50%', background: 'transparent', color: 'var(--il-muted)', display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
+        <IconX size={10} stroke={3} />
+      </button>
+    </span>
+  );
+}
+
+function Count({ children }: { children: ReactNode }) {
+  return <span style={{ flex: 'none', fontSize: 11, fontWeight: 700, color: 'var(--il-muted)', whiteSpace: 'nowrap' }}>{children}</span>;
+}
+
+export function FilterBar({ count, pool }: { count: string; pool: CivitaiModel[] }) {
+  const f = useModels((s) => s.filters);
+  const source = useModels((s) => s.source);
+  const setSource = useModels((s) => s.setSource);
+  const kind = useModels((s) => s.kind);
+  const clearAll = useModels((s) => s.clearAll);
+  const clearOne = useModels((s) => s.clearOne);
   const tagCount = useModels((s) => s.selectedTags.length);
-  const active = activeFilters(f).filter((a) => !(kind && a.key === 'types'));
-  const total = active.length + tagCount;
+  const active = activeChips(f, source, kind);
+  const any = active.length + tagCount > 0;
+  const remove = (c: ActiveChip) => (c.key === 'source' ? setSource('civitai') : clearOne(c.key));
+  const clearEverything = () => { if (source === 'installed') setSource('civitai'); clearAll(); };
 
   return (
     <div style={{ flex: 'none', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ height: 52, display: 'flex', alignItems: 'center', gap: 6, padding: '0 12px' }}>
+      <div style={{ height: 52, display: 'flex', alignItems: 'center', gap: T.gap.md, padding: '0 12px' }}>
         <SearchBox />
-        <MenuPill<Sort> label="Sort" value={f.sort} onChange={(sort) => set({ sort })} options={SORTS.map((s) => ({ key: s, label: s }))} />
-        <MenuPill<Period> label="Period" value={f.period} onChange={(period) => set({ period })} options={PERIODS.map((p) => ({ key: p, label: PERIOD_LABEL[p] }))} />
-        <MenuPill<NsfwLevelKey> label="NSFW" value={levelForMask(f.nsfwMask)} onChange={(k) => set({ nsfwMask: maskForLevel(k) })} options={NSFW_LEVELS.map((l) => ({ key: l.key, label: l.label }))} />
-        <button
-          type="button"
-          aria-pressed={moreOpen}
-          onClick={() => setMoreOpen(!moreOpen)}
-          style={{ height: 36, padding: '0 12px', border: `1px solid ${moreOpen ? 'var(--il-ember)' : 'var(--il-line-strong)'}`, borderRadius: 999, background: 'transparent', color: moreOpen ? 'var(--il-ember)' : 'var(--il-fg)', fontWeight: 700, fontSize: 12, display: 'flex', alignItems: 'center', gap: 8, flex: 'none', cursor: 'pointer' }}
-        >
-          <IconFilter size={15} stroke={2.2} />Filters
-          {total > 0 && <span style={{ background: 'var(--il-ember)', color: 'var(--il-bg)', borderRadius: 999, padding: '1px 7px', fontSize: 11, fontWeight: 800 }}>{total}</span>}
-        </button>
-        <Sep />
-        <div role="group" aria-label="View" style={{ display: 'flex', gap: 2, background: 'var(--il-elev)', borderRadius: 999, padding: 3, flex: 'none' }}>
-          {(['grid', 'list'] as const).map((v) => (
-            <button key={v} type="button" aria-label={`${v} view`} aria-pressed={view === v} onClick={() => setView(v)} style={{ width: 30, height: 30, border: 0, borderRadius: '50%', background: view === v ? 'var(--il-card-on)' : 'transparent', color: view === v ? 'var(--il-fg)' : 'var(--il-muted)', display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
-              {v === 'grid' ? <IconLayoutGrid size={15} stroke={2.2} /> : <IconList size={15} stroke={2.4} />}
-            </button>
-          ))}
+        <SortGroup />
+        <ViewToggle />
+      </div>
+
+      <div style={{ height: 44, display: 'flex', alignItems: 'center', gap: T.gap.md, padding: '0 12px' }}>
+        <div className="il-scroll-x" data-no-swipe style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: T.gap.sm, whiteSpace: 'nowrap', ...SIDEWAYS }}>
+          <SourceMenu />
+          <TypeMenu />
+          <BaseMenu />
+          <TagsMenu pool={pool} />
+          <MoreMenu />
         </div>
+        {!any && <Count>{count}</Count>}
       </div>
 
-      <div className="il-scroll-x" style={{ height: 44, display: 'flex', alignItems: 'center', gap: 6, padding: '0 12px', whiteSpace: 'nowrap' }}>
-        <SourceChips />
-        <Sep />
-        <Label style={{ marginRight: 2 }}>TYPE</Label>
-        {kind
-          ? <FChip on title="The step asked for this kind">{KIND_LABEL[kind]}</FChip>
-          : ROW_TYPES.map((t) => <FChip key={t} on={f.types.includes(t)} onClick={() => set({ types: toggleIn(f.types, t) })}>{typeLabel(t)}</FChip>)}
-        <Sep />
-        <Label style={{ marginRight: 2 }}>BASE</Label>
-        {MAIN_BASE_MODELS.map((b) => <FChip key={b} on={f.baseModels.includes(b)} onClick={() => set({ baseModels: toggleIn(f.baseModels, b) })}>{baseModelShort(b)}</FChip>)}
-        <Sep />
-        <FChip dot on={f.followed} onClick={() => set({ followed: !f.followed })}>Followed creators</FChip>
-        <FChip dot on={f.earlyAccess === 'only'} onClick={() => set({ earlyAccess: f.earlyAccess === 'only' ? 'any' : 'only' })}>Early access</FChip>
-        <FChip dot on={f.supportsGeneration} onClick={() => set({ supportsGeneration: !f.supportsGeneration })}>Made on-site</FChip>
-        {total > 0 && <button type="button" onClick={clearAll} style={{ border: 0, background: 'transparent', color: 'var(--il-ember)', fontSize: 11, fontWeight: 700, marginLeft: 4, flex: 'none', cursor: 'pointer', padding: 0 }}>Clear</button>}
-      </div>
-
-      {moreOpen && (
-        <div className="il-scroll" style={{ margin: '0 12px 6px', padding: 10, borderRadius: 14, background: 'var(--il-panel)', border: '1px solid var(--il-line)', maxHeight: '42vh' }}>
-          <FilterFields f={f} set={set} size="desktop" inline lockedKind={kind} />
+      {any && (
+        <div style={{ height: 32, display: 'flex', alignItems: 'center', gap: T.gap.md, padding: '0 12px' }}>
+          <div className="il-scroll-x" data-no-swipe style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: T.gap.sm, whiteSpace: 'nowrap', ...SIDEWAYS }}>
+            {active.map((c) => <ActivePill key={c.key} chip={c} onRemove={() => remove(c)} />)}
+            <SelectedTagChips />
+            <button type="button" onClick={clearEverything} style={{ border: 0, background: 'transparent', color: 'var(--il-ember)', fontSize: 11, fontWeight: 700, marginLeft: T.gap.xs, flex: 'none', cursor: 'pointer', padding: 0 }}>Clear all</button>
+          </div>
+          <Count>{count}</Count>
         </div>
       )}
-
-      <TagsRow pool={pool} />
-
-      <div className="il-scroll-x" style={{ height: 32, display: 'flex', alignItems: 'center', gap: 6, padding: '0 12px', fontSize: 11, fontWeight: 700, color: 'var(--il-muted)', whiteSpace: 'nowrap' }}>
-        {total > 0 ? <span>{total} filter{total === 1 ? '' : 's'}</span> : <span>No filters</span>}
-        <SelectedTagChips />
-        {active.map((a) => (
-          <span key={a.key} style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--il-fg2)' }}>
-            <span style={{ color: 'var(--il-muted)' }}>·</span>
-            <span style={{ maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.label}</span>
-            <button type="button" aria-label={`Remove ${a.label} filter`} onClick={() => clearOne(a.key)} style={{ width: 18, height: 18, padding: 0, border: 0, borderRadius: '50%', background: 'var(--il-card)', color: 'var(--il-muted)', display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
-              <IconX size={9} stroke={3} />
-            </button>
-          </span>
-        ))}
-        <div style={{ flex: 1 }} />
-        <span style={{ flex: 'none' }}>{count}</span>
-      </div>
     </div>
   );
 }

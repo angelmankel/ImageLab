@@ -29,3 +29,23 @@ test('CivitAI sampler names map to ComfyUI samplers + schedulers', () => {
   assert.deepEqual(A.samplerOf('DPM++ 2M SDE', samplers, schedulers), { sampler: 'dpmpp_2m_sde', scheduler: undefined });
   assert.deepEqual(A.samplerOf('Euler', samplers, schedulers), { sampler: 'euler', scheduler: undefined });
 });
+
+test('This step: tagged tiles go to their step, untagged ones to the first step of their kind', () => {
+  const steps = [{ id: 's1', kind: 'image' }, { id: 's2', kind: 'image' }, { id: 'v1', kind: 'video' }];
+  const tags = { b: 's2', gone: 'removed' };
+  assert.equal(H.inStep({ key: 'b', source: 'image' }, steps[1], steps, tags), true);
+  assert.equal(H.inStep({ key: 'b', source: 'image' }, steps[0], steps, tags), false);
+  assert.equal(H.inStep({ key: 'a', source: 'image' }, steps[0], steps, tags), true);
+  assert.equal(H.inStep({ key: 'a', source: 'image' }, steps[1], steps, tags), false);
+  assert.equal(H.inStep({ key: 'gone', source: 'image' }, steps[0], steps, tags), true);
+  assert.equal(H.inStep({ key: 'c', source: 'video' }, steps[2], steps, tags), true);
+  assert.equal(H.inStep({ key: 'c', source: 'workflow' }, steps[0], steps, tags), false);
+});
+
+test('a new result is credited to the active step when it makes that kind', () => {
+  const steps = [{ id: 's1', kind: 'image' }, { id: 's2', kind: 'image' }, { id: 'v1', kind: 'video' }];
+  assert.equal(H.creditStep('image', 's2', steps), 's2');
+  assert.equal(H.creditStep('image', 'v1', steps), 's1');
+  assert.equal(H.creditStep('video', 's1', steps), 'v1');
+  assert.equal(H.creditStep('workflow', 's1', steps), null);
+});

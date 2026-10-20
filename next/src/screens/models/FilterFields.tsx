@@ -1,8 +1,9 @@
 /**
  * Every filter as a group of controls (rule 13: ALL the API's features). Used twice: the desktop
- * "Filters" panel under the chip row (`size='desktop'`, compact) and the phone's Filters sheet
- * (`size='phone'`, thumb-sized). The desktop's inline chip row shows the main type / base chips
- * itself, so `inline` hides those groups here.
+ * bar's More menu → "More filters…" (`size='desktop'`, compact, `inline`) and the phone's Filters
+ * sheet (`size='phone'`, thumb-sized). On the desktop the Source / Type / Base menus and More's own
+ * check rows hold types, base models, account favourites, followed and made-on-site, so `inline`
+ * leaves those out here.
  */
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Switch } from '~/ui';
@@ -17,9 +18,6 @@ import { fetchTags, fetchCreators, hasApiKey } from './civitaiApi';
 import { FChip, Label, MenuPill, SegPill, type Size } from './bits';
 
 type Patch = (p: Partial<ModelFilters>) => void;
-
-/** The types the desktop chip row leaves out (FilterBar's ROW_TYPES); they live in the panel. */
-const MORE_TYPES = MODEL_TYPES.filter((t) => ['DoRA', 'AestheticGradient', 'Detection', 'Other'].includes(t));
 
 function Group({ label, children, size }: { label: string; children: ReactNode; size: Size }) {
   return (
@@ -71,7 +69,7 @@ function SuggestInput({ id, value, placeholder, onCommit, kind, size }: { id: st
 
 /**
  * `lockedKind`: the picker's kind hides the type chips. `pool`: the loaded models, for the tag
- * groups (the phone sheet; the desktop has `TagsRow` in the bar).
+ * groups (the phone sheet; the desktop bar has its own Tags menu).
  */
 export function FilterFields({ f, set, size, inline, lockedKind, pool }: { f: ModelFilters; set: Patch; size: Size; inline?: boolean; lockedKind?: ModelKindKey | null; pool?: CivitaiModel[] }) {
   const [moreBase, setMoreBase] = useState(f.baseModels.some((b) => (MORE_BASE_MODELS as readonly string[]).includes(b)));
@@ -94,18 +92,20 @@ export function FilterFields({ f, set, size, inline, lockedKind, pool }: { f: Mo
           <TagGroups pool={pool} />
         </Group>
       )}
-      {!lockedKind && (
-        <Group label={inline ? 'MORE TYPES' : 'TYPE'} size={size}>
-          <Chips>{(inline ? MORE_TYPES : MODEL_TYPES).map((t) => <FChip key={t} size={size} on={f.types.includes(t)} onClick={() => set({ types: toggleIn(f.types, t) })}>{typeLabel(t)}</FChip>)}</Chips>
+      {!lockedKind && !inline && (
+        <Group label="TYPE" size={size}>
+          <Chips>{MODEL_TYPES.map((t) => <FChip key={t} size={size} on={f.types.includes(t)} onClick={() => set({ types: toggleIn(f.types, t) })}>{typeLabel(t)}</FChip>)}</Chips>
         </Group>
       )}
-      <Group label={inline ? 'MORE BASE MODELS' : 'BASE MODEL'} size={size}>
-        <Chips>
-          {!inline && MAIN_BASE_MODELS.map((b) => <FChip key={b} size={size} on={f.baseModels.includes(b)} onClick={() => set({ baseModels: toggleIn(f.baseModels, b) })}>{baseModelShort(b)}</FChip>)}
-          {(inline || moreBase) && MORE_BASE_MODELS.map((b) => <FChip key={b} size={size} on={f.baseModels.includes(b)} onClick={() => set({ baseModels: toggleIn(f.baseModels, b) })}>{baseModelShort(b)}</FChip>)}
-          {!inline && !moreBase && <FChip size={size} onClick={() => setMoreBase(true)} style={{ color: 'var(--il-muted)' }}>+{MORE_BASE_MODELS.length} more</FChip>}
-        </Chips>
-      </Group>
+      {!inline && (
+        <Group label="BASE MODEL" size={size}>
+          <Chips>
+            {MAIN_BASE_MODELS.map((b) => <FChip key={b} size={size} on={f.baseModels.includes(b)} onClick={() => set({ baseModels: toggleIn(f.baseModels, b) })}>{baseModelShort(b)}</FChip>)}
+            {moreBase && MORE_BASE_MODELS.map((b) => <FChip key={b} size={size} on={f.baseModels.includes(b)} onClick={() => set({ baseModels: toggleIn(f.baseModels, b) })}>{baseModelShort(b)}</FChip>)}
+            {!moreBase && <FChip size={size} onClick={() => setMoreBase(true)} style={{ color: 'var(--il-muted)' }}>+{MORE_BASE_MODELS.length} more</FChip>}
+          </Chips>
+        </Group>
+      )}
       {phone && (
         <>
           <Group label="PERIOD" size={size}>
@@ -121,9 +121,9 @@ export function FilterFields({ f, set, size, inline, lockedKind, pool }: { f: Mo
       )}
       <div style={{ display: 'flex', flexDirection: phone ? 'column' : 'row', flexWrap: 'wrap', gap: phone ? 0 : 6 }}>
         {phone && toggleRow('★ Favourites', f.favorites, (favorites) => set({ favorites }), 'Models you ♥ here (kept in this browser, across pods)')}
-        {toggleRow('CivitAI account favourites', f.accountFavorites, (accountFavorites) => set({ accountFavorites }), keyed ? 'The key\'s favourites on civitai.com' : 'Needs the API key (Settings → CivitAI)')}
-        {toggleRow('Followed creators', f.followed, (followed) => set({ followed }), keyed ? 'Creators you follow on CivitAI' : 'Creators you follow here' + needsKey)}
-        {toggleRow('Made on-site', f.supportsGeneration, (supportsGeneration) => set({ supportsGeneration }), 'Models CivitAI can generate with')}
+        {!inline && toggleRow('CivitAI account favourites', f.accountFavorites, (accountFavorites) => set({ accountFavorites }), keyed ? 'The key\'s favourites on civitai.com' : 'Needs the API key (Settings → CivitAI)')}
+        {!inline && toggleRow('Followed creators', f.followed, (followed) => set({ followed }), keyed ? 'Creators you follow on CivitAI' : 'Creators you follow here' + needsKey)}
+        {!inline && toggleRow('Made on-site', f.supportsGeneration, (supportsGeneration) => set({ supportsGeneration }), 'Models CivitAI can generate with')}
         {toggleRow('Hidden models', f.hidden, (hidden) => set({ hidden }), 'The key\'s hidden list')}
         {toggleRow('Primary file only', f.primaryFileOnly, (primaryFileOnly) => set({ primaryFileOnly }))}
         {toggleRow('No credit needed', f.allowNoCredit, (allowNoCredit) => set({ allowNoCredit }), 'Licence allows use without credit')}

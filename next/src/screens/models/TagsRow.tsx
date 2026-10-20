@@ -1,52 +1,16 @@
 /**
- * Tag browsing (models-picker brief, item 4): a row of group chips (Style · Character · Concept
- * · Clothing · Pose · Tool · Base · Most used) built from the loaded models; an open group shows
- * its tags as chips, picked ones ember. The picked tags are also removable chips in the
- * active-filter line. `TagGroups` is the same thing stacked, for the phone's Filters sheet.
+ * Tag browsing (models-picker brief, item 4): group chips (Style · Character · Concept · Clothing
+ * · Pose · Tool · Base · Most used) built from the loaded models; the open group shows its tags as
+ * chips, picked ones ember. `TagGroups` is that block — in the phone's Filters sheet and in the
+ * desktop bar's Tags menu (`autoOpen`: a group is always open there). The picked tags are also
+ * removable chips in the active-filter line (`SelectedTagChips`).
  */
 import { useMemo } from 'react';
 import { IconX } from '@tabler/icons-react';
 import type { CivitaiModel } from '@/lib/civitai';
 import { groupTags } from './tags';
 import { useModels } from './modelsStore';
-import { FChip, Label, type Size } from './bits';
-
-export function TagsRow({ pool }: { pool: CivitaiModel[] }) {
-  const selectedTags = useModels((s) => s.selectedTags);
-  const toggleTag = useModels((s) => s.toggleTag);
-  const clearTags = useModels((s) => s.clearTags);
-  const open = useModels((s) => s.tagsOpen);
-  const setOpen = useModels((s) => s.setTagsOpen);
-  const groups = useMemo(() => groupTags(pool, { limit: 40, selected: selectedTags }), [pool, selectedTags]);
-  const current = groups.find((g) => g.group === open);
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', flex: 'none' }}>
-      <div className="il-scroll-x" style={{ height: 40, display: 'flex', alignItems: 'center', gap: 6, padding: '0 12px', whiteSpace: 'nowrap' }}>
-        <Label style={{ marginRight: 2 }}>TAGS</Label>
-        {groups.length === 0 && <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--il-muted)' }}>load some models to browse their tags</span>}
-        {groups.map((g) => {
-          const picked = g.tags.filter((t) => selectedTags.includes(t.tag)).length;
-          return (
-            <FChip key={g.group} on={open === g.group} onClick={() => setOpen(open === g.group ? null : g.group)} style={open === g.group ? undefined : picked ? { borderColor: 'var(--il-ember-line)', color: 'var(--il-ember-hi)' } : undefined}>
-              {g.group}{picked ? ` · ${picked}` : ''}<span style={{ opacity: .6, fontSize: 9 }}>{open === g.group ? '▴' : '▾'}</span>
-            </FChip>
-          );
-        })}
-        {selectedTags.length > 0 && <button type="button" onClick={clearTags} style={{ border: 0, background: 'transparent', color: 'var(--il-ember)', fontSize: 11, fontWeight: 700, marginLeft: 4, flex: 'none', cursor: 'pointer', padding: 0 }}>Clear tags</button>}
-      </div>
-      {current && (
-        <div style={{ margin: '0 12px 6px', padding: 8, borderRadius: 14, background: 'var(--il-panel)', border: '1px solid var(--il-line)', display: 'flex', flexWrap: 'wrap', gap: 6, maxHeight: 132, overflowY: 'auto' }} className="il-scroll">
-          {current.tags.map((t) => (
-            <FChip key={t.tag} on={selectedTags.includes(t.tag)} onClick={() => toggleTag(t.tag)}>
-              {t.tag}<span style={{ opacity: .6, fontSize: 9 }}>{t.count}</span>
-            </FChip>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
+import { FChip, type Size } from './bits';
 
 /** The picked tags as removable chips (the active-filter line, the phone's summary). */
 export function SelectedTagChips({ size = 'desktop' }: { size?: Size }) {
@@ -65,25 +29,27 @@ export function SelectedTagChips({ size = 'desktop' }: { size?: Size }) {
   );
 }
 
-/** Every group stacked, for the phone's Filters sheet. */
-export function TagGroups({ pool }: { pool: CivitaiModel[] }) {
+/** Every group stacked: the phone's Filters sheet, the desktop Tags menu (`autoOpen` keeps one group open). */
+export function TagGroups({ pool, size = 'phone', autoOpen }: { pool: CivitaiModel[]; size?: Size; autoOpen?: boolean }) {
   const selectedTags = useModels((s) => s.selectedTags);
   const toggleTag = useModels((s) => s.toggleTag);
   const open = useModels((s) => s.tagsOpen);
   const setOpen = useModels((s) => s.setTagsOpen);
-  const groups = useMemo(() => groupTags(pool, { limit: 30, selected: selectedTags }), [pool, selectedTags]);
+  const groups = useMemo(() => groupTags(pool, { limit: size === 'phone' ? 30 : 40, selected: selectedTags }), [pool, selectedTags, size]);
   if (!groups.length) return <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--il-muted)' }}>Load some models to browse their tags</span>;
+  const shown = autoOpen && !groups.some((g) => g.group === open) ? groups[0].group : open;
+  const pick = (g: string) => setOpen(shown === g ? (autoOpen ? g : null) : g);
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
         {groups.map((g) => {
           const picked = g.tags.filter((t) => selectedTags.includes(t.tag)).length;
-          return <FChip key={g.group} size="phone" on={open === g.group} onClick={() => setOpen(open === g.group ? null : g.group)}>{g.group}{picked ? ` · ${picked}` : ''}</FChip>;
+          return <FChip key={g.group} size={size} on={shown === g.group} onClick={() => pick(g.group)} style={size === 'desktop' && shown !== g.group && picked ? { borderColor: 'var(--il-ember-line)', color: 'var(--il-ember-hi)' } : undefined}>{g.group}{picked ? ` · ${picked}` : ''}</FChip>;
         })}
       </div>
-      {groups.filter((g) => g.group === open).map((g) => (
-        <div key={g.group} style={{ display: 'flex', flexWrap: 'wrap', gap: 6, padding: 8, borderRadius: 14, background: 'var(--il-panel)' }}>
-          {g.tags.map((t) => <FChip key={t.tag} size="phone" on={selectedTags.includes(t.tag)} onClick={() => toggleTag(t.tag)}>{t.tag}<span style={{ opacity: .6, fontSize: 10 }}>{t.count}</span></FChip>)}
+      {groups.filter((g) => g.group === shown).map((g) => (
+        <div key={g.group} className={size === 'phone' ? undefined : 'il-scroll'} style={{ display: 'flex', flexWrap: 'wrap', gap: 6, padding: 8, borderRadius: 14, background: size === 'phone' ? 'var(--il-panel)' : 'var(--il-bg)', maxHeight: size === 'phone' ? undefined : 220, overflowY: size === 'phone' ? undefined : 'auto' }}>
+          {g.tags.map((t) => <FChip key={t.tag} size={size} on={selectedTags.includes(t.tag)} onClick={() => toggleTag(t.tag)}>{t.tag}<span style={{ opacity: .6, fontSize: size === 'phone' ? 10 : 9 }}>{t.count}</span></FChip>)}
         </div>
       ))}
     </div>
