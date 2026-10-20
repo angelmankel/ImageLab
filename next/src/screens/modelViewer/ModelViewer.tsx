@@ -1,7 +1,8 @@
 /**
- * The fullscreen model viewer (Donny, 10-19: "tap the preview image of a model tile → a
- * fullscreen viewer with all the metadata, organised professionally"). Rule 1 throughout: the
- * chrome takes its own rows and columns, nothing overlays the picture.
+ * The model viewer (Donny, 10-19: "tap the preview image of a model tile → a viewer with all the
+ * metadata, organised professionally"; 10-20, item 32: a BIG MODAL, not full screen — the window
+ * is `ModelViewerHost`'s). Rule 1 throughout: the chrome takes its own rows and columns, nothing
+ * overlays the picture.
  *
  *   Desktop ≥ 768px                                  Phone
  *   ┌ top row 52 ─────────────────────────────────┐  ┌ top row 52 ──────────┐
@@ -82,7 +83,8 @@ export function ModelViewer() {
       <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', background: 'var(--il-bg)' }}>
         {top}
         <div ref={keepMeta} className="il-scroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto', touchAction: 'pan-y', display: 'flex', flexDirection: 'column' }}>
-          <div ref={pictureRef} style={{ width: '100%', aspectRatio: ratio, maxHeight: '56vh', flex: 'none', display: 'grid', touchAction: 'pan-y' }}>
+          {/* A plain block (not a grid): the picture sizes itself absolutely inside it (item 6). */}
+          <div ref={pictureRef} style={{ width: '100%', aspectRatio: ratio, maxHeight: '56vh', flex: 'none', position: 'relative', touchAction: 'pan-y' }}>
             <Picture image={image} hidden={!!image && isHidden(image)} onReveal={reveal} loading={gallery.loading} empty={empty} edges={false} canPrev={canPrev} canNext={canNext} onPrev={prev} onNext={next} />
           </div>
           {strip}

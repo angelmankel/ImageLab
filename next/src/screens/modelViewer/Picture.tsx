@@ -3,6 +3,12 @@
  * the deep backdrop; a clip plays muted in place. An adult sample beyond the NSFW level is NOT
  * drawn: the "NSFW · tap to show" pill stands in its place (the one thing allowed in the empty
  * area). On desktop the ‹ › buttons sit in their own narrow columns beside the picture.
+ *
+ * Fit (fix list item 6): the media is positioned ABSOLUTELY inside a relative box that fills its
+ * cell. Percent sizes on a grid / flex child resolve against a track that is still being sized
+ * (the picture's natural height wins and the track grows to it, so the sample overflowed and was
+ * cropped — twice). An absolute child resolves against the box itself, always: the longest edge
+ * is capped by the free space, the aspect is kept, nothing crops, stretches or overflows.
  */
 import { IconChevronLeft, IconChevronRight, IconEyeOff } from '@tabler/icons-react';
 import { useEffect, useState, type CSSProperties } from 'react';
@@ -36,39 +42,44 @@ function useSwapWhenDecoded(url: string): string {
   return shown;
 }
 
+/** Fills the box whatever the layout around it is: see the header comment. */
+const MEDIA: CSSProperties = { position: 'absolute', inset: 0, width: '100%', height: '100%', maxWidth: 'none', maxHeight: 'none', objectFit: 'contain', display: 'block' };
+const CENTRE: CSSProperties = { position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' };
+
 export function Picture({ image, hidden, onReveal, loading, empty, edges, canPrev, canNext, onPrev, onNext, style }: {
   image: CivitaiImage | undefined; hidden: boolean; onReveal: () => void; loading: boolean;
   /** What to say when there is no image at all. */
   empty: string;
   edges: boolean; canPrev: boolean; canNext: boolean; onPrev: () => void; onNext: () => void; style?: CSSProperties;
 }) {
-  const media: CSSProperties = { width: '100%', height: '100%', maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', display: 'block' };
   const video = !!image && isCivitaiVideo(image);
   const url = image ? pictureUrl(image) : '';
   // Clips swap at once (the <video> element is its own); stills wait for their decode (capped).
   const shown = useSwapWhenDecoded(video || hidden ? '' : url) || url;
 
   const body = !image ? (
-    <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--il-muted)' }}>{loading ? 'Loading samples…' : empty}</span>
+    <div style={CENTRE}><span style={{ fontSize: 12, fontWeight: 700, color: 'var(--il-muted)' }}>{loading ? 'Loading samples…' : empty}</span></div>
   ) : hidden ? (
-    <button type="button" onClick={onReveal} style={{ height: 32, padding: '0 14px', border: '1px solid var(--il-line-strong)', borderRadius: 999, background: 'var(--il-elev)', color: 'var(--il-fg)', fontSize: 11, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
-      <IconEyeOff size={13} stroke={2.2} />NSFW · tap to show
-    </button>
+    <div style={CENTRE}>
+      <button type="button" onClick={onReveal} style={{ height: 32, padding: '0 14px', border: '1px solid var(--il-line-strong)', borderRadius: 999, background: 'var(--il-elev)', color: 'var(--il-fg)', fontSize: 11, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+        <IconEyeOff size={13} stroke={2.2} />NSFW · tap to show
+      </button>
+    </div>
   ) : video ? (
-    <video key={image.url} src={civitaiVideoUrl(image.url, PICTURE_WIDTH)} poster={url} muted loop autoPlay playsInline style={media} />
+    <video key={image.url} src={civitaiVideoUrl(image.url, PICTURE_WIDTH)} poster={url} muted loop autoPlay playsInline style={MEDIA} />
   ) : (
-    <img src={shown} alt="" decoding="async" style={media} />
+    <img src={shown} alt="" decoding="async" style={MEDIA} />
   );
 
   const area = (
-    <div style={{ minWidth: 0, minHeight: 0, width: '100%', height: '100%', background: 'var(--il-bg-deep)', display: 'grid', placeItems: 'center', overflow: 'hidden', ...style }}>
+    <div style={{ position: 'relative', minWidth: 0, minHeight: 0, width: '100%', height: '100%', background: 'var(--il-bg-deep)', overflow: 'hidden', ...style }}>
       {body}
     </div>
   );
 
   if (!edges) return area;
   return (
-    // One row that is the cell's height: an implicit (auto) row grows to the picture's natural size and overflows.
+    // Explicit single tracks both ways: an implicit (auto) track would grow to the picture's natural size.
     <div style={{ display: 'grid', gridTemplateColumns: `${EDGE_COL}px minmax(0, 1fr) ${EDGE_COL}px`, gridTemplateRows: 'minmax(0, 1fr)', minHeight: 0, minWidth: 0, height: '100%', overflow: 'hidden' }}>
       <div style={{ display: 'grid', placeItems: 'center' }}><IconBtn icon={<IconChevronLeft size={20} stroke={2.2} />} label="Previous image" onClick={onPrev} disabled={!canPrev} tooltip={false} /></div>
       {area}
