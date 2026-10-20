@@ -51,8 +51,9 @@ export function LogBox({ host, fill = true, maxHeight }: { host: string | null; 
         onScroll={(e) => { const el = e.currentTarget; stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 24; }}
         style={{
           flex: fill ? 1 : undefined, minHeight: fill ? 0 : 120, maxHeight, padding: '10px 12px', borderRadius: 16, background: 'var(--il-bg)',
-          border: '1px solid var(--il-line)', overflowX: 'auto', fontFamily: 'ui-monospace, Menlo, monospace', fontSize: 11, lineHeight: 1.7,
-          color: 'var(--il-muted)', whiteSpace: 'nowrap', touchAction: 'pan-y',
+          border: '1px solid var(--il-line)', overflowX: fill ? 'auto' : 'hidden', fontFamily: 'ui-monospace, Menlo, monospace', fontSize: 11, lineHeight: 1.7,
+          // The phone (fill=false) wraps: a sideways scroll would fight the page's pan-y.
+          color: 'var(--il-muted)', whiteSpace: fill ? 'nowrap' : 'pre-wrap', wordBreak: fill ? undefined : 'break-word', touchAction: 'pan-y',
         }}
       >
         {lines.map((l, i) => (

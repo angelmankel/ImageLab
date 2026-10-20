@@ -14,6 +14,9 @@ import { useStore } from '@/lib/store';
 import { useComfyConnection } from '@/hooks/useComfyConnection';
 import { useModelProfileSync } from '@/hooks/useModelProfileSync';
 import { useVideoServerProbe } from '@/hooks/useVideoServerProbe';
+import { useQueue } from '~/app/queue';
+import { useActiveStep, useSteps } from '~/app/stepsStore';
+import { rowIsStep } from './phoneLogic';
 
 export interface GenerateApi {
   /** Generate with the seed as set. */
@@ -45,9 +48,18 @@ export function StepPanel(props: StepPanelProps) {
 
 // ── useGenerate ──────────────────────────────────────────────────────────────
 
-/** Fallback: the main app's image Generate (`fireFromStore`), Stop = cancel the running image job. */
+/**
+ * Fallback: the main app's image Generate (`fireFromStore`), Stop = cancel the running image job.
+ * "Running" is this step's own job: rows that know their step match it, the rest belong to the
+ * first image step.
+ */
 function useFallbackGenerate(): GenerateApi {
-  const running = useStore((s) => s.isSubmitting || s.jobs.some((j) => j.status === 'running'));
+  const step = useActiveStep();
+  const firstImage = useSteps((s) => s.steps.find((x) => x.kind === 'image')?.id ?? null);
+  const submitting = useStore((s) => s.isSubmitting);
+  const { running: row } = useQueue();
+  const mine = step.id === firstImage;
+  const running = (!!row && rowIsStep(row.stepId, step.id, mine)) || (submitting && mine);
   return {
     generate: () => { void fireFromStore(false); },
     generateRandom: () => { void fireFromStore(true); },
