@@ -27,6 +27,7 @@ import { useModelProfileSync } from '@/hooks/useModelProfileSync';
 import { useViewSwitching } from '@/hooks/useViewSwitching';
 import { useCanvasControllerProvider } from '@/hooks/useCanvasControllerProvider';
 import { useVideoServerProbe } from '@/hooks/useVideoServerProbe';
+import { useTabStatus } from '@/hooks/useTabStatus';
 import { useInstalledWanFiles } from '@/features/video/videoControls';
 import { GamepadLayer } from '@/features/gamepad/GamepadLayer';
 
@@ -49,6 +50,8 @@ export default function App() {
   useThemeEffect();
   useModelProfileSync();
   useVideoServerProbe();
+  // The browser tab's icon and title show what is running, done or failed.
+  useTabStatus();
   // Swap a missing Wan file for its installed stand-in, for both shells.
   useInstalledWanFiles();
 
