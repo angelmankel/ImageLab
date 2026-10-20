@@ -15,6 +15,7 @@ import { baseModelShort, fmtSizeKB, isBeyondMask, typeLabel, type InstalledState
 import { Avatar, CoverBadge, COVER_FALLBACK, EmberBtn, GhostBtn, Stats, type Size } from './bits';
 import { DownloadButton } from './DownloadButton';
 import { openModelViewer } from './viewerBridge';
+import { isLocalModel } from './localModels';
 
 export const TILE_THUMB = 560;
 
@@ -45,7 +46,8 @@ export function ModelTile({ model, selected, installed, mask, revealed, favourit
 
   const onCover = () => {
     if (hidden) { onReveal(); return; }
-    void openModelViewer({ modelId: model.id, versionId: version?.id ?? null, imageIndex }).then((opened) => { if (!opened) onOpen(); });
+    const file = isLocalModel(model) ? version?.files[0]?.name : null;
+    void openModelViewer(file ? { file } : { modelId: model.id, versionId: version?.id ?? null, imageIndex }).then((opened) => { if (!opened) onOpen(); });
   };
 
   const h = phone ? 36 : 30;

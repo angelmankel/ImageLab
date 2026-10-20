@@ -12,6 +12,7 @@ import { COVER_FALLBACK, RoundAction, Stats, Tag, EmberBtn } from './bits';
 import { DownloadButton } from './DownloadButton';
 import { coverImage } from './ModelTile';
 import { openModelViewer } from './viewerBridge';
+import { isLocalModel } from './localModels';
 
 export function ModelRow({ model, selected, installed, mask, revealed, picking, onOpen, onReveal, onUse }: {
   model: CivitaiModel; selected: boolean; installed: InstalledState; mask: number; revealed: boolean; picking?: boolean; onOpen: () => void; onReveal: () => void; onUse: () => void;
@@ -25,7 +26,8 @@ export function ModelRow({ model, selected, installed, mask, revealed, picking, 
   const sub = [`by ${model.creator?.username || 'unknown'}`, some ? `${installed.installed} of ${installed.total} versions` : version?.name, !all && !some ? fmtSizeKB(file?.sizeKB) : ''].filter(Boolean).join(' · ');
   const onCover = () => {
     if (hidden) { onReveal(); return; }
-    void openModelViewer({ modelId: model.id, versionId: version?.id ?? null, imageIndex }).then((opened) => { if (!opened) onOpen(); });
+    const file = isLocalModel(model) ? version?.files[0]?.name : null;
+    void openModelViewer(file ? { file } : { modelId: model.id, versionId: version?.id ?? null, imageIndex }).then((opened) => { if (!opened) onOpen(); });
   };
 
   return (

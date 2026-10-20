@@ -8,18 +8,19 @@ import { useMemo } from 'react';
 import { useStore } from '@/lib/store';
 import type { ServerInfo } from '@/lib/types';
 import type { CivitaiModel, CivitaiVersionByHash } from '@/lib/civitai';
-import { RESOURCE_LIST } from '@/lib/routing';
 import { buildInstalledIndex, modelInstalled, versionInstalled, fileInstalled, type InstalledIndex, type InstalledState, type FileLike, type VersionLike, type ModelLike } from './civitaiQuery';
+import { LOCAL_LISTS, localModelsFor, type LocalKind } from './localModels';
 
-const LISTS = ['checkpoint', 'vae', 'lora', 'embedding', 'upscale'] as const;
-
-function* serverNames(serverInfo: Record<string, ServerInfo>): Iterable<string> {
+function* serverFiles(serverInfo: Record<string, ServerInfo>): Iterable<{ kind: LocalKind; name: string; type: string }> {
   for (const info of Object.values(serverInfo)) {
-    for (const kind of LISTS) {
-      const list = info[RESOURCE_LIST[kind]];
-      if (Array.isArray(list)) for (const n of list) if (typeof n === 'string') yield n;
+    for (const { kind, list, type } of LOCAL_LISTS) {
+      const names = info[list];
+      if (Array.isArray(names)) for (const n of names) if (typeof n === 'string') yield { kind, name: n, type };
     }
   }
+}
+function* serverNames(serverInfo: Record<string, ServerInfo>): Iterable<string> {
+  for (const f of serverFiles(serverInfo)) yield f.name;
 }
 
 export interface Installed {
@@ -74,10 +75,15 @@ function buildInstalled(hashes: ReturnType<typeof useStore.getState>['modelHashe
   }
 }
 
-/** The Installed source: every hashed server file that CivitAI knows, one item per CivitAI model. */
+/**
+ * The Installed source: every hashed server file that CivitAI knows, one item per CivitAI model —
+ * PLUS a local item for every other server file (not hashed yet, lookup pending / failed, or not
+ * on CivitAI at all), so the Downloaded list is really everything on the server.
+ */
 export function useInstalledModels(): CivitaiModel[] {
   const hashes = useStore((s) => s.modelHashes);
   const byHash = useStore((s) => s.civitaiByHash);
+  const serverInfo = useStore((s) => s.serverInfo);
   return useMemo(() => {
     const out = new Map<number, CivitaiModel>();
     for (const h of hashes) {
@@ -104,6 +110,9 @@ export function useInstalledModels(): CivitaiModel[] {
         poi: v.model?.poi,
       });
     }
-    return [...out.values()].sort((a, b) => a.name.localeCompare(b.name));
-  }, [hashes, byHash]);
+    const known = [...out.values()];
+    const hashOf = (name: string) => { const b = name.split('/').pop() ?? name; return hashes.find((h) => h.filename === b || h.key.endsWith('/' + b) || h.key === b)?.hash; };
+    const local = localModelsFor(serverFiles(serverInfo), known, hashOf);
+    return [...known, ...local].sort((a, b) => a.name.localeCompare(b.name));
+  }, [hashes, byHash, serverInfo]);
 }
