@@ -15,6 +15,7 @@ import { DesktopShell } from '~/screens/image/DesktopShell';
 import { PhoneShell } from '~/screens/phone/PhoneShell';
 import { ModelViewerHost } from '~/screens/modelViewer';
 import { useCreditNewResults } from '~/screens/image/resultSteps';
+import { ContextMenuHost } from './contextMenu';
 
 export function App() {
   const phone = useIsPhone();
@@ -23,6 +24,7 @@ export function App() {
     <ErrorBoundary label="ImageLab">
       {phone ? <PhoneShell /> : <DesktopShell />}
       <ModelViewerHost />
+      <ContextMenuHost />
     </ErrorBoundary>
   );
 }
