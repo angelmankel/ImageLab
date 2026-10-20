@@ -17,6 +17,8 @@ import { Avatar, CoverBadge, COVER_FALLBACK, EmberBtn, GhostBtn, Stats, type Siz
 import { DownloadButton } from './DownloadButton';
 import { openModelViewer } from './viewerBridge';
 import { isLocalModel } from './localModels';
+import { menuProps } from '~/app/contextMenu';
+import type { ModelTileTarget } from '~/app/contextMenu/menus/modelMenu';
 import { usePreviewOrder, viewerStart, type PreviewImage } from '~/app/usePreviewOrder';
 
 export const TILE_THUMB = 560;
@@ -95,7 +97,7 @@ export function ModelTile({ model, selected, installed, mask, revealed, favourit
   );
 
   return (
-    <div style={{ background: 'var(--il-card)', borderRadius: 16, padding: phone ? 8 : 10, display: 'flex', flexDirection: 'column', gap: phone ? 6 : 7, outline: selected ? '2px solid var(--il-ember)' : undefined, outlineOffset: -2, minWidth: 0 }}>
+    <div {...menuProps<ModelTileTarget>('model-tile', { model, view: onCover, open: onOpen, use: anyInstalled ? onUse : null })} style={{ background: 'var(--il-card)', borderRadius: 16, padding: phone ? 8 : 10, display: 'flex', flexDirection: 'column', gap: phone ? 6 : 7, outline: selected ? '2px solid var(--il-ember)' : undefined, outlineOffset: -2, minWidth: 0 }}>
       <button
         type="button"
         aria-label={`${hidden ? 'Show the NSFW cover of' : 'View'} ${model.name}`}

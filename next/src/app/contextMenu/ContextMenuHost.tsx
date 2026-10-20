@@ -17,8 +17,9 @@ import { useIsPhone } from '~/app/useIsPhone';
 import {
   firstIndex, isTextField, lastIndex, letterIndex, placeAtPoint, placeBeside, stepIndex, type MenuRow,
 } from './menuLogic';
-import { closeMenu, handledEvents, openMenu, pointOf, useContextMenu, type OpenMenu } from './registry';
+import { closeMenu, handledEvents, openMenu, pointOf, touchClock, useContextMenu, type OpenMenu } from './registry';
 import { fallbackTarget } from './builtinMenus';
+import './menus';
 
 const Z = T.z.confirm + 50; // above popovers, modals and the confirm layer
 const LONG_PRESS_MS = 500;
@@ -59,6 +60,7 @@ function useGlobalMenuListeners() {
     const onTouchStart = (e: TouchEvent) => {
       cancelPress();
       touchAt = Date.now();
+      touchClock.at = touchAt;
       if (e.touches.length !== 1) return;
       const t = e.target as Element | null;
       // Only things with a registered menu; text fields and own hold gestures keep theirs.

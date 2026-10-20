@@ -8,6 +8,7 @@ import { IconPhoto, IconArrowsMaximize, IconMovie, IconGitBranch, IconPlus, Icon
 import { useRoute, type Screen } from '~/app/routeStore';
 import { useSteps, STEP_LABEL, type Step, type StepKind } from '~/app/stepsStore';
 import { T } from '~/theme/tokens';
+import { menuProps } from '~/app/contextMenu';
 import { useStepOutput } from './useStepOutput';
 
 export const KIND_ICON: Record<StepKind, typeof IconPhoto> = { image: IconPhoto, upscale: IconArrowsMaximize, video: IconMovie, workflow: IconGitBranch };
@@ -72,7 +73,7 @@ export function Rail() {
       <div className="il-scroll" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minHeight: 0, overflowX: 'hidden', flex: 'none', maxHeight: '60%' }}>
         {steps.map((st, i) => (
           <div key={st.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            <StepButton step={st} index={i} />
+            <div {...menuProps('step', st)}><StepButton step={st} index={i} /></div>
             <span aria-hidden style={{ width: 2, height: 18, background: steps[i + 1]?.chained ? 'var(--il-ok)' : 'var(--il-line-strong)', margin: '4px 0' }} />
           </div>
         ))}

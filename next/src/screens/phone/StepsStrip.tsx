@@ -9,6 +9,7 @@ import { IconPlus } from '@tabler/icons-react';
 import { useSteps, STEP_LABEL, type StepKind } from '~/app/stepsStore';
 import { T } from '~/theme/tokens';
 import { stepChipLabel } from './phoneLogic';
+import { menuProps } from '~/app/contextMenu';
 
 const ADDABLE: StepKind[] = ['upscale', 'video', 'image', 'workflow'];
 
@@ -32,6 +33,7 @@ export function StepsStrip({ onJump }: { onJump: (id: string) => void }) {
             key={st.id}
             type="button"
             data-step={st.id}
+            {...menuProps('step', st)}
             aria-current={on ? 'step' : undefined}
             onClick={() => onJump(st.id)}
             style={{

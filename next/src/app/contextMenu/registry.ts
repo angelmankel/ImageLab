@@ -87,6 +87,9 @@ export function closeMenu(): void {
   if (f && typeof f.focus === 'function' && document.contains(f)) f.focus({ preventScroll: true });
 }
 
+/** When the last touch started (set by the host): a contextmenu soon after one came from a finger. */
+export const touchClock = { at: 0 };
+
 /** Events our menu already took (the innermost marked element wins; the global fallback skips them). */
 export const handledEvents = new WeakSet<Event>();
 
@@ -108,7 +111,9 @@ export function menuProps<T>(type: string, target: T) {
     'data-ctx': type,
     onContextMenu: (e: ReactMouseEvent) => {
       const ne = e.nativeEvent;
-      if (handledEvents.has(ne) || ne.shiftKey || isTextField(e.target as Element)) return;
+      if (handledEvents.has(ne) || ne.defaultPrevented || ne.shiftKey || isTextField(e.target as Element)) return;
+      // A hold inside [data-no-ctx] belongs to that element's own gesture (e.g. the Send-to sheet).
+      if ((e.target as Element).closest?.('[data-no-ctx]') && Date.now() - touchClock.at < 1500) return;
       const el = e.currentTarget as Element;
       const p = pointOf(ne, el);
       if (openMenu(type, target, p, { el, keyboard: p.keyboard })) {

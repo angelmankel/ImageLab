@@ -17,6 +17,7 @@ import { deleteOutput } from '~/app/deleteResult';
 import { filterTiles, inStep, mergeTiles, type HistoryFilter, type HistoryScope, type Tile } from './historyLogic';
 import { useResultSteps } from './resultSteps';
 import { makePayload, useImageDrag, useLongPress, openSendTo } from '~/dnd';
+import { menuProps } from '~/app/contextMenu';
 
 const SCOPES: Array<{ key: HistoryScope; label: string; title: string }> = [{ key: 'step', label: 'This step', title: 'Only what the open step made' }, { key: 'all', label: 'All', title: 'Every generation' }];
 /** Toggles: tap one to show only that, tap it again for everything (no 'All' chip, Donny 10-20). */
@@ -30,8 +31,9 @@ function TileView({ tile, selected, onPick, onOpen, onLike, onDelete }: { tile: 
   const drag = useImageDrag(payload);
   const press = useLongPress(() => openSendTo(payload()));
   return (
-    <div style={{ position: 'relative', aspectRatio: '1', borderRadius: 14, overflow: 'hidden', background: 'var(--il-bg-deep)', outline: selected ? '3px solid var(--il-ember)' : undefined, outlineOffset: -3 }}>
-      <button type="button" onClick={onPick} onDoubleClick={onOpen} aria-label={tile.filename} aria-pressed={selected} data-viewer-origin={tile.entryId} {...press}
+    <div {...menuProps('history-image', tile)} style={{ position: 'relative', aspectRatio: '1', borderRadius: 14, overflow: 'hidden', background: 'var(--il-bg-deep)', outline: selected ? '3px solid var(--il-ember)' : undefined, outlineOffset: -3 }}>
+      {/* data-no-ctx: on a phone the hold is the Send-to sheet's; right-click still opens the menu. */}
+      <button type="button" onClick={onPick} onDoubleClick={onOpen} aria-label={tile.filename} aria-pressed={selected} data-viewer-origin={tile.entryId} data-no-ctx {...press}
         style={{ display: 'block', width: '100%', height: '100%', padding: 0, border: 0, background: 'transparent', cursor: 'pointer' }}>
         {tile.kind === 'video'
           ? <video src={tile.url} muted playsInline preload="metadata" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', pointerEvents: 'none' }} />
