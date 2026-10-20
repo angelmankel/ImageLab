@@ -9,6 +9,7 @@
  *   Write it Ctrl/⌘+Enter ........ screens/image/WriteItModal.tsx
  *   models search Enter / Esc .... screens/models/FilterBar.tsx
  *   dialogs Esc .................. Mantine Modal default (closeOnEscape)
+ *   H hints on / off ............. ui/UiEffects.tsx (useShortcut 'h')
  */
 import { useState, type ReactNode } from 'react';
 import { Popover } from '@mantine/core';
@@ -41,6 +42,9 @@ const GROUPS: { title: string; rows: Row[] }[] = [
     { keys: [['Esc']], what: 'Clear the search' },
     { keys: [['←'], ['→']], what: 'Preview: previous / next image' },
     { keys: [['Esc']], what: 'Preview: close' },
+  ] },
+  { title: 'App', rows: [
+    { keys: [['H']], what: 'Hints on / off' },
   ] },
   { title: 'Dialogs', rows: [
     { keys: [[MOD, 'Enter']], what: '“Write it”: run' },

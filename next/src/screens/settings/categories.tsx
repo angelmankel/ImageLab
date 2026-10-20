@@ -21,7 +21,7 @@ export const CATEGORIES: readonly Category[] = [
   { id: 'ai', label: 'AI helper', description: 'The provider and model that write, improve and read prompts. Keys stay in this browser; calls go straight from this tab to the active provider.', icon: IconSparkles },
   { id: 'models', label: 'Models & CivitAI', description: 'CivitAI access and how model previews play.', icon: IconCube },
   { id: 'appearance', label: 'Appearance', description: 'Sizes and looks of the library.', icon: IconPalette },
-  { id: 'sounds', label: 'Sounds', description: 'A blip when a job is queued, a chime when it is done.', icon: IconVolume },
+  { id: 'sounds', label: 'Sounds', description: 'Volume, mute, and which sounds play: queued, done, clicks, toggles, hover.', icon: IconVolume },
   { id: 'about', label: 'About', description: 'This app, the classic UI, and where your settings live.', icon: IconInfoCircle },
 ];
 

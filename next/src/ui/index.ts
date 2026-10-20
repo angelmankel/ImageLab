@@ -14,3 +14,6 @@ export type { ButtonProps, ButtonTone, ButtonSize } from './Button';
 export { Tip, TIP_DELAY } from './Tip';
 export { HINTS, hintOf, hintGroups, useHints, hintsOn } from './hints';
 export type { HintMeta } from './hints';
+export { HintsToggle } from './HintsToggle';
+export { MuteToggle } from './MuteToggle';
+export { UiEffects } from './UiEffects';

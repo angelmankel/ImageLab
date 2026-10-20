@@ -1,13 +1,14 @@
 /**
- * Settings → Sounds: the volume of the "queued" blip and the "done" chime (0 = off, with tap
- * presets; a change plays the chime after a beat) and a preview of each. Logic = `@/lib/sounds`
- * (stored in this browser).
+ * Settings → Sounds (item 44): mute, the volume (0 = off, with tap presets; a change plays the
+ * chime after a beat), and each kind on / off with a ▶ preview (queued, done, success, error,
+ * click, toggle, hover). Logic = `@/lib/sounds` (stored in this browser; the top bar's
+ * MuteToggle is the same `muted`).
  */
 import { useEffect, useRef } from 'react';
 import { Slider } from '@mantine/core';
 import { IconPlayerPlay } from '@tabler/icons-react';
-import { playCompleteSound, playSubmitSound, useSoundStore } from '@/lib/sounds';
-import { Chip, Row } from '~/ui';
+import { playCompleteSound, playSound, SOUND_KINDS, useSoundStore } from '@/lib/sounds';
+import { Chip, IconBtn, Row, Switch } from '~/ui';
 import type { SettingDef } from './categories';
 
 const PRESETS = [0, 25, 50, 100];
@@ -38,27 +39,48 @@ function VolumeCtl() {
   );
 }
 
-function PreviewCtl() {
-  const volume = useSoundStore((s) => s.volume);
-  const off = Math.round(volume * 100) === 0;
+function MuteCtl() {
+  const muted = useSoundStore((s) => s.muted);
+  const setMuted = useSoundStore((s) => s.setMuted);
+  return <Switch label="" checked={muted} onChange={setMuted} />;
+}
+
+function KindsCtl() {
+  const kinds = useSoundStore((s) => s.kinds);
+  const setKind = useSoundStore((s) => s.setKind);
+  const silent = useSoundStore((s) => s.muted || s.volume <= 0);
   return (
-    <Row>
-      <Chip small disabled={off} onClick={playSubmitSound} icon={<IconPlayerPlay size={12} />}>Queued</Chip>
-      <Chip small disabled={off} onClick={playCompleteSound} icon={<IconPlayerPlay size={12} />}>Done</Chip>
-    </Row>
+    <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 6 }}>
+      {SOUND_KINDS.map((k) => (
+        <div key={k.kind} style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 36 }}>
+          <IconBtn icon={<IconPlayerPlay size={14} />} label={`Hear “${k.label}”`} size={32} tone="card" disabled={silent || !kinds[k.kind]}
+            onClick={() => playSound(k.kind, { on: true })} />
+          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--il-fg)' }}>{k.label}</span>
+            <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--il-muted)' }}>{k.hint}</span>
+          </div>
+          <Switch label="" checked={kinds[k.kind] !== false} onChange={(on) => setKind(k.kind, on)} />
+        </div>
+      ))}
+    </div>
   );
 }
 
 export const SOUNDS_ROWS: readonly SettingDef[] = [
   {
     id: 'sounds.volume', category: 'sounds', label: 'Volume', wide: true,
-    hint: 'The blip when a job is queued and the chime when it is done. Off at zero.',
+    hint: 'All app sounds: the queued blip, the done chime, clicks and toggles. Off at zero.',
     keywords: ['mute', 'off', 'chime', 'blip', 'notification', 'audio', 'loud', 'quiet'],
     Control: VolumeCtl, Value: VolumeValue,
   },
   {
-    id: 'sounds.preview', category: 'sounds', label: 'Preview', compact: true,
-    hint: 'Hear each sound at the volume above.',
-    keywords: ['play', 'test', 'queued', 'done', 'chime', 'blip'], Control: PreviewCtl,
+    id: 'sounds.mute', category: 'sounds', label: 'Mute', compact: true,
+    hint: 'Silence every sound and keep the volume. Same as the speaker button at the top right.',
+    keywords: ['mute', 'silent', 'quiet', 'off', 'speaker'], Control: MuteCtl,
+  },
+  {
+    id: 'sounds.kinds', category: 'sounds', label: 'Which sounds', wide: true,
+    hint: 'Each sound on or off; ▶ plays it at the volume above.',
+    keywords: ['play', 'test', 'queued', 'done', 'chime', 'blip', 'hover', 'click', 'toggle', 'error', 'success', 'feedback'], Control: KindsCtl,
   },
 ];

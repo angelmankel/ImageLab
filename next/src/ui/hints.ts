@@ -3,7 +3,7 @@
  * that control (`<Tip hint="steps">`, `SliderRow id="steps"`, `Button hint=…`). Donny edits the
  * texts in Settings → Hints (overrides saved in this browser under `imagelab.next.hints.v1`,
  * stock text when an override is empty); the global on / off is the same store (`enabled`,
- * remembered), flipped by the footer's `HintsToggle` or the H key (`useHintsHotkey`).
+ * remembered), flipped by the footer's `HintsToggle` or the H key (`UiEffects`).
  * Add a parameter: one line in HINTS. Pure except the zustand store.
  */
 import { create } from 'zustand';

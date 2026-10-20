@@ -37,7 +37,8 @@ function Appearance() {
 
 function Sounds() {
   const volume = useSoundStore((s) => s.volume);
-  return <>{soundsSummary(volume)}</>;
+  const muted = useSoundStore((s) => s.muted);
+  return <>{muted ? 'Muted' : soundsSummary(volume)}</>;
 }
 
 function About() {

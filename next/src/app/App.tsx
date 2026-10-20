@@ -17,6 +17,7 @@ import { ModelViewerHost } from '~/screens/modelViewer';
 import { useCreditNewResults } from '~/screens/image/resultSteps';
 import { ContextMenuHost } from './contextMenu';
 import { DragLayer, SendToSheet } from '~/dnd';
+import { UiEffects } from '~/ui/UiEffects';
 
 export function App() {
   const phone = useIsPhone();
@@ -28,6 +29,7 @@ export function App() {
       <ContextMenuHost />
       <DragLayer />
       <SendToSheet />
+      <UiEffects />
     </ErrorBoundary>
   );
 }
