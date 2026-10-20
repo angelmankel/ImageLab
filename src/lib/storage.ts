@@ -533,6 +533,23 @@ export function saveSlideshowTransition(v: SlideshowTransition) {
   try { localStorage.setItem(SLIDESHOW_TRANSITION_KEY, v); } catch { /* ignore */ }
 }
 
+// Slideshow speed (ms per picture), one global preference like the transition.
+export const SLIDESHOW_MS_KEY = 'imagelab.slideshowMs.v1';
+export const SLIDESHOW_SPEEDS: readonly { ms: number; label: string }[] = [
+  { ms: 1000, label: '1 s' }, { ms: 2000, label: '2 s' }, { ms: 3000, label: '3 s' }, { ms: 5000, label: '5 s' },
+  { ms: 10000, label: '10 s' }, { ms: 20000, label: '20 s' },
+];
+export function loadSlideshowMs(fallback: number): number {
+  try {
+    const n = Number(localStorage.getItem(SLIDESHOW_MS_KEY));
+    if (Number.isFinite(n) && n >= 500 && n <= 120000) return n;
+  } catch { /* ignore */ }
+  return fallback;
+}
+export function saveSlideshowMs(ms: number) {
+  try { localStorage.setItem(SLIDESHOW_MS_KEY, String(ms)); } catch { /* ignore */ }
+}
+
 // ---------------------------------------------------------------------------
 // Venice AI — uncensored chat-completion API used by the Prompt Studio's
 // "expand / improve / brainstorm" actions. Stored locally; never sent to the

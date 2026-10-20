@@ -18,6 +18,9 @@ import { SLIDE_GAP, closeCommits, closeProgress, closeScale, lockAxis, rubberBan
 import {
   loadSlideshowTransition,
   saveSlideshowTransition,
+  loadSlideshowMs,
+  saveSlideshowMs,
+  SLIDESHOW_SPEEDS,
   type SlideshowTransition,
 } from '@/lib/storage';
 import { cn } from '@/lib/cn';
@@ -156,6 +159,9 @@ export function FullscreenImage({
     saveSlideshowTransition(t);
     setTransitionState(t);
   };
+  // Slideshow speed (persisted); the `slideshowMs` prop is only the default for a fresh browser.
+  const [stepMs, setStepMsState] = useState<number>(() => loadSlideshowMs(slideshowMs));
+  const setStepMs = (ms: number) => { saveSlideshowMs(ms); setStepMsState(ms); };
 
   // Previous-URL ref drives the dual-image transition stack. On every URL change while the
   // slideshow is playing, we capture the just-shown URL and bump `animKey` so both layers remount
@@ -314,9 +320,9 @@ export function FullscreenImage({
   useEffect(() => {
     // A live frame is on screen: the slideshow waits until the job finishes.
     if (!playing || len < 2 || live) return;
-    const t = setInterval(() => onIndexChange((index + 1) % len), slideshowMs);
+    const t = setInterval(() => onIndexChange((index + 1) % len), stepMs);
     return () => clearInterval(t);
-  }, [playing, index, len, onIndexChange, slideshowMs, live]);
+  }, [playing, index, len, onIndexChange, stepMs, live]);
 
   // Top-overlay priority — when the fullscreen viewer is open, its arrows
   // and Esc take precedence over the history panel / metadata gallery behind.
@@ -384,7 +390,7 @@ export function FullscreenImage({
             >
               {side === 0 ? (
                 <div ref={pullRef} className="h-full w-full">
-                  <KenBurnsWrap active={playing && transition === 'ken-burns'} durationMs={slideshowMs} animKey={animKey}>
+                  <KenBurnsWrap active={playing && transition === 'ken-burns'} durationMs={stepMs} animKey={animKey}>
                     {isVideoUrl(u) ? (
                       <video
                         key={u} src={u} autoPlay muted={!videoHasAudio(u)} loop playsInline className={IMAGE_BOX} style={panStyle}
@@ -513,7 +519,7 @@ export function FullscreenImage({
           {toolbarExtra}
           {len > 1 && !live && (
             <>
-              <TransitionPicker value={transition} onChange={setTransition} />
+              <TransitionPicker value={transition} onChange={setTransition} stepMs={stepMs} onStepMs={setStepMs} />
               <Tooltip label={playing ? 'Pause slideshow (S)' : 'Play slideshow (S)'} withArrow>
                 <ActionIcon
                   {...chrome}
@@ -609,8 +615,8 @@ const TRANSITION_OPTIONS: { value: SlideshowTransition; label: string; hint: str
 /** v1's slideshow settings: a gear ActionIcon opening the effect list. Lives in the top-right
  *  cluster next to the play control. */
 function TransitionPicker({
-  value, onChange,
-}: { value: SlideshowTransition; onChange: (v: SlideshowTransition) => void }) {
+  value, onChange, stepMs, onStepMs,
+}: { value: SlideshowTransition; onChange: (v: SlideshowTransition) => void; stepMs: number; onStepMs: (ms: number) => void }) {
   const active = TRANSITION_OPTIONS.find(o => o.value === value) ?? TRANSITION_OPTIONS[1];
   // Controlled, so the gear's own click handler (which must stop propagation) does the toggling.
   const [open, setOpen] = useState(false);
@@ -636,6 +642,20 @@ function TransitionPicker({
       <Popover.Dropdown onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
         <Stack gap="xs" miw={220}>
           <Text size="sm" fw={600}>Slideshow settings</Text>
+          <Text size="xs" c="dimmed">Speed · seconds per picture</Text>
+          <Group gap={4} wrap="wrap">
+            {SLIDESHOW_SPEEDS.map((sp) => (
+              <UnstyledButton
+                key={sp.ms}
+                onClick={() => onStepMs(sp.ms)}
+                aria-pressed={sp.ms === stepMs}
+                className="rounded-full px-2.5 py-1 text-xs font-semibold hover:bg-[var(--mantine-color-dark-5)]"
+                style={sp.ms === stepMs ? { backgroundColor: 'var(--mantine-primary-color-light)' } : { backgroundColor: 'var(--mantine-color-dark-6)' }}
+              >
+                {sp.label}
+              </UnstyledButton>
+            ))}
+          </Group>
           <Text size="xs" c="dimmed">Effect</Text>
           <Stack gap={2}>
             {TRANSITION_OPTIONS.map((o) => (
