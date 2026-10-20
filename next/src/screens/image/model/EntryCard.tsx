@@ -38,7 +38,7 @@ function ActionPill({ children, onClick, tone = 'card', title, disabled }: { chi
 }
 
 /** The file is named but no server lists it (and nothing is downloading it). */
-function MissingStrip({ file }: { file: string }) {
+export function MissingStrip({ file }: { file: string }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: T.radius.md, background: 'var(--il-elev)', border: '1px dashed var(--il-line-strong)', fontSize: 11, fontWeight: 700, color: 'var(--il-warn)' }}>
       <IconAlertTriangle size={13} style={{ flex: 'none' }} />
@@ -57,9 +57,12 @@ export function EntryCard({ entry, api, onChange }: { entry: ModelEntry; api: Ki
   const title = entry.name ? (meta.name ?? meta.label) : `No ${spec.one} yet`;
   const moreNode = card?.more?.(entry);
   const moreHint = card?.moreHint?.(entry);
+  const headLabel = card?.headLabel?.(entry);
+  const afterNode = card?.after?.(entry);
 
   return (
     <div style={{ border: `1px ${pending ? 'dashed' : 'solid'} var(--il-line-strong)`, borderRadius: T.radius.xl, background: 'var(--il-card)', padding: T.pad.card, display: 'flex', flexDirection: 'column', gap: 14, opacity: dim ? 0.8 : 1 }}>
+      {headLabel && <span className="il-eyebrow" style={{ marginBottom: -8 }}>{headLabel}</span>}
       {pending && <PendingStrip record={pending} />}
       {!pending && entry.missing && <MissingStrip file={entry.name} />}
       <div style={{ display: 'flex', gap: 12 }}>
@@ -92,10 +95,12 @@ export function EntryCard({ entry, api, onChange }: { entry: ModelEntry; api: Ki
       {card?.body?.(entry)}
 
       {showWeight && spec.weight && (
-        <SliderRow label={spec.weight.label} value={entry.weight} min={spec.weight.min} max={spec.weight.max} step={spec.weight.step}
+        <SliderRow label={card?.weightLabel?.(entry) ?? spec.weight.label} value={entry.weight} min={spec.weight.min} max={spec.weight.max} step={spec.weight.step}
           presets={spec.weight.presets} format={fmtWeight} onChange={(v) => api.setWeight(entry.id, v)}
           hint={card?.weightHint?.(entry)} />
       )}
+
+      {afterNode}
 
       {more && moreNode && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingTop: 2 }}>{moreNode}</div>

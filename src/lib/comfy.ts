@@ -173,6 +173,23 @@ export async function startDownload(
   }
 }
 
+/**
+ * Download any https file (a Hugging Face file, one particular CivitAI file of a version — the
+ * version download above fetches only the version's primary file) into a ComfyUI folder. The
+ * node keys the row by a negative id made from the URL (`urlKey` in next's pendingLogic); the
+ * response carries it.
+ */
+export async function startUrlDownload(host: string, url: string, folder: string, filename?: string): Promise<number> {
+  const res = await fetch(`${comfyHttpFor(host)}/imagelab/api/downloads`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url, folder, filename }),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
+  return Number(body.version_id);
+}
+
 /** Cancel an in-flight download, or dismiss a finished/failed row. */
 export async function cancelDownload(host: string, versionId: number): Promise<void> {
   const res = await fetch(`${comfyHttpFor(host)}/imagelab/api/downloads/${versionId}`, { method: 'DELETE' });

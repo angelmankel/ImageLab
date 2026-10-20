@@ -38,6 +38,10 @@ export interface PendingRecord {
   folder?: string;
   /** The server list the file will show up in when the kind's default is wrong. */
   list?: ServerList;
+  /** Fetched by this URL, not by the version: the pod's version download brings only the
+   *  version's primary file, so the other half of a Wan LoRA pair names its own CivitAI file URL.
+   *  Its download row is keyed by `urlKey(downloadUrl)`. */
+  downloadUrl?: string;
 }
 
 /** What a pick must carry for a record (structural: the modal's `ModelPick` fits). */
@@ -45,9 +49,12 @@ export interface PickLike {
   installed: boolean;
   file: string | null;
   model: { id: number; name: string; type: string; baseModel?: string };
-  version: { id: number; name: string; trainedWords: string[]; baseModel?: string; file?: { name: string } };
+  version: { id: number; name: string; trainedWords: string[]; baseModel?: string; file?: { name: string }; files?: PickFileLike[] };
   thumb?: string;
 }
+
+/** One of a version's files, as a pick carries them (a Wan LoRA version has a high and a low one). */
+export interface PickFileLike { name: string; downloadUrl?: string; primary?: boolean; type?: string }
 
 export const stripExt = (name: string): string => name.replace(/\.(safetensors|ckpt|pt|pth|bin|sft|gguf)$/i, '');
 export const baseName = (name: string): string => name.split('/').pop() ?? name;
@@ -62,10 +69,16 @@ export function pendingKey(kind: PendingKind, file: string): string {
   return `${kind}:${file.toLowerCase()}`;
 }
 
-export interface RecordHome { scope?: string; folder?: string; list?: ServerList }
+export interface RecordHome {
+  scope?: string; folder?: string; list?: ServerList;
+  /** The record is for this file of the version instead of the pick's primary one (a pair's other half). */
+  file?: string;
+  /** …and it is fetched by this URL (see `PendingRecord.downloadUrl`). */
+  downloadUrl?: string;
+}
 
 export function recordFromPick(kind: PendingKind, pick: PickLike, now: number, entryId?: string, userOn = true, weight = 0.5, home: RecordHome = {}): PendingRecord {
-  const file = expectedFileName(kind, pick);
+  const file = home.file ? (kind === 'embedding' ? stripExt(baseName(home.file)) : baseName(home.file)) : expectedFileName(kind, pick);
   const r: PendingRecord = {
     key: pendingKey(kind, file), kind, file, entryId,
     modelId: pick.model.id, versionId: pick.version.id, modelName: pick.model.name, versionName: pick.version.name,
@@ -75,8 +88,28 @@ export function recordFromPick(kind: PendingKind, pick: PickLike, now: number, e
   if (home.scope) r.scope = home.scope;
   if (home.folder) r.folder = home.folder;
   if (home.list) r.list = home.list;
+  if (home.downloadUrl) r.downloadUrl = home.downloadUrl;
   return r;
 }
+
+/** CRC-32 (IEEE), as zlib computes it. */
+export function crc32(text: string): number {
+  const bytes = new TextEncoder().encode(text);
+  let c = 0xffffffff;
+  for (const b of bytes) {
+    c ^= b;
+    for (let k = 0; k < 8; k++) c = (c >>> 1) ^ (0xedb88320 & -(c & 1));
+  }
+  return (c ^ 0xffffffff) >>> 0;
+}
+
+/** The download row key the pod gives a URL download (ImageLabCore `downloads.url_key`): a stable negative id. */
+export function urlKey(url: string): number {
+  return -(crc32(url) & 0x7fffffff) - 1;
+}
+
+/** The row key a pending record's download runs under: the version id, or the URL's key. */
+export const recordDownloadKey = (r: Pick<PendingRecord, 'versionId' | 'downloadUrl'>): number => (r.downloadUrl ? urlKey(r.downloadUrl) : r.versionId);
 
 /**
  * The name a server lists `expected` under, if any: exact, under a subfolder (`SDXL/x.safetensors`),

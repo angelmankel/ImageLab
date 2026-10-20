@@ -1,8 +1,9 @@
 import { create } from 'zustand';
 import { useStore } from '@/lib/store';
 import {
-  fetchDownloads, startDownload, cancelDownload, type Download,
+  fetchDownloads, startDownload, startUrlDownload, cancelDownload, type Download,
 } from '@/lib/comfy';
+import { withCivitaiAuth } from '@/lib/civitai';
 import { useLibraryStore } from '@/features/library/store';
 import { onePerOrigin } from '@/lib/downloadRows';
 
@@ -63,6 +64,12 @@ type DownloadsState = {
    * and the refusals of the rest.
    */
   start: (versionId: number, folder?: string, serverIds?: string[]) => Promise<StartResult>;
+  /**
+   * Start one file downloading by URL (a CivitAI version's non-primary file — a Wan LoRA's other
+   * half — or any https file) into `folder` under `filename`. A civitai.com URL gets the app's
+   * API token appended, as the browser's own CivitAI calls do. Same fan-out as `start`.
+   */
+  startUrl: (url: string, folder: string, filename: string, serverIds?: string[]) => Promise<StartResult>;
   /** Cancel an in-flight row, or dismiss a finished/failed one. */
   cancel: (row: DownloadRow) => Promise<void>;
   /** Bytes per second for a row, derived from the last 3s of poll deltas.
@@ -150,6 +157,18 @@ export const useDownloadsStore = create<DownloadsState>((set, get) => ({
       r.status === 'rejected' ? [`${targets[i].name}: ${r.reason instanceof Error ? r.reason.message : String(r.reason)}`] : []);
     // Every download started from the app lands in the device-local "My models" list.
     if (accepted > 0) void useLibraryStore.getState().recordDownload(versionId);
+    await get().refresh();
+    return { accepted, errors };
+  },
+
+  startUrl: async (url, folder, filename, serverIds) => {
+    const { servers, serverInfo } = useStore.getState();
+    const online = servers.filter((s) => serverInfo[s.id]);
+    const targets = onePerOrigin(serverIds ? online.filter((s) => serverIds.includes(s.id)) : online);
+    const results = await Promise.allSettled(targets.map((s) => startUrlDownload(s.host, withCivitaiAuth(url), folder, filename)));
+    const accepted = results.filter((r) => r.status === 'fulfilled').length;
+    const errors = results.flatMap((r, i) =>
+      r.status === 'rejected' ? [`${targets[i].name}: ${r.reason instanceof Error ? r.reason.message : String(r.reason)}`] : []);
     await get().refresh();
     return { accepted, errors };
   },

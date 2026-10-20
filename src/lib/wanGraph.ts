@@ -75,13 +75,19 @@ export type H3Settings = {
 
 export type VideoLora = {
   id: string;
+  /** The high-noise file, or the only file. */
   name: string;
   strength: number;
   on: boolean;
-  /** Which expert it patches. Wan 2.2 LoRAs come as a high-noise and a low-noise file. */
+  /** Which expert the one file patches. Wan 2.2 LoRAs come as a high-noise and a low-noise file;
+   *  with `nameLow` set the entry is that pair and this is moot (both experts, each its own file). */
   expert: 'high' | 'low' | 'both';
-  /** Strength on the low-noise expert when it differs (`both` only); unset: `strength`. */
+  /** Strength on the low-noise expert when it differs (`both` or a pair); unset: `strength`. */
   strengthLow?: number | null;
+  /** The low-noise file when the LoRA ships as two files: `name` loads on the high expert at
+   *  `strength`, this on the low expert at `strengthLow ?? strength`. Unset (every older save):
+   *  one file, where `expert` says. */
+  nameLow?: string | null;
 };
 
 export type WeightDtype = 'default' | 'fp8_e4m3fn' | 'fp8_e4m3fn_fast' | 'fp8_e5m2';
@@ -485,9 +491,12 @@ export function buildWanGraph(s: VideoSettings, startImage: string | null = null
       model = node(`${id}f`, 'LoraLoaderModelOnly', { model, lora_name: s.fastLoras[s.mode][which], strength_model: Number.isFinite(strength) ? strength : 1 }, 'lightx2v 4-step');
     }
     s.loras.forEach((l, i) => {
-      if (!l.on || !l.name || (l.expert !== 'both' && l.expert !== which)) return;
-      const strength = which === 'low' && l.expert === 'both' && l.strengthLow != null ? Number(l.strengthLow) : Number(l.strength);
-      model = node(`${id}l${i}`, 'LoraLoaderModelOnly', { model, lora_name: l.name, strength_model: strength });
+      // A pair (`nameLow`) is one file per expert; a single file goes where `expert` says.
+      const pair = !!l.nameLow;
+      const file = pair && which === 'low' ? l.nameLow! : l.name;
+      if (!l.on || !file || (!pair && l.expert !== 'both' && l.expert !== which)) return;
+      const strength = which === 'low' && (pair || l.expert === 'both') && l.strengthLow != null ? Number(l.strengthLow) : Number(l.strength);
+      model = node(`${id}l${i}`, 'LoraLoaderModelOnly', { model, lora_name: file, strength_model: strength });
     });
     const shift = which === 'low' && s.shiftLow != null ? Number(s.shiftLow) : Number(s.shift);
     model = node(`${id}s`, 'ModelSamplingSD3', { model, shift });

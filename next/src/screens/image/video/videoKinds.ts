@@ -15,7 +15,8 @@ import { sameFile } from '../model/pendingLogic';
 export type Engine = 'wan' | 'h3';
 type WanMode = 't2v' | 'i2v';
 
-export interface WanLoraLike { id: string; name: string; strength: number; on: boolean; expert: 'high' | 'low' | 'both'; strengthLow?: number | null }
+/** `name` = the high-noise (or only) file; `nameLow` = the low-noise file of a two-file pair (then it is always both experts). */
+export interface WanLoraLike { id: string; name: string; strength: number; on: boolean; expert: 'high' | 'low' | 'both'; strengthLow?: number | null; nameLow?: string | null }
 export interface H3LoraLike { id: string; name: string; strength: number; on: boolean }
 
 /** The part of `VideoState` the slots read (structural: the store fits). */
@@ -79,7 +80,8 @@ export function videoEntries(v: VideoSlice, kind: ModelKind): ModelEntry[] {
         const turbo: ModelEntry[] = t ? [{ id: 'h3:turbo', name: h.mode === 'ref' ? t.loraRef : t.lora, on: t.on, weight: t.strength, badge: 'Turbo', fixed: true }] : [];
         return [...own, ...turbo];
       }
-      const own = v.loras.map((l): ModelEntry => ({ id: l.id, name: l.name, on: l.on, weight: l.strength, badge: l.expert === 'both' ? undefined : l.expert === 'high' ? 'High' : 'Low' }));
+      // One circle per LoRA: a pair (high + low file) is badged H+L; a single file says which expert it patches.
+      const own = v.loras.map((l): ModelEntry => ({ id: l.id, name: l.name, on: l.on, weight: l.strength, badge: l.nameLow ? 'H+L' : l.expert === 'both' ? undefined : l.expert === 'high' ? 'High' : 'Low' }));
       const f = v.fastLoras[v.mode];
       return [...own,
         { id: 'wan:fast:high', name: f.high, on: v.fast, weight: 1, badge: 'Fast · High', fixed: true, noWeight: true },
@@ -154,7 +156,8 @@ export function videoSlotsHolding(v: VideoSlice, kind: ModelKind, file: string):
       hit('h3:fl2va', v.h3.models.fl2va); hit('h3:ref2va', v.h3.models.ref2va);
       break;
     case 'lora':
-      for (const l of v.loras) hit(l.id, l.name);
+      // A pair's low file waits under `<id>:low`, so a landed download can tell the two apart.
+      for (const l of v.loras) { hit(l.id, l.name); if (l.nameLow) hit(`${l.id}:low`, l.nameLow); }
       for (const l of v.h3.loras) hit(l.id, l.name);
       for (const m of ['t2v', 'i2v'] as const) { hit(`wan:fast:${m}:high`, v.fastLoras[m].high); hit(`wan:fast:${m}:low`, v.fastLoras[m].low); }
       if (v.h3.turbo) { hit('h3:turbo:lora', v.h3.turbo.lora); hit('h3:turbo:loraRef', v.h3.turbo.loraRef); }
@@ -180,9 +183,11 @@ export function videoLandPatch(v: VideoSlice, kind: ModelKind, file: string, lis
     const m = /^wan:(t2v|i2v):(high|low)$/.exec(id);
     const f = /^wan:fast:(t2v|i2v):(high|low)$/.exec(id);
     const t = /^h3:turbo:(lora|loraRef)$/.exec(id);
+    const lo = /^(.+):low$/.exec(id);
     if (m) next = { ...next, models: { ...next.models, [m[1]]: { ...next.models[m[1] as WanMode], [m[2]]: listed } } };
     else if (f) next = { ...next, fastLoras: { ...next.fastLoras, [f[1]]: { ...next.fastLoras[f[1] as WanMode], [f[2]]: listed } } };
     else if (t && next.h3.turbo) next = { ...next, h3: { ...next.h3, turbo: { ...next.h3.turbo, [t[1]]: listed } } };
+    else if (lo) { const p = withLora(next, lo[1], { nameLow: listed, on: userOn }); if (p) next = { ...next, ...p }; }
     else {
       const p = videoSlotPatch(next, id, listed);
       if (p) next = { ...next, ...p };
@@ -192,4 +197,23 @@ export function videoLandPatch(v: VideoSlice, kind: ModelKind, file: string, lis
   }
   const { models, textEncoder, vae, loras, fastLoras, h3 } = next;
   return { models, textEncoder, vae, loras, fastLoras, h3 };
+}
+
+/**
+ * A landed half of a Wan LoRA pair must not switch the entry on while its other half still waits:
+ * true when the entry holding `file` (as its high or low file) has the other file pending too.
+ */
+export function pairHalfWaiting(v: Pick<VideoSlice, 'loras'>, file: string, waiting: (file: string) => boolean): boolean {
+  const other = pairOtherHalf(v, file);
+  return other != null && waiting(other);
+}
+
+/** The other file of the pair that holds `file` (as its high or low file); null when no pair holds it. */
+export function pairOtherHalf(v: Pick<VideoSlice, 'loras'>, file: string): string | null {
+  for (const l of v.loras) {
+    if (!l.nameLow) continue;
+    if (sameFile(l.name, file)) return l.nameLow;
+    if (sameFile(l.nameLow, file)) return l.name;
+  }
+  return null;
 }

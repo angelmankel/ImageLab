@@ -534,11 +534,16 @@ export function LorasSection() {
               <Text size="xs" fw={600} truncate style={{ flex: 1, minWidth: 0 }} title={l.name}>{modelLabel(l.name)}</Text>
               <ActionIcon size="sm" variant="subtle" color="gray" aria-label={`Remove ${l.name}`} onClick={() => v.removeLora(l.id)}><IconX size={14} /></ActionIcon>
             </Group>
-            <SegmentedControl size="xs" fullWidth value={l.expert} onChange={(expert) => v.updateLora(l.id, { expert: expert as typeof l.expert })}
-              data={[{ value: 'high', label: 'High noise' }, { value: 'low', label: 'Low noise' }, { value: 'both', label: 'Both' }]} />
-            <StrengthControl label={l.expert === 'both' && l.strengthLow != null ? 'Strength (high)' : 'Strength'} value={l.strength} min={0} max={3} step={0.05} chips={[0.5, 1, 1.5]} color="grape" ends={LORA_ENDS}
+            {/* A two-file LoRA (high + low noise) is always one file per expert: no expert pick. */}
+            {l.nameLow ? (
+              <Text size="xs" c="dimmed" truncate title={l.nameLow}>High + low pair · low file: {modelLabel(l.nameLow)}</Text>
+            ) : (
+              <SegmentedControl size="xs" fullWidth value={l.expert} onChange={(expert) => v.updateLora(l.id, { expert: expert as typeof l.expert })}
+                data={[{ value: 'high', label: 'High noise' }, { value: 'low', label: 'Low noise' }, { value: 'both', label: 'Both' }]} />
+            )}
+            <StrengthControl label={(l.nameLow || l.expert === 'both') && l.strengthLow != null ? 'Strength (high)' : 'Strength'} value={l.strength} min={0} max={3} step={0.05} chips={[0.5, 1, 1.5]} color="grape" ends={LORA_ENDS}
               onChange={(strength) => v.updateLora(l.id, { strength })} />
-            {l.expert === 'both' && (
+            {(l.nameLow || l.expert === 'both') && (
               <>
                 <Switch size="xs" checked={l.strengthLow != null} label={<Text size="xs">Own strength on the low-noise expert</Text>}
                   onChange={(e) => v.updateLora(l.id, { strengthLow: e.currentTarget.checked ? l.strength : null })} />

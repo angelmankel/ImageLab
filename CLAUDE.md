@@ -188,6 +188,7 @@ npm run build
   frame, then switches to Video; a portrait image flips a
   landscape size. Both image drop zones (img2img and Studio/Video's `ImageInput`) pick from past
   generations (`InputImageBrowserModal`) and take dropped history thumbnails.
+- **Wan LoRA pairs (10-20).** `VideoLora.nameLow` = the low-noise file of a two-file Wan 2.2 LoRA: `name` loads on the high expert at `strength`, `nameLow` on the low one at `strengthLow ?? strength`, `expert` is moot for a pair; absent = the old single-file path, byte for byte (tested). The next UI's video LoRA card shows both slots; a CivitAI pick whose version ships both files fills the pair and downloads the non-primary half by URL (`startUrlDownload`).
 - **Video parameters and add-ons (10-18).** Every knob past the basics is optional in `VideoSettings`
   and off by default; `loadVideoSettings` (wanGraph.ts, tested) fills the defaults for an old saved
   `imagelab.video.v1`, and `tests/wan-graph.test.cjs` proves such a save still builds the very same

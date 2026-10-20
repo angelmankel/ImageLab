@@ -17,6 +17,8 @@ import { usePendingModels } from './pendingModels';
 
 /** The per-kind pieces of the entry card a step may add (all optional). */
 export interface CardParts {
+  /** An eyebrow above the head ("High noise" on a Wan LoRA whose card holds two files). */
+  headLabel?: (entry: ModelEntry) => string | undefined;
   /** Under the head: trigger words etc. */
   words?: (entry: ModelEntry, meta: ModelMeta) => ReactNode;
   /** Between the words and the weight: a kind's own input (ControlNet's guide image). */
@@ -25,9 +27,16 @@ export interface CardParts {
   more?: (entry: ModelEntry) => ReactNode;
   /** "More · CLIP strength, defaults" */
   moreHint?: (entry: ModelEntry) => string | undefined;
+  /** The weight slider's label when the kind's is not right ("Strength · high"). */
+  weightLabel?: (entry: ModelEntry) => string | undefined;
   /** A hint under the weight slider. */
   weightHint?: (entry: ModelEntry) => string | undefined;
+  /** Under the weight slider, before More: a second file slot (a Wan LoRA's low-noise file). */
+  after?: (entry: ModelEntry) => ReactNode;
 }
+
+/** What the list's picker was opened for. */
+export type PickTarget = { mode: 'add' } | { mode: 'change'; id: string };
 
 export interface KindApi {
   kind: ModelKind;
@@ -46,6 +55,14 @@ export interface KindApi {
   addPending?: (pick: PickLike) => string | undefined;
   /** Points an entry at a not-yet-downloaded model. Absent: generic. */
   changeToPending?: (id: string, pick: PickLike) => string | undefined;
+  /**
+   * Takes the whole pick itself, installed or not — a step whose entry can hold more than one
+   * file of a version (a Wan LoRA's high + low). Returns the entry id, undefined when the pick
+   * names no file, or false when the target is not its business (a fixed slot): then, as when
+   * absent, the list adds / renames installed files and routes the rest through `addPending` /
+   * `changeToPending`.
+   */
+  pick?: (target: PickTarget, pick: PickLike) => string | undefined | false;
   /** The pending-record scope this store registered with `registerPendingScope`. */
   pendingScope?: string;
   /** Only files whose base-model bucket fits show in the server-file grid, until "Show all". */

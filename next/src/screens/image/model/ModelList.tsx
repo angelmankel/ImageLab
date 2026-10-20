@@ -14,7 +14,7 @@ import { Tabs } from '~/ui';
 import { T } from '~/theme/tokens';
 import { useKindApi } from './kinds';
 import { IMAGE_KINDS, KINDS, type ModelEntry, type ModelKind } from './kindSpecs';
-import { withGenericPending, type KindApi } from './kindApi';
+import { withGenericPending, type KindApi, type PickTarget } from './kindApi';
 import { CircleRow } from './CircleRow';
 import { EntryCard } from './EntryCard';
 import { ModelsModalBridge } from './ModelsModalBridge';
@@ -23,7 +23,7 @@ import { usePendingModels } from './pendingModels';
 import { isMissing, pendingKey } from './pendingLogic';
 import { PendingPoller } from './usePendingReconcile';
 
-type Picker = { mode: 'add' } | { mode: 'change'; id: string };
+type Picker = PickTarget;
 
 /** The main app's availability hook knows these kinds; others get no per-server dimming in the grid. */
 const AVAILABILITY_KIND: Partial<Record<ModelKind, ResourceKind>> = { checkpoint: 'checkpoint', lora: 'lora', embedding: 'embedding', vae: 'vae', upscale: 'upscale' };
@@ -60,7 +60,13 @@ export function ModelList({ kinds = IMAGE_KINDS, initialKind, useApi = useKindAp
   const onPick = (pick: ModelPick) => {
     if (!picker) return;
     let id: string | undefined;
-    if (pick.installed && pick.file) {
+    // The step may read the pick itself (a Wan LoRA pair: two files from one version).
+    const own = api.pick ? api.pick(picker, pick) : false;
+    if (own !== false) {
+      id = own;
+      if (!id) notifications.show({ color: 'yellow', message: 'That version has no file to use' });
+      else if (!pick.installed) notifications.show({ color: 'ember', message: `${pick.model.name} added · download it from the card` });
+    } else if (pick.installed && pick.file) {
       if (picker.mode === 'change') { api.rename(picker.id, pick.file); id = picker.id; }
       else id = entries.find((e) => e.name === pick.file)?.id ?? api.add?.(pick.file);
     } else {

@@ -333,3 +333,31 @@ test('encode: the default is the plain mp4/h264 pair; a CRF goes through the dot
   const g = plain(buildWanGraph({ ...defaultVideoSettings(), positive: 'x', encode: { container: 'mp4', codec: 'h264', crf: 18 } }));
   assert.deepEqual(g['15'].inputs, { video: ['14', 0], filename_prefix: 'video/ImageLab_T2V', format: 'mp4', 'format.codec': 'h264', 'format.codec.encoding': 're-encode', 'format.codec.encoding.crf': 18 });
 });
+
+test('a Wan LoRA pair: the high file on the high expert, the low file on the low one, at its own strength', () => {
+  const s = { ...defaultVideoSettings(), fast: false, positive: 'x', loras: [
+    { id: 'p', name: 'anime_high.safetensors', nameLow: 'anime_low.safetensors', strength: 0.9, on: true, expert: 'both', strengthLow: 0.6 },
+    { id: 'q', name: 'one.safetensors', strength: 1, on: true, expert: 'low' },
+  ] };
+  const g = plain(buildWanGraph(s));
+  assert.deepEqual(g['1l0'].inputs, { model: ['1', 0], lora_name: 'anime_high.safetensors', strength_model: 0.9 });
+  assert.deepEqual(g['2l0'].inputs, { model: ['2', 0], lora_name: 'anime_low.safetensors', strength_model: 0.6 });
+  assert.equal(g['1l1'], undefined);
+  assert.deepEqual(g['2l1'].inputs, { model: ['2l0', 0], lora_name: 'one.safetensors', strength_model: 1 });
+  assert.deepEqual(g['1s'].inputs.model, ['1l0', 0]);
+  // `expert` is moot for a pair: 'high' still loads the low file on the low expert; no own low
+  // strength → the high strength on both.
+  const h = plain(buildWanGraph({ ...s, loras: [{ ...s.loras[0], expert: 'high', strengthLow: null }] }));
+  assert.deepEqual([h['1l0'].inputs.lora_name, h['2l0'].inputs.lora_name, h['2l0'].inputs.strength_model], ['anime_high.safetensors', 'anime_low.safetensors', 0.9]);
+  // Off: neither file loads.
+  const off = plain(buildWanGraph({ ...s, loras: [{ ...s.loras[0], on: false }] }));
+  assert.deepEqual([off['1l0'], off['2l0']], [undefined, undefined]);
+  // The pair's two files count in the estimate's model key.
+  assert.ok(wanRunShape(g).modelsKey.includes('anime_low.safetensors'));
+  // A single file (an old save: no nameLow at all) builds exactly as before; nameLow null is the same as absent.
+  const single = { ...s, loras: [{ id: 'q', name: 'style.safetensors', strength: 1, on: true, expert: 'both', strengthLow: 0.5 }] };
+  const loaded = loadVideoSettings(single);
+  assert.equal(loaded.loras[0].nameLow, undefined);
+  assert.deepEqual(plain(buildWanGraph(loaded)), plain(buildWanGraph({ ...single, loras: [{ ...single.loras[0], nameLow: null }] })));
+  assert.deepEqual([plain(buildWanGraph(loaded))['1l0'].inputs.lora_name, plain(buildWanGraph(loaded))['2l0'].inputs.strength_model], ['style.safetensors', 0.5]);
+});

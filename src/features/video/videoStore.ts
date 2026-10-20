@@ -26,7 +26,8 @@ function load(): VideoState {
 type Store = VideoState & {
   set: (patch: Partial<VideoState>) => void;
   setModel: (mode: VideoMode, which: 'high' | 'low', file: string) => void;
-  addLora: (name: string) => void;
+  /** `nameLow`: the low-noise file of a two-file Wan LoRA (the pair patches both experts). */
+  addLora: (name: string, nameLow?: string | null) => void;
   updateLora: (id: string, patch: Partial<Omit<VideoLora, 'id'>>) => void;
   removeLora: (id: string) => void;
   /** MiniMax H3's own settings, merged. */
@@ -53,9 +54,10 @@ export const useVideo = create<Store>((set, get) => {
     set: patch,
     setModel: (mode, which, file) => patch({ models: { ...get().models, [mode]: { ...get().models[mode], [which]: file } } }),
     // Wan 2.2 LoRAs ship as a high/low pair, so a name that says which starts on that expert.
-    addLora: (name) => patch({ loras: [...get().loras, {
+    addLora: (name, nameLow) => patch({ loras: [...get().loras, {
       id: uid(), name, strength: 1, on: true,
-      expert: /high/i.test(name) ? 'high' : /low/i.test(name) ? 'low' : 'both',
+      expert: nameLow ? 'both' : /high/i.test(name) ? 'high' : /low/i.test(name) ? 'low' : 'both',
+      ...(nameLow ? { nameLow } : {}),
     }] }),
     updateLora: (id, p) => patch({ loras: get().loras.map((l) => (l.id === id ? { ...l, ...p } : l)) }),
     removeLora: (id) => patch({ loras: get().loras.filter((l) => l.id !== id) }),

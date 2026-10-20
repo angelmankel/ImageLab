@@ -224,7 +224,7 @@ async function fetchWithTimeout(url: string, opts: { signal?: AbortSignal } = {}
  *  whereas a plain GET with only a token param is a "simple request" and skips
  *  preflight entirely. Token is read fresh from localStorage each call so a
  *  Settings change takes effect immediately without a reload. */
-function withCivitaiAuth(url: string): string {
+export function withCivitaiAuth(url: string): string {
   if (!/^https?:\/\/(?:[^/]+\.)?civitai\.(?:com|red)\//i.test(url)) return url;
   const key = loadCivitaiSettings().apiKey.trim();
   if (!key) return url;

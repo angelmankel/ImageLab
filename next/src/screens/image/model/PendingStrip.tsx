@@ -9,17 +9,22 @@ import { notifications } from '@mantine/notifications';
 import { useStore } from '@/lib/store';
 import { useDownloadsStore } from '@/features/downloads';
 import { T } from '~/theme/tokens';
-import { downloadProgress, recordFolder, type PendingRecord } from './pendingLogic';
+import { downloadProgress, recordDownloadKey, recordFolder, type PendingRecord } from './pendingLogic';
+
+/** Start a record's download on every online server: by version, or by its own file URL (a pair's other half). */
+export async function startRecordDownload(record: PendingRecord) {
+  const dl = useDownloadsStore.getState();
+  return record.downloadUrl ? dl.startUrl(record.downloadUrl, recordFolder(record), record.file) : dl.start(record.versionId, recordFolder(record));
+}
 
 export function PendingStrip({ record }: { record: PendingRecord }) {
   const rows = useDownloadsStore((s) => s.rows);
-  const start = useDownloadsStore((s) => s.start);
   const online = useStore((s) => s.servers.some((sv) => !!s.serverInfo[sv.id]));
-  const p = downloadProgress(rows, record.versionId);
+  const p = downloadProgress(rows, recordDownloadKey(record));
   const busy = p?.status === 'downloading';
 
   const download = async () => {
-    const r = await start(record.versionId, recordFolder(record));
+    const r = await startRecordDownload(record);
     if (r.errors.length) notifications.show({ color: 'red', title: 'Download refused', message: r.errors.join('\n') });
     else notifications.show({ color: 'ember', message: `Downloading ${record.modelName} on ${r.accepted} server${r.accepted === 1 ? '' : 's'}` });
   };

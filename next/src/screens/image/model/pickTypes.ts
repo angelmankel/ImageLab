@@ -3,14 +3,15 @@
  * agreed in agent-handoffs/handoff-2026-10-19-models-picker.md. Kept here so the list component
  * compiles before that modal exists (see `ModelsModalBridge.tsx`).
  */
-export interface ModelPickFile { name: string; sizeKB?: number; downloadUrl: string; format?: string; fp?: string; hashes?: Record<string, string | undefined> }
+export interface ModelPickFile { name: string; sizeKB?: number; downloadUrl: string; format?: string; fp?: string; hashes?: Record<string, string | undefined>; primary?: boolean; type?: string }
 
 export interface ModelPick {
   /** True when a server already has the file; then `file` is the name the server lists it under. */
   installed: boolean;
   file: string | null;
   model: { id: number; name: string; type: string; baseModel?: string; tags: string[]; nsfw?: boolean };
-  version: { id: number; name: string; trainedWords: string[]; baseModel?: string; file?: ModelPickFile };
+  /** `file` is the primary one; `files` every model file of the version (a Wan LoRA's high + low). */
+  version: { id: number; name: string; trainedWords: string[]; baseModel?: string; file?: ModelPickFile; files?: ModelPickFile[] };
   thumb?: string;
 }
 
