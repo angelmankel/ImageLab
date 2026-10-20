@@ -69,13 +69,13 @@ function BatchStepper({ h, busy }: { h: number; busy: boolean }) {
   const batch = useStore((s) => s.workflow.batch);
   const set = useStore((s) => s.setWorkflow);
   const fg = busy ? 'var(--il-ember-hi)' : 'var(--il-bg)';
-  const btn = (disabled: boolean): React.CSSProperties => ({ width: 30, height: h, border: 0, background: 'transparent', color: fg, display: 'grid', placeItems: 'center', cursor: disabled ? 'default' : 'pointer', opacity: disabled ? 0.4 : 0.85 });
+  const btn = (disabled: boolean): React.CSSProperties => ({ width: 22, height: h, border: 0, background: 'transparent', color: fg, display: 'grid', placeItems: 'center', cursor: disabled ? 'default' : 'pointer', opacity: disabled ? 0.4 : 0.85 });
   return (
-    <div role="group" aria-label="Batch" title="Images per Generate" style={{ display: 'flex', alignItems: 'center', flex: 'none', paddingLeft: 6 }}>
+    <div role="group" aria-label="Batch" title="Images per Generate" style={{ display: 'flex', alignItems: 'center', flex: 'none', paddingLeft: 10 }}>
       <button type="button" aria-label="One image fewer" disabled={batch <= 1} onClick={() => set({ batch: Math.max(1, batch - 1) })} style={btn(batch <= 1)}><IconMinus size={15} stroke={2.6} /></button>
-      <span style={{ minWidth: 30, textAlign: 'center', color: fg, fontSize: 14, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>×{batch}</span>
+      <span style={{ minWidth: 20, textAlign: 'center', color: fg, fontSize: 14, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>×{batch}</span>
       <button type="button" aria-label="One image more" disabled={batch >= 16} onClick={() => set({ batch: Math.min(16, batch + 1) })} style={btn(batch >= 16)}><IconPlus size={15} stroke={2.6} /></button>
-      <span aria-hidden style={{ width: 1, alignSelf: 'stretch', background: busy ? 'var(--il-line)' : 'rgba(20,20,22,.25)', margin: '10px 0 10px 6px' }} />
+      <span aria-hidden style={{ width: 1, alignSelf: 'stretch', background: busy ? 'var(--il-line)' : 'rgba(20,20,22,.25)', margin: '10px 0 10px 4px' }} />
     </div>
   );
 }
