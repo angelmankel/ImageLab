@@ -14,6 +14,8 @@ import { saveSnapshot, revertSnapshot } from './workflowSnapshots';
 const THUMB: Record<Step['kind'], string> = {
   image: 'linear-gradient(135deg,#5A4A3E,#2A2420)',
   upscale: 'linear-gradient(135deg,#3E5050,#1F2A2A)',
+  refine: 'linear-gradient(135deg,#5A503E,#2A2620)',
+  'remove-bg': 'linear-gradient(135deg,#4A5A3E,#232A1F)',
   video: 'linear-gradient(135deg,#4C405A,#241F2C)',
   workflow: 'linear-gradient(135deg,#3F4F5E,#1E262D)',
 };

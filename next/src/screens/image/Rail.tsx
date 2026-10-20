@@ -4,14 +4,14 @@
  * Settings. "+ Add" opens a small picker: Upscale / Video / Workflow.
  */
 import { Menu } from '@mantine/core';
-import { IconPhoto, IconArrowsMaximize, IconMovie, IconGitBranch, IconPlus, IconHistory, IconCube, IconTopologyStar3, IconSettings, IconCheck } from '@tabler/icons-react';
+import { IconPhoto, IconArrowsMaximize, IconMovie, IconGitBranch, IconWand, IconScissors, IconPlus, IconHistory, IconCube, IconTopologyStar3, IconSettings, IconCheck } from '@tabler/icons-react';
 import { useRoute, type Screen } from '~/app/routeStore';
 import { useSteps, STEP_LABEL, type Step, type StepKind } from '~/app/stepsStore';
 import { T } from '~/theme/tokens';
 import { menuProps } from '~/app/contextMenu';
 import { useStepOutput } from './useStepOutput';
 
-export const KIND_ICON: Record<StepKind, typeof IconPhoto> = { image: IconPhoto, upscale: IconArrowsMaximize, video: IconMovie, workflow: IconGitBranch };
+export const KIND_ICON: Record<StepKind, typeof IconPhoto> = { image: IconPhoto, refine: IconWand, upscale: IconArrowsMaximize, 'remove-bg': IconScissors, video: IconMovie, workflow: IconGitBranch };
 
 /** Whether a step has produced output of its own (the check badge) — the same rule the next step chains by (`useStepOutput`). */
 export function useStepHasOutput(step: Step): boolean {

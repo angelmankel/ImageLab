@@ -41,6 +41,8 @@ const TABS_BY_KIND: Record<StepKind, TabBodies> = {
     settings: ({ step }) => <WorkflowTab tab="settings" step={step} />, input: ({ step }) => <WorkflowTab tab="input" step={step} />,
   },
   upscale: { input: InputTab },
+  refine: { input: InputTab },
+  'remove-bg': { input: InputTab },
 };
 
 /** Marks the step "edited" once its parameters change after mount (the Image step's workflow + prompt, the Video step's store). */
