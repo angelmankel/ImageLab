@@ -24,6 +24,7 @@ import type { Step } from '~/app/stepsStore';
 import { ensureStepWorkflowOpen } from '~/screens/comfy';
 import { stepInputNow } from '../useStepOutput';
 import { keptSeedsNow } from './workflowStepStore';
+import { syncWorkflowFollow } from './followWorkflow';
 import { isImageParam, chainInputFrom, seedIdsToReroll, uploadName, type ChainSource } from './workflowStepLogic';
 
 const VIDEO = /\.(mp4|webm|mov|mkv)(\?|$)/i;
@@ -62,6 +63,8 @@ export function workflowStepSource(step: Step, host: string, info: ObjectInfo | 
       const catalogue = info ?? objectInfoNow(host);
       if (!catalogue) return { error: 'The server has not sent its node list yet' };
       if (!st.workflow || !st.path) return { error: 'No workflow open' };
+      // "Same models as step 1" (item 40): the models step 1 has right now.
+      syncWorkflowFollow(step);
       // The step as it is NOW in the store (the Input tab may have changed it since the handler was made).
       const image = st.params.find(isImageParam);
       const chain = chainInputFrom(stepInputNow(step.id), !!image);

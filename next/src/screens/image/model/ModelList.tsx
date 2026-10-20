@@ -5,6 +5,11 @@
  * a Workflow step pass `useApi` — their own `KindApi` (kindApi.ts) on their own stores. A pick that
  * is not downloaded yet becomes a pending entry (dimmed, "not downloaded", editable, a Download
  * button) until its file lands; a named file no server lists shows "not on server".
+ *
+ * `follow` (fix list item 40, steps after step 1): the "Same models as step 1" switch on top, a
+ * link mark on each linked circle, the link strip on the card; changing a linked entry here
+ * un-links just that one (the rest keeps following). The live sync itself is the step's own
+ * (`workflow/followWorkflow.ts` for a Workflow step).
  */
 import { useCallback, useMemo, useState } from 'react';
 import { notifications } from '@mantine/notifications';
@@ -20,21 +25,30 @@ import { EntryCard } from './EntryCard';
 import { ModelsModalBridge } from './ModelsModalBridge';
 import type { ModelPick } from './pickTypes';
 import { usePendingModels } from './pendingModels';
-import { isMissing, pendingKey } from './pendingLogic';
+import { isMissing, pendingKey, sameFile } from './pendingLogic';
 import { PendingPoller } from './usePendingReconcile';
+import { fixedExpect, linkKey, type FollowCaps } from './followLogic';
+import { useFollowStore, useStepFollow } from './followStore';
+import { useStep1Source } from './step1Source';
+import { FollowBar, LinkStrip, type LinkState } from './FollowBar';
+
+/** A step after step 1 that can follow its models: its id and how its slots behave. */
+export interface FollowLink { stepId: string; caps: (kind: ModelKind) => FollowCaps }
 
 type Picker = PickTarget;
 
 /** The main app's availability hook knows these kinds; others get no per-server dimming in the grid. */
 const AVAILABILITY_KIND: Partial<Record<ModelKind, ResourceKind>> = { checkpoint: 'checkpoint', lora: 'lora', embedding: 'embedding', vae: 'vae', upscale: 'upscale' };
 
-export function ModelList({ kinds = IMAGE_KINDS, initialKind, useApi = useKindApi, labels }: {
+export function ModelList({ kinds = IMAGE_KINDS, initialKind, useApi = useKindApi, labels, follow }: {
   kinds?: readonly ModelKind[];
   initialKind?: ModelKind;
   /** The step's store behind the list; default = the Image step's workflow. Called once per render, like a hook. */
   useApi?: (kind: ModelKind) => KindApi;
   /** Tab labels a step renames ("Experts" for the Video step's checkpoint kind). */
   labels?: Partial<Record<ModelKind, string>>;
+  /** Steps after step 1: "Same models as step 1" (on by default). */
+  follow?: FollowLink;
 }) {
   const [kindState, setKind] = useState<ModelKind>(initialKind ?? kinds[0]);
   const kind = kinds.includes(kindState) ? kindState : kinds[0];
@@ -52,7 +66,41 @@ export function ModelList({ kinds = IMAGE_KINDS, initialKind, useApi = useKindAp
     if (p) return { ...e, pending: p, on: p.userOn };
     return isMissing(raw.files, e.name, kind) ? { ...e, missing: true } : e;
   }), [raw.entries, raw.files, records, kind]);
-  const api = useMemo(() => withGenericPending({ ...raw, entries }), [raw, entries]);
+  const generic = useMemo(() => withGenericPending({ ...raw, entries }), [raw, entries]);
+
+  // Follow step 1: which entries are linked, which linked fixed slot cannot take step 1's file.
+  const fstate = useStepFollow(follow?.stepId);
+  const following = !!follow && !fstate.off;
+  const source = useStep1Source(kind);
+  const caps = follow?.caps(kind);
+  const linkedIds = useMemo(() => {
+    if (!following) return new Set<string>();
+    const un = new Set(fstate.unlinked ?? []);
+    return new Set(entries.filter((e) => !un.has(linkKey(kind, e.id))).map((e) => e.id));
+  }, [following, fstate.unlinked, entries, kind]);
+  const expect = useMemo(() => (following && caps ? fixedExpect(source, entries.map((e) => ({ ...e, linked: linkedIds.has(e.id) })), caps) : {}), [following, caps, source, entries, linkedIds]);
+  const linkState = (e: ModelEntry): LinkState | undefined => {
+    if (!following) return undefined;
+    if (!linkedIds.has(e.id)) return 'unlinked';
+    const want = expect[e.id];
+    return want && !sameFile(e.name, want, kind) ? 'blocked' : 'linked';
+  };
+  // Changing a linked entry here un-links that one first; a new entry is the user's own.
+  const api = useMemo<KindApi>(() => {
+    if (!following || !follow) return generic;
+    const fs = useFollowStore.getState();
+    const own = (id: string | undefined) => { if (id) fs.unlink(follow.stepId, linkKey(kind, id)); return id; };
+    return {
+      ...generic,
+      rename: (id, name) => { own(id); generic.rename(id, name); },
+      setOn: (id, on) => { own(id); generic.setOn(id, on); },
+      setWeight: (id, v) => { own(id); generic.setWeight(id, v); },
+      add: generic.add && ((name) => own(generic.add!(name))),
+      addPending: generic.addPending && ((p) => own(generic.addPending!(p))),
+      changeToPending: generic.changeToPending && ((id, p) => { own(id); return generic.changeToPending!(id, p); }),
+      pick: generic.pick && ((t, p) => { if (t.mode === 'change') own(t.id); const r = generic.pick!(t, p); if (t.mode === 'add' && typeof r === 'string') own(r); return r; }),
+    };
+  }, [generic, following, follow, kind]);
 
   const selected = entries.find((e) => e.id === selectedBy[kind]) ?? entries[0];
   const select = useCallback((id: string) => setSelectedBy((m) => ({ ...m, [kind]: id })), [kind]);
@@ -83,10 +131,16 @@ export function ModelList({ kinds = IMAGE_KINDS, initialKind, useApi = useKindAp
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: T.gap.md }}>
       {anyPending && <PendingPoller />}
+      {follow && <FollowBar on={following} setHere={fstate.unlinked?.length ?? 0} onChange={(on) => useFollowStore.getState().setFollow(follow.stepId, on)} />}
       {kinds.length > 1 && <Tabs items={kinds.map((k) => ({ key: k, label: labels?.[k] ?? KINDS[k].label }))} value={kind} onChange={setKind} />}
-      <CircleRow entries={entries} selectedId={selected?.id} onSelect={select} onAdd={canAdd ? () => setPicker({ mode: 'add' }) : undefined} onRemove={api.remove} showWeight={!!spec.weight} />
+      <CircleRow entries={entries} selectedId={selected?.id} onSelect={select} onAdd={canAdd ? () => setPicker({ mode: 'add' }) : undefined} onRemove={api.remove} showWeight={!!spec.weight} linked={following ? linkedIds : undefined} kind={kind} />
       {selected ? (
-        <EntryCard key={`${kind}:${selected.id}`} entry={selected} api={api} onChange={() => setPicker({ mode: 'change', id: selected.id })} />
+        <EntryCard key={`${kind}:${selected.id}`} entry={selected} api={api} onChange={() => setPicker({ mode: 'change', id: selected.id })}
+          link={follow && following ? (
+            <LinkStrip state={linkState(selected)!} expected={expect[selected.id]}
+              onUnlink={() => useFollowStore.getState().unlink(follow.stepId, linkKey(kind, selected.id))}
+              onRelink={() => useFollowStore.getState().relink(follow.stepId, linkKey(kind, selected.id))} />
+          ) : undefined} />
       ) : (
         <button type="button" onClick={() => canAdd && setPicker({ mode: 'add' })}
           style={{ border: '1px dashed var(--il-line-strong)', borderRadius: T.radius.xl, background: 'transparent', color: 'var(--il-muted)', padding: '22px 12px', fontSize: 12, fontWeight: 700, cursor: canAdd ? 'pointer' : 'default', textAlign: 'center' }}>

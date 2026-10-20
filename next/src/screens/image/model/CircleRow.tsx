@@ -5,28 +5,37 @@
  * its × on the circle's top-right corner (`onRemove`; Donny 10-20: Remove is part of the bubble,
  * not the card). Scrolls sideways when there are many. The picture follows "Model preview starts
  * on" (`ModelThumb`; a hover loads "Most popular").
+ *
+ * The badge sits centred under the circle and never wider than it (fix list item 40: a long
+ * "Checkpoint" badge was cut off on the left); raw node names ("Load Checkpoint") are hidden
+ * (`displayBadge`). `linked` (item 40): a small link mark on entries that follow step 1.
  */
-import { IconPlus, IconX } from '@tabler/icons-react';
+import { IconLink, IconPlus, IconX } from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
 import { ModelThumb } from './ModelThumb';
 import { readModelMeta } from './useModelMeta';
-import { fmtWeight, type ModelEntry } from './kindSpecs';
+import { fmtWeight, type ModelEntry, type ModelKind } from './kindSpecs';
+import { displayBadge } from './followLogic';
 import { metaWithPending } from './pendingLogic';
 
 const CIRCLE = 56;
 
-export function CircleRow({ entries, selectedId, onSelect, onAdd, onRemove, showWeight = true }: {
+export function CircleRow({ entries, selectedId, onSelect, onAdd, onRemove, showWeight = true, linked, kind = 'other' }: {
   entries: ModelEntry[]; selectedId?: string; onSelect: (id: string) => void; onAdd?: () => void; onRemove?: (id: string) => void; showWeight?: boolean;
+  /** Entries that follow step 1 (item 40); absent = no link marks. */
+  linked?: ReadonlySet<string>;
+  /** The kind, to tell a raw node name ("Load Checkpoint") from a real title. */
+  kind?: ModelKind;
 }) {
   const hashes = useStore((s) => s.modelHashes);
   const civitai = useStore((s) => s.civitaiByHash);
   return (
-    <div className="il-scroll-x" style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '2px 2px 0', touchAction: 'pan-x pan-y' }}>
-      {entries.map((e) => {
+    <div className="il-scroll-x" style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '4px 4px 0', touchAction: 'pan-x pan-y' }}>
+      {entries.map((e, index) => {
         const meta = metaWithPending(readModelMeta(e.name, hashes, civitai), e.pending);
         const selected = e.id === selectedId;
         const state = e.pending ? 'not downloaded' : e.missing ? 'not on server' : undefined;
-        const badge = state ?? e.badge ?? (showWeight && !e.isBase && !e.noWeight ? fmtWeight(e.weight) : undefined);
+        const badge = state ?? displayBadge(e.badge, kind, index, entries.length) ?? (showWeight && !e.isBase && !e.noWeight ? fmtWeight(e.weight) : undefined);
         const dim = !e.on || !!state;
         const label = e.name ? meta.label : 'none';
         const removable = !!onRemove && !e.fixed;
@@ -43,12 +52,17 @@ export function CircleRow({ entries, selectedId, onSelect, onAdd, onRemove, show
               <ModelThumb label={e.name ? meta.label : '?'} meta={meta} size={CIRCLE} round
                 style={{ border: `3px solid ${selected ? 'var(--il-ember)' : 'var(--il-line-strong)'}`, opacity: dim ? 0.45 : 1, boxSizing: 'border-box' }} />
               {badge && (
-                <span style={{ position: 'absolute', right: state ? -10 : -6, bottom: -4, fontSize: state ? 8 : 10, fontWeight: 800, borderRadius: 999, padding: '2px 6px', whiteSpace: 'nowrap', background: state ? 'var(--il-card-on)' : selected ? 'var(--il-ember)' : 'var(--il-card-on)', color: state ? 'var(--il-muted)' : selected ? 'var(--il-bg)' : 'var(--il-fg)', opacity: e.on || state ? 1 : 0.6 }}>
+                <span style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', bottom: -6, maxWidth: 64, boxSizing: 'border-box', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: state ? 8 : 10, fontWeight: 800, borderRadius: 999, padding: '2px 6px', whiteSpace: 'nowrap', background: state ? 'var(--il-card-on)' : selected ? 'var(--il-ember)' : 'var(--il-card-on)', color: state ? 'var(--il-muted)' : selected ? 'var(--il-bg)' : 'var(--il-fg)', opacity: e.on || state ? 1 : 0.6 }}>
                   {badge}
                 </span>
               )}
+              {linked?.has(e.id) && (
+                <span title="Same as step 1" style={{ position: 'absolute', left: -3, top: -3, width: 20, height: 20, borderRadius: '50%', display: 'grid', placeItems: 'center', background: 'var(--il-ember)', color: 'var(--il-bg)', border: '2px solid var(--il-panel)' }}>
+                  <IconLink size={11} stroke={3} />
+                </span>
+              )}
             </span>
-            <span style={{ fontSize: 10, fontWeight: selected ? 800 : 700, maxWidth: 64, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <span style={{ fontSize: 10, fontWeight: selected ? 800 : 700, maxWidth: 64, marginTop: badge ? 4 : 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {label}{e.on ? '' : ' · off'}
             </span>
           </button>

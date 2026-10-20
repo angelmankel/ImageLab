@@ -29,3 +29,7 @@ export { usePendingReconcile, PendingPoller } from './usePendingReconcile';
 export { PendingStrip, startRecordDownload } from './PendingStrip';
 export * from './pendingLogic';
 export { openModelViewer, hasModelViewer, type ModelViewerTarget } from './viewerBridge';
+export type { FollowLink } from './ModelList';
+export { useFollowStore, useStepFollow, stepFollowNow } from './followStore';
+export { canFollow, followOps, linkKey, displayBadge, isRawNodeName, type FollowCaps, type SourceEntry, type TargetEntry } from './followLogic';
+export { step1Source, useStep1Source } from './step1Source';

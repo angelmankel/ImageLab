@@ -21,6 +21,7 @@ import { notifications } from '@mantine/notifications';
 import { useSteps } from '~/app/stepsStore';
 import { ensureStepWorkflowOpen } from '~/screens/comfy';
 import { usePendingReconcile } from '~/screens/image/model';
+import { useWorkflowFollow } from './workflow/followWorkflow';
 
 export function AppEffects() {
   useComfyConnection();
@@ -33,6 +34,8 @@ export function AppEffects() {
   useInstalledWanFiles();
   // Models added before their download: flip them on when the file lands, whichever tab is open.
   usePendingReconcile();
+  // Workflow steps that follow step 1's models (fix list item 40): kept in step live.
+  useWorkflowFollow();
   const videoHost = useModeHost('video');
   const workflowHost = useModeHost('workflow');
   useEffect(() => { useVideoRun.getState().setHost(videoHost); }, [videoHost]);

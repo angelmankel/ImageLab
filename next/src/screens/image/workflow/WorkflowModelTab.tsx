@@ -4,7 +4,8 @@
  * (`useWorkflowKindApi`) — one tab per kind the graph has a slot for, one circle per loader widget
  * (badged with its node's title), "Change ▾" into the big models modal (or the server-file grid
  * for text encoders and other loaders); no "+ Add": a workflow's slots are fixed. A file the
- * server lacks is the dimmed "not on server" / "not downloaded" state.
+ * server lacks is the dimmed "not on server" / "not downloaded" state. On top: "Same models as
+ * step 1" (fix list item 40, on by default; `followWorkflow.ts` keeps the slots in step).
  */
 import { useStudio } from '@/features/studio/studioStore';
 import type { Step } from '~/app/stepsStore';
@@ -14,6 +15,7 @@ import { WorkflowPicker } from './WorkflowPicker';
 import { useWorkflowStepHost } from './useWorkflowStepHost';
 import { workflowKinds } from './workflowKinds';
 import { useWorkflowKindApi, WorkflowStepContext } from './useWorkflowKindApi';
+import { workflowCaps } from './followWorkflow';
 
 const NO_KINDS: ModelKind[] = Object.freeze([]) as unknown as ModelKind[];
 
@@ -29,7 +31,7 @@ export function WorkflowModelTab({ step }: { step: Step }) {
       {open && !kinds.length && <Hint>This workflow has no model slot.</Hint>}
       {open && kinds.length > 0 && (
         <WorkflowStepContext.Provider value={step}>
-          <ModelList key={ref?.path} kinds={kinds} useApi={useWorkflowKindApi} />
+          <ModelList key={ref?.path} kinds={kinds} useApi={useWorkflowKindApi} follow={{ stepId: step.id, caps: workflowCaps }} />
         </WorkflowStepContext.Provider>
       )}
     </>

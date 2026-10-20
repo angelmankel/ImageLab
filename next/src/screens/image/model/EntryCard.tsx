@@ -20,6 +20,7 @@ import { PendingStrip } from './PendingStrip';
 import { openModelViewer } from './viewerBridge';
 import { fmtWeight, type ModelEntry } from './kindSpecs';
 import type { KindApi } from './kindApi';
+import { displayBadge } from './followLogic';
 
 function ActionPill({ children, onClick, tone = 'card', title, disabled }: { children: ReactNode; onClick?: () => void; tone?: 'card' | 'ghost' | 'danger'; title?: string; disabled?: boolean }) {
   return (
@@ -50,7 +51,7 @@ export function MissingStrip({ file }: { file: string }) {
   );
 }
 
-export function EntryCard({ entry, api, onChange }: { entry: ModelEntry; api: KindApi; onChange: () => void }) {
+export function EntryCard({ entry, api, onChange, link }: { entry: ModelEntry; api: KindApi; onChange: () => void; link?: ReactNode }) {
   const meta = metaWithPending(useModelMeta(entry.name), entry.pending);
   // The selected model, shown big: its "Most popular" list loads now, not on a hover.
   const preview = useModelPreview(meta, { active: !!entry.name });
@@ -64,9 +65,12 @@ export function EntryCard({ entry, api, onChange }: { entry: ModelEntry; api: Ki
   const moreHint = card?.moreHint?.(entry);
   const headLabel = card?.headLabel?.(entry);
   const afterNode = card?.after?.(entry);
+  // A raw node name ("Load Checkpoint") says nothing: hidden (items 39 / 40).
+  const badge = displayBadge(entry.badge, api.kind, Math.max(0, api.entries.findIndex((e) => e.id === entry.id)), api.entries.length);
 
   return (
     <div style={{ border: `1px ${pending ? 'dashed' : 'solid'} var(--il-line-strong)`, borderRadius: T.radius.xl, background: 'var(--il-card)', padding: T.pad.card, display: 'flex', flexDirection: 'column', gap: 14, opacity: dim ? 0.8 : 1 }}>
+      {link}
       {headLabel && <span className="il-eyebrow" style={{ marginBottom: -8 }}>{headLabel}</span>}
       {pending && <PendingStrip record={pending} />}
       {!pending && entry.missing && <MissingStrip file={entry.name} />}
@@ -78,7 +82,7 @@ export function EntryCard({ entry, api, onChange }: { entry: ModelEntry; api: Ki
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 14, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'flex', alignItems: 'center', gap: 6 }} title={entry.name}>
             <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{title}</span>
-            {entry.badge && <span style={{ flex: 'none', fontSize: 9, fontWeight: 800, letterSpacing: '.4px', textTransform: 'uppercase', borderRadius: 999, padding: '2px 7px', background: 'var(--il-ember-soft)', color: 'var(--il-ember-hi)' }}>{entry.badge}</span>}
+            {badge && <span style={{ flex: 'none', fontSize: 9, fontWeight: 800, letterSpacing: '.4px', textTransform: 'uppercase', borderRadius: 999, padding: '2px 7px', background: 'var(--il-ember-soft)', color: 'var(--il-ember-hi)' }}>{badge}</span>}
             {pending && <span style={{ flex: 'none', fontSize: 9, fontWeight: 800, letterSpacing: '.4px', textTransform: 'uppercase', borderRadius: 999, padding: '2px 7px', background: 'var(--il-card-on)', color: 'var(--il-muted)' }}>not downloaded</span>}
           </div>
           <div style={{ fontSize: 11, color: 'var(--il-muted)', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={entry.name}>
