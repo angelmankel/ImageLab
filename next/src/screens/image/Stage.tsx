@@ -5,18 +5,20 @@
  * original ImageLab viewer with the history pager for images
  * (`FullscreenViewer`), `FullscreenImage` for video / workflow results. The live preview replaces
  * the picture while this step's job runs; its progress is a thin line under the toolbar row.
+ * A video result (or a video step's live render) goes to `StagePlayer`: the clip fills the same
+ * box, its controls are their own 44px row under it (rule 1), ←/→ seek there instead of paging.
  */
 import { useRef, useState } from 'react';
 import { useStore } from '@/lib/store';
 import { useShortcut, ShortcutPriority } from '@/hooks/useShortcut';
 import { FullscreenImage } from '@/components/FullscreenImage';
 import { FullscreenViewer } from '@/features/history/FullscreenViewer';
-import { playOrMute, videoHasAudio } from '@/lib/videoAudio';
 import type { Step } from '~/app/stepsStore';
 import { useStageMedia } from './useStageMedia';
 import { useStageZoom } from './useStageZoom';
 import { transformOf } from './stageZoom';
 import { Toolbar } from './Toolbar';
+import { StagePlayer } from './player';
 import { T } from '~/theme/tokens';
 
 export function StageColumn({ step, phone = false }: { step: Step; phone?: boolean }) {
@@ -30,16 +32,19 @@ export function StageColumn({ step, phone = false }: { step: Step; phone?: boole
   const ref = useRef<HTMLDivElement>(null);
   const shown = media.live ?? media.item?.url ?? null;
   const isVideo = !media.live && media.item?.kind === 'video';
+  /** The player owns the stage for a shown clip and for a video step's live render. */
+  const player = isVideo || (step.kind === 'video' && media.busy);
   const open = () => {
     if (media.source === 'image') { if (history.length || media.live) openViewer(); return; }
     if (media.item) setRunFull(media.index); else if (media.live) setRunFull('live');
   };
-  const zoom = useStageZoom(ref, shown, isVideo ? undefined : open, !isVideo);
+  const zoom = useStageZoom(ref, shown, player ? undefined : open, !player);
   const canOpen = !!media.item || !!media.live;
 
   const noOverlay = () => !viewerOpen && runFull === null;
-  useShortcut('ArrowLeft', () => media.pick(media.index + 1), { priority: ShortcutPriority.Panel + 10, when: noOverlay });
-  useShortcut('ArrowRight', () => media.pick(media.index - 1), { priority: ShortcutPriority.Panel + 10, when: noOverlay });
+  const pageKeys = () => noOverlay() && !isVideo;
+  useShortcut('ArrowLeft', () => media.pick(media.index + 1), { priority: ShortcutPriority.Panel + 10, when: pageKeys });
+  useShortcut('ArrowRight', () => media.pick(media.index - 1), { priority: ShortcutPriority.Panel + 10, when: pageKeys });
 
   const pct = media.progress != null ? Math.max(2, Math.round(media.progress * 100)) : null;
   const viewerIndex = Math.max(0, history.findIndex((e) => e.id === media.entry?.id));
@@ -54,17 +59,26 @@ export function StageColumn({ step, phone = false }: { step: Step; phone?: boole
           </div>
         )}
       </div>
-      <div ref={ref} {...(isVideo ? {} : zoom.handlers)} aria-label="Stage"
-        style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--il-bg-deep)', overflow: 'hidden', touchAction: shown && !isVideo ? 'none' : 'auto', cursor: zoom.state.zoom > 1 ? 'grab' : shown ? 'zoom-in' : 'default', position: 'relative', userSelect: 'none' }}>
+      {player ? (
+        <StagePlayer
+          src={isVideo ? media.item!.url : null}
+          name={isVideo ? media.item!.filename : null}
+          live={media.live}
+          busy={media.busy}
+          progress={media.progress}
+          statusLine={media.statusLine}
+          onFullscreen={open}
+          canFullscreen={canOpen}
+          keys={!phone}
+          keysWhen={noOverlay}
+          phone={phone}
+        />
+      ) : (
+      <div ref={ref} {...zoom.handlers} aria-label="Stage"
+        style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--il-bg-deep)', overflow: 'hidden', touchAction: shown ? 'none' : 'auto', cursor: zoom.state.zoom > 1 ? 'grab' : shown ? 'zoom-in' : 'default', position: 'relative', userSelect: 'none' }}>
         {shown ? (
-          isVideo ? (
-            // Plays at once; an H3 clip (a soundtrack of its own) unmuted, falling back to muted when the browser refuses.
-            <video key={shown} src={shown} controls playsInline loop autoPlay muted={!videoHasAudio(shown)} ref={(el) => { if (el) playOrMute(el); }}
-              style={{ maxWidth: '100%', maxHeight: '100%', display: 'block', outline: 'none' }} />
-          ) : (
-            <img key={shown} src={shown} alt="" draggable={false} data-viewer-origin={media.entry?.id}
-              style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', display: 'block', transform: transformOf(zoom.state), transformOrigin: 'center', transition: zoom.state.zoom === 1 ? 'transform .15s' : undefined, willChange: 'transform' }} />
-          )
+          <img key={shown} src={shown} alt="" draggable={false} data-viewer-origin={media.entry?.id}
+            style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', display: 'block', transform: transformOf(zoom.state), transformOrigin: 'center', transition: zoom.state.zoom === 1 ? 'transform .15s' : undefined, willChange: 'transform' }} />
         ) : (
           <div style={{ textAlign: 'center', color: 'var(--il-muted)', fontSize: 13, fontWeight: 600, padding: 24 }}>
             {media.busy ? (media.statusLine ?? 'Working…') : 'No image yet — press Generate.'}
@@ -74,6 +88,7 @@ export function StageColumn({ step, phone = false }: { step: Step; phone?: boole
           <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 0 }} aria-live="polite" aria-label={media.statusLine} />
         )}
       </div>
+      )}
       {viewerOpen && media.source === 'image' && (history.length > 0 || !!media.live) && (
         <FullscreenViewer list={history} index={viewerIndex} onIndexChange={(i) => { const e = history[i]; if (e) select(e); }} onClose={closeViewer} instantClose />
       )}

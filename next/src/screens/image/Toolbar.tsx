@@ -44,6 +44,8 @@ export function Toolbar({ step, media, zoom, onFullscreen, canFullscreen, phone 
   const { run } = useStepRun(step);
   const [cropping, setCropping] = useState(false);
   const has = !!media.item;
+  /** Zoom is for pictures; a clip (StagePlayer) has none. */
+  const zoomable = has && media.item?.kind !== 'video';
   const entry = media.entry;
   const liked = !!entry?.liked;
 
@@ -66,9 +68,9 @@ export function Toolbar({ step, media, zoom, onFullscreen, canFullscreen, phone 
     <>
       <div className="il-scroll-x" style={{ position: 'relative', height: T.size.toolbar, flex: 'none', display: 'flex', alignItems: 'center', justifyContent: phone ? 'flex-start' : 'center', gap: 6, padding: phone ? '0 10px' : '0 150px', touchAction: 'pan-x' }}>
         {!phone && <StageBadge item={media.item} />}
-        <IconBtn icon={<IconArrowsMaximize size={16} stroke={2.2} />} label="Fit to view" onClick={zoom.fit} style={round} disabled={!has} />
-        <IconBtn icon={<IconZoomIn size={16} stroke={2.2} />} label="Zoom in" onClick={zoom.zoomIn} style={round} disabled={!has} />
-        <IconBtn icon={<IconZoomOut size={16} stroke={2.2} />} label="Zoom out" onClick={zoom.zoomOut} style={round} disabled={!has} />
+        <IconBtn icon={<IconArrowsMaximize size={16} stroke={2.2} />} label="Fit to view" onClick={zoom.fit} style={round} disabled={!zoomable} />
+        <IconBtn icon={<IconZoomIn size={16} stroke={2.2} />} label="Zoom in" onClick={zoom.zoomIn} style={round} disabled={!zoomable} />
+        <IconBtn icon={<IconZoomOut size={16} stroke={2.2} />} label="Zoom out" onClick={zoom.zoomOut} style={round} disabled={!zoomable} />
         <Sep />
         <IconBtn icon={<IconCrop size={16} stroke={2.2} />} label="Crop a part and re-render it full size" onClick={() => void crop()} style={round} disabled={!has || media.item?.kind === 'video'} />
         <IconBtn icon={<IconBrush size={16} stroke={2.2} />} label="Mask and inpaint" onClick={() => soon('Mask & inpaint')} style={round} disabled={!has} />
