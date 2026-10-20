@@ -9,7 +9,7 @@
 import { useEffect, useState } from 'react';
 import { IconCheck, IconEyeOff, IconHeartFilled, IconPlus } from '@tabler/icons-react';
 import type { CivitaiModel } from '@/lib/civitai';
-import { civitaiThumbUrl, previewStill } from '@/lib/civitai';
+import { civitaiThumbUrl, civitaiVideoUrl, isCivitaiVideo, previewStill } from '@/lib/civitai';
 import { primaryFile } from '@/features/model-metadata/civitai';
 import { baseModelShort, fmtSizeKB, isBeyondMask, typeLabel, type InstalledState } from './civitaiQuery';
 import { Avatar, CoverBadge, COVER_FALLBACK, EmberBtn, GhostBtn, Stats, type Size } from './bits';
@@ -33,6 +33,14 @@ export function ModelTile({ model, selected, installed, mask, revealed, favourit
 }) {
   const phone = size === 'phone';
   const { version, image, imageIndex } = coverImage(model, null, mask);
+  // Hover (pointer devices) plays the first sample clip within the NSFW level — the cover's own
+  // clip when it is one, else the first clip among the version's samples (Donny, 10-20).
+  const [hover, setHover] = useState(false);
+  const clip = (() => {
+    const imgs = version?.images ?? [];
+    const c = image && isCivitaiVideo(image) ? image : imgs.find((i) => isCivitaiVideo(i) && !isBeyondMask(i.nsfwLevel, mask));
+    return c?.url ? civitaiVideoUrl(c.url, TILE_THUMB) : null;
+  })();
   // A cover whose link is dead falls back to the plain card colour instead of a broken-image icon.
   const [broken, setBroken] = useState(false);
   useEffect(() => setBroken(false), [image?.url]);
@@ -78,12 +86,18 @@ export function ModelTile({ model, selected, installed, mask, revealed, favourit
         type="button"
         aria-label={`${hidden ? 'Show the NSFW cover of' : 'View'} ${model.name}`}
         onClick={onCover}
+        onPointerEnter={(e) => { if (e.pointerType !== 'touch') setHover(true); }}
+        onPointerLeave={() => setHover(false)}
         style={{
           position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', padding: 0, border: 0, aspectRatio: '3 / 4', borderRadius: 14,
           background: hidden || !url ? (hidden ? 'var(--il-elev)' : COVER_FALLBACK) : 'var(--il-bg-deep)', overflow: 'hidden', cursor: 'pointer', color: 'var(--il-muted)',
         }}
       >
         {!hidden && url && !broken && <img src={url} alt="" loading="lazy" decoding="async" onError={() => setBroken(true)} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
+        {!hidden && hover && clip && (
+          <video src={clip} poster={url || undefined} muted loop autoPlay playsInline disablePictureInPicture preload="auto" aria-hidden
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', background: 'transparent' }} />
+        )}
         {hidden && (
           <span style={{ height: 26, padding: '0 10px', border: '1px solid var(--il-line-strong)', borderRadius: 999, fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6 }}>
             <IconEyeOff size={12} stroke={2.2} />NSFW · tap to show
