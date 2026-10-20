@@ -89,7 +89,8 @@ export function ImageDropZone(p: ImageDropZoneProps) {
     void take({ kind: 'url', url: pk.url, name: pk.name, payload: null }, pk.origin);
   };
 
-  const drop = useImageDrop({ onDrop: (item) => void take(item, originOfDrop(item)), disabled: working });
+  // A picture dragged out of this zone and let go on it again changes nothing.
+  const drop = useImageDrop({ onDrop: (item) => void take(item, originOfDrop(item)), accept: (item) => !(item.kind === 'url' && url && item.url === url), disabled: working });
   useRegisterDropTarget(target ? { id: target.id, label: target.label, group: 'input', order: target.order, onDrop: (item) => void take(item, originOfDrop(item)) } : null, [target?.label, take]);
 
   // Paste anywhere on the page while this zone is up (the Composition tab's main slot).
