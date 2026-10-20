@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react';
-import { T } from '~/theme/tokens';
+import { T, btnRadius } from '~/theme/tokens';
 
 /**
  * The phone's glass surfaces (rule 11). `GlassBar` sits at the bottom edge above the safe area;
@@ -27,7 +27,7 @@ export function BackPill({ onClick, label = 'Back' }: { onClick: () => void; lab
       className="il-glass"
       style={{
         position: 'fixed', left: '50%', transform: 'translateX(-50%)', bottom: `calc(12px + var(--il-safe-bottom))`, zIndex: T.z.dock,
-        height: 44, padding: '0 20px', borderRadius: 999, color: 'var(--il-fg)', fontWeight: 800, fontSize: 14, cursor: 'pointer',
+        height: 44, padding: '0 20px', borderRadius: btnRadius(44), color: 'var(--il-fg)', fontWeight: 800, fontSize: 14, cursor: 'pointer',
         display: 'inline-flex', alignItems: 'center', gap: 8,
       }}
     >

@@ -15,7 +15,13 @@
   --il-font: "Manrope Variable", Manrope, system-ui, sans-serif;
   --il-blur: blur(18px);
   --il-safe-bottom: env(safe-area-inset-bottom, 0px);
+  /* Button rounding (item 33): radius = half the height × this. 1 = a full pill, .85 = 15% less. Themes change it here. */
+  --il-btn-round: .85;
+  /* Motion (item 44): the themes agent flips this to 0 for "animations off"; reduced-motion does too. */
+  --il-motion: 1;
 }
+@media (prefers-reduced-motion: reduce) { :root { --il-motion: 0; } }
+html[data-motion="off"] { --il-motion: 0; }
 
 html, body, #root { height: 100%; margin: 0; }
 body {
@@ -56,6 +62,129 @@ html[data-viewer-open] .il-glass { backdrop-filter: none; -webkit-backdrop-filte
 
 /* Focus ring (keyboard only). */
 :focus-visible { outline: 2px solid var(--il-ember); outline-offset: 2px; border-radius: 6px; }
+/* Text selection in our fields: ember, never the browser blue (item 38). */
+::selection { background: var(--il-ember-line); color: var(--il-fg); }
+
+/* ---- Buttons (items 33 + 44): every shared button carries .il-btn. Hover = brighten + a 1px
+   lift, press = a quick 0.97 squeeze, the primary glows ember. All transforms scale with
+   --il-motion, so reduced motion / the theme's "animations off" leaves only the colour change. */
+.il-btn {
+  box-sizing: border-box; flex: none; line-height: 1; -webkit-tap-highlight-color: transparent; user-select: none;
+  transition: transform calc(.12s * var(--il-motion)) ease, background-color .12s ease, color .12s ease, box-shadow .16s ease, filter .12s ease, opacity .12s ease;
+}
+.il-btn:not(:disabled) { cursor: pointer; }
+@media (hover: hover) {
+  .il-btn:not(:disabled):hover { filter: brightness(1.12); transform: translateY(calc(-1px * var(--il-motion))); }
+  .il-btn-primary:not(:disabled):hover { box-shadow: 0 4px 18px rgba(240, 134, 58, .35); }
+  .il-btn-ghost:not(:disabled):hover { background-color: var(--il-card-on); filter: none; }
+}
+.il-btn:not(:disabled):active { transform: scale(calc(1 - .03 * var(--il-motion))); filter: brightness(.98); transition-duration: .05s; }
+.il-btn:disabled { cursor: default; }
+/* The press flash: a soft light at the press point (set by Button as --px/--py), gone in .35s. */
+.il-btn-flash { position: relative; overflow: hidden; }
+.il-btn-flash::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0; border-radius: inherit;
+  background: radial-gradient(circle at var(--px, 50%) var(--py, 50%), rgba(255, 255, 255, .22), transparent 45%);
+  transition: opacity calc(.35s * var(--il-motion)) ease;
+}
+.il-btn-flash:not(:disabled):active::after { opacity: 1; transition: opacity 0s; }
+
+/* ---- Item 33 catch-all: raw pill buttons written as `borderRadius: 999` (screens not yet on
+   ui/Button) still get the ONE rounding token: radius = half the height × --il-btn-round. The
+   segmented tracks around them follow (inner radius + their 3px padding). New code: use
+   ui/Button / Chip / Pill / IconBtn, which read the token through `btnRadius`. */
+button[style*="height: 16px"][style*="border-radius: 999px"] { border-radius: calc(8px * var(--il-btn-round)) !important; }
+button[style*="height: 18px"][style*="border-radius: 999px"] { border-radius: calc(9px * var(--il-btn-round)) !important; }
+button[style*="height: 20px"][style*="border-radius: 999px"] { border-radius: calc(10px * var(--il-btn-round)) !important; }
+button[style*="height: 22px"][style*="border-radius: 999px"] { border-radius: calc(11px * var(--il-btn-round)) !important; }
+button[style*="height: 24px"][style*="border-radius: 999px"] { border-radius: calc(12px * var(--il-btn-round)) !important; }
+button[style*="height: 26px"][style*="border-radius: 999px"] { border-radius: calc(13px * var(--il-btn-round)) !important; }
+button[style*="height: 28px"][style*="border-radius: 999px"] { border-radius: calc(14px * var(--il-btn-round)) !important; }
+button[style*="height: 30px"][style*="border-radius: 999px"] { border-radius: calc(15px * var(--il-btn-round)) !important; }
+button[style*="height: 32px"][style*="border-radius: 999px"] { border-radius: calc(16px * var(--il-btn-round)) !important; }
+button[style*="height: 34px"][style*="border-radius: 999px"] { border-radius: calc(17px * var(--il-btn-round)) !important; }
+button[style*="height: 36px"][style*="border-radius: 999px"] { border-radius: calc(18px * var(--il-btn-round)) !important; }
+button[style*="height: 38px"][style*="border-radius: 999px"] { border-radius: calc(19px * var(--il-btn-round)) !important; }
+button[style*="height: 40px"][style*="border-radius: 999px"] { border-radius: calc(20px * var(--il-btn-round)) !important; }
+button[style*="height: 42px"][style*="border-radius: 999px"] { border-radius: calc(21px * var(--il-btn-round)) !important; }
+button[style*="height: 44px"][style*="border-radius: 999px"] { border-radius: calc(22px * var(--il-btn-round)) !important; }
+button[style*="height: 46px"][style*="border-radius: 999px"] { border-radius: calc(23px * var(--il-btn-round)) !important; }
+button[style*="height: 48px"][style*="border-radius: 999px"] { border-radius: calc(24px * var(--il-btn-round)) !important; }
+button[style*="height: 50px"][style*="border-radius: 999px"] { border-radius: calc(25px * var(--il-btn-round)) !important; }
+button[style*="height: 52px"][style*="border-radius: 999px"] { border-radius: calc(26px * var(--il-btn-round)) !important; }
+button[style*="height: 54px"][style*="border-radius: 999px"] { border-radius: calc(27px * var(--il-btn-round)) !important; }
+button[style*="height: 56px"][style*="border-radius: 999px"] { border-radius: calc(28px * var(--il-btn-round)) !important; }
+:is([role="group"], [role="radiogroup"], [role="tablist"])[style*="border-radius: 999px"] { border-radius: calc(15px * var(--il-btn-round) + 3px) !important; }
+/* …and the same hover / press feedback as .il-btn (item 44), unless the button positions itself with a transform. */
+button[style*="border-radius: 999px"] { transition: transform calc(.12s * var(--il-motion)) ease, filter .12s ease, background-color .12s ease, color .12s ease; }
+@media (hover: hover) { button[style*="border-radius: 999px"]:not(:disabled):not([style*="transform"]):hover { filter: brightness(1.12); } }
+button[style*="border-radius: 999px"]:not(:disabled):not([style*="transform"]):active { transform: scale(calc(1 - .03 * var(--il-motion))); transition-duration: .05s; }
+
+/* ---- Fields (item 38): the one 34px shape every box shares (select, number, text). */
+.il-field {
+  box-sizing: border-box; display: flex; align-items: center; gap: 6px; min-width: 0;
+  height: 34px; padding: 0 6px 0 10px; border: 1px solid var(--il-line-strong); border-radius: 10px;
+  background: var(--il-panel); color: var(--il-fg); font-weight: 700; font-size: 12px;
+  transition: border-color .12s ease, box-shadow .12s ease;
+}
+.il-field:focus-within { border-color: var(--il-ember); box-shadow: 0 0 0 3px rgba(240, 134, 58, .18); }
+.il-field[data-tall="true"] { height: 44px; border-radius: 14px; font-size: 13px; }
+.il-field input, .il-field textarea {
+  flex: 1; min-width: 0; width: 100%; border: 0; background: transparent; color: inherit; font: inherit; outline: none; padding: 0; margin: 0;
+  font-variant-numeric: tabular-nums; box-shadow: none;
+}
+.il-field input::placeholder { color: var(--il-muted); font-weight: 600; }
+.il-field input::-webkit-outer-spin-button, .il-field input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.il-field input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+.il-field input[type="search"]::-webkit-search-cancel-button { -webkit-appearance: none; }
+.il-field[data-align="center"] input { text-align: center; }
+.il-field[data-align="right"] input { text-align: right; }
+.il-field[data-disabled="true"] { opacity: .5; }
+
+/* ---- Slider (item 1): Mantine's, re-dressed. Big handle, 6px track, ember fill; bigger on touch. */
+.il-slider { --il-thumb: 20px; --il-track: 6px; }
+.il-slider[data-big="true"] { --il-thumb: 24px; }
+@media (hover: none) { .il-slider { --il-thumb: 26px; --il-track: 8px; } }
+.il-slider .mantine-Slider-root { padding: calc(var(--il-thumb) / 2 - var(--il-track) / 2) 0; }
+.il-slider .mantine-Slider-track { touch-action: pan-y; }
+.il-slider .mantine-Slider-thumb {
+  touch-action: none; width: var(--il-thumb); height: var(--il-thumb); border: 3px solid var(--il-bg); background: var(--il-ember);
+  box-shadow: 0 0 0 1px var(--il-ember-line), 0 2px 8px rgba(0, 0, 0, .4);
+  transition: transform calc(.12s * var(--il-motion)) ease, box-shadow .12s ease;
+}
+.il-slider .mantine-Slider-thumb:hover, .il-slider .mantine-Slider-thumb[data-dragging] { transform: translate(-50%, -50%) scale(calc(1 + .15 * var(--il-motion))); }
+.il-slider .mantine-Slider-thumb:focus-visible { outline: 0; box-shadow: 0 0 0 3px rgba(240, 134, 58, .35); }
+
+/* ---- Tooltip (item 26): dark card, quick. */
+.il-tip { background: var(--il-bg-deep); color: var(--il-fg); border: 1px solid var(--il-line-strong); border-radius: 8px; padding: 6px 9px; font-size: 11px; font-weight: 700; line-height: 1.4; box-shadow: 0 8px 24px rgba(0, 0, 0, .4); max-width: 280px; }
+.il-tip-hint { display: block; margin-top: 2px; color: var(--il-muted); font-weight: 600; }
+.il-tip-key { margin-left: 6px; display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 5px; background: var(--il-elev); border: 1px solid var(--il-line-strong); font-size: 10px; line-height: 1; vertical-align: -3px; }
+
+/* ---- Dropdowns (items 38): Mantine Combobox / Menu / Popover in the Ember look. */
+.il-dd { background: var(--il-panel); border: 1px solid var(--il-line-soft); border-radius: 12px; box-shadow: 0 14px 40px rgba(0, 0, 0, .45); }
+.il-dd .mantine-Combobox-group:not(:first-child) { margin-top: 2px; }
+.il-dd .mantine-Combobox-groupLabel { font-size: 9px; font-weight: 800; letter-spacing: .6px; text-transform: uppercase; color: var(--il-dim); padding: 8px 10px 4px; }
+.il-dd .mantine-Combobox-groupLabel::after { display: none; }
+.il-dd .mantine-Combobox-option { border-radius: 8px; min-height: 32px; padding: 0 10px; display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: var(--il-fg2); }
+.il-dd .mantine-Combobox-option[data-combobox-active], .il-dd .mantine-Combobox-option:hover { background: var(--il-card-on); color: var(--il-fg); }
+.il-dd .mantine-Combobox-option[data-combobox-selected] { color: var(--il-ember-hi); font-weight: 800; }
+.il-dd .mantine-Combobox-option mark { background: transparent; color: var(--il-ember); font-weight: 800; }
+.il-dd .mantine-Combobox-empty { font-size: 12px; font-weight: 600; color: var(--il-muted); padding: 10px; }
+.il-dd .mantine-Combobox-footer { display: flex; gap: 8px; align-items: center; padding: 6px 8px 2px; margin: 4px 0 0; border-top: 1px solid var(--il-line); font-size: 10px; color: var(--il-muted); font-weight: 700; }
+@media (hover: none) { .il-dd .mantine-Combobox-option { min-height: 44px; font-size: 13px; } .il-dd .mantine-Combobox-footer { display: none; } }
+.il-dd .mantine-Menu-item { border-radius: 8px; min-height: 34px; font-size: 12px; font-weight: 600; color: var(--il-fg2); }
+.il-dd .mantine-Menu-item:hover, .il-dd .mantine-Menu-item[data-hovered] { background: var(--il-card-on); color: var(--il-fg); }
+.il-dd .mantine-Menu-label { font-size: 9px; font-weight: 800; letter-spacing: .6px; text-transform: uppercase; color: var(--il-dim); }
+.il-dd .mantine-Menu-divider { border-color: var(--il-line); }
+@media (hover: none) { .il-dd .mantine-Menu-item { min-height: 44px; font-size: 13px; } }
+@keyframes il-pop { from { opacity: 0; transform: translateY(-4px) scale(.98); } to { opacity: 1; transform: none; } }
+.il-pop-in { animation: il-pop calc(.12s * var(--il-motion)) ease; }
+
+/* ---- Switch (item 38): Mantine's, with a springy thumb. */
+.il-switch .mantine-Switch-track { cursor: pointer; border: 0; background: var(--il-line-strong); transition: background-color .15s ease; }
+.il-switch .mantine-Switch-track[data-checked], .il-switch input:checked + .mantine-Switch-track { background: var(--il-ember); }
+.il-switch .mantine-Switch-thumb { border: 0; background: var(--il-fg2); transition: left calc(.15s * var(--il-motion)) cubic-bezier(.3, 1.3, .5, 1), background-color .15s; }
+.il-switch input:checked + .mantine-Switch-track .mantine-Switch-thumb { background: var(--il-bg); }
 
 /* An indeterminate progress sweep (the Generate group, the stage's progress line). */
 @keyframes il-sweep { from { transform: translateX(-100%); } to { transform: translateX(300%); } }

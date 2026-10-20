@@ -1,8 +1,14 @@
 import { Switch as MSwitch } from '@mantine/core';
+import { Tip } from './Tip';
 
-/** On/Off switch, label on the left, ember when on. */
-export function Switch({ label, checked, onChange, description }: { label: string; checked: boolean; onChange: (on: boolean) => void; description?: string }) {
-  return (
+/**
+ * On/Off switch, label on the left, ember when on, a springy thumb (`.il-switch`). `hint` = a
+ * parameter id for the tooltip (item 26); `big` = the phone's 48×28 track.
+ */
+export function Switch({ label, checked, onChange, description, hint, big, disabled }: {
+  label: string; checked: boolean; onChange: (on: boolean) => void; description?: string; hint?: string; big?: boolean; disabled?: boolean;
+}) {
+  const sw = (
     <MSwitch
       checked={checked}
       onChange={(e) => onChange(e.currentTarget.checked)}
@@ -10,8 +16,11 @@ export function Switch({ label, checked, onChange, description }: { label: strin
       description={description}
       labelPosition="left"
       color="ember"
-      size="sm"
-      styles={{ body: { justifyContent: 'space-between', alignItems: 'center' }, label: { fontWeight: 700, fontSize: 12, color: 'var(--il-fg2)', paddingInlineEnd: 0 } }}
+      size={big ? 'md' : 'sm'}
+      disabled={disabled}
+      className="il-switch"
+      styles={{ body: { justifyContent: 'space-between', alignItems: 'center' }, label: { fontWeight: 700, fontSize: big ? 13 : 12, color: 'var(--il-fg2)', paddingInlineEnd: 0, cursor: 'pointer' }, track: { cursor: 'pointer' } }}
     />
   );
+  return hint ? <Tip hint={hint}><div style={{ display: 'flex', flexDirection: 'column' }}>{sw}</div></Tip> : sw;
 }

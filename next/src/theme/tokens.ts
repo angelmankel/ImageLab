@@ -30,7 +30,7 @@ export const T = {
     err: '#C96A6A',
     info: '#6FA0CF',
   },
-  radius: { pill: 999, xl: 16, lg: 14, md: 12, sm: 10, xs: 8 },
+  radius: { pill: 999, xl: 16, lg: 14, md: 12, sm: 10, xs: 8, field: 10 },
   size: {
     topBar: 56,
     rail: 84,
@@ -51,3 +51,12 @@ export const T = {
 } as const;
 
 export type Tokens = typeof T;
+
+/**
+ * Button rounding, ONE theme token (item 33): the CSS var `--il-btn-round` (styles/next.css,
+ * default .85 = Donny's "15% less" than a full pill). A button `h` px high gets
+ * radius = h/2 × that token. Themes (item 35) change the var, nothing else; every shared button
+ * (Button, Pill, Chip, IconBtn, Tabs, Mantine Button) reads it through here or the var.
+ */
+export const BTN_ROUND_VAR = '--il-btn-round';
+export const btnRadius = (h: number): string => `calc(${h / 2}px * var(${BTN_ROUND_VAR}, .85))`;

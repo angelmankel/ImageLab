@@ -35,7 +35,17 @@ export const emberTheme = createTheme({
   radius: { xs: '8px', sm: '10px', md: '12px', lg: '14px', xl: '16px' },
   fontSizes: { xs: '11px', sm: '12px', md: '13px', lg: '14px', xl: '16px' },
   components: {
-    Tooltip: { defaultProps: { withArrow: false, openDelay: 400 } },
+    // Item 26: every tooltip near-instant with a quick fade, in the dark `.il-tip` card.
+    Tooltip: {
+      defaultProps: { withArrow: false, openDelay: 60, closeDelay: 0, transitionProps: { transition: 'fade', duration: 90 } },
+      classNames: { tooltip: 'il-tip' },
+    },
+    // Item 33: Mantine buttons share the one rounding token (half the height × --il-btn-round)
+    // and the .il-btn hover / press feedback (item 44).
+    Button: {
+      classNames: { root: 'il-btn' },
+      vars: () => ({ root: { '--button-radius': 'calc(var(--button-height) / 2 * var(--il-btn-round, .85))' } }),
+    },
     // The model viewer sits above these, outside their DOM: let it scroll (see scrollShards.ts).
     Modal: { defaultProps: { removeScrollProps: { shards: [viewerLayerRef] } } },
     Drawer: { defaultProps: { removeScrollProps: { shards: [viewerLayerRef] } } },
