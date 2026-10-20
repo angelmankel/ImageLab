@@ -22,6 +22,7 @@ import { useComfyHost } from './useComfyHost';
 import { useComfyServer } from './useComfyServer';
 import { useComfyWorkflows } from './useComfyWorkflows';
 import { WorkflowList } from './WorkflowList';
+import { useServersUp } from '~/screens/settings/useServersUp';
 
 export function ComfyScreen() {
   useVideoServerProbe();
@@ -29,6 +30,7 @@ export function ComfyScreen() {
   const host = pick.server?.host ?? null;
   const live = useComfyHost(host);
   const wf = useComfyWorkflows(pick.server, pick.kind);
+  const up = useServersUp(pick.servers);
 
   const [leftOpen, setLeftOpen] = useState(true);
   const [leftW, setLeftW] = useState(300);
@@ -39,7 +41,7 @@ export function ComfyScreen() {
     <div style={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex' }}>
       <Panel side="left" width={leftW} min={260} max={460} open={leftOpen} onResize={setLeftW} onToggle={() => setLeftOpen((o) => !o)} tabLabel="Workflows">
         <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 10, padding: T.pad.panel }}>
-          <ServerSwitch pick={pick} online={live.online} />
+          <ServerSwitch pick={pick} online={live.online} up={up} />
           <ServerStatus server={pick.server} online={live.online} stats={live.stats} queued={live.rows.length} />
           <div style={{ height: 4, flex: 'none' }} />
           <WorkflowList wf={wf} />

@@ -2,16 +2,14 @@
  * Rule 14: the server switch, Image · Video. A dot per side: green = answering, dim = unknown or
  * off. `compact` is the phone's small header version (30 high, content width).
  */
-import { useStore } from '@/lib/store';
 import { Dot } from '~/ui';
 import type { ComfyKind } from './workflowStore';
 import type { ComfyServerPick } from './useComfyServer';
 
-export function ServerSwitch({ pick, online, compact }: { pick: ComfyServerPick; online: boolean | null; compact?: boolean }) {
-  const serverInfo = useStore((s) => s.serverInfo);
+export function ServerSwitch({ pick, online, up, compact }: { pick: ComfyServerPick; online: boolean | null; up: Record<string, boolean>; compact?: boolean }) {
   const items: Array<{ key: ComfyKind; label: string; up: boolean; none: boolean }> = [
-    { key: 'image', label: 'Image', up: !!pick.imageServer && (pick.kind === 'image' ? !!online : !!serverInfo[pick.imageServer.id]), none: !pick.imageServer },
-    { key: 'video', label: 'Video', up: !!pick.videoServer && (pick.kind === 'video' ? !!online : !!serverInfo[pick.videoServer.id]), none: !pick.videoServer },
+    { key: 'image', label: 'Image', up: !!pick.imageServer && (pick.kind === 'image' ? !!online : !!up[pick.imageServer.id]), none: !pick.imageServer },
+    { key: 'video', label: 'Video', up: !!pick.videoServer && (pick.kind === 'video' ? !!online : !!up[pick.videoServer.id]), none: !pick.videoServer },
   ];
   return (
     <div role="radiogroup" aria-label="Which ComfyUI server" style={{ display: 'flex', gap: 2, background: compact ? 'var(--il-elev)' : 'var(--il-card)', borderRadius: 999, padding: compact ? 3 : 4 }}>

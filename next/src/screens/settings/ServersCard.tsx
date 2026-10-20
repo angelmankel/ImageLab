@@ -12,6 +12,7 @@ import { serverRole, type ServerRole } from '@/lib/serverRoles';
 import type { Server } from '@/lib/storage';
 import { Dot, IconBtn, Tabs } from '~/ui';
 import { inputStyles, monoInputStyles, SettingsCard } from './SettingsCard';
+import { useServersUp } from './useServersUp';
 
 function ServerEdit({ server, online, canRemove }: { server: Server; online: boolean; canRemove: boolean }) {
   const updateServer = useStore((s) => s.updateServer);
@@ -56,7 +57,7 @@ function ServerEdit({ server, online, canRemove }: { server: Server; online: boo
 
 export function ServersCard() {
   const servers = useStore((s) => s.servers);
-  const serverInfo = useStore((s) => s.serverInfo);
+  const up = useServersUp(servers);
   const addServer = useStore((s) => s.addServer);
   const [name, setName] = useState('');
   const [host, setHost] = useState('');
@@ -68,7 +69,7 @@ export function ServersCard() {
 
   return (
     <SettingsCard title="Servers" description="ComfyUI servers. Images and video go to the servers marked for them; a /video-comfy host is the video one.">
-      {servers.map((s) => <ServerEdit key={s.id} server={s} online={!!serverInfo[s.id]} canRemove={servers.length > 1} />)}
+      {servers.map((s) => <ServerEdit key={s.id} server={s} online={!!up[s.id]} canRemove={servers.length > 1} />)}
       <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
         <TextInput value={name} onChange={(e) => setName(e.currentTarget.value)} placeholder="Name" aria-label="New server name" size="sm" style={{ width: '34%' }} styles={inputStyles} />
         <TextInput value={host} onChange={(e) => setHost(e.currentTarget.value)} onKeyDown={(e) => { if (e.key === 'Enter') add(); }}

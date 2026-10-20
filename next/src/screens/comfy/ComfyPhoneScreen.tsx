@@ -6,7 +6,6 @@
 import { useState } from 'react';
 import { IconExternalLink } from '@tabler/icons-react';
 import { useVideoServerProbe } from '@/hooks/useVideoServerProbe';
-import { useStore } from '@/lib/store';
 import { serverRole } from '@/lib/serverRoles';
 import { useRoute } from '~/app/routeStore';
 import { BackPill, Count, Dot, Tabs } from '~/ui';
@@ -19,13 +18,13 @@ import { useComfyHost } from './useComfyHost';
 import { useComfyServer, type ComfyServerPick } from './useComfyServer';
 import { useComfyWorkflows } from './useComfyWorkflows';
 import { WorkflowList } from './WorkflowList';
+import { useServersUp } from '~/screens/settings/useServersUp';
 
 type Seg = 'servers' | 'workflows' | 'queue';
 
 const ROLE_LABEL = { both: 'Images + video', image: 'Images', video: 'Video' } as const;
 
-function ServerList({ pick, online }: { pick: ComfyServerPick; online: boolean | null }) {
-  const serverInfo = useStore((s) => s.serverInfo);
+function ServerList({ pick, online, up }: { pick: ComfyServerPick; online: boolean | null; up: Record<string, boolean> }) {
   const go = useRoute((s) => s.go);
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -36,12 +35,12 @@ function ServerList({ pick, online }: { pick: ComfyServerPick; online: boolean |
       <div style={{ background: 'var(--il-card)', borderRadius: 20, padding: 6, display: 'flex', flexDirection: 'column', gap: 2 }}>
         {pick.servers.map((s) => {
           const on = s.id === pick.server?.id;
-          const up = on ? !!online : !!serverInfo[s.id];
+          const answering = on ? !!online : !!up[s.id];
           const off = s.enabled === false;
           return (
             <button key={s.id} type="button" onClick={() => pick.select(s)} disabled={off} aria-pressed={on}
               style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', minHeight: 56, padding: '8px 10px', border: 0, borderRadius: 14, background: on ? 'var(--il-card-on)' : 'transparent', color: 'var(--il-fg)', textAlign: 'left', opacity: off ? 0.5 : 1, cursor: 'pointer' }}>
-              <Dot color={off ? 'var(--il-dim)' : up ? 'var(--il-ok)' : 'var(--il-err)'} />
+              <Dot color={off ? 'var(--il-dim)' : answering ? 'var(--il-ok)' : 'var(--il-err)'} />
               <span style={{ flex: 1, minWidth: 0 }}>
                 <span style={{ display: 'block', fontSize: 13, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.name}</span>
                 <span style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--il-muted)', fontFamily: 'ui-monospace, Menlo, monospace', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.host}</span>
@@ -63,13 +62,14 @@ export function ComfyPhoneScreen() {
   const host = pick.server?.host ?? null;
   const live = useComfyHost(host);
   const wf = useComfyWorkflows(pick.server, pick.kind);
+  const up = useServersUp(pick.servers);
   const [seg, setSeg] = useState<Seg>('servers');
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--il-bg)' }}>
       <div style={{ height: 56, flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '10px 14px 0' }}>
         <span style={{ fontWeight: 800, fontSize: 18 }}>ComfyUI</span>
-        <ServerSwitch pick={pick} online={live.online} compact />
+        <ServerSwitch pick={pick} online={live.online} up={up} compact />
       </div>
       <div style={{ flex: 'none', padding: '8px 14px 4px' }}>
         <Tabs<Seg>
@@ -94,7 +94,7 @@ export function ComfyPhoneScreen() {
               </a>
             )}
             {host && <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--il-muted)', textAlign: 'center', marginTop: -4 }}>opens the node editor in a new tab</div>}
-            <ServerList pick={pick} online={live.online} />
+            <ServerList pick={pick} online={live.online} up={up} />
           </>
         )}
         {seg === 'workflows' && <WorkflowList wf={wf} large scroll={false} />}
