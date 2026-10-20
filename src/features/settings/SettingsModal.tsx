@@ -36,13 +36,13 @@ type CategoryDef = {
 };
 
 const SETTINGS_CATEGORIES: CategoryDef[] = [
-  { id: 'workspace',  label: 'Workspace',   description: 'The new steps layout or the classic one',  Icon: IconLayout,   Component: WorkspaceTab },
   { id: 'servers',    label: 'Servers',     description: 'ComfyUI endpoints and routing',          Icon: IconServer,   Component: ServersTab },
   { id: 'ai',         label: 'AI',          description: 'Venice or local LLM for prompt helpers',     Icon: IconSparkles, Component: VeniceTab },
   { id: 'civitai',    label: 'CivitAI',     description: 'Model browser credentials',              Icon: IconKey,      Component: CivitaiTab },
   { id: 'previews',   label: 'Previews',    description: 'Model picker hover slideshow',           Icon: IconPhoto,    Component: PreviewsTab },
   { id: 'appearance', label: 'Appearance',  description: 'Theme and visual customization',         Icon: IconPalette,  Component: ThemeTab },
   { id: 'sounds',     label: 'Sounds',      description: 'Notification sounds and volume',         Icon: IconVolume,   Component: SoundsTab },
+  { id: 'workspace',  label: 'Workspace',   description: 'The new steps layout or the classic one',  Icon: IconLayout,   Component: WorkspaceTab },
 ];
 
 type SearchableSetting = {
