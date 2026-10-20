@@ -145,8 +145,10 @@ export interface ModelFilters {
 }
 
 export const DEFAULT_FILTERS: ModelFilters = {
-  query: '', tag: '', username: '', types: [], baseModels: [], sort: 'Most Downloaded', period: 'Month',
-  nsfwMask: 7, rating: 0, favorites: false, accountFavorites: false, followed: false, hidden: false, earlyAccess: 'any',
+  // AllTime + X (10-19): with `period=Month` CivitAI answers a search like "pony diffusion" with 0
+  // models, and the pod is for adult work, so a Soft default hid nearly every cover behind a pill.
+  query: '', tag: '', username: '', types: [], baseModels: [], sort: 'Most Downloaded', period: 'AllTime',
+  nsfwMask: ALL_LEVELS, rating: 0, favorites: false, accountFavorites: false, followed: false, hidden: false, earlyAccess: 'any',
   supportsGeneration: false, primaryFileOnly: false, allowNoCredit: false, allowDerivatives: false,
   allowDifferentLicenses: false, commercialUse: [], fileFormats: [], fp: [], checkpointType: '',
   installed: 'any', ids: [], catalog: 'civitai',
@@ -192,7 +194,9 @@ export function buildModelsQuery(f: ModelFilters, o: QueryOptions = {}): string 
   appendAll(qp, 'types', f.types);
   appendAll(qp, 'baseModels', f.baseModels);
   qp.set('sort', f.sort);
-  qp.set('period', f.period);
+  // A text search is always all-time: CivitAI returns 0 results for `query=…&period=Month`
+  // (checked 10-19 with "pony diffusion" and "juggernaut").
+  if (!f.query.trim()) qp.set('period', f.period);
   if (f.rating > 0) qp.set('rating', String(f.rating));
   if (f.accountFavorites) qp.set('favorites', 'true');
   if (f.followed) qp.set('followed', 'true');

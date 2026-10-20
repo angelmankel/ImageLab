@@ -13,7 +13,7 @@ test('defaults: only limit, sort, period and nsfw go out (never browsingLevel: /
   assert.deepEqual([...p.keys()].sort(), ['limit', 'nsfw', 'period', 'sort']);
   assert.equal(p.get('limit'), '40');
   assert.equal(p.get('sort'), 'Most Downloaded');
-  assert.equal(p.get('period'), 'Month');
+  assert.equal(p.get('period'), 'AllTime');
   assert.equal(p.get('nsfw'), 'true');
   assert.equal(p.get('browsingLevel'), null);
 });
@@ -33,7 +33,7 @@ test('every /models parameter is wired', () => {
   assert.deepEqual(p.getAll('types'), ['Checkpoint', 'LORA']);
   assert.deepEqual(p.getAll('baseModels'), ['Illustrious', 'SDXL 1.0']);
   assert.equal(p.get('sort'), 'Newest');
-  assert.equal(p.get('period'), 'Week');
+  assert.equal(p.get('period'), null, 'a text search is all-time: no period goes out');
   assert.equal(p.get('rating'), '4');
   for (const k of ['favorites', 'followed', 'hidden', 'earlyAccess', 'supportsGeneration', 'primaryFileOnly', 'allowNoCredit', 'allowDerivatives', 'allowDifferentLicenses']) {
     assert.equal(p.get(k), 'true', k);
@@ -121,10 +121,10 @@ test('sanitizeFilters drops unknown sorts/types and bad masks', () => {
   const f = Q.sanitizeFilters({ sort: 'Most Buzz', types: ['Checkpoint', 'Nope'], nsfwMask: 0, ids: [1, 'x'], fp: 'bad' });
   assert.equal(f.sort, 'Most Downloaded');
   assert.deepEqual(f.types, ['Checkpoint']);
-  assert.equal(f.nsfwMask, 7);
+  assert.equal(f.nsfwMask, 63);
   assert.deepEqual(f.ids, [1]);
   assert.deepEqual(f.fp, []);
-  assert.equal(Q.sanitizeFilters(null).period, 'Month');
+  assert.equal(Q.sanitizeFilters(null).period, 'AllTime');
 });
 
 test('installed matching: by hash, by server file name, by folder-less suffix, embeddings without extension', () => {
@@ -239,4 +239,12 @@ test('the picker kind locks the types; the first chosen tag is the API tag', () 
   const free = Q.effectiveFilters(f, null, []);
   assert.deepEqual(free.types, ['Checkpoint']);
   assert.equal(free.tag, 'old');
+});
+
+test('a text search never sends a period (CivitAI answers 0 to query + Month)', () => {
+  const p = params(Q.buildModelsQuery({ ...base(), query: 'pony diffusion', period: 'Month' }));
+  assert.equal(p.get('query'), 'pony diffusion');
+  assert.equal(p.get('period'), null);
+  const q = params(Q.buildModelsQuery({ ...base(), period: 'Month' }));
+  assert.equal(q.get('period'), 'Month');
 });

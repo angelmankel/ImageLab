@@ -219,13 +219,16 @@ export const useModels = create<ModelsState>()(
     }),
     {
       name: 'imagelab.next.models.v1',
-      partialize: (s) => ({ filters: s.filters, source: s.source, view: s.view, favourites: s.favourites, followed: s.followed, panelOpen: s.panelOpen, panelWidth: s.panelWidth, hasDownloadedOnce: s.hasDownloadedOnce }),
+      partialize: (s) => ({ v: 2, filters: s.filters, source: s.source, view: s.view, favourites: s.favourites, followed: s.followed, panelOpen: s.panelOpen, panelWidth: s.panelWidth, hasDownloadedOnce: s.hasDownloadedOnce }),
       merge: (saved, current) => {
-        const p = (saved ?? {}) as Partial<ModelsState>;
+        const p = (saved ?? {}) as Partial<ModelsState> & { v?: number };
         const hasDownloadedOnce = !!p.hasDownloadedOnce;
+        // v1 saves carry the old Month + Soft defaults; once, they take the new AllTime + X ones.
+        const filters = sanitizeFilters(p.filters);
+        if ((p.v ?? 1) < 2) { filters.period = DEFAULT_FILTERS.period; filters.nsfwMask = DEFAULT_FILTERS.nsfwMask; }
         return {
           ...current, ...p,
-          filters: sanitizeFilters(p.filters),
+          filters,
           hasDownloadedOnce,
           // Downloaded is the default until something has been downloaded once.
           source: hasDownloadedOnce ? (p.source ?? current.source) : 'installed',
