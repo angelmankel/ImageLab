@@ -98,7 +98,8 @@ export function SessionTabs() {
 
   // A history picture dropped anywhere on the strip = a new session from it (item 28).
   const drop = useImageDrop({
-    accept: (item) => item.kind === 'url' && !!item.payload,
+    // Only the app's own results (they know the steps that made them).
+    accept: (item) => item.kind === 'url' && !!item.payload && !!(item.payload.entryId || item.payload.key),
     onDrop: (item) => { if (item.kind === 'url' && item.payload) newSessionFromImage({ url: item.url, key: item.payload.key, entryId: item.payload.entryId, name: item.name }); },
   });
 
