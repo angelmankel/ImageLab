@@ -10,7 +10,7 @@ import {
 import { useStore } from '@/lib/store';
 import type { HistoryEntry } from '@/lib/types';
 import { reuseSettingsFrom, sendToStep, usePromptFrom } from '~/app/actions';
-import { deleteOutput } from '~/app/deleteResult';
+import { deleteOutput, runStoreOf } from '~/app/deleteResult';
 import { useSteps, stepTitle, STEP_LABEL } from '~/app/stepsStore';
 import { useStage } from '~/screens/image/stageStore';
 import type { Tile } from '~/screens/image/historyLogic';
@@ -53,5 +53,5 @@ registerMenu<T>('history-image', [
   { id: 'send', label: 'Send to step', icon: IconSend, group: 'reuse', visible: (t) => t.kind === 'image', submenu: sendTargets },
   { id: 'download', label: 'Download', icon: IconDownload, group: 'file', action: download },
   { id: 'copy', label: 'Copy address', icon: IconCopy, group: 'file', action: (t) => navigator.clipboard?.writeText(new URL(t.url, location.href).href).catch(() => undefined) },
-  { id: 'delete', label: 'Delete', icon: IconTrash, danger: true, group: 'danger', order: 100, shortcut: 'Del', action: (t) => deleteOutput(t) },
+  { id: 'delete', label: 'Delete', icon: IconTrash, danger: true, group: 'danger', order: 100, shortcut: 'Del', visible: (t) => !!t.entry || !!runStoreOf(t.url), action: (t) => deleteOutput(t) },
 ]);

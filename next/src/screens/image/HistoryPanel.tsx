@@ -5,9 +5,13 @@
  * toggles favourite, the trash (top-left, on hover) deletes with Undo (`~/app/deleteResult`). Images
  * from the main store's history; videos from the video / workflow run stores. The pure merge +
  * filter is `historyLogic.ts` (tested).
+ * Collections (FIXLIST 21): a row of collection tiles under the filters (`collections/*`); a picked
+ * collection fills the grid with its pictures (any picture: results, imports, model pictures), and
+ * a picture dropped on a tile (or on the grid while a collection is shown) moves there.
  */
 import { useMemo, useState } from 'react';
-import { IconHeart, IconHeartFilled, IconTrash } from '@tabler/icons-react';
+import { IconArrowLeft, IconHeart, IconHeartFilled, IconTrash } from '@tabler/icons-react';
+import { FullscreenImage } from '@/components/FullscreenImage';
 import { useStore } from '@/lib/store';
 import type { HistoryEntry } from '@/lib/types';
 import { useImageResults, useVideoResults, useWorkflowResults } from '@/features/workspace/results';
@@ -18,6 +22,12 @@ import { filterTiles, inStep, mergeTiles, type HistoryFilter, type HistoryScope,
 import { useResultSteps } from './resultSteps';
 import { makePayload, useImageDrag, useLongPress, openSendTo } from '~/dnd';
 import { menuProps } from '~/app/contextMenu';
+import { useImageDrop } from '~/dnd';
+import { undoNote } from '~/app/undoNote';
+import { CollectionsRow } from './collections/CollectionsRow';
+import { useCollectionView } from './collections/useCollectionView';
+import { addImageToCollection, moveItem, removeFromCollections, setActiveCollection, useCollectionsUi } from './collections/collectionActions';
+import './collections/collectionMenus';
 
 const SCOPES: Array<{ key: HistoryScope; label: string; title: string }> = [{ key: 'step', label: 'This step', title: 'Only what the open step made' }, { key: 'all', label: 'All', title: 'Every generation' }];
 /** Toggles: tap one to show only that, tap it again for everything (no 'All' chip, Donny 10-20). */
@@ -71,11 +81,27 @@ export function HistoryPanel({ columns = 2, phone = false }: { columns?: number;
   const tags = useResultSteps((s) => s.tags);
   const scope = useResultSteps((s) => s.scope);
   const setScope = useResultSteps((s) => s.setScope);
+  const all = useMemo(
+    () => mergeTiles(images.map((i) => ({ ...i, source: 'image' as const })), videos.map((v) => ({ ...v, source: 'video' as const })), runs.map((r) => ({ ...r, source: 'workflow' as const }))),
+    [images, videos, runs],
+  );
+  const coll = useCollectionView(all);
+  const activeCollection = useCollectionsUi((s) => s.active);
+  const toggleImportedLiked = useStore((s) => s.toggleImportedLiked);
+  const [viewing, setViewing] = useState<number | null>(null);
   const tiles = useMemo(() => {
-    const all = mergeTiles(images.map((i) => ({ ...i, source: 'image' as const })), videos.map((v) => ({ ...v, source: 'video' as const })), runs.map((r) => ({ ...r, source: 'workflow' as const })));
+    if (coll.tiles) return filterTiles(coll.tiles, filter);
     const step = steps.find((s) => s.id === activeId);
     return filterTiles(scope === 'step' && step ? all.filter((t) => inStep(t, step, steps, tags)) : all, filter);
-  }, [images, videos, runs, filter, scope, steps, activeId, tags]);
+  }, [all, coll.tiles, filter, scope, steps, activeId, tags]);
+  // While a collection is shown, the whole grid takes drops into it.
+  const gridDrop = useImageDrop({ onDrop: (item) => { if (activeCollection) void addImageToCollection(activeCollection, item); }, disabled: !coll.tiles });
+  /** Out of the collection (an imported picture's "delete"), with Undo. */
+  const takeOut = (key: string) => {
+    const from = activeCollection;
+    removeFromCollections(key);
+    if (from) undoNote('Taken out of the collection', () => moveItem(from, key));
+  };
   const currentKey = runKey ?? (selected ?? newest)?.id ?? null;
 
   return (
@@ -93,10 +119,27 @@ export function HistoryPanel({ columns = 2, phone = false }: { columns?: number;
           return <button key={f.key} type="button" onClick={() => setFilter(on ? 'all' : f.key)} aria-pressed={on} style={{ flex: 'none', height: 30, padding: '0 12px', border: 0, borderRadius: 999, background: on ? 'var(--il-fg)' : 'var(--il-card)', color: on ? 'var(--il-bg)' : 'var(--il-fg2)', fontWeight: on ? 800 : 700, fontSize: 12, cursor: 'pointer' }}>{f.label}</button>;
         })}
       </div>
-      <div className="il-scroll" style={{ flex: 1, minHeight: 0, padding: '0 12px 12px', touchAction: 'pan-y' }}>
-        {tiles.length === 0 && <div style={{ padding: '28px 8px', textAlign: 'center', fontSize: 12, fontWeight: 600, color: 'var(--il-muted)' }}>{filter === 'liked' ? 'No favourites yet.' : scope === 'step' ? 'This step has made nothing yet.' : 'Nothing here yet.'}</div>}
+      <CollectionsRow lookup={coll.lookup} />
+      {coll.name && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 12px 8px', flex: 'none' }}>
+          <button type="button" onClick={() => setActiveCollection(null)} title="Back to the history"
+            style={{ height: 30, padding: '0 12px 0 9px', border: 0, borderRadius: 999, background: 'var(--il-card)', color: 'var(--il-fg2)', fontWeight: 800, fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer', flex: 'none' }}>
+            <IconArrowLeft size={14} stroke={2.4} />History
+          </button>
+          <span style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{coll.name}</span>
+          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--il-muted)', flex: 'none' }}>{coll.tiles?.length ?? 0}</span>
+        </div>
+      )}
+      <div className="il-scroll" {...gridDrop.props} style={{ flex: 1, minHeight: 0, padding: '0 12px 12px', touchAction: 'pan-y', outline: gridDrop.over ? '2px solid var(--il-ember)' : undefined, outlineOffset: -2, borderRadius: 14 }}>
+        {tiles.length === 0 && <div style={{ padding: '28px 8px', textAlign: 'center', fontSize: 12, fontWeight: 600, color: 'var(--il-muted)' }}>{coll.tiles ? 'Drag pictures here (or onto the tile) to keep them in this collection.' : filter === 'liked' ? 'No favourites yet.' : scope === 'step' ? 'This step has made nothing yet.' : 'Nothing here yet.'}</div>}
         <div style={{ display: 'grid', gridTemplateColumns: `repeat(${phone ? 3 : columns}, minmax(0, 1fr))`, gap: 6 }}>
-          {tiles.map((t) => (
+          {tiles.map((t, i) => coll.isImported(t.key) ? (
+            // An imported picture (Collections): the stage cannot show it, so a click opens the viewer.
+            <TileView key={t.key} tile={t} selected={false}
+              onPick={() => setViewing(i)} onOpen={() => setViewing(i)}
+              onLike={() => toggleImportedLiked(t.key)}
+              onDelete={() => takeOut(t.key)} />
+          ) : (
             <TileView key={t.key} tile={t} selected={t.key === currentKey}
               onPick={() => { if (t.entry) { select(t.entry); showRun(null); } else showRun(t.key); }}
               onOpen={() => { if (t.entry) { select(t.entry); showRun(null); openViewer(); } else showRun(t.key); }}
@@ -105,6 +148,10 @@ export function HistoryPanel({ columns = 2, phone = false }: { columns?: number;
           ))}
         </div>
       </div>
+      {viewing != null && tiles[viewing] && (
+        <FullscreenImage items={tiles.map((t) => ({ key: t.key, url: t.url }))} index={viewing} onIndexChange={setViewing} onClose={() => setViewing(null)} instantClose
+          pageCaption={tiles[viewing].filename} />
+      )}
     </aside>
   );
 }
