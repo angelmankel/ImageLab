@@ -8,18 +8,14 @@
 import { useState } from 'react';
 import { Popover } from '@mantine/core';
 import { IconListDetails, IconArrowDown, IconArrowLeft } from '@tabler/icons-react';
-import { useStore } from '@/lib/store';
-import { servedFromHost } from '@/lib/storage';
-import { canRunImages } from '@/lib/serverRoles';
 import { useDownloadsStore } from '@/features/downloads/store';
-import { useModeHost } from '@/features/workspace/modeHost';
 import { useRoute } from '~/app/routeStore';
 import { useQueue } from '~/app/queue';
-import { Pill, Count, Dot, IconBtn } from '~/ui';
+import { Pill, Count, IconBtn } from '~/ui';
 import { T } from '~/theme/tokens';
 import { QueueList } from './QueueList';
-import { useGpuName } from './useGpuName';
 import { FullscreenBtn } from './topbar/FullscreenBtn';
+import { ServerChip } from './servers/ServerChip';
 import { MuteToggle } from '~/ui/MuteToggle';
 import './topbar/shell.css';
 import { SessionTabs } from './topbar/SessionTabs';
@@ -38,26 +34,6 @@ export function Logo({ size = 32 }: { size?: number }) {
     <div aria-hidden style={{ width: size, height: size, borderRadius: Math.round(size * 0.31), background: 'var(--il-ember)', display: 'grid', placeItems: 'center', flex: 'none' }}>
       <svg width={size * 0.62} height={size * 0.62} viewBox="0 0 24 24" fill="none"><path d="M12 2.5c1 3.5 5.5 5.5 5.5 10.5a5.5 5.5 0 0 1-11 0c0-2 .8-3.4 1.8-4.6.3 1.6 1.2 2.6 2.4 2.6 1.6 0 2.3-1.8 1.3-4.5C11.6 5.2 11.6 3.8 12 2.5z" fill="#141416" /><circle cx="12" cy="14.5" r="2.2" fill="#FFF1E6" /></svg>
     </div>
-  );
-}
-
-/** "This pod · B200": the image server this page is served from (or the first online one). */
-function StatusPill() {
-  const servers = useStore((s) => s.servers);
-  const serverInfo = useStore((s) => s.serverInfo);
-  const origin = servedFromHost();
-  const candidates = servers.filter((s) => s.enabled !== false && canRunImages(s));
-  const server = candidates.find((s) => s.host === origin) ?? candidates.find((s) => !!serverInfo[s.id]) ?? candidates[0] ?? null;
-  const online = !!server && !!serverInfo[server.id];
-  const gpu = useGpuName(online ? server!.host : null);
-  // The pod's second ComfyUI for video (`/video-comfy`), when it differs from the image server.
-  const videoHost = useModeHost('video');
-  const video = !!videoHost && videoHost !== server?.host;
-  const label = server ? (server.host === origin ? 'This pod' : server.name) : 'No server';
-  return (
-    <Pill title={`${server ? `${server.name} · ${server.host}${online ? '' : ' · offline'}` : 'Add a server in Settings'}${video ? ` · video on ${videoHost}` : ''}`}>
-      <Dot color={online ? 'var(--il-ok)' : 'var(--il-err)'} />{label}{gpu ? ` · ${gpu}` : ''}{video ? ' · video' : ''}
-    </Pill>
   );
 }
 
@@ -97,7 +73,7 @@ export function TopBar() {
       <Divider />
       <SessionTabs />
       <Divider />
-      <StatusPill />
+      <ServerChip />
       <QueuePill />
       <MuteToggle />
       <FullscreenBtn />
