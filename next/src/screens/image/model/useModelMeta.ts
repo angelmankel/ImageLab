@@ -31,6 +31,10 @@ export interface ModelMeta {
   civitaiUrl?: string;
   rating?: number;
   downloads?: number;
+  /** The CivitAI version's name ("v8.0"). */
+  versionName?: string;
+  /** The file's size as CivitAI lists it (the file that hashed to this version, else its primary). */
+  sizeKB?: number;
 }
 
 const NO_SAMPLES: CivitaiImage[] = [];
@@ -56,7 +60,18 @@ export function readModelMeta(file: string, hashes: ModelHash[], civitaiByHash: 
     civitaiUrl: data.modelId ? civitaiPageUrl(data.modelId, data.id) : undefined,
     rating: data.stats?.rating,
     downloads: data.stats?.downloadCount,
+    versionName: data.name || undefined,
+    sizeKB: fileSize(data, match.hash),
   };
+}
+
+/** The size of the version's file whose hash is `hash`, else of its primary / first file. */
+function fileSize(data: CivitaiVersionByHash, hash: string): number | undefined {
+  const files = data.files ?? [];
+  const h = hash.toLowerCase();
+  const own = files.find((f) => Object.values(f.hashes ?? {}).some((x) => typeof x === 'string' && (x.toLowerCase() === h || h.startsWith(x.toLowerCase()) || x.toLowerCase().startsWith(h))));
+  const f = own ?? files.find((x) => x.primary) ?? files[0];
+  return f?.sizeKB || undefined;
 }
 
 /** Re-reads whenever hashes or CivitAI entries change. */

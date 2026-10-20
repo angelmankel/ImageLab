@@ -21,8 +21,11 @@ export function useModelPreview(meta: MetaPart, opts: { active?: boolean } = {})
   const files = useMemo(() => (meta.file ? [meta.file] : []), [meta.file]);
   const { images, start, observe } = usePreviewOrder(meta.versionId, curated, { files, active: opts.active });
   const stills = useMemo(() => images.map((i) => (i.local ? i.url : previewStill(i))).filter(Boolean), [images]);
+  // Each still with the viewer start that opens on it (the card's art, item 16).
+  const pictures = useMemo(() => images.map((i) => ({ url: i.local ? i.url : previewStill(i), start: viewerStart([i], meta.versionId) })).filter((p) => !!p.url), [images, meta.versionId]);
   return {
     stills,
+    pictures,
     start,
     /** A callback ref for the picture: "Most popular" loads once it is on screen. */
     observe,

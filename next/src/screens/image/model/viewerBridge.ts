@@ -5,7 +5,8 @@
  */
 import type { PreviewImage } from '@/lib/previewOrder';
 
-type Start = PreviewImage & { versionId?: number };
+export type ViewerStart = PreviewImage & { versionId?: number };
+type Start = ViewerStart;
 export type ModelViewerTarget = { modelId: number; versionId?: number | null; imageIndex?: number; start?: Start } | { file: string; start?: Start };
 
 const mods = import.meta.glob('../../modelViewer/index.ts');

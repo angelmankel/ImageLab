@@ -33,3 +33,7 @@
 /* Detail panel thumbnails. */
 .ilm-thumb { transition: transform .12s ease, opacity .12s ease; }
 .ilm-thumb:hover { transform: translateY(-1px); }
+
+/* The selected-model card's art (item 16): a picture lifts on hover → opens the viewer. */
+.ilm-art img { transition: transform .25s ease, filter .15s ease; }
+.ilm-art:hover img, .ilm-art:focus-visible img { transform: scale(1.04); filter: brightness(1.08); }
