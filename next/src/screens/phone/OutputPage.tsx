@@ -7,12 +7,13 @@
  *   the prompt line + actions (Send to the next step · ★ · Download · Delete — no confirm, the note has Undo)
  *   the Queue card (Stop / Cancel per job)
  * Image steps read the generate history and open the history viewer (the same `openViewer()` the
- * desktop stage uses); video / workflow steps read their run store and open `FullscreenImage`.
+ * desktop stage uses, item 30: `HistoryViewer`); video / workflow steps read their run store and open `ImageViewer`.
  */
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { IconChevronRight, IconDownload, IconMaximize, IconStar, IconStarFilled, IconTrash } from '@tabler/icons-react';
-import { FullscreenImage } from '@/components/FullscreenImage';
-import { FullscreenViewer, useLiveFrame } from '@/features/history/FullscreenViewer';
+import { HistoryViewer } from '~/screens/viewer/HistoryViewer';
+import { ImageViewer } from '~/screens/viewer/ImageViewer';
+import { useLiveFrame } from '@/features/history/FullscreenViewer';
 import { useViewerPrefs } from '@/features/history/viewerPrefs';
 import { useImageResults, useVideoResults, useWorkflowResults } from '@/features/workspace/results';
 import { useModeHost } from '@/features/workspace/modeHost';
@@ -67,7 +68,6 @@ function ImageOutput({ step, index }: { step: Step; index: number }) {
     if (key) pick(key);
     if (history.length > 0 || liveFrame) openViewer();
   };
-  const viewerIndex = Math.max(0, history.findIndex((e) => e.id === current?.id));
 
   return (
     <OutputLayout
@@ -88,7 +88,7 @@ function ImageOutput({ step, index }: { step: Step; index: number }) {
       onLike={current ? () => toggleLiked(current.id) : undefined}
       onDelete={current ? () => deleteImage(current) : undefined}
       viewer={viewerOpen && (history.length > 0 || !!liveFrame) ? (
-        <FullscreenViewer list={history} index={viewerIndex} onIndexChange={(i) => { const e = history[i]; if (e) select(e); }} onClose={closeViewer} instant />
+        <HistoryViewer onClose={closeViewer} showLive={!!live && !item} />
       ) : null}
     />
   );
@@ -123,7 +123,6 @@ function RunOutput({ mode, step, index }: { mode: 'video' | 'workflow'; step: St
     const at = key ? items.findIndex((x) => x.key === key) : i;
     if (at >= 0) { setPicked(items[at].key); setFull(at); } else if (preview) setFull('live');
   };
-  const fsItems = useMemo(() => items.map((x) => ({ key: x.key, url: x.url })), [items]);
 
   return (
     <OutputLayout
@@ -142,14 +141,12 @@ function RunOutput({ mode, step, index }: { mode: 'video' | 'workflow'; step: St
       current={item}
       onDelete={item ? () => { setPicked((items[i + 1] ?? items[i - 1])?.key ?? null); deleteRun(item.url); } : undefined}
       viewer={full !== null ? (
-        <FullscreenImage
-          items={full === 'live' ? [] : fsItems}
+        <ImageViewer
+          items={full === 'live' ? [] : items}
           index={full === 'live' ? 0 : full}
           liveUrl={full === 'live' ? preview : null}
           onIndexChange={(n) => { setFull(n); setPicked(items[n]?.key ?? null); }}
           onClose={() => setFull(null)}
-          instant
-          pageCaption={full === 'live' ? 'Live preview' : items[full]?.filename}
         />
       ) : null}
     />

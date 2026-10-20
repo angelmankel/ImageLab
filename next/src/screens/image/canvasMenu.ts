@@ -15,7 +15,8 @@ import { registerMenu, type MenuEntry } from '~/app/contextMenu';
 import { recallFrom, reuseSettingsFrom, sendToStep, usePromptFrom } from '~/app/actions';
 import { deleteOutput } from '~/app/deleteResult';
 import { removeBgFrom, useRemoveBg } from '~/app/removeBgAction';
-import { addStepAfter, useSteps, stepTitle, STEP_LABEL, ADDABLE_KINDS, STEP_IO, type StepKind } from '~/app/stepsStore';
+import { useSteps, stepTitle, STEP_LABEL } from '~/app/stepsStore';
+import { addStepWithPicker } from '~/app/stepKindPicker';
 import type { Tile } from './historyLogic';
 import type { StageMedia } from './useStageMedia';
 import { useStage } from './stageStore';
@@ -44,19 +45,16 @@ export function downloadUrl(url: string, name: string) {
 
 const isImage = (t: CanvasTarget) => t.item.kind === 'image';
 
-/** Step kinds that take a picture (the I/O standard's `needs`). */
-const takesImage = (k: StepKind) => STEP_IO[k].needs !== 'none';
-
 export const sendSubmenu = (url: string, entry: HistoryEntry | null, name: string) => (): MenuEntry[] => [
   ...useSteps.getState().steps.map((s, _i, all) => ({
     id: `send-${s.id}`, group: 'steps',
     label: s.name && s.name !== STEP_LABEL[s.kind] ? `${stepTitle(all, s.id)} · ${s.name}` : stepTitle(all, s.id),
     action: () => sendToStep({ url, entry: entry ?? undefined }, s.id),
   })),
-  ...ADDABLE_KINDS.filter(takesImage).map((k) => ({
-    id: `new-${k}`, group: 'new', icon: IconPlus, label: `New ${STEP_LABEL[k]} step`,
-    action: () => { addStepAfter(k, { input: { url, name } }); },
-  })),
+  {
+    id: 'new-step', group: 'new', icon: IconPlus, label: 'New step…',
+    action: (_t: unknown, ctx: { x: number; y: number }) => { addStepWithPicker({ x: ctx.x, y: ctx.y }, { input: { url, name } }); },
+  },
 ];
 
 registerMenu<CanvasTarget>('canvas-image', [

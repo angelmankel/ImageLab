@@ -1,9 +1,9 @@
 /**
  * Rule 1 + 7: the stage. The toolbar is its own 52px row; the picture gets the rest, centred,
  * `object-fit: contain`, nothing over it. Pan and zoom (`useStageZoom`: wheel, trackpad pinch,
- * two-finger pinch, drag), a click or tap that did not move opens the fullscreen viewer: the
- * original ImageLab viewer with the history pager for images
- * (`FullscreenViewer`), `FullscreenImage` for video / workflow results. The live preview replaces
+ * two-finger pinch, drag), a click or tap that did not move opens the full-screen viewer (item 30,
+ * `~/screens/viewer`): `HistoryViewer` over the image history, `ImageViewer` over a run's results
+ * (video / workflow / refine / upscale). The live preview replaces
  * the picture while this step's job runs; its progress is a thin line under the toolbar row.
  * A video result (or a video step's live render) goes to `StagePlayer`: the clip fills the same
  * box, its controls are their own 44px row under it (rule 1), ←/→ seek there instead of paging.
@@ -18,8 +18,8 @@
 import { useRef, useState } from 'react';
 import { useStore } from '@/lib/store';
 import { useShortcut, ShortcutPriority } from '@/hooks/useShortcut';
-import { FullscreenImage } from '@/components/FullscreenImage';
-import { FullscreenViewer } from '@/features/history/FullscreenViewer';
+import { HistoryViewer } from '~/screens/viewer/HistoryViewer';
+import { ImageViewer } from '~/screens/viewer/ImageViewer';
 import type { Step } from '~/app/stepsStore';
 import { useStageMedia } from './useStageMedia';
 import { useStageZoom } from './useStageZoom';
@@ -44,8 +44,9 @@ export function StageColumn({ step, phone = false }: { step: Step; phone?: boole
   const viewerOpen = useStore((s) => s.viewerOpen);
   const openViewer = useStore((s) => s.openViewer);
   const closeViewer = useStore((s) => s.closeViewer);
-  const select = useStore((s) => s.selectHistoryEntry);
   const [runFull, setRunFull] = useState<number | 'live' | null>(null);
+  /** The viewer was opened on the live frame: it shows LIVE until the job is done. */
+  const [openedLive, setOpenedLive] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const shown = media.live ?? media.item?.url ?? null;
   /** Item 4: a batch's / several servers' live previews, side by side (`jobs/LiveGrid`). */
@@ -54,7 +55,7 @@ export function StageColumn({ step, phone = false }: { step: Step; phone?: boole
   /** The player owns the stage for a shown clip and for a video step's live render. */
   const player = isVideo || (step.kind === 'video' && media.busy);
   const open = () => {
-    if (media.source === 'image') { if (history.length || media.live) openViewer(); return; }
+    if (media.source === 'image') { if (history.length || media.live) { setOpenedLive(!!media.live); openViewer(); } return; }
     if (media.item) setRunFull(media.index); else if (media.live) setRunFull('live');
   };
   const compareOn = useStage((s) => s.compare);
@@ -80,7 +81,6 @@ export function StageColumn({ step, phone = false }: { step: Step; phone?: boole
   useShortcut('Escape', () => useStage.getState().setCompare(false), { priority: ShortcutPriority.Panel + 10, when: () => comparing && noOverlay() });
 
   const pct = media.progress != null ? Math.max(2, Math.round(media.progress * 100)) : null;
-  const viewerIndex = Math.max(0, history.findIndex((e) => e.id === media.entry?.id));
 
   return (
     <main style={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
@@ -128,17 +128,15 @@ export function StageColumn({ step, phone = false }: { step: Step; phone?: boole
       </div>
       )}
       {viewerOpen && media.source === 'image' && (history.length > 0 || !!media.live) && (
-        <FullscreenViewer list={history} index={viewerIndex} onIndexChange={(i) => { const e = history[i]; if (e) select(e); }} onClose={closeViewer} instant />
+        <HistoryViewer onClose={closeViewer} showLive={openedLive} />
       )}
       {runFull !== null && (
-        <FullscreenImage
-          items={runFull === 'live' ? [] : media.items.map((i) => ({ key: i.key, url: i.url }))}
+        <ImageViewer
+          items={runFull === 'live' ? [] : media.items}
           index={runFull === 'live' ? 0 : runFull}
           liveUrl={runFull === 'live' ? media.live : null}
           onIndexChange={(i) => { setRunFull(i); media.pick(i); }}
           onClose={() => setRunFull(null)}
-          instant
-          pageCaption={runFull === 'live' ? 'Live preview' : media.items[runFull]?.filename}
         />
       )}
       <span hidden>{T.size.toolbar}</span>
