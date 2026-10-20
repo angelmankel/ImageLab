@@ -3,37 +3,32 @@
  * own settings and its own outputs; it may take the previous step's output as input. The left rail
  * IS this list. Persisted; step 1 (Image) always exists.
  *
- * Who owns what: this store holds the chain and which step is active. Each step's parameters live
- * in that step's own store (the Image step reuses the main app's `useStore().workflow`); the
- * "settings per step" split comes when step 2+ generate for real.
+ * Who owns what: this store holds the chain, which step is active, and the session's name. Each
+ * step's parameters live in that step's own store (the Image step reuses the main app's
+ * `useStore().workflow`); the "settings per step" split comes when step 2+ generate for real.
+ * The pure rules are `stepsLogic.ts` (tested).
  */
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { appendStep, removeStepFrom, STEP_LABEL, type Step, type StepInput, type StepKind } from './stepsLogic';
 
-export type StepKind = 'image' | 'upscale' | 'video' | 'workflow';
-
-export interface Step {
-  id: string;
-  kind: StepKind;
-  /** The workflow's name, shown in the workflow row ("Portrait · SDXL"). */
-  name: string;
-  /** True once a parameter differs from the saved workflow ("edited"). */
-  edited: boolean;
-  /** Takes the previous step's output as its input (chained). */
-  chained: boolean;
-}
-
-export const STEP_LABEL: Record<StepKind, string> = { image: 'Image', upscale: 'Upscale', video: 'Video', workflow: 'Workflow' };
+export { STEP_LABEL, stepTitle, nextStepId, prevStepId } from './stepsLogic';
+export type { Step, StepKind, StepInput } from './stepsLogic';
 
 const uid = () => Math.random().toString(36).slice(2, 10);
 
 interface StepsState {
   steps: Step[];
   activeId: string;
+  /** The session = this named set of steps (rule 9's "Portrait session ▾"). */
+  sessionName: string;
   setActive: (id: string) => void;
   addStep: (kind: StepKind, name?: string) => string;
   removeStep: (id: string) => void;
   updateStep: (id: string, patch: Partial<Omit<Step, 'id'>>) => void;
+  /** Give a step an explicit input (Send to step). Clears with null; the step stops chaining. */
+  setStepInput: (id: string, input: StepInput | null) => void;
+  renameSession: (name: string) => void;
 }
 
 const FIRST: Step = { id: 'step-image', kind: 'image', name: 'Portrait · SDXL', edited: false, chained: false };
@@ -43,20 +38,28 @@ export const useSteps = create<StepsState>()(
     (set) => ({
       steps: [FIRST],
       activeId: FIRST.id,
+      sessionName: 'Portrait session',
       setActive: (activeId) => set({ activeId }),
       addStep: (kind, name) => {
         const id = `step-${uid()}`;
-        set((s) => ({ steps: [...s.steps, { id, kind, name: name ?? STEP_LABEL[kind], edited: false, chained: true }], activeId: id }));
+        set((s) => ({ steps: appendStep(s.steps, { id, kind, name: name ?? STEP_LABEL[kind], edited: false }), activeId: id }));
         return id;
       },
-      removeStep: (id) => set((s) => {
-        if (s.steps.length <= 1 || id === s.steps[0].id) return s;
-        const steps = s.steps.filter((x) => x.id !== id);
-        return { steps, activeId: s.activeId === id ? steps[steps.length - 1].id : s.activeId };
-      }),
+      removeStep: (id) => set((s) => removeStepFrom(s.steps, id, s.activeId)),
       updateStep: (id, patch) => set((s) => ({ steps: s.steps.map((x) => (x.id === id ? { ...x, ...patch } : x)) })),
+      setStepInput: (id, input) => set((s) => ({ steps: s.steps.map((x) => (x.id === id ? { ...x, input, chained: input ? false : x.chained } : x)) })),
+      renameSession: (sessionName) => set({ sessionName: sessionName.trim() || 'Session' }),
     }),
-    { name: 'imagelab.next.steps.v1' },
+    {
+      name: 'imagelab.next.steps.v1',
+      // Step 1 is always there, whatever an old save holds.
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<StepsState>;
+        const steps = p.steps?.length && p.steps[0].kind === 'image' ? p.steps : [FIRST, ...(p.steps ?? []).filter((s) => s.kind !== 'image')];
+        const activeId = steps.some((s) => s.id === p.activeId) ? p.activeId! : steps[0].id;
+        return { ...current, ...p, steps, activeId };
+      },
+    },
   ),
 );
 

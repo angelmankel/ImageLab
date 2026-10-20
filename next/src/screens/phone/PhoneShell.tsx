@@ -1,32 +1,32 @@
 /**
- * Phone shell (STUB — owned by the Phone shell agent). Rule 11: on the step screen a glass dock
- * (row 1 = steps strip, row 2 = Create · Output · Generate · Library · More); elsewhere no dock,
- * only the BackPill. Tapping the picture opens the fullscreen viewer; swipe = next image.
+ * The phone shell (rule 11). The step screen is a sideways pager of the steps, each with a Create
+ * and an Output page, under the glass dock (steps strip + Create · Output · Generate · Library ·
+ * More). Library, Models, ComfyUI and Settings render their own `<Name>PhoneScreen` full screen
+ * with no dock (each shows the lone "‹ Back" pill). The root effects (connection, jobs) run on
+ * every screen.
  */
 import { useRoute } from '~/app/routeStore';
 import { LibraryPhoneScreen } from '~/screens/library';
 import { ModelsPhoneScreen } from '~/screens/models';
 import { ComfyPhoneScreen } from '~/screens/comfy';
 import { SettingsPhoneScreen } from '~/screens/settings';
-import { GlassBar } from '~/ui';
+import { AppEffects } from './imageBridge';
+import { PhoneStepScreen } from './PhoneStepScreen';
 
-export function PhoneShell() {
+function Screen() {
   const screen = useRoute((s) => s.screen);
-  const go = useRoute((s) => s.go);
   if (screen === 'library') return <LibraryPhoneScreen />;
   if (screen === 'models') return <ModelsPhoneScreen />;
   if (screen === 'comfy') return <ComfyPhoneScreen />;
   if (screen === 'settings') return <SettingsPhoneScreen />;
+  return <PhoneStepScreen />;
+}
+
+export function PhoneShell() {
   return (
-    <div style={{ height: '100%', display: 'grid', placeItems: 'center', color: 'var(--il-muted)' }}>
-      Phone step screen — being built
-      <GlassBar>
-        <div style={{ display: 'flex', justifyContent: 'space-around', height: 48, alignItems: 'center', fontWeight: 800, fontSize: 11 }}>
-          <button type="button" onClick={() => go('library')} style={{ border: 0, background: 'transparent', color: 'var(--il-fg2)' }}>Library</button>
-          <button type="button" onClick={() => go('models')} style={{ border: 0, background: 'transparent', color: 'var(--il-fg2)' }}>Models</button>
-          <button type="button" onClick={() => go('comfy')} style={{ border: 0, background: 'transparent', color: 'var(--il-fg2)' }}>ComfyUI</button>
-        </div>
-      </GlassBar>
+    <div style={{ position: 'relative', height: '100%', overflow: 'hidden', background: 'var(--il-bg)', overscrollBehavior: 'none' }}>
+      <AppEffects />
+      <Screen />
     </div>
   );
 }

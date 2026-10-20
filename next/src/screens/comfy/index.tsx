@@ -1,17 +1,8 @@
-/** Comfy screen (STUB — owned by the Comfy agent). Desktop: fills the area right of the rail. Phone: full screen + BackPill. */
-import { BackPill } from '~/ui';
-import { useRoute } from '~/app/routeStore';
-
-export function ComfyScreen() {
-  return <div style={{ flex: 1, display: 'grid', placeItems: 'center', color: 'var(--il-muted)' }}>Comfy — being built</div>;
-}
-
-export function ComfyPhoneScreen() {
-  const go = useRoute((s) => s.go);
-  return (
-    <div style={{ height: '100%', display: 'grid', placeItems: 'center', color: 'var(--il-muted)' }}>
-      Comfy — being built
-      <BackPill onClick={() => go('step')} />
-    </div>
-  );
-}
+/**
+ * The ComfyUI screen (rule 14). Desktop `ComfyScreen` fills the area right of the rail; phone
+ * `ComfyPhoneScreen` is full screen with the Back pill. `useStepWorkflow(stepId)` tells a step
+ * owner which saved workflow a step made by "Use as step" runs.
+ */
+export { ComfyScreen } from './ComfyScreen';
+export { ComfyPhoneScreen } from './ComfyPhoneScreen';
+export { useStepWorkflow, stepWorkflowNow, useWorkflowStore, type StepWorkflowRef } from './workflowStore';
