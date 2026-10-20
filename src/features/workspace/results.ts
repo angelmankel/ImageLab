@@ -24,14 +24,14 @@ export function useImageResults(): ImageResultItem[] {
     for (const e of history) {
       const host = servers.find(s => s.id === e.serverId)?.host;
       if (!host) continue;
-      items.push({ key: e.id, url: viewUrl(e, host), kind: 'image', filename: e.filename, createdAt: e.createdAt, entry: e });
+      items.push({ key: e.id, url: viewUrl(e, host), kind: 'image', filename: e.filename, createdAt: e.createdAt, durationMs: e.durationMs, entry: e });
     }
     return items.length ? items : NONE;
   }, [history, servers]);
 }
 
 export const toResultItem = (r: RunResult): ResultItem => ({
-  key: r.url, url: r.url, kind: isVideoFile(r.filename) ? 'video' : 'image', filename: r.filename, createdAt: r.createdAt,
+  key: r.url, url: r.url, kind: isVideoFile(r.filename) ? 'video' : 'image', filename: r.filename, createdAt: r.createdAt, durationMs: r.durationMs,
 });
 
 export function useVideoResults(): ResultItem[] {

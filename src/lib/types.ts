@@ -47,6 +47,8 @@ export type HistoryEntry = {
   seed: number;
   model: string;
   createdAt: number;
+  /** Wall time from the job's first `running` report to its result, in ms. */
+  durationMs?: number;
   liked?: boolean;
   /** Server-side favorite handle, set when the user stars this entry and the
    *  ComfyUI custom node copies the image into the persistent favorites tree.
@@ -163,6 +165,8 @@ export type Job = {
   executedNodes?: number;
   error?: string;
   createdAt: number;
+  /** When ComfyUI first reported this job running (the stage badge's "took N s"). */
+  startedAt?: number;
 };
 
 /**

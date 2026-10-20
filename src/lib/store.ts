@@ -628,6 +628,7 @@ export const useStore = create<Store>((set, get) => {
           const stamped = get().pushHistory({
             ...res.entry,
             serverId,
+            ...(job.startedAt ? { durationMs: Date.now() - job.startedAt } : {}),
             ...(job.targetLayerId ? { layerId: job.targetLayerId } : {}),
           });
           get().removeJob(job.id);
@@ -755,6 +756,7 @@ export const useStore = create<Store>((set, get) => {
       const stamped = get().pushHistory({
         ...res.entry,
         serverId: job.serverId,
+        ...(job.startedAt ? { durationMs: Date.now() - job.startedAt } : {}),
         ...(job.targetLayerId ? { layerId: job.targetLayerId } : {}),
       });
       get().removeJob(job.id);
@@ -820,7 +822,8 @@ export const useStore = create<Store>((set, get) => {
       set(s => ({ jobs: [...s.jobs, job] }));
     },
     updateJob: (id, patch) => set(s => {
-      const jobs = s.jobs.map(j => j.id === id ? { ...j, ...patch } : j);
+      // The first `running` report stamps the start time (both the live and the reconcile paths).
+      const jobs = s.jobs.map(j => j.id === id ? { ...j, ...patch, ...(patch.status === 'running' && !j.startedAt ? { startedAt: Date.now() } : {}) } : j);
       const updated = jobs.find(j => j.id === id);
       if (updated) putJob(updated);
       return { jobs };

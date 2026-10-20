@@ -13,6 +13,7 @@ import type { Step } from '~/app/stepsStore';
 import { reuseSettingsFrom, sendToStep } from '~/app/actions';
 import { IconBtn, Sep } from '~/ui';
 import { T } from '~/theme/tokens';
+import { StageBadge } from './StageBadge';
 import { useLayout } from './layoutStore';
 import { useStepRun } from './GenerateBar';
 import type { StageMedia } from './useStageMedia';
@@ -63,7 +64,8 @@ export function Toolbar({ step, media, zoom, onFullscreen, canFullscreen, phone 
 
   return (
     <>
-      <div className="il-scroll-x" style={{ height: T.size.toolbar, flex: 'none', display: 'flex', alignItems: 'center', justifyContent: phone ? 'flex-start' : 'center', gap: 6, padding: '0 10px', touchAction: 'pan-x' }}>
+      <div className="il-scroll-x" style={{ position: 'relative', height: T.size.toolbar, flex: 'none', display: 'flex', alignItems: 'center', justifyContent: phone ? 'flex-start' : 'center', gap: 6, padding: phone ? '0 10px' : '0 150px', touchAction: 'pan-x' }}>
+        {!phone && <StageBadge item={media.item} />}
         <IconBtn icon={<IconArrowsMaximize size={16} stroke={2.2} />} label="Fit to view" onClick={zoom.fit} style={round} disabled={!has} />
         <IconBtn icon={<IconZoomIn size={16} stroke={2.2} />} label="Zoom in" onClick={zoom.zoomIn} style={round} disabled={!has} />
         <IconBtn icon={<IconZoomOut size={16} stroke={2.2} />} label="Zoom out" onClick={zoom.zoomOut} style={round} disabled={!has} />

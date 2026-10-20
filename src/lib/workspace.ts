@@ -53,6 +53,8 @@ export interface ResultItem {
   kind: 'image' | 'video';
   filename: string;
   createdAt: number;
+  /** How long it took to generate, in ms, when known. */
+  durationMs?: number;
 }
 
 export const isVideoFile = (name: string) => /\.(mp4|webm|mov)$/i.test(name);

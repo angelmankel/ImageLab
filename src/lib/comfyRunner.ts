@@ -18,6 +18,8 @@ export interface RunResult {
   filename: string;
   promptId: string;
   createdAt: number;
+  /** Wall time from queueing the run to this result, in ms. */
+  durationMs?: number;
 }
 
 /** Which saved files are this run's results. */
@@ -179,7 +181,8 @@ export function createRunStore(keep: KeepResult = keepAll): RunStore {
           if (!host) return;
           const saved = ev.images.filter(keep);
           if (!saved.length) return;
-          const made = saved.map(img => ({ url: viewUrl(img, host), filename: img.filename, promptId: ev.promptId, createdAt: Date.now() }));
+          const took = get().startedAt;
+          const made = saved.map(img => ({ url: viewUrl(img, host), filename: img.filename, promptId: ev.promptId, createdAt: Date.now(), ...(took ? { durationMs: Date.now() - took } : {}) }));
           const results = merge(get().results, made, true);
           return set({ results, latest: results[0] ?? null });
         }
@@ -264,7 +267,7 @@ export function createRunStore(keep: KeepResult = keepAll): RunStore {
               const found: RunResult[] = [];
               for (const out of Object.values(rec.outputs ?? {}) as Array<{ images?: HistoryImage[] }>) {
                 for (const img of out.images ?? []) {
-                  if (keep(img)) found.push({ url: viewUrl(img, host), filename: img.filename, promptId: id, createdAt: Date.now() });
+                  if (keep(img)) found.push({ url: viewUrl(img, host), filename: img.filename, promptId: id, createdAt: Date.now(), ...(get().startedAt ? { durationMs: Date.now() - get().startedAt! } : {}) });
                 }
               }
               const results = merge(get().results, found, true);
