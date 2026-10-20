@@ -861,7 +861,7 @@ export function loadModelPreviewSource(): ModelPreviewSource {
     const v = localStorage.getItem(PREVIEW_SOURCE_KEY);
     if (v === 'first' || v === 'popular' || v === 'random' || v === 'history') return v;
   } catch { /* ignore */ }
-  return 'first';
+  return 'popular'; // the default (Donny, 10-20)
 }
 
 export function saveModelPreviewSource(src: ModelPreviewSource) {
