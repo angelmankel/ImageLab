@@ -8,11 +8,12 @@ import { useStore } from '@/lib/store';
 import { uid } from '@/lib/storage';
 import type { HistoryEntry, Layer, WorkflowState } from '@/lib/types';
 import { applyWithUndo } from '@/features/layers/PresetLibraryModal';
-import { sendToVideo, sendToWorkflow } from '@/features/workspace/sendTo';
 import { urlToImageState } from '@/features/inputImage/imageOps';
 import { useRoute } from './routeStore';
-import { nextStepId, useSteps } from './stepsStore';
+import { nextStepId, useSteps, STEP_LABEL } from './stepsStore';
+import { addStepWithPicker } from './stepKindPicker';
 import { useStage } from '~/screens/image/stageStore';
+import { setStartFrameFrom } from '~/screens/image/video/videoChain';
 
 /** Put this prompt (positive + negative) into the active step's prompt. */
 export function usePromptFrom(entry: Pick<HistoryEntry, 'positive' | 'negative'>, name = 'that image'): void {
@@ -55,34 +56,52 @@ export function recallFrom(entry: HistoryEntry): void {
 
 /**
  * Make this image the input of a step (default: the next step after the active one, or the first
- * step after the Image step). Video / Workflow steps get it through the main app's upload path
- * (the start frame, the workflow's image input); Image / Upscale steps keep it as the step's input,
- * and the Image step also loads it as its img2img input image.
+ * step after the Image step). Fix list 31, fast: the step gets the picture as its input and opens
+ * AT ONCE; nothing is downloaded or uploaded here. A Workflow / Refine / Upscale / Remove BG step
+ * resolves its input when it runs, and a picture already on that server is used in place
+ * (`serverRef`), never fetched and sent back. Only a Video step (its start frame lives in its own
+ * store) and the Image step (img2img holds the picture itself) load it, in the background.
  */
 export function sendToStep(image: { url: string; entry?: HistoryEntry }, stepId?: string): void {
   const steps = useSteps.getState();
   const target = stepId ?? nextStepId(steps.steps, steps.activeId) ?? steps.steps[1]?.id ?? null;
-  if (!target) { notifications.show({ title: 'No next step', message: 'Add a step with + in the rail first.', color: 'yellow' }); return; }
+  if (!target) { notifications.show({ title: 'No next step', message: 'Add a step with + in the rail first.', color: 'yellow', autoClose: 3000 }); return; }
   const step = steps.steps.find((s) => s.id === target);
   if (!step) return;
-  const filename = image.entry?.filename ?? (image.url.split('/').pop()?.split('?')[0] || 'image.png');
-  const src = { url: image.url, filename, kind: 'image' as const };
+  const filename = image.entry?.filename ?? nameOf(image.url);
   steps.setStepInput(target, { url: image.url, name: filename });
   // The stage shows what was sent (the Library does not select; the action does).
   if (image.entry) { useStore.getState().selectHistoryEntry(image.entry); useStage.getState().showRun(null); } else useStage.getState().showRun(image.url);
-  const go = () => { steps.setActive(target); useRoute.getState().go('step'); };
-  if (step.kind === 'video') { void sendToVideo(src).then((ok) => { if (ok) go(); }); return; }
-  if (step.kind === 'workflow') { void sendToWorkflow(src).then((ok) => { if (ok) go(); }); return; }
+  steps.setActive(target);
+  useRoute.getState().go('step');
+  const n = steps.steps.findIndex((s) => s.id === target) + 1;
+  if (step.kind === 'video') void setStartFrameFrom(image.url, filename);
   if (step.kind === 'image') {
     void urlToImageState(image.url, filename).then((state) => {
       useStore.getState().setWorkflow({ inputImage: state });
-      useStore.getState().setStatus(`Input image set — ${state.width}×${state.height}`, 'ok');
-      go();
-    }).catch((e) => notifications.show({ title: 'Could not load the image', message: e instanceof Error ? e.message : String(e), color: 'red' }));
-    return;
+    }).catch((e) => notifications.show({ title: 'Could not load the image', message: e instanceof Error ? e.message : String(e), color: 'red', autoClose: 3000 }));
   }
-  go();
-  notifications.show({ title: `Sent to step ${steps.steps.findIndex((s) => s.id === target) + 1}`, message: filename, color: 'teal', autoClose: 2500 });
+  notifications.show({ title: `Sent to step ${n}`, message: filename, color: 'teal', autoClose: 2000 });
+}
+
+/** "…/view?filename=x.png&…" or ".../x.png" → "x.png". */
+function nameOf(url: string): string {
+  try { const u = new URL(url, location.href); return u.searchParams.get('filename') || u.pathname.split('/').pop() || 'image.png'; } catch { return 'image.png'; }
+}
+
+/**
+ * The canvas toolbar's → (fix list 31): send to the step after the open one; when there is none,
+ * the step-kind picker opens at `anchor` and the picked step is added after the open one with this
+ * picture as its input.
+ */
+export function sendToNextStep(image: { url: string; entry?: HistoryEntry }, anchor: Element | { x: number; y: number }): void {
+  const steps = useSteps.getState();
+  const next = nextStepId(steps.steps, steps.activeId);
+  if (next) { sendToStep(image, next); return; }
+  const name = image.entry?.filename ?? nameOf(image.url);
+  addStepWithPicker(anchor, { after: steps.activeId, input: { url: image.url, name } }, (_id, kind) => {
+    notifications.show({ title: `New ${STEP_LABEL[kind]} step`, message: `${name} is its input`, color: 'teal', autoClose: 2000 });
+  });
 }
 
 /** Models screen → the active step: apply a CivitAI sample's generation data. */

@@ -13,6 +13,8 @@
  */
 import { notifications } from '@mantine/notifications';
 import { loadImageRef, uploadImage } from '@/lib/comfy';
+import { comfyHttpFor } from '@/lib/comfyHost';
+import { serverRef } from '../kinds/kindGraphs';
 import type { RunSource } from '@/lib/comfyRunner';
 import type { ObjectInfo } from '@/lib/workflowGraph';
 import { buildApiGraph, randomSeed } from '@/features/studio/params';
@@ -36,6 +38,9 @@ export const rememberUpload = (host: string, url: string, ref: string): void => 
 
 /** Fetch a picture (or a video's last frame) through the browser and upload it to `host`; cached per url. */
 export async function uploadSource(host: string, src: ChainSource): Promise<string> {
+  // Already on that server (a /view URL of it): use it where it is (fix list 31: no fetch + re-upload).
+  const local = serverRef(src.url, comfyHttpFor(host));
+  if (local) return local;
   const key = `${host}|${src.url}`;
   const known = uploaded.get(key);
   if (known) return known;

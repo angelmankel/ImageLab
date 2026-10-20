@@ -16,8 +16,8 @@ import { useStore } from '@/lib/store';
 import { useViewerPrefs } from '@/features/history/viewerPrefs';
 import { urlToImageState } from '@/features/inputImage/imageOps';
 import { EditImageModal } from '@/features/inputImage/EditImageModal';
-import type { Step } from '~/app/stepsStore';
-import { recallFrom, reuseSettingsFrom, sendToStep } from '~/app/actions';
+import { useSteps, nextStepId, type Step } from '~/app/stepsStore';
+import { recallFrom, reuseSettingsFrom, sendToNextStep } from '~/app/actions';
 import { deleteOutput } from '~/app/deleteResult';
 import { removeBgFrom, useRemovingBg } from '~/app/removeBgAction';
 import { IconBtn, Sep } from '~/ui';
@@ -59,6 +59,7 @@ export function Toolbar({ step, media, zoom, onFullscreen, canFullscreen, phone 
   const setCompare = useStage((s) => s.setCompare);
   const removing = useRemovingBg(media.item?.url);
   const has = !!media.item;
+  const hasNext = useSteps((s) => !!nextStepId(s.steps, s.activeId));
   /** Zoom is for pictures; a clip (StagePlayer) has none. */
   const zoomable = has && media.item?.kind !== 'video';
   const entry = media.entry;
@@ -106,7 +107,7 @@ export function Toolbar({ step, media, zoom, onFullscreen, canFullscreen, phone 
         <Sep />
         <IconBtn icon={<IconRefresh size={16} stroke={2.2} />} label="Vary — same settings, new seed" onClick={vary} style={round} disabled={!has} />
         <IconBtn icon={<IconHistory size={16} stroke={2.2} />} label="Recall — everything from this image back into the step" onClick={() => { if (entry) recallFrom(entry); }} style={round} disabled={!entry} />
-        <IconBtn icon={<IconArrowRight size={16} stroke={2.2} />} label="Send to the next step" onClick={() => { if (media.item) sendToStep({ url: media.item.url, entry: entry ?? undefined }); }} style={round} disabled={!has} />
+        <IconBtn icon={<IconArrowRight size={16} stroke={2.2} />} label={hasNext ? 'Send to the next step' : 'Send to a new step (pick its kind)'} onClick={(e) => { if (media.item) sendToNextStep({ url: media.item.url, entry: entry ?? undefined }, e.currentTarget); }} style={round} disabled={!has} />
         <IconBtn icon={liked ? <IconHeartFilled size={16} /> : <IconHeart size={16} stroke={2.2} />} label={liked ? 'Remove from favourites' : 'Favourite'} on={liked} onClick={() => { if (entry) toggleLiked(entry.id); }} style={{ ...round, color: liked ? 'var(--il-ember)' : undefined }} disabled={!entry} />
         <IconBtn icon={<IconDownload size={16} stroke={2.2} />} label="Download" onClick={() => { if (media.item) void download(media.item.url, media.item.filename); }} style={round} disabled={!has} />
         <IconBtn icon={<IconTrash size={16} stroke={2.2} />} label="Delete (Undo in the note)" onClick={() => { if (media.item) deleteOutput({ entry: media.source === 'image' ? entry : null, url: media.item.url }); }} style={round} disabled={!has} />
