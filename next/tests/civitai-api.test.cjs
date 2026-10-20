@@ -177,7 +177,7 @@ test('active filters: count, labels, clearing', () => {
   const a = Q.activeFilters(f);
   assert.deepEqual(a.map((x) => x.key), ['types', 'baseModels', 'nsfwMask', 'username', 'fp']);
   assert.equal(a[0].label, 'Checkpoint, LoRA');
-  assert.equal(a[2].label, 'Mature');
+  assert.equal(a[2].label, 'Up to Mature');
   assert.equal(Q.activeFilterCount(f), 5);
   assert.equal(Q.activeFilterCount(base()), 0, 'the defaults are no filters');
   const cleared = Q.clearFilter(f, 'types');

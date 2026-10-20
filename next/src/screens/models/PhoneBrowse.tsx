@@ -66,7 +66,7 @@ export function PhoneBrowse() {
         <div style={{ display: 'flex', gap: 6 }}>
           <MenuPill<Sort> size="phone" grow label="Sort" value={f.sort} onChange={(sort) => set({ sort })} options={SORTS.map((s) => ({ key: s, label: SORT_SHORT[s] }))} />
           <MenuPill<Period> size="phone" grow label="Period" value={f.period} onChange={(period) => set({ period })} options={PERIODS.map((p) => ({ key: p, label: PERIOD_LABEL[p] }))} />
-          <MenuPill<NsfwLevelKey> size="phone" grow label="NSFW" value={levelForMask(f.nsfwMask)} onChange={(k) => set({ nsfwMask: maskForLevel(k) })} options={NSFW_LEVELS.map((l) => ({ key: l.key, label: l.label }))} />
+          <MenuPill<NsfwLevelKey> size="phone" grow label="Max rating" value={levelForMask(f.nsfwMask)} onChange={(k) => set({ nsfwMask: maskForLevel(k) })} options={NSFW_LEVELS.map((l) => ({ key: l.key, label: l.label }))} />
           <button type="button" onClick={() => setSheetOpen(true)} style={{ flex: 'none', height: 44, padding: '0 12px', border: '1px solid var(--il-ember)', borderRadius: 14, background: 'transparent', color: 'var(--il-ember)', fontWeight: 800, fontSize: 12, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
             <IconFilter size={15} stroke={2.2} />Filters
             {active > 0 && <span style={{ background: 'var(--il-ember)', color: 'var(--il-bg)', borderRadius: 999, padding: '1px 7px', fontSize: 11 }}>{active}</span>}

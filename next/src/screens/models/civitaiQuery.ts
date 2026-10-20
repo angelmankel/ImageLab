@@ -66,12 +66,16 @@ export function baseModelShort(b: string): string {
 /** CivitAI browsing-level bits (the `nsfwLevel` bitfield on models and images). */
 export const LEVEL_BITS = { G: 1, PG: 2, PG13: 4, R: 8, X: 16, XXX: 32 } as const;
 export const ALL_LEVELS = 63;
-/** The board's four-step NSFW picker, each a cumulative mask. */
+/**
+ * The board's four-step NSFW picker, each a cumulative mask: a MAX rating, not a filter — every
+ * step also shows everything below it. The labels say so ("Up to …"; Donny 10-20: "is this a
+ * filter or a level?"); the pickers are titled "Max rating".
+ */
 export const NSFW_LEVELS = [
-  { key: 'none', label: 'None', mask: 1 },
-  { key: 'soft', label: 'Soft', mask: 7 },
-  { key: 'mature', label: 'Mature', mask: 15 },
-  { key: 'x', label: 'X', mask: 63 },
+  { key: 'none', label: 'Safe only', mask: 1 },
+  { key: 'soft', label: 'Up to Soft', mask: 7 },
+  { key: 'mature', label: 'Up to Mature', mask: 15 },
+  { key: 'x', label: 'Everything', mask: 63 },
 ] as const;
 export type NsfwLevelKey = typeof NSFW_LEVELS[number]['key'];
 

@@ -112,7 +112,7 @@ export function FilterFields({ f, set, size, inline, lockedKind, pool }: { f: Mo
             <SegPill size={size} fill label="Period" value={f.period} onChange={(period) => set({ period })} items={PERIODS.map((p) => ({ key: p, label: PERIOD_LABEL[p] }))} />
           </Group>
           <Group label="NSFW LEVEL" size={size}>
-            <SegPill<NsfwLevelKey> size={size} fill label="NSFW level" value={levelForMask(f.nsfwMask)} onChange={(k) => set({ nsfwMask: maskForLevel(k) })} items={NSFW_LEVELS.map((l) => ({ key: l.key, label: l.label }))} />
+            <SegPill<NsfwLevelKey> size={size} fill label="Max rating" value={levelForMask(f.nsfwMask)} onChange={(k) => set({ nsfwMask: maskForLevel(k) })} items={NSFW_LEVELS.map((l) => ({ key: l.key, label: l.label }))} />
           </Group>
           <Group label="SORT" size={size}>
             <MenuPill<Sort> size={size} grow label="Sort" value={f.sort} onChange={(sort) => set({ sort })} options={SORTS.map((s) => ({ key: s, label: s }))} />

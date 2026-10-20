@@ -1,6 +1,6 @@
 /**
  * The desktop filter rows above the grid (Models board, rule 13; Donny's 10-20 layout):
- *   row 1 (52) search · [SORT ▾ · PERIOD ▾ · NSFW ▾] one grouped control · grid/list
+ *   row 1 (52) search · [SORT ▾ · PERIOD ▾ · MAX RATING ▾] one grouped control · grid/list
  *   row 2 (44) Source ▾ · Type ▾ · Base ▾ · Tags ▾ · More ▾ (FilterMenus) · the count when row 3 is hidden
  *   row 3 (32) the active filters and picked tags, each removable · Clear all · "128 models"
  * Every setting the old chip wall and Filters panel had now lives in one of row 2's menus.
@@ -71,7 +71,7 @@ function SortGroup() {
       {line}
       <MenuPill<Period> bare label="Period" value={f.period} onChange={(period) => set({ period })} options={PERIODS.map((p) => ({ key: p, label: PERIOD_LABEL[p] }))} />
       {line}
-      <MenuPill<NsfwLevelKey> bare label="NSFW" value={levelForMask(f.nsfwMask)} onChange={(k) => set({ nsfwMask: maskForLevel(k) })} options={NSFW_LEVELS.map((l) => ({ key: l.key, label: l.label }))} />
+      <MenuPill<NsfwLevelKey> bare label="Max rating" value={levelForMask(f.nsfwMask)} onChange={(k) => set({ nsfwMask: maskForLevel(k) })} options={NSFW_LEVELS.map((l) => ({ key: l.key, label: l.label }))} />
     </div>
   );
 }
