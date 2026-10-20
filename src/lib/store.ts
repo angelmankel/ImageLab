@@ -503,6 +503,16 @@ type Store = {
 export const useStore = create<Store>((set, get) => {
   const routing0 = loadRouting();
   const theme0 = loadThemeState();
+  /**
+   * Every image of a finished run goes into the history (a batch makes several; results are a
+   * list end to end). Pushed last-first so the run reads in order at the top, newest run first.
+   * Returns the first image's entry: the one the stage selects and a layer stamps.
+   */
+  const pushResults = (items: Array<{ entry: HistoryEntry }>, extra: Partial<HistoryEntry>): HistoryEntry => {
+    let first: HistoryEntry | null = null;
+    for (let i = items.length - 1; i >= 0; i--) first = get().pushHistory({ ...items[i].entry, ...extra });
+    return first!;
+  };
 
   return {
     workflow: loadWorkflow(),
@@ -634,8 +644,7 @@ export const useStore = create<Store>((set, get) => {
         } else if (!claimFinished(job.id)) {
           get().removeJob(job.id);
         } else {
-          const stamped = get().pushHistory({
-            ...res.entry,
+          const stamped = pushResults(res.items, {
             serverId,
             ...(job.startedAt ? { durationMs: Date.now() - job.startedAt } : {}),
             ...(job.targetLayerId ? { layerId: job.targetLayerId } : {}),
@@ -762,8 +771,7 @@ export const useStore = create<Store>((set, get) => {
       // Tag the global history entry with the originating canvas layer (if any)
       // so downstream tools (filters, drag-from-history-to-canvas, etc.) can
       // attribute it back.
-      const stamped = get().pushHistory({
-        ...res.entry,
+      const stamped = pushResults(res.items, {
         serverId: job.serverId,
         ...(job.startedAt ? { durationMs: Date.now() - job.startedAt } : {}),
         ...(job.targetLayerId ? { layerId: job.targetLayerId } : {}),

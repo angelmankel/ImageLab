@@ -203,7 +203,7 @@ function OutputLayout({ step, index, items, currentKey, onPick, onOpen, live, bu
         </button>
       </div>
 
-      <OutputPicture items={items} currentKey={currentKey} onPick={onPick} onOpen={onOpen} live={live} busy={busy} status={status}
+      <OutputPicture items={items} currentKey={currentKey} onPick={onPick} onOpen={onOpen} live={live} busy={busy} status={status} liveGrid={step.kind === 'image'}
         fallbackAspect={fallbackAspect} empty={`No ${noun} yet — press Generate.`} />
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: T.gap.md, paddingTop: T.gap.md }}>

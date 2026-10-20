@@ -334,7 +334,7 @@ export async function fetchPromptResult(
     workflow?: WorkflowState;
     layers?: Layer[];
   },
-): Promise<{ url: string; entry: HistoryEntry } | { error: string }> {
+): Promise<{ url: string; entry: HistoryEntry; items: Array<{ url: string; entry: HistoryEntry }> } | { error: string }> {
   try {
     const res = await fetch(`${comfyHttpFor(host)}/history/${promptId}`);
     const hist = await res.json();
@@ -344,28 +344,31 @@ export async function fetchPromptResult(
       const failure = entry.status.messages?.find(([type]: [string, unknown]) => type === 'execution_error' || type === 'execution_interrupted');
       return { error: failure?.[1]?.exception_message || 'Generation interrupted or failed' };
     }
-    for (const out of Object.values(entry.outputs || {}) as Array<{ images?: Array<{ filename: string; subfolder?: string; type?: string }> }>) {
-      if (out.images && out.images.length) {
-        const img = out.images[0];
-        const url = viewUrl(img, host);
-        const historyEntry: HistoryEntry = {
-          id: uid(),
-          serverId: '', // stamped by the caller with the job's server id
-          filename: img.filename,
-          subfolder: img.subfolder || '',
-          type: img.type || 'output',
-          promptId,
-          positive: meta.positive,
-          negative: meta.negative,
-          seed: meta.seed,
-          model: meta.model,
-          createdAt: Date.now(),
-          workflow: meta.workflow,
-          layers: meta.layers,
-        };
-        return { url, entry: historyEntry };
-      }
-    }
+    // Every image of the run (a batch makes several): the result node "9" when the graph has it,
+    // otherwise every output node's images, in graph order.
+    type Out = { images?: Array<{ filename: string; subfolder?: string; type?: string }> };
+    const outputs = (entry.outputs || {}) as Record<string, Out>;
+    const nodes: Out[] = outputs['9']?.images?.length ? [outputs['9']] : Object.values(outputs);
+    const createdAt = Date.now();
+    const items = nodes.flatMap((out) => out.images ?? []).map((img) => ({
+      url: viewUrl(img, host),
+      entry: {
+        id: uid(),
+        serverId: '', // stamped by the caller with the job's server id
+        filename: img.filename,
+        subfolder: img.subfolder || '',
+        type: img.type || 'output',
+        promptId,
+        positive: meta.positive,
+        negative: meta.negative,
+        seed: meta.seed,
+        model: meta.model,
+        createdAt,
+        workflow: meta.workflow,
+        layers: meta.layers,
+      } as HistoryEntry,
+    }));
+    if (items.length) return { url: items[0].url, entry: items[0].entry, items };
     return { error: 'No image in output' };
   } catch (err: unknown) {
     return { error: err instanceof Error ? err.message : String(err) };

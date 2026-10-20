@@ -26,6 +26,7 @@ import { useStageZoom } from './useStageZoom';
 import { transformOf } from './stageZoom';
 import { Toolbar } from './Toolbar';
 import { JobRow } from './jobs/JobRow';
+import { LiveGrid, useLiveFrames } from './jobs/LiveGrid';
 import { StagePlayer } from './player';
 import { T } from '~/theme/tokens';
 import { deleteOutput } from '~/app/deleteResult';
@@ -47,6 +48,8 @@ export function StageColumn({ step, phone = false }: { step: Step; phone?: boole
   const [runFull, setRunFull] = useState<number | 'live' | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const shown = media.live ?? media.item?.url ?? null;
+  /** Item 4: a batch's / several servers' live previews, side by side (`jobs/LiveGrid`). */
+  const liveFrames = useLiveFrames(media.source === 'image' && !!media.live);
   const isVideo = !media.live && media.item?.kind === 'video';
   /** The player owns the stage for a shown clip and for a video step's live render. */
   const player = isVideo || (step.kind === 'video' && media.busy);
@@ -109,7 +112,9 @@ export function StageColumn({ step, phone = false }: { step: Step; phone?: boole
       ) : (
       <div ref={ref} {...zoom.handlers} {...(media.item && !media.live ? menuProps('canvas-image', canvasTarget(media, zoom, open)) : {})} aria-label="Stage"
         style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--il-bg-deep)', overflow: 'hidden', touchAction: shown ? 'none' : 'auto', cursor: zoom.state.zoom > 1 ? 'grab' : shown ? 'zoom-in' : 'default', position: 'relative', userSelect: 'none' }}>
-        {shown ? (
+        {liveFrames.length ? (
+          <LiveGrid frames={liveFrames} />
+        ) : shown ? (
           <img key={shown} src={shown} alt="" {...(media.live ? { draggable: false } : drag)} data-viewer-origin={media.entry?.id}
             style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', display: 'block', ...(!media.live && mayHaveAlpha(media.item?.filename) ? CHECKER : {}), transform: transformOf(zoom.state), transformOrigin: 'center', transition: zoom.state.zoom === 1 ? 'transform .15s' : undefined, willChange: 'transform' }} />
         ) : (

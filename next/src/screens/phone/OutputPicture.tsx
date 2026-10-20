@@ -15,8 +15,9 @@ import { VideoFullscreen } from '@/components/VideoFullscreen';
 import { useMediaAspect } from '@/hooks/useMediaAspect';
 import type { ResultItem } from '@/lib/workspace';
 import { StagePlayer } from '~/screens/image/player';
+import { LiveGrid, useLiveFrames } from '~/screens/image/jobs/LiveGrid';
 
-export function OutputPicture({ items, currentKey, onPick, onOpen, live, busy, status, fallbackAspect, empty }: {
+export function OutputPicture({ items, currentKey, onPick, onOpen, live, busy, status, fallbackAspect, empty, liveGrid = false }: {
   items: readonly ResultItem[];
   currentKey: string | null;
   onPick: (key: string) => void;
@@ -25,6 +26,8 @@ export function OutputPicture({ items, currentKey, onPick, onOpen, live, busy, s
   busy: boolean;
   status?: string | null;
   fallbackAspect: number;
+  /** Image step: a batch's / several servers' live previews show as a grid (item 4). */
+  liveGrid?: boolean;
   empty: string;
 }) {
   const current = items.find((i) => i.key === currentKey) ?? null;
@@ -35,6 +38,15 @@ export function OutputPicture({ items, currentKey, onPick, onOpen, live, busy, s
   const canPage = items.length > 1 && !live;
   const [full, setFull] = useState<{ url: string; time: number } | null>(null);
   const [resume, setResume] = useState<{ time: number; nonce: number } | null>(null);
+  const liveFrames = useLiveFrames(liveGrid && !!live);
+
+  if (liveFrames.length) {
+    return (
+      <div onClick={() => onOpen(currentKey ?? '')} style={{ position: 'relative', width: '100%', aspectRatio: String(fallbackAspect || 1), maxHeight: '68dvh', flex: 'none', overflow: 'hidden', background: 'var(--il-bg)' }}>
+        <LiveGrid frames={liveFrames} />
+      </div>
+    );
+  }
 
   if (isClip && current) {
     const index = items.indexOf(current);
