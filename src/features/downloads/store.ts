@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { useStore } from '@/lib/store';
 import {
-  fetchDownloads, startDownload, startUrlDownload, cancelDownload, type Download,
+  fetchDownloads, startDownload, startUrlDownload, cancelDownload, retryDownload, type Download,
 } from '@/lib/comfy';
 import { withCivitaiAuth } from '@/lib/civitai';
 import { useLibraryStore } from '@/features/library/store';
@@ -72,6 +72,10 @@ type DownloadsState = {
   startUrl: (url: string, folder: string, filename: string, serverIds?: string[]) => Promise<StartResult>;
   /** Cancel an in-flight row, or dismiss a finished/failed one. */
   cancel: (row: DownloadRow) => Promise<void>;
+  /** Start a failed / cancelled row again on its server. Rejects with the server's reason. */
+  retry: (row: DownloadRow) => Promise<void>;
+  /** Dismiss every row that is not downloading (completed, failed, cancelled). */
+  clearFinished: () => Promise<void>;
   /** Bytes per second for a row, derived from the last 3s of poll deltas.
    *  Returns 0 for rows we have no samples for (just-started downloads). */
   bytesPerSecond: (rowId: string) => number;
@@ -179,6 +183,25 @@ export const useDownloadsStore = create<DownloadsState>((set, get) => ({
     // Drop it optimistically; the next refresh reconciles.
     _samples.delete(row.rowId);
     set({ rows: get().rows.filter((r) => r.rowId !== row.rowId) });
+    void get().refresh();
+  },
+
+  retry: async (row) => {
+    const srv = useStore.getState().servers.find((s) => s.id === row.serverId);
+    if (!srv) throw new Error('That server is gone');
+    await retryDownload(srv.host, row);
+    await get().refresh();
+  },
+
+  clearFinished: async () => {
+    const done = get().rows.filter((r) => r.status !== 'downloading');
+    if (!done.length) return;
+    const { servers } = useStore.getState();
+    set({ rows: get().rows.filter((r) => r.status === 'downloading') });
+    await Promise.allSettled(done.map((r) => {
+      const srv = servers.find((s) => s.id === r.serverId);
+      return srv ? cancelDownload(srv.host, r.version_id) : Promise.resolve();
+    }));
     void get().refresh();
   },
 

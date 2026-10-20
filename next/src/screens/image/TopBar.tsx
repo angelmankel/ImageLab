@@ -1,19 +1,15 @@
 /**
  * The top nav (fix list 36 / 19): ← Home · logo + wordmark (also → Home) · | · the session tab
- * strip (fills the width) · | · server chip ("This pod · B200") · "Queue 2 · ↓ 1" · mute · fullscreen
- * far right. The clock and the keyboard shortcuts live in the footer (`Footer.tsx`). The queue
- * pill opens the queue list (rule 15). No session component here: the session's name is the left
+ * strip (fills the width) · | · server chip ("This pod · B200") · "Jobs 2" · "↓ 1 · 37%" · mute ·
+ * fullscreen far right. The clock and the keyboard shortcuts live in the footer (`Footer.tsx`). The
+ * queue is split in two (item 14, `queue/QueueButtons`): the job queue and the download queue. No session component here: the session's name is the left
  * panel's title (`SessionTitle`).
  */
-import { useState } from 'react';
-import { Popover } from '@mantine/core';
-import { IconListDetails, IconArrowDown, IconArrowLeft } from '@tabler/icons-react';
-import { useDownloadsStore } from '@/features/downloads/store';
+import { IconArrowLeft } from '@tabler/icons-react';
 import { useRoute } from '~/app/routeStore';
-import { useQueue } from '~/app/queue';
-import { Pill, Count, IconBtn } from '~/ui';
+import { IconBtn } from '~/ui';
 import { T } from '~/theme/tokens';
-import { QueueList } from './QueueList';
+import { JobQueueButton, DownloadQueueButton } from './queue/QueueButtons';
 import { FullscreenBtn } from './topbar/FullscreenBtn';
 import { ServerChip } from './servers/ServerChip';
 import { MuteToggle } from '~/ui/MuteToggle';
@@ -36,28 +32,6 @@ export function Logo({ size = 32 }: { size?: number }) {
   return <LogoMark size={size} />;
 }
 
-/** "Queue 2 · ↓ 1": opens the queue list; the downloads count is the active model downloads. */
-function QueuePill() {
-  const { rows } = useQueue();
-  const downloading = useDownloadsStore((s) => s.rows.filter((r) => r.status === 'downloading').length);
-  const [open, setOpen] = useState(false);
-  return (
-    <Popover opened={open} onChange={setOpen} position="bottom-end" shadow="lg" width={340} withinPortal zIndex={T.z.popover}>
-      <Popover.Target>
-        <span style={{ display: 'inline-flex' }}>
-          <Pill onClick={() => setOpen((o) => !o)} title="Queue" active={open}>
-            <IconListDetails size={16} />Queue <Count n={rows.length} tone={rows.length ? 'ember' : 'muted'} /><span style={{ color: 'var(--il-muted)' }}>·</span><IconArrowDown size={14} stroke={2.4} />{downloading}
-          </Pill>
-        </span>
-      </Popover.Target>
-      <Popover.Dropdown style={{ background: 'var(--il-panel)', border: '1px solid var(--il-line-soft)', borderRadius: T.radius.xl, padding: T.pad.panel }}>
-        <div className="il-eyebrow" style={{ margin: '2px 2px 8px' }}>Queue</div>
-        <div className="il-scroll" style={{ maxHeight: 360 }}><QueueList /></div>
-      </Popover.Dropdown>
-    </Popover>
-  );
-}
-
 export function TopBar() {
   const screen = useRoute((s) => s.screen);
   const home = screen === 'home';
@@ -73,7 +47,8 @@ export function TopBar() {
       <SessionTabs />
       <Divider />
       <ServerChip />
-      <QueuePill />
+      <JobQueueButton />
+      <DownloadQueueButton />
       <MuteToggle />
       <FullscreenBtn />
     </div>

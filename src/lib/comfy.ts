@@ -141,6 +141,8 @@ export interface Download {
   error: string | null;
   started_at: number;
   updated_at: number;
+  /** The https URL of a URL download (newer ImageLabCore); null / absent for a CivitAI version. */
+  url?: string | null;
 }
 
 /** Every download a server's node is tracking (active + finished). */
@@ -188,6 +190,23 @@ export async function startUrlDownload(host: string, url: string, folder: string
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
   return Number(body.version_id);
+}
+
+/**
+ * Start a failed / cancelled row again with what it was started with. Newer ImageLabCore has
+ * `POST /downloads/{id}/retry`; an older one gets the start call again (a CivitAI version id, or
+ * the row's URL when the server reports it).
+ */
+export async function retryDownload(host: string, row: Pick<Download, 'version_id' | 'folder' | 'filename' | 'url'>): Promise<void> {
+  const res = await fetch(`${comfyHttpFor(host)}/imagelab/api/downloads/${row.version_id}/retry`, { method: 'POST' });
+  if (res.ok) return;
+  const body = await res.json().catch(() => ({} as { error?: string; code?: string }));
+  // The server knows the row and refused (still running, bad token…): say so.
+  if (body.code && body.code !== 'NOT_FOUND') throw new Error(body.error || `HTTP ${res.status}`);
+  const folder = row.folder && row.folder !== '?' ? row.folder : undefined;
+  if (row.version_id > 0) return startDownload(host, row.version_id, folder);
+  if (row.url && folder) { await startUrlDownload(host, row.url, folder, row.filename); return; }
+  throw new Error('This server cannot retry that file; start it again from the model.');
 }
 
 /** Cancel an in-flight download, or dismiss a finished/failed row. */
