@@ -1,10 +1,12 @@
 /**
  * Rule 6: the Style thumbs row. A style is one positive layer tagged "Style" (made, replaced or
  * removed here), so it rides along in the compiled prompt like any part. Thumbs are gradients
- * (never a generated picture). The pure list is `styles.ts`.
+ * (never a generated picture); the row fades at an edge while there is more to scroll. The pure
+ * list is `styles.ts`.
  */
 import { useStore } from '@/lib/store';
-import { useWheelSideways } from '~/ui';
+import { useCallback } from 'react';
+import { useEdgeFade, useWheelSideways } from '~/ui';
 import { STYLES, STYLE_TAG, type StyleDef } from './styles';
 
 function useStyleLayer() {
@@ -22,6 +24,8 @@ export function applyStyle(style: StyleDef) {
 export function StyleRow() {
   const layer = useStyleLayer();
   const wheelRef = useWheelSideways<HTMLDivElement>();
+  const fade = useEdgeFade<HTMLDivElement>();
+  const rowRef = useCallback((el: HTMLDivElement | null) => { wheelRef(el); fade.ref(el); }, [wheelRef, fade.ref]);
   const current = STYLES.find((s) => s.text && layer?.text === s.text)?.id ?? (layer?.text ? 'custom' : 'none');
   return (
     <div>
@@ -29,7 +33,7 @@ export function StyleRow() {
         <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--il-muted)' }}>Style</span>
         {current === 'custom' && <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--il-ember-hi)' }} title={layer?.text}>custom</span>}
       </div>
-      <div ref={wheelRef} className="il-scroll-x" data-no-swipe style={{ display: 'flex', gap: 10, touchAction: 'pan-x pan-y' }}>
+      <div ref={rowRef} className="il-scroll-x" data-no-swipe style={{ display: 'flex', gap: 10, touchAction: 'pan-x pan-y', ...fade.style }}>
         {STYLES.map((s) => {
           const on = s.id === current;
           return (
