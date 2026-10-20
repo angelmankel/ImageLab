@@ -364,14 +364,15 @@ export function createRunStore(keep: KeepResult = keepAll, hideKey?: string): Ru
         const running = get().jobs.find((j) => j.running)?.promptId;
         const ids = promptId ? [promptId] : [...pending.keys()];
         if (host) {
+          // Waiting ones come off the server's queue; the running one (or, for "cancel all" when
+          // none has reported running yet, whatever runs: the old Stop) is interrupted.
           for (const id of ids) {
-            try {
-              if (id === running || (!running && !promptId)) await fetch(`${comfyHttpFor(host)}/interrupt`, { method: 'POST' });
-              else await deleteQueuedPrompt(host, id);
-            } catch { /* best effort */ }
+            if (id === running) continue;
+            try { await deleteQueuedPrompt(host, id); } catch { /* best effort */ }
           }
-          // Nothing of ours known yet (still building): the old Stop = interrupt what runs.
-          if (!ids.length && !promptId) { try { await fetch(`${comfyHttpFor(host)}/interrupt`, { method: 'POST' }); } catch { /* best effort */ } }
+          if ((running && ids.includes(running)) || (!running && !promptId)) {
+            try { await fetch(`${comfyHttpFor(host)}/interrupt`, { method: 'POST' }); } catch { /* best effort */ }
+          }
         }
         if (promptId) done(promptId); else finish();
       },
