@@ -1,6 +1,7 @@
 import type { Layer, Snippet, SnippetCategory, HistoryEntry, WorkflowState, Collection, ImportedImage } from './types';
 import { DEFAULT_CLIP_SKIP } from './pipeline';
 import { LIBRARY_CATEGORIES, SNIPPET_LIBRARY_VERSION, librarySnippets } from './snippetLibrary';
+import { defaultAiSettings, migrateVeniceSettings, normalizeAiSettings, providerSpec, type AiSettings } from './aiProviders';
 
 // ---------------------------------------------------------------------------
 // Storage keys
@@ -551,44 +552,14 @@ export function saveSlideshowMs(ms: number) {
 }
 
 // ---------------------------------------------------------------------------
-// Venice AI — uncensored chat-completion API used by the Prompt Studio's
-// "expand / improve / brainstorm" actions. Stored locally; never sent to the
-// ComfyUI server or anywhere else.
+// The AI helper's providers (lib/aiProviders.ts): the keys, models and the active one. Stored
+// locally; calls go straight from the browser to the provider, never through ComfyUI.
 // ---------------------------------------------------------------------------
 
-/** Which prompt-style ruleset the AI helpers should target. `sdxl` is the
- *  generic comma-separated natural-language SDXL style; `illustrious` follows
- *  Arctenox's Illustrious / Danbooru guide (underscored tags, masterpiece +
- *  best quality opener, escaped parens, salient-first ordering). */
-export type PromptStyle = 'sdxl' | 'illustrious';
+export type { PromptStyle, AiSettings, AiProviderEntry, AiProviderId } from './aiProviders';
 
-/** Which chat backend the AI helpers call: Venice's cloud API, or a local
- *  Ollama server (its OpenAI-compatible `/v1` routes). */
-export type AiProvider = 'venice' | 'local';
-
-export type VeniceSettings = {
-  apiKey: string;
-  /** Chat model id — see https://docs.venice.ai/. */
-  model: string;
-  /** Override the default base URL. Empty string = default. */
-  baseUrl: string;
-  /** Prompt-style ruleset applied to every AI helper. Defaults to `sdxl`. */
-  promptStyle: PromptStyle;
-  /** Active backend. Old saved settings have none and stay on Venice. */
-  provider: AiProvider;
-  /** Ollama server root (no `/v1`), e.g. https://llm.blueoceanswim.com. */
-  localBaseUrl: string;
-  /** Ollama model name used for text helpers. */
-  localModel: string;
-  /** Ollama model for the image helpers; '' = same as `localModel`. */
-  localVisionModel: string;
-  /** GPU memory of the Ollama box, for the browser's "fits" hint. */
-  localVramGb: number;
-};
-
-export const VENICE_DEFAULT_MODEL = 'venice-uncensored';
-export const VENICE_DEFAULT_BASE_URL = 'https://api.venice.ai/api/v1';
-export const LOCAL_LLM_DEFAULT_BASE_URL = 'https://llm.blueoceanswim.com';
+export const AI_KEY = 'imagelab.ai.v1';
+export const LOCAL_LLM_DEFAULT_BASE_URL = providerSpec('local').baseUrl;
 /** The pod's own Ollama (its start.sh runs one behind nginx at /llm/), when this page is served
  *  from a pod or the domain in front of one. Same origin, so the pod's basic auth carries over. */
 export function podLlmUrl(): string {
@@ -596,23 +567,22 @@ export function podLlmUrl(): string {
   return host ? `${location.protocol}//${host}/llm` : '';
 }
 
-export function defaultVeniceSettings(): VeniceSettings {
-  return {
-    apiKey: '', model: VENICE_DEFAULT_MODEL, baseUrl: '', promptStyle: 'sdxl',
-    provider: 'venice', localBaseUrl: LOCAL_LLM_DEFAULT_BASE_URL, localModel: '', localVisionModel: '', localVramGb: 20,
-  };
-}
-
-export function loadVeniceSettings(): VeniceSettings {
+/** The saved providers; the first load after the upgrade turns the old single-provider
+ *  `imagelab.venice.v1` into a Local entry (+ a Venice entry when it had a key) and saves it. */
+export function loadAiSettings(): AiSettings {
   try {
-    const raw = JSON.parse(localStorage.getItem(VENICE_KEY) || 'null');
-    if (raw && typeof raw === 'object') return { ...defaultVeniceSettings(), ...raw };
+    const raw = JSON.parse(localStorage.getItem(AI_KEY) || 'null');
+    if (raw && typeof raw === 'object') return normalizeAiSettings(raw);
+    const old = JSON.parse(localStorage.getItem(VENICE_KEY) || 'null');
+    const migrated = migrateVeniceSettings(old && typeof old === 'object' ? old : null);
+    if (old) saveAiSettings(migrated);
+    return migrated;
   } catch { /* ignore */ }
-  return defaultVeniceSettings();
+  return defaultAiSettings();
 }
 
-export function saveVeniceSettings(s: VeniceSettings) {
-  try { localStorage.setItem(VENICE_KEY, JSON.stringify(s)); } catch { /* ignore */ }
+export function saveAiSettings(s: AiSettings) {
+  try { localStorage.setItem(AI_KEY, JSON.stringify(s)); } catch { /* ignore */ }
 }
 
 // ---------------------------------------------------------------------------
@@ -836,22 +806,26 @@ function saveInputImage(img: WorkflowState['inputImage']) {
 }
 
 // ---------------------------------------------------------------------------
-// Model-preview source — controls the order images are shown in the model
-// picker's hover slideshow, and which one shows first.
-//   - 'first'   : keep CivitAI's curated order (default).
-//   - 'popular' : same as 'first' for now (per-image stats aren't returned by
-//                 the by-hash endpoint we use), but kept distinct so the
-//                 setting survives a future upgrade that does fetch them.
+// Model-preview source — which picture a model's preview starts on (tiles,
+// rows, picker tiles, bubbles, the selected model's card, the viewer's first
+// picture) and the order a hover plays. Applied by the next UI's
+// `usePreviewOrder` through `orderPreviewImages` (lib/previewOrder.ts).
+//   - 'first'   : keep CivitAI's curated order.
+//   - 'popular' : the version's most-reacted pictures (CivitAI /images,
+//                 sort=Most Reactions), fetched once per version the first
+//                 time its preview is hovered or shown big, cached in memory
+//                 + sessionStorage; curated order until then or on failure.
+//                 The default (Donny, 10-20).
 //   - 'random'  : shuffle on every hover.
-//   - 'history' : seed the slideshow with the most recent local generation
-//                 that used this model, if any, then play the CivitAI images.
+//   - 'history' : seed the preview with the local generations that used this
+//                 model (newest first), then the CivitAI images.
 // ---------------------------------------------------------------------------
 
 export type ModelPreviewSource = 'first' | 'popular' | 'random' | 'history';
 
 export const PREVIEW_SOURCES: Array<{ value: ModelPreviewSource; label: string; description: string }> = [
   { value: 'first',   label: 'First',        description: "CivitAI's curated order — same every time." },
-  { value: 'popular', label: 'Most popular', description: 'Same as First today; reserved for when per-image stats arrive.' },
+  { value: 'popular', label: 'Most popular', description: "The model's most-reacted pictures on CivitAI, fetched the first time you hover or open it." },
   { value: 'random',  label: 'Random',       description: 'Shuffle on every hover — a different image each time.' },
   { value: 'history', label: 'Local history',description: 'Show a local generation that used this model first, then CivitAI.' },
 ];

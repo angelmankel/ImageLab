@@ -10,7 +10,7 @@ import { cn } from '@/lib/cn';
 import {
   ArrowDownIcon, ArrowUpIcon, CheckIcon, CopyIcon, MinusIcon, MoreIcon, PlusIcon, SparkleIcon, StarIcon, TrashIcon,
 } from '@/components/ui/icons';
-import { aiNotReadyHint, aiReady, tweakPromptFragment } from '@/lib/venice';
+import { aiNotReadyHint, aiReady, tweakPromptFragment } from '@/lib/ai';
 import { useShortcut, ShortcutPriority } from '@/hooks/useShortcut';
 
 /**
@@ -56,7 +56,7 @@ export function LayerCard({ layer, onDelete, canMoveUp, canMoveDown }: {
   const duplicateLayer = useStore(s => s.duplicateLayer);
   const moveLayer = useStore(s => s.moveLayer);
   const addSnippet = useStore(s => s.addSnippet);
-  const venice = useStore(s => s.venice);
+  const ai = useStore(s => s.ai);
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: layer.id,
@@ -183,7 +183,7 @@ export function LayerCard({ layer, onDelete, canMoveUp, canMoveDown }: {
           <div className="ml-auto flex items-center gap-0.5">
             <OverflowMenu
               layer={layer}
-              venice={venice}
+              ai={ai}
               onDuplicate={() => { flush(); duplicateLayer(layer.id); }}
               onMoveUp={canMoveUp ? () => moveLayer(layer.id, -1) : undefined}
               onMoveDown={canMoveDown ? () => moveLayer(layer.id, 1) : undefined}
@@ -284,10 +284,10 @@ function WeightStepper({ value, onChange, accent }: {
 // ---------------------------------------------------------------------------
 
 function OverflowMenu({
-  layer, venice, onDuplicate, onMoveUp, onMoveDown, onSaveToLibrary, saved, onTweakResult,
+  layer, ai, onDuplicate, onMoveUp, onMoveDown, onSaveToLibrary, saved, onTweakResult,
 }: {
   layer: Layer;
-  venice: ReturnType<typeof useStore.getState>['venice'];
+  ai: ReturnType<typeof useStore.getState>['ai'];
   onDuplicate: () => void;
   /** Undefined when the layer is already first / last of its kind. */
   onMoveUp?: () => void;
@@ -299,7 +299,7 @@ function OverflowMenu({
   const [open, setOpen] = useState(false);
   const [tweakOpen, setTweakOpen] = useState(false);
   const btnRef = useRef<HTMLButtonElement>(null);
-  const veniceReady = aiReady(venice);
+  const ready = aiReady(ai);
 
   return (
     <>
@@ -326,8 +326,8 @@ function OverflowMenu({
               label: 'Tweak with AI…',
               icon: <SparkleIcon size={13} />,
               onClick: () => setTweakOpen(true),
-              disabled: !veniceReady,
-              disabledTitle: aiNotReadyHint(venice),
+              disabled: !ready,
+              disabledTitle: aiNotReadyHint(ai),
             },
             {
               label: saved ? 'Saved' : 'Save to library',
@@ -340,7 +340,7 @@ function OverflowMenu({
       {tweakOpen && (
         <TweakDialog
           layer={layer}
-          venice={venice}
+          ai={ai}
           onClose={() => setTweakOpen(false)}
           onApply={onTweakResult}
         />
@@ -415,12 +415,12 @@ function MenuPopover({ anchor, onClose, items }: {
 
 // ---------------------------------------------------------------------------
 // Tweak dialog — moved from the standalone LayerTweakButton so the row stays
-// uncluttered. Same Venice call, same Enter-to-apply shortcut.
+// uncluttered. Same AI call, same Enter-to-apply shortcut.
 // ---------------------------------------------------------------------------
 
-function TweakDialog({ layer, venice, onClose, onApply }: {
+function TweakDialog({ layer, ai, onClose, onApply }: {
   layer: Layer;
-  venice: ReturnType<typeof useStore.getState>['venice'];
+  ai: ReturnType<typeof useStore.getState>['ai'];
   onClose: () => void;
   onApply: (text: string) => void;
 }) {
@@ -453,7 +453,7 @@ function TweakDialog({ layer, venice, onClose, onApply }: {
         text: layer.text,
         instruction,
         kind: layer.kind,
-        settings: venice,
+        settings: ai,
         signal: ctrl.signal,
       });
       if (ctrl.signal.aborted) return;

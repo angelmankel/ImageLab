@@ -235,16 +235,26 @@ npm run build
   (`sweepAxesFor`), presets drop `refImages`. Pickers keep H3 files out of the image views
   (`isVideoModelName`). Checked only against `/object_info` and `/prompt` validation on the pod
   (ComfyUI 0.34.5 has the nodes); **no H3 clip has been rendered from here yet** — Donny tests.
-- **AI helpers** (`lib/venice.ts`) call Venice or a local Ollama, per `settings.venice.provider`
-  (`aiReady` / `withChatModel` / `visionModelOf`; never test `apiKey` directly). Ollama runs on
-  winold (192.168.0.83:11434, RTX A4500) and is reached over HTTPS at `llm.blueoceanswim.com`
-  through Traefik — the page is HTTPS, so the plain-http address is mixed content. Local calls send
-  `reasoning_effort: "none"` (Ollama's think-off). A pod runs its own Ollama too (ImageLabDocker
-  `start.sh`, nginx `/llm/`, same origin so its basic auth carries over): Settings → AI → "Where it
-  runs" switches `localBaseUrl` between Home PC and This pod (`podLlmUrl()` in `lib/storage.ts`).
-  Venice's model list comes from its public `/models` (`lib/veniceModels.ts`). The model manager (`features/ai`: list, pull with
-  progress, delete, unload, Hugging Face GGUF browser) uses `lib/localLlm.ts`; the pure parts are
-  `lib/llmModels.ts` (tested).
+- **AI helpers** (`lib/ai.ts`, ONE entry point: `aiChat` + the prompt writers and vision
+  helpers; `aiReady` / `aiNotReadyHint` / `withChatModel` / `visionModelOf`, never test a key
+  directly) call the **active provider** of `settings.ai` (`lib/aiProviders.ts`, pure + tested:
+  the supported catalogue — Local/Ollama, OpenRouter, OpenAI, Anthropic, DeepSeek, Gemini, Groq,
+  Mistral, xAI, Together, Venice —, `migrateVeniceSettings` (the old `imagelab.venice.v1` becomes
+  a Local entry + a Venice entry once, `loadAiSettings` in storage.ts), per-adapter
+  `chatRequest` / `modelsRequest` / `parseModels` / `parseChatReply`). One active provider, no
+  fallback; each entry has its own key, model, vision model, base URL and a `tested` flag that a
+  changed key or URL resets. Local is always in the list and cannot be removed. Model lists come
+  from each provider's own endpoint, filtered to chat models (`features/ai/aiModelsStore.ts`,
+  shared by every picker). Ollama runs on winold (192.168.0.83:11434, RTX A4500) and is reached
+  over HTTPS at `llm.blueoceanswim.com` through Traefik — the page is HTTPS, so the plain-http
+  address is mixed content. Local calls send `reasoning_effort: "none"` (Ollama's think-off).
+  A pod runs its own Ollama too (ImageLabDocker `start.sh`, nginx `/llm/`, same origin so its
+  basic auth carries over): the Local page's "Where it runs" switches its URL between Home PC
+  and This pod (`podLlmUrl()` in `lib/storage.ts`). The model manager (`features/ai`: list, pull
+  with progress, delete, unload, Hugging Face GGUF browser) uses `lib/localLlm.ts`; the pure
+  parts are `lib/llmModels.ts` (tested). The classic Settings → AI tab reads the same store
+  (active provider, model, prompt style, the local manager); keys are entered and tested in the
+  next UI's Settings → AI helper (`next/src/screens/settings/ai/*`).
 
 **The seed trap.** The ComfyUI editor gives any INT named `seed` / `noise_seed` a
 `control_after_generate` slot even when `/object_info` does not declare one, and saves the extra

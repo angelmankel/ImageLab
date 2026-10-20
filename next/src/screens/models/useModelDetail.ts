@@ -6,7 +6,9 @@
  */
 import { useEffect, useState, useCallback, useRef } from 'react';
 import type { CivitaiModel, CivitaiImage } from '@/lib/civitai';
+import { seedPopular } from '@/lib/previewOrder';
 import { fetchModel, fetchImages } from './civitaiApi';
+import { ALL_LEVELS } from './civitaiQuery';
 
 const models = new Map<number, CivitaiModel>();
 
@@ -55,7 +57,13 @@ export function useVersionImages(versionId: number | null, nsfwMask: number, fal
     const ac = new AbortController();
     setState({ key, items: [], nextCursor: null, loading: true, failed: false });
     fetchImages({ modelVersionId: versionId!, nsfwMask, limit: IMAGES_PAGE, sort: 'Most Reactions' }, ac.signal)
-      .then((p) => { imageCache.set(key, p); if (!ac.signal.aborted) setState({ key, items: p.items, nextCursor: p.nextCursor, loading: false, failed: false }); })
+      .then((p) => {
+        imageCache.set(key, p);
+        // At every level this first page IS the preview's "Most popular" list: hand it over, so
+        // a model opened big costs the previews no second request.
+        if (nsfwMask === ALL_LEVELS) seedPopular(versionId, p.items);
+        if (!ac.signal.aborted) setState({ key, items: p.items, nextCursor: p.nextCursor, loading: false, failed: false });
+      })
       .catch(() => { if (!ac.signal.aborted) setState({ key, items: [], nextCursor: null, loading: false, failed: true }); });
     return () => ac.abort();
   }, [key, versionId, nsfwMask]);

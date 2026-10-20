@@ -21,7 +21,7 @@ import { IconBookmark, IconBooks, IconChevronDown, IconChevronRight, IconDeviceF
 import { Segmented } from '@/components/blocks/Segmented';
 import { useStore } from '@/lib/store';
 import { compileLayers } from '@/lib/prompt';
-import { aiNotReadyHint, aiReady, expandPromptFragment, generateVideoPrompt, promptFromImage, videoPromptFromImage } from '@/lib/venice';
+import { aiNotReadyHint, aiReady, expandPromptFragment, generateVideoPrompt, promptFromImage, videoPromptFromImage } from '@/lib/ai';
 import type { PromptKind } from '@/lib/promptMine';
 import { PromptBox, SnippetsRow } from '@/features/layers/PromptFields';
 import { SnippetChips } from '@/features/layers/SnippetChips';
@@ -150,10 +150,10 @@ function AiButton({ label, icon, title, disabled, run }: { label: string; icon: 
 function ImageWrite({ large }: { large: boolean }) {
   const { positive, negative } = useCurrentPrompt('image');
   const inputImage = useStore(s => s.workflow.inputImage);
-  const venice = useStore(s => s.venice);
+  const ai = useStore(s => s.ai);
   const layers = useStore(s => s.layers);
-  const ready = aiReady(venice);
-  const hint = ready ? undefined : `${aiNotReadyHint(venice)} to use the AI pens`;
+  const ready = aiReady(ai);
+  const hint = ready ? undefined : `${aiNotReadyHint(ai)} to use the AI pens`;
   const [negOpen, setNegOpen] = useState(false);
   const [partsOpen, setPartsOpen] = useState(false);
   const apply = usePrompt('image');
@@ -167,13 +167,13 @@ function ImageWrite({ large }: { large: boolean }) {
         <PromptGeneratorButton variant="button" label="Write it" />
         <AiButton label="Improve" icon={<IconWand size={14} />} disabled={!ready || !positive.trim()} title={hint ?? 'Rewrite the prompt richer, same idea'}
           run={async (signal) => {
-            const text = await expandPromptFragment(compileLayers(useStore.getState().layers, 'positive'), 'positive', 'improve', venice, signal);
+            const text = await expandPromptFragment(compileLayers(useStore.getState().layers, 'positive'), 'positive', 'improve', ai, signal);
             if (!signal.aborted && text.trim()) apply({ positive: text.trim() }, 'Improve');
           }} />
         {inputImage && (
           <AiButton label="From the picture" icon={<IconPhotoUp size={14} />} disabled={!ready} title={hint ?? 'Describe the input image as a prompt'}
             run={async (signal) => {
-              const text = await promptFromImage(inputImage.dataUrl, venice, signal);
+              const text = await promptFromImage(inputImage.dataUrl, ai, signal);
               if (!signal.aborted && text.trim()) apply({ positive: text.trim() }, 'From the picture');
             }} />
         )}
@@ -238,9 +238,9 @@ function VideoWrite({ large }: { large: boolean }) {
   const mode = useVideo(s => s.mode);
   const h3Mode = useVideo(s => s.h3.mode);
   const host = useModeHost('video');
-  const venice = useStore(s => s.venice);
-  const ready = aiReady(venice);
-  const hint = ready ? undefined : `${aiNotReadyHint(venice)} to use the AI pens`;
+  const ai = useStore(s => s.ai);
+  const ready = aiReady(ai);
+  const hint = ready ? undefined : `${aiNotReadyHint(ai)} to use the AI pens`;
   const [negOpen, setNegOpen] = useState(false);
   const apply = usePrompt('video');
   const eng = engine === 'h3' ? 'h3' : 'wan';
@@ -255,13 +255,13 @@ function VideoWrite({ large }: { large: boolean }) {
         {hasFrame && frameUrl && (
           <AiButton label="From the frame" icon={<IconPhotoUp size={14} />} disabled={!ready} title={hint ?? 'Write the motion from the start frame (vision model)'}
             run={async (signal) => {
-              const text = await videoPromptFromImage(frameUrl, eng, venice, signal, positive);
+              const text = await videoPromptFromImage(frameUrl, eng, ai, signal, positive);
               if (!signal.aborted && text.trim()) apply({ positive: text.trim() }, 'From the frame');
             }} />
         )}
         <AiButton label="Improve" icon={<IconWand size={14} />} disabled={!ready || !positive.trim()} title={hint ?? 'Rewrite it as a sharper motion prompt'}
           run={async (signal) => {
-            const text = await generateVideoPrompt({ seed: positive, source: 'prompt', engine: eng, settings: venice, signal });
+            const text = await generateVideoPrompt({ seed: positive, source: 'prompt', engine: eng, settings: ai, signal });
             if (!signal.aborted && text.trim()) apply({ positive: text.trim() }, 'Improve');
           }} />
         <SaveToMine kind="video" positive={positive} negative={engine === 'h3' ? undefined : negative} />
@@ -283,9 +283,9 @@ function WorkflowWrite({ large }: { large: boolean }) {
   const { positive } = useCurrentPrompt('workflow');
   const path = useStudio(s => s.path);
   const targetId = useStudio(s => s.targetId());
-  const venice = useStore(s => s.venice);
-  const ready = aiReady(venice);
-  const hint = ready ? undefined : `${aiNotReadyHint(venice)} to use the AI pens`;
+  const ai = useStore(s => s.ai);
+  const ready = aiReady(ai);
+  const hint = ready ? undefined : `${aiNotReadyHint(ai)} to use the AI pens`;
   const apply = usePrompt('workflow');
   if (!path) return <Text size="xs" c="dimmed" px={4} py="sm" ta="center">Pick a workflow first.</Text>;
   if (!targetId) return <Text size="xs" c="dimmed" px={4} py="sm" ta="center">This workflow has no text box to write a prompt into.</Text>;
@@ -296,7 +296,7 @@ function WorkflowWrite({ large }: { large: boolean }) {
         <PromptGeneratorButton variant="button" label="Write it" target={{ kind: 'text', current: positive, apply: (t) => apply({ positive: t }, 'AI prompt') }} />
         <AiButton label="Improve" icon={<IconWand size={14} />} disabled={!ready || !positive.trim()} title={hint ?? 'Rewrite the prompt richer, same idea'}
           run={async (signal) => {
-            const text = await expandPromptFragment(positive, 'positive', 'improve', venice, signal);
+            const text = await expandPromptFragment(positive, 'positive', 'improve', ai, signal);
             if (!signal.aborted && text.trim()) apply({ positive: text.trim() }, 'Improve');
           }} />
         <SaveToMine kind="image" positive={positive} />

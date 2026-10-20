@@ -6,7 +6,7 @@
  */
 import { useStore } from '@/lib/store';
 import { findModelHash, bucketForBaseModel, type BaseModelBucket } from '@/lib/modelHash';
-import { previewStill, type CivitaiCacheEntry, type CivitaiVersionByHash } from '@/lib/civitai';
+import { previewStill, type CivitaiCacheEntry, type CivitaiImage, type CivitaiVersionByHash } from '@/lib/civitai';
 import type { ModelHash } from '@/lib/comfy';
 import { civitaiPageUrl, thumbUrl } from '@/lib/modelLibrary';
 import { modelLabel } from '@/components/models/modelInfo';
@@ -19,8 +19,12 @@ export interface ModelMeta {
   name?: string;
   /** False until the hash lookup has resolved either way. */
   resolved: boolean;
-  /** Preview stills, best first (videos already turned into stills). */
+  /** Preview stills in CivitAI's curated order (videos already turned into stills). */
   images: string[];
+  /** The same pictures as CivitAI sent them (type, NSFW level) — what `useModelPreview` orders. */
+  samples: CivitaiImage[];
+  /** The CivitAI version the file hashed to. */
+  versionId?: number;
   baseModel?: string;
   bucket: BaseModelBucket;
   trainedWords: string[];
@@ -29,8 +33,10 @@ export interface ModelMeta {
   downloads?: number;
 }
 
+const NO_SAMPLES: CivitaiImage[] = [];
+
 export function readModelMeta(file: string, hashes: ModelHash[], civitaiByHash: Record<string, CivitaiCacheEntry>): ModelMeta {
-  const base: ModelMeta = { file, label: modelLabel(file), resolved: false, images: [], bucket: 'Unknown', trainedWords: [] };
+  const base: ModelMeta = { file, label: modelLabel(file), resolved: false, images: [], samples: NO_SAMPLES, bucket: 'Unknown', trainedWords: [] };
   const match = findModelHash(hashes, file);
   if (!match) return hashes.length ? { ...base, resolved: true } : base;
   const entry = civitaiByHash[match.hash];
@@ -42,6 +48,8 @@ export function readModelMeta(file: string, hashes: ModelHash[], civitaiByHash: 
     resolved: true,
     name: data.model?.name,
     images: (data.images ?? []).map((i) => previewStill(i)).filter((u) => !!u),
+    samples: data.images ?? NO_SAMPLES,
+    versionId: typeof data.id === 'number' ? data.id : undefined,
     baseModel: data.baseModel,
     bucket: bucketForBaseModel(data.baseModel),
     trainedWords: data.trainedWords ?? [],

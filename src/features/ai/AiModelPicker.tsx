@@ -1,74 +1,45 @@
 import { Select, type MantineSize } from '@mantine/core';
 import { useStore } from '@/lib/store';
-import { LOCAL_LLM_DEFAULT_BASE_URL, VENICE_DEFAULT_MODEL, podLlmUrl } from '@/lib/storage';
-import { ollamaRoot } from '@/lib/localLlm';
-import { formatBytes, modelLabel } from '@/lib/llmModels';
-import { veniceModelLabel } from '@/lib/veniceModels';
-import { useLocalModels, useLocalModelsFor } from './localModelsStore';
-import { useVeniceModels, useVeniceModelsFor } from './veniceModelsStore';
+import { activeEntry, aiModelLabel, providerSpec, shortModelName } from '@/lib/aiProviders';
+import { useProviderModels } from './aiModelsStore';
 
 /**
- * One switch for every AI helper: Venice (cloud) or any model installed on the local Ollama
- * server. Values are `venice::<model>` / `local::<name>`. Both lists load on first show; Venice's
- * is every chat model it offers, searchable.
+ * The active provider's chat model, for the places that offer a quick switch (Prompt Studio,
+ * "Write it", Mine). Only that provider's models are listed, searchable; the provider itself is
+ * chosen in Settings → AI helper. A provider that is not set up yet shows its saved model only.
  */
 export function AiModelPicker({ size = 'sm', label, className }: { size?: MantineSize; label?: string; className?: string }) {
-  const venice = useStore((s) => s.venice);
-  const setVenice = useStore((s) => s.setVenice);
-  const models = useLocalModels((s) => s.models);
-  const error = useLocalModels((s) => s.error);
-  const refreshLocal = useLocalModels((s) => s.refresh);
-  const veniceModels = useVeniceModels((s) => s.models);
-  useLocalModelsFor(venice.localBaseUrl);
-  useVeniceModelsFor(venice.baseUrl);
+  const ai = useStore((s) => s.ai);
+  const setAiProvider = useStore((s) => s.setAiProvider);
+  const entry = activeEntry(ai);
+  const spec = providerSpec(entry.id);
+  const { models, error } = useProviderModels(entry);
 
-  const veniceModel = venice.model || VENICE_DEFAULT_MODEL;
-  const localItems = models.map((m) => ({
-    value: `local::${m.name}`,
-    label: `${modelLabel(m.name)}  (${[m.params, formatBytes(m.bytes)].filter(Boolean).join(', ')})`,
-  }));
-  // Keep the chosen local model listed while the server is offline, so the select is not blank.
-  if (venice.localModel && !models.some((m) => m.name === venice.localModel)) {
-    localItems.unshift({ value: `local::${venice.localModel}`, label: `${modelLabel(venice.localModel)} (offline)` });
+  const items = models.map((m) => ({ value: m.id, label: aiModelLabel(m) }));
+  // The chosen id stays listed while the list is missing or no longer has it.
+  if (entry.model && !models.some((m) => m.id === entry.model)) {
+    items.unshift({ value: entry.model, label: `${shortModelName(entry.model)}${error || !entry.tested ? ' (offline)' : ''}` });
   }
-  const noKey = venice.apiKey ? '' : ' (no key)';
-  const veniceItems = veniceModels.map((m) => ({ value: `venice::${m.id}`, label: `${veniceModelLabel(m)}${noKey}` }));
-  // The chosen id stays listed when the list failed to load or no longer has it.
-  if (!veniceModels.some((m) => m.id === veniceModel)) {
-    veniceItems.unshift({ value: `venice::${veniceModel}`, label: `${veniceModel}${noKey}` });
-  }
-  const root = ollamaRoot(venice.localBaseUrl);
-  const server = root === ollamaRoot(LOCAL_LLM_DEFAULT_BASE_URL) ? 'home PC' : podLlmUrl() && root === ollamaRoot(podLlmUrl()) ? 'this pod' : 'Ollama';
-  const value = venice.provider === 'local' && venice.localModel ? `local::${venice.localModel}` : `venice::${veniceModel}`;
+  const group = !entry.tested ? `${spec.name} · set up in Settings` : error && !models.length ? `${spec.name} (offline)` : spec.name;
 
   return (
     <Select
+      autoComplete="off"
+      data-1p-ignore
+      data-lpignore="true"
       size={size}
       label={label}
       className={className}
       aria-label="AI model"
-      value={value}
+      value={entry.model || null}
+      placeholder={entry.tested ? 'Pick a model' : `${spec.name} is not set up`}
       allowDeselect={false}
-      // The list is read once per server; a model pulled since then appears on the next open.
-      onDropdownOpen={() => { if (venice.localBaseUrl.trim()) void refreshLocal(venice.localBaseUrl); }}
       searchable
       nothingFoundMessage="No model matches"
       maxDropdownHeight={360}
       comboboxProps={{ withinPortal: true, shadow: 'md', zIndex: 320 }}
-      data={[
-        { group: 'Venice (cloud)', items: veniceItems },
-        {
-          group: error && !models.length ? `Local · ${server} (offline)` : `Local · ${server}`,
-          items: localItems,
-        },
-      ]}
-      onChange={(v) => {
-        if (!v) return;
-        const [kind, ...rest] = v.split('::');
-        const id = rest.join('::');
-        if (kind === 'local') setVenice({ provider: 'local', localModel: id });
-        else setVenice({ provider: 'venice', model: id });
-      }}
+      data={[{ group, items }]}
+      onChange={(v) => { if (v) setAiProvider(entry.id, { model: v }); }}
     />
   );
 }

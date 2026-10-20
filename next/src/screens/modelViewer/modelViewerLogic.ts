@@ -194,6 +194,19 @@ export function fileHashRows(hashes: Partial<Record<string, string | undefined>>
   return keys.filter((k) => hashes[k]).map((k) => [k, hashes[k] as string]);
 }
 
+/**
+ * The gallery with the tapped preview's picture first (the preview setting chose it): moved to
+ * the front when the gallery has it (same `keyOf`), else put in front of it. No start → as is.
+ */
+export function withStartImage<T extends { url: string }>(items: T[], start: T | null | undefined, keyOf: (url: string) => string): T[] {
+  if (!start?.url) return items;
+  const k = keyOf(start.url);
+  const i = items.findIndex((x) => keyOf(x.url) === k);
+  if (i === 0) return items;
+  if (i > 0) return [items[i], ...items.slice(0, i), ...items.slice(i + 1)];
+  return [start, ...items];
+}
+
 /** `i` kept inside `[0, len)`; 0 for an empty list. */
 export function clampIndex(i: number, len: number): number {
   if (len <= 0) return 0;

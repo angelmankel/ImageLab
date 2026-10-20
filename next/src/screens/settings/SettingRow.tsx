@@ -22,7 +22,9 @@ export function Mark({ text, query }: { text: string; query?: string }) {
   );
 }
 
-export function SettingRow({ def, query, first }: { def: SettingDef; query?: string; first?: boolean }) {
+/** `control` renders in place of `def.Control` (a page built from static defs, like a provider's);
+ *  `disabled` dims the row and says why in the hint. */
+export function SettingRow({ def, query, first, control, disabled }: { def: SettingDef; query?: string; first?: boolean; control?: ReactNode; disabled?: boolean }) {
   const phone = useIsPhone();
   const stacked = def.wide || (phone && !def.compact);
   const { Control, Value } = def;
@@ -33,8 +35,9 @@ export function SettingRow({ def, query, first }: { def: SettingDef; query?: str
       data-setting={def.id}
       style={{
         display: 'flex', flexDirection: stacked ? 'column' : 'row', alignItems: stacked ? 'stretch' : 'center', gap: stacked ? T.gap.md : T.gap.xl,
-        padding: '11px 0', borderTop: first ? 0 : '1px solid var(--il-line)',
+        padding: '11px 0', borderTop: first ? 0 : '1px solid var(--il-line)', opacity: disabled ? 0.45 : 1,
       }}
+      aria-disabled={disabled || undefined}
     >
       <div style={{ flex: stacked ? undefined : 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
@@ -55,7 +58,7 @@ export function SettingRow({ def, query, first }: { def: SettingDef; query?: str
         display: 'flex', justifyContent: stacked ? 'flex-start' : 'flex-end',
         ['--il-ctl-w' as string]: stacked ? '100%' : `${CTL_WIDTH}px`,
       } as CSSProperties}>
-        <Control />
+        {control ?? <Control />}
       </div>
     </div>
   );

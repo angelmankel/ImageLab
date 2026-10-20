@@ -1,13 +1,13 @@
 /**
  * The one-line reading under each category on the phone's list ("2 servers · 1 online",
- * "qwen3 · Illustrious tags"). One small component per category (each reads its own store);
+ * "Using Local · qwen3 · Illustrious tags"). One small component per category (each reads its own store);
  * the words come from settingsLogic.
  */
 import { useStore } from '@/lib/store';
 import { PREVIEW_SOURCES } from '@/lib/storage';
 import { useSoundStore } from '@/lib/sounds';
 import { useNext } from '@/features/next/nextStore';
-import { modelLabel } from '@/lib/llmModels';
+import { aiStatusLine } from '@/lib/aiProviders';
 import type { CategoryId } from './categories';
 import { aiSummary, appearanceSummary, modelsSummary, serversSummary, soundsSummary } from './settingsLogic';
 import { useServersUp } from './useServersUp';
@@ -20,8 +20,8 @@ function Servers() {
 }
 
 function Ai() {
-  const venice = useStore((s) => s.venice);
-  return <>{aiSummary(venice, modelLabel)}</>;
+  const ai = useStore((s) => s.ai);
+  return <>{aiSummary(aiStatusLine(ai), ai.promptStyle)}</>;
 }
 
 function Models() {

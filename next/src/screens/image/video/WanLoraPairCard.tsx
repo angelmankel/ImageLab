@@ -11,7 +11,7 @@ import { useStore } from '@/lib/store';
 import { useVideo } from '@/features/video/videoStore';
 import { Chip, SliderRow } from '~/ui';
 import {
-  ModelsModalBridge, PendingStrip, MissingStrip, Thumb, useModelMeta, metaLine, metaWithPending, usePendingModels, pendingKey, isMissing, openModelViewer, fmtWeight,
+  ModelsModalBridge, PendingStrip, MissingStrip, Thumb, useModelPreview, useModelMeta, metaLine, metaWithPending, usePendingModels, pendingKey, isMissing, openModelViewer, fmtWeight,
 } from '~/screens/image/model';
 import { WAN_BASE_MODELS } from './videoKinds';
 import { clearLowFile, pickWanLora } from './wanLoraPick';
@@ -26,6 +26,7 @@ export function WanLowSlot({ id }: { id: string }) {
   const nameLow = lora?.nameLow ?? '';
   const record = usePendingModels((s) => (nameLow ? s.records[pendingKey('lora', nameLow)] : undefined));
   const meta = metaWithPending(useModelMeta(nameLow), record);
+  const preview = useModelPreview(meta, { active: !!nameLow });
   const [picking, setPicking] = useState(false);
   // A lone low-noise file is the entry's main file already: nothing to add under it.
   if (!lora || (!nameLow && lora.expert === 'low')) return null;
@@ -44,9 +45,9 @@ export function WanLowSlot({ id }: { id: string }) {
           {record && <PendingStrip record={record} />}
           {missing && <MissingStrip file={nameLow} />}
           <div style={{ display: 'flex', gap: 12, opacity: dim ? 0.8 : 1 }}>
-            <button type="button" onClick={() => void openModelViewer({ file: nameLow })} aria-label={`Open ${meta.name ?? meta.label} full screen`} title="Open full screen"
+            <button type="button" onClick={() => void openModelViewer({ file: nameLow, start: preview.viewerStart })} {...preview.hover} aria-label={`Open ${meta.name ?? meta.label} full screen`} title="Open full screen"
               style={{ border: 0, padding: 0, background: 'transparent', cursor: 'pointer', flex: 'none', opacity: dim ? 0.6 : 1 }}>
-              <Thumb label={meta.label || '?'} images={meta.images} size={64} />
+              <Thumb label={meta.label || '?'} images={preview.stills} size={64} />
             </button>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 13, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }} title={nameLow}>

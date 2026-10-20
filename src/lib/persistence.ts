@@ -2,7 +2,7 @@ import type { useStore } from './store';
 import { useCanvasStore } from './canvasStore';
 import {
   saveWorkflow, saveLayers, saveSnippets, saveSnippetCategories, saveHistory,
-  saveVeniceSettings, saveCivitaiSettings, saveModelPreviewSource,
+  saveAiSettings, saveCivitaiSettings, saveModelPreviewSource,
   saveAutoFrameOnComplete, saveSlideshowPlaying, saveCollectionsTileSize,
   saveCollections, saveImportedImages,
   saveServers, saveRouting, saveThemeState,
@@ -68,7 +68,7 @@ const persisters: Persister[] = [
   { key: 'snippets',           fingerprint: s => s.snippets,           flush: s => saveSnippets(s.snippets) },
   { key: 'snippetCategories',  fingerprint: s => s.snippetCategories,  flush: s => saveSnippetCategories(s.snippetCategories) },
   { key: 'history',            fingerprint: s => s.history,            flush: s => saveHistory(s.history) },
-  { key: 'venice',             fingerprint: s => s.venice,             flush: s => saveVeniceSettings(s.venice) },
+  { key: 'ai',                 fingerprint: s => s.ai,                 flush: s => saveAiSettings(s.ai) },
   { key: 'civitai',            fingerprint: s => s.civitai,            flush: s => saveCivitaiSettings(s.civitai) },
   { key: 'modelPreviewSource', fingerprint: s => s.modelPreviewSource, flush: s => saveModelPreviewSource(s.modelPreviewSource) },
   { key: 'autoFrame',          fingerprint: s => s.autoFrameOnComplete,flush: s => saveAutoFrameOnComplete(s.autoFrameOnComplete) },

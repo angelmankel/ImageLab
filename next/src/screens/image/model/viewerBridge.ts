@@ -3,7 +3,10 @@
  * loaded on demand through a glob so this compiles and builds whether or not that folder exists
  * yet: a glob that matches nothing is an empty object and the tap does nothing.
  */
-export type ModelViewerTarget = { modelId: number; versionId?: number | null; imageIndex?: number } | { file: string };
+import type { PreviewImage } from '@/lib/previewOrder';
+
+type Start = PreviewImage & { versionId?: number };
+export type ModelViewerTarget = { modelId: number; versionId?: number | null; imageIndex?: number; start?: Start } | { file: string; start?: Start };
 
 const mods = import.meta.glob('../../modelViewer/index.ts');
 

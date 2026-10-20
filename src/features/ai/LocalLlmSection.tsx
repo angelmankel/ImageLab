@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActionIcon, Badge, Button, Group, NumberInput, Paper, Progress, SegmentedControl, Select, Stack, Text, TextInput, Tooltip,
 } from '@mantine/core';
@@ -7,6 +7,7 @@ import {
 } from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
 import { LOCAL_LLM_DEFAULT_BASE_URL, podLlmUrl } from '@/lib/storage';
+import { localEntry } from '@/lib/aiProviders';
 import { ollamaRoot } from '@/lib/localLlm';
 import { formatBytes, modelLabel } from '@/lib/llmModels';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
@@ -16,18 +17,25 @@ import { HfBrowser } from './HfBrowser';
 /**
  * Settings → AI → Local LLM: which Ollama server (the home PC, this pod, or any address), its
  * installed models (use / use for images / unload / delete), downloads by name, and the Hugging
- * Face GGUF browser. Each server keeps its own models; picking one lists what it has.
+ * Face GGUF browser. Each server keeps its own models; picking one lists what it has. Reads and
+ * writes the Local entry of the providers store (`lib/aiProviders`).
  */
 export function LocalLlmSection() {
-  const venice = useStore((s) => s.venice);
-  const setVenice = useStore((s) => s.setVenice);
-  const { loading, version, error, models, running, pulls, refresh, pull, remove, unload } = useLocalModels();
+  const ai = useStore((s) => s.ai);
+  const local = localEntry(ai);
+  const setAiProvider = useStore((s) => s.setAiProvider);
+  const setAi = useStore((s) => s.setAi);
+  const setActiveAi = useStore((s) => s.setActiveAi);
+  const setLocal = (patch: Partial<typeof local>) => setAiProvider('local', patch);
+  const { checkedUrl, loading, version, error, models, running, pulls, refresh, pull, remove, unload } = useLocalModels();
   const confirm = useConfirm();
-  const base = venice.localBaseUrl;
+  const base = local.baseUrl;
   const [pullName, setPullName] = useState('');
   const [actionError, setActionError] = useState('');
 
   useLocalModelsFor(base);
+  // The server answering is Local's Test: unlock its model pickers (here and in the new UI).
+  useEffect(() => { if (version && !error && checkedUrl === base && !local.tested) setAiProvider('local', { tested: true }); }, [version, error, checkedUrl, base, local.tested, setAiProvider]);
 
   const act = async (fn: () => Promise<void>) => {
     setActionError('');
@@ -49,8 +57,8 @@ export function LocalLlmSection() {
           fullWidth
           value={where}
           onChange={(v) => {
-            if (v === 'home') setVenice({ localBaseUrl: LOCAL_LLM_DEFAULT_BASE_URL });
-            else if (v === 'pod') setVenice({ localBaseUrl: pod });
+            if (v === 'home') setLocal({ baseUrl: LOCAL_LLM_DEFAULT_BASE_URL });
+            else if (v === 'pod') setLocal({ baseUrl: pod });
           }}
           data={[
             { value: 'home', label: 'Home PC' },
@@ -72,7 +80,7 @@ export function LocalLlmSection() {
           placeholder="https://llm.blueoceanswim.com"
           leftSection={<IconServer size={16} />}
           value={base}
-          onChange={(e) => setVenice({ localBaseUrl: e.currentTarget.value })}
+          onChange={(e) => setLocal({ baseUrl: e.currentTarget.value })}
           spellCheck={false}
         />
         <Tooltip label="Check again">
@@ -91,7 +99,7 @@ export function LocalLlmSection() {
 
       <Stack gap={6}>
         {models.map((m) => {
-          const active = venice.provider === 'local' && venice.localModel === m.name;
+          const active = ai.active === 'local' && local.model === m.name;
           const run = loaded.get(m.name);
           return (
             <Paper key={m.name} withBorder radius="sm" px="sm" py={6}>
@@ -109,7 +117,7 @@ export function LocalLlmSection() {
                   size="compact-xs"
                   variant={active ? 'filled' : 'default'}
                   leftSection={active ? <IconCheck size={12} /> : undefined}
-                  onClick={() => setVenice({ provider: 'local', localModel: m.name })}
+                  onClick={() => { setActiveAi('local'); setLocal({ model: m.name, tested: true }); }}
                 >
                   {active ? 'In use' : 'Use'}
                 </Button>
@@ -133,8 +141,8 @@ export function LocalLlmSection() {
                         destructive: true,
                       });
                       if (!ok) return;
-                      if (venice.localModel === m.name) setVenice({ localModel: '' });
-                      if (venice.localVisionModel === m.name) setVenice({ localVisionModel: '' });
+                      if (local.model === m.name) setLocal({ model: '' });
+                      if (local.visionModel === m.name) setLocal({ visionModel: '' });
                       await act(() => remove(base, m.name));
                     }}
                   >
@@ -151,8 +159,8 @@ export function LocalLlmSection() {
         label="Model for images"
         description="Tagging, describe and image → prompt in Collections. Needs a vision model."
         leftSection={<IconEye size={16} />}
-        value={venice.localVisionModel || ''}
-        onChange={(v) => setVenice({ localVisionModel: v ?? '' })}
+        value={local.visionModel || ''}
+        onChange={(v) => setLocal({ visionModel: v ?? '' })}
         allowDeselect={false}
         comboboxProps={{ withinPortal: true, zIndex: 320 }}
         data={[
@@ -166,8 +174,8 @@ export function LocalLlmSection() {
         description="Used for the 'fits on GPU' hint when browsing. winold's RTX A4500 has 20 GB."
         min={1}
         max={256}
-        value={venice.localVramGb}
-        onChange={(v) => setVenice({ localVramGb: typeof v === 'number' ? v : 20 })}
+        value={ai.localVramGb}
+        onChange={(v) => setAi({ localVramGb: typeof v === 'number' ? v : 20 })}
         w={200}
       />
 

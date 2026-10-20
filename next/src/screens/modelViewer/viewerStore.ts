@@ -4,10 +4,14 @@
  * leaves whatever was under it (the picker modal) as it was.
  */
 import { create } from 'zustand';
+import type { PreviewImage } from '@/lib/previewOrder';
+
+/** The picture the tapped preview showed (the preview setting's pick): the viewer opens on it. */
+export type ViewerStart = PreviewImage & { versionId?: number };
 
 export type ModelViewerTarget =
-  | { modelId: number; versionId?: number | null; imageIndex?: number }   // a CivitAI model
-  | { file: string };                                                     // a server file name (Model tab)
+  | { modelId: number; versionId?: number | null; imageIndex?: number; start?: ViewerStart }   // a CivitAI model
+  | { file: string; start?: ViewerStart };                                                     // a server file name (Model tab)
 
 interface ViewerState {
   opened: boolean;

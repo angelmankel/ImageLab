@@ -19,7 +19,7 @@ import { canRunImages } from './serverRoles';
 import type { CivitaiCacheEntry } from './civitai';
 import {
   loadLayers, loadSnippets, loadSnippetCategories,
-  loadHistory, loadWorkflow, loadVeniceSettings, loadCivitaiSettings,
+  loadHistory, loadWorkflow, loadAiSettings, loadCivitaiSettings,
   loadModelPreviewSource,
   loadAutoFrameOnComplete,
   loadSlideshowPlaying, loadCollectionsTileSize,
@@ -27,7 +27,8 @@ import {
   getServers, loadRouting, ROUND_ROBIN,
   FALLBACKS, HISTORY_MAX, uid, DEFAULT_COMFY_HOST, DEFAULT_CATEGORY_ID,
 } from './storage';
-import type { Server, VeniceSettings, CivitaiSettings, ModelPreviewSource } from './storage';
+import type { Server, AiSettings, AiProviderEntry, AiProviderId, CivitaiSettings, ModelPreviewSource } from './storage';
+import { addProvider, removeProvider, setActiveProvider, updateProvider } from './aiProviders';
 import { putImportedBlob, deleteImportedBlob } from './importedDb';
 import type { Theme } from './themes';
 import { resolveTheme } from './themes';
@@ -255,7 +256,8 @@ type Store = {
   layers: Layer[];
   snippets: Snippet[];
   snippetCategories: SnippetCategory[];
-  venice: VeniceSettings;
+  /** The AI helper's providers (lib/aiProviders.ts): keys, models, the active one. */
+  ai: AiSettings;
   civitai: CivitaiSettings;
   /** Where the model picker's hover slideshow pulls its starting image from. */
   modelPreviewSource: ModelPreviewSource;
@@ -423,8 +425,12 @@ type Store = {
   /** Remove a category; its snippets fall back to "Uncategorized". */
   removeSnippetCategory: (id: string) => void;
 
-  // Venice AI settings
-  setVenice: (patch: Partial<VeniceSettings>) => void;
+  // AI helper settings (one active provider; each entry keeps its own key and models)
+  setAi: (patch: Partial<Pick<AiSettings, 'promptStyle' | 'localVramGb'>>) => void;
+  setAiProvider: (id: AiProviderId, patch: Partial<AiProviderEntry>) => void;
+  addAiProvider: (id: AiProviderId) => void;
+  removeAiProvider: (id: AiProviderId) => void;
+  setActiveAi: (id: AiProviderId) => void;
   setCivitai: (patch: Partial<CivitaiSettings>) => void;
 
   // Model-preview source / model-picker filter persistence
@@ -505,7 +511,7 @@ export const useStore = create<Store>((set, get) => {
     layers: loadLayers(),
     snippets: loadSnippets(),
     snippetCategories: loadSnippetCategories(),
-    venice: loadVeniceSettings(),
+    ai: loadAiSettings(),
     civitai: loadCivitaiSettings(),
     modelPreviewSource: loadModelPreviewSource(),
     autoFrameOnComplete: loadAutoFrameOnComplete(),
@@ -1054,10 +1060,11 @@ export const useStore = create<Store>((set, get) => {
       set({ snippetCategories: cats, snippets });
     },
 
-    setVenice: (patch) => {
-      const next = { ...get().venice, ...patch };
-      set({ venice: next });
-    },
+    setAi: (patch) => set({ ai: { ...get().ai, ...patch } }),
+    setAiProvider: (id, patch) => set({ ai: updateProvider(get().ai, id, patch) }),
+    addAiProvider: (id) => set({ ai: addProvider(get().ai, id) }),
+    removeAiProvider: (id) => set({ ai: removeProvider(get().ai, id) }),
+    setActiveAi: (id) => set({ ai: setActiveProvider(get().ai, id) }),
 
     setCivitai: (patch) => {
       const next = { ...get().civitai, ...patch };

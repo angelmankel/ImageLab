@@ -14,7 +14,7 @@ import { Segmented } from '@/components/blocks/Segmented';
 import { useStore } from '@/lib/store';
 import { civitaiThumbUrl, type CivitaiImage, type NsfwFilter } from '@/lib/civitai';
 
-import { aiNotReadyHint, aiReady, generateVideoPrompt } from '@/lib/venice';
+import { aiNotReadyHint, aiReady, generateVideoPrompt } from '@/lib/ai';
 import { loadNsfw, saveNsfw, useCivitaiGallery, useInstalledCivitai } from '@/features/layers/civitaiPrompts';
 import { urlToImageState } from '@/features/inputImage/imageOps';
 import { sendUrlToVideo } from '@/features/video/sendToVideo';
@@ -32,7 +32,7 @@ export function CivitaiLibrary({ kind, large }: { kind: HubKind; large: boolean 
   const model = installed.find(m => m.versionId === picked) ?? installed[0] ?? null;
   const { items, loading, failed, hasMore, more, reload } = useCivitaiGallery(model?.versionId ?? null, nsfw);
   const apply = usePrompt(kind);
-  const venice = useStore(s => s.venice);
+  const ai = useStore(s => s.ai);
   const engine = useVideo(s => s.engine);
   const [busyUrl, setBusyUrl] = useState<string | null>(null);
 
@@ -50,10 +50,10 @@ export function CivitaiLibrary({ kind, large }: { kind: HubKind; large: boolean 
       if (Object.keys(patch).length) useStore.getState().setWorkflow(patch);
       return;
     }
-    if (!aiReady(venice)) { apply({ positive: m.prompt! }, 'a CivitAI prompt'); notifications.show({ title: 'Used as written', message: `${aiNotReadyHint(venice)} to rewrite pictures as motion prompts`, color: 'yellow' }); return; }
+    if (!aiReady(ai)) { apply({ positive: m.prompt! }, 'a CivitAI prompt'); notifications.show({ title: 'Used as written', message: `${aiNotReadyHint(ai)} to rewrite pictures as motion prompts`, color: 'yellow' }); return; }
     setBusyUrl(img.url);
     try {
-      const text = await generateVideoPrompt({ seed: m.prompt!, source: 'prompt', engine: engine === 'h3' ? 'h3' : 'wan', settings: venice });
+      const text = await generateVideoPrompt({ seed: m.prompt!, source: 'prompt', engine: engine === 'h3' ? 'h3' : 'wan', settings: ai });
       apply({ positive: text.trim() || m.prompt! }, 'a CivitAI picture, as motion');
     } catch (e) {
       notifications.show({ title: 'Could not rewrite the prompt', message: e instanceof Error ? e.message : String(e), color: 'red' });

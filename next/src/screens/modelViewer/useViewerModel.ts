@@ -9,12 +9,13 @@ import { useMemo } from 'react';
 import { useStore } from '@/lib/store';
 import { findModelHash } from '@/lib/modelHash';
 import { serversWithModel } from '@/lib/routing';
-import type { CivitaiModel, CivitaiModelVersion, CivitaiVersionByHash } from '@/lib/civitai';
+import type { CivitaiImage, CivitaiModel, CivitaiModelVersion, CivitaiVersionByHash } from '@/lib/civitai';
 import { readModelMeta, type ModelMeta } from '~/screens/image/model/useModelMeta';
 import { useModelDetail, useVersionImages } from '~/screens/models/useModelDetail';
 import { useModels } from '~/screens/models/modelsStore';
 import { useModelViewer, type ModelViewerTarget } from './viewerStore';
-import { clampIndex, fileLookupState, folderOfKey, modelFromVersion, resolveFileTarget, type FileLookupState } from './modelViewerLogic';
+import { imageKey } from '@/lib/previewOrder';
+import { clampIndex, fileLookupState, folderOfKey, modelFromVersion, resolveFileTarget, withStartImage, type FileLookupState } from './modelViewerLogic';
 
 export interface LocalFile {
   name: string;
@@ -86,7 +87,16 @@ export function useViewerModel(target: ModelViewerTarget | null): ViewerData {
   const model = fullModel ?? standIn;
   const wanted = versionId ?? resolved?.versionId ?? null;
   const version = useMemo(() => model?.modelVersions.find((v) => v.id === wanted) ?? model?.modelVersions[0], [model, wanted]);
-  const gallery = useVersionImages(version?.id ?? null, mask, version?.images ?? EMPTY);
+  const raw = useVersionImages(version?.id ?? null, mask, version?.images ?? EMPTY);
+  // The picture the tapped preview showed comes first, while the tapped version is the one shown.
+  const start = target?.start;
+  const startOn = !!start && !!version && (start.versionId == null || start.versionId === version.id);
+  const items = useMemo(() => {
+    if (!startOn || !start) return raw.items;
+    const img: CivitaiImage = { url: start.url, type: start.type, width: start.width ?? 0, height: start.height ?? 0, nsfwLevel: start.nsfwLevel as number, meta: null };
+    return withStartImage(raw.items, img, imageKey);
+  }, [raw.items, startOn, start]);
+  const gallery = useMemo(() => (items === raw.items ? raw : { ...raw, items }), [raw, items]);
   const index = clampIndex(imageIndex, gallery.items.length);
 
   return { modelId, model, full: !!fullModel, loading, error, retry, version, gallery, index, local };

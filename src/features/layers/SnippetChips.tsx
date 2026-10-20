@@ -18,7 +18,7 @@ import { applyPromptPreset } from '@/lib/promptPresets';
 import { DEFAULT_CATEGORY_ID, uid } from '@/lib/storage';
 import { useStore } from '@/lib/store';
 import type { LayerKind, Snippet } from '@/lib/types';
-import { aiNotReadyHint, aiReady, brainstormSnippets } from '@/lib/venice';
+import { aiNotReadyHint, aiReady, brainstormSnippets } from '@/lib/ai';
 import { chipOrder } from '@/lib/workspace';
 import { SnippetsModal, categoryColor } from './SnippetsModal';
 
@@ -28,7 +28,7 @@ const MAX_CHIPS = 24;
 export function SnippetChips({ kind, large }: { kind: LayerKind; large?: boolean }) {
   const snippets = useStore(s => s.snippets);
   const layers = useStore(s => s.layers);
-  const venice = useStore(s => s.venice);
+  const ai = useStore(s => s.ai);
   const recents = useWorkspace(s => s.recentSnippetIds);
   const touch = useWorkspace(s => s.touchSnippet);
   const [browsing, setBrowsing] = useState(false);
@@ -56,7 +56,7 @@ export function SnippetChips({ kind, large }: { kind: LayerKind; large?: boolean
     title: s.layers ? `Preset: ${s.layers.map(l => l.text).join(' · ')}` : s.text,
   }));
 
-  const ready = aiReady(venice);
+  const ready = aiReady(ai);
   return (
     <div className="flex flex-col gap-1.5">
       <ChipPicker
@@ -72,7 +72,7 @@ export function SnippetChips({ kind, large }: { kind: LayerKind; large?: boolean
                 chip={{
                   id: 'suggest', label: 'Suggest', selected: suggesting, color: 'violet', disabled: !ready,
                   icon: <IconSparkles size={large ? 15 : 13} />,
-                  title: ready ? 'Ask the AI for snippets that fit this prompt' : `${aiNotReadyHint(venice)} to suggest snippets`,
+                  title: ready ? 'Ask the AI for snippets that fit this prompt' : `${aiNotReadyHint(ai)} to suggest snippets`,
                 }}
               />
             )}
@@ -92,7 +92,7 @@ export function SnippetChips({ kind, large }: { kind: LayerKind; large?: boolean
  * is nothing to type first; a hint box steers another round.
  */
 function SuggestPanel({ kind, large, onClose }: { kind: LayerKind; large?: boolean; onClose: () => void }) {
-  const venice = useStore(s => s.venice);
+  const ai = useStore(s => s.ai);
   const [hint, setHint] = useState('');
   const [items, setItems] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
@@ -109,7 +109,7 @@ function SuggestPanel({ kind, large, onClose }: { kind: LayerKind; large?: boole
     try {
       const prompt = compileLayers(useStore.getState().layers, 'positive').slice(0, 400);
       const theme = [prompt || 'a striking portrait', hint.trim() && `Focus on: ${hint.trim()}`].filter(Boolean).join('\n');
-      const got = await brainstormSnippets(theme, kind, 'Ideas that fit this prompt', venice, ctrl.signal);
+      const got = await brainstormSnippets(theme, kind, 'Ideas that fit this prompt', ai, ctrl.signal);
       if (ctrl.signal.aborted) return;
       setItems(got);
       setTaken(new Set());

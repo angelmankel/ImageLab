@@ -125,6 +125,17 @@ export function hashOfCategory(c: CategoryId | null): string {
   return c ? `#/settings/${c}` : '#/settings';
 }
 
+/** The AI helper's provider page: `#/settings/ai/openrouter` → 'openrouter'; anything else → null.
+ *  The caller checks the id against the provider catalogue. */
+export function providerOfHash(hash: string): string | null {
+  const [screen, cat, id] = hash.replace(/^#\/?/, '').split('?')[0].split('/');
+  return screen === 'settings' && cat === 'ai' && id ? decodeURIComponent(id) : null;
+}
+
+export function hashOfProvider(id: string): string {
+  return `#/settings/ai/${encodeURIComponent(id)}`;
+}
+
 // --- the phone list's one-line summaries ------------------------------------------------------
 
 export function serversSummary(total: number, online: number): string {
@@ -132,9 +143,9 @@ export function serversSummary(total: number, online: number): string {
   return `${total} server${total === 1 ? '' : 's'} · ${online} online`;
 }
 
-export function aiSummary(v: { provider: string; model: string; localModel: string; promptStyle: string }, modelLabel: (name: string) => string): string {
-  const model = v.provider === 'local' ? (v.localModel ? modelLabel(v.localModel) : 'Local, no model') : (v.model || 'Venice');
-  return `${model} · ${v.promptStyle === 'illustrious' ? 'Illustrious tags' : 'Generic SDXL'}`;
+/** `status` is the providers' line ("Using OpenRouter · claude-sonnet-4", "Local · not set up"). */
+export function aiSummary(status: string, promptStyle: string): string {
+  return `${status} · ${promptStyle === 'illustrious' ? 'Illustrious tags' : 'Generic SDXL'}`;
 }
 
 export function modelsSummary(hasKey: boolean, previewLabel: string): string {

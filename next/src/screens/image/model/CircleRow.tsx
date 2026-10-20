@@ -3,11 +3,12 @@
  * badge, dimmed when off / not downloaded / not on the server, ember ring on the selected one —
  * and a dashed green "+ Add" at the end when the kind can grow (`onAdd`). A removable entry has
  * its × on the circle's top-right corner (`onRemove`; Donny 10-20: Remove is part of the bubble,
- * not the card). Scrolls sideways when there are many.
+ * not the card). Scrolls sideways when there are many. The picture follows "Model preview starts
+ * on" (`ModelThumb`; a hover loads "Most popular").
  */
 import { IconPlus, IconX } from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
-import { Thumb } from './Thumb';
+import { ModelThumb } from './ModelThumb';
 import { readModelMeta } from './useModelMeta';
 import { fmtWeight, type ModelEntry } from './kindSpecs';
 import { metaWithPending } from './pendingLogic';
@@ -39,7 +40,7 @@ export function CircleRow({ entries, selectedId, onSelect, onAdd, onRemove, show
             style={{ width: 64, flex: 'none', border: 0, background: 'transparent', padding: 0, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, color: selected ? 'var(--il-fg)' : dim ? 'var(--il-dim)' : 'var(--il-fg2)' }}
           >
             <span style={{ position: 'relative', width: CIRCLE, height: CIRCLE, flex: 'none' }}>
-              <Thumb label={e.name ? meta.label : '?'} images={meta.images} size={CIRCLE} round
+              <ModelThumb label={e.name ? meta.label : '?'} meta={meta} size={CIRCLE} round
                 style={{ border: `3px solid ${selected ? 'var(--il-ember)' : 'var(--il-line-strong)'}`, opacity: dim ? 0.45 : 1, boxSizing: 'border-box' }} />
               {badge && (
                 <span style={{ position: 'absolute', right: state ? -10 : -6, bottom: -4, fontSize: state ? 8 : 10, fontWeight: 800, borderRadius: 999, padding: '2px 6px', whiteSpace: 'nowrap', background: state ? 'var(--il-card-on)' : selected ? 'var(--il-ember)' : 'var(--il-card-on)', color: state ? 'var(--il-muted)' : selected ? 'var(--il-bg)' : 'var(--il-fg)', opacity: e.on || state ? 1 : 0.6 }}>

@@ -1,7 +1,8 @@
 /**
- * A model's picture (rule 4: "a row of circles (thumbnail or initials)"): the first CivitAI
- * preview that loads, else two initials on a colour made from the file name. `round` for the
- * circles, square (radius 14) for the entry card and the picker tiles.
+ * A model's picture (rule 4: "a row of circles (thumbnail or initials)"): the first of `images`
+ * that loads (in the order `ModelThumb` / `useModelPreview` chose), else two initials on a colour
+ * made from the file name. `round` for the circles, square (radius 14) for the entry card and the
+ * picker tiles.
  */
 import { useEffect, useState } from 'react';
 import { T } from '~/theme/tokens';
@@ -24,8 +25,12 @@ export function initials(label: string): string {
   return (words[0][0] + words[1][0]).toUpperCase();
 }
 
-export function Thumb({ label, images, size, round, style }: {
+export function Thumb({ label, images, size, round, style, onPointerEnter, rootRef }: {
   label: string; images: string[]; size: number; round?: boolean; style?: React.CSSProperties;
+  /** A callback ref on the picture (`useModelPreview().observe`: loads "Most popular" once on screen). */
+  rootRef?: (el: HTMLElement | null) => void;
+  /** A hover on the picture (`useModelPreview` loads "Most popular" / reshuffles "Random" on it). */
+  onPointerEnter?: (e: React.PointerEvent) => void;
 }) {
   const [i, setI] = useState(0);
   const key = images.join('\n');
@@ -34,7 +39,9 @@ export function Thumb({ label, images, size, round, style }: {
   const [a, b] = hue(label);
   return (
     <span
+      ref={rootRef}
       aria-hidden
+      onPointerEnter={onPointerEnter}
       style={{
         width: size, height: size, flex: 'none', display: 'grid', placeItems: 'center', overflow: 'hidden',
         borderRadius: round ? '50%' : T.radius.lg, background: `linear-gradient(135deg, ${a}, ${b})`,

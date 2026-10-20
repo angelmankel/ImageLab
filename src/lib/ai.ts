@@ -1,169 +1,106 @@
 /**
- * Venice AI — uncensored chat-completion client.
+ * The AI helper — ONE entry point for every prompt writer and vision helper in the app.
  *
- * Why this lives here: the user's prompt iteration is private to their browser.
- * We keep the API key in localStorage and call Venice directly from the page;
- * no relay through the ComfyUI server or any other backend. See
- * https://docs.venice.ai/api-reference/api-spec for the wire format — it's
- * OpenAI-compatible chat completions, so swapping providers is a matter of
- * changing `baseUrl` + `model`.
+ * `aiChat` calls whichever provider is active in `settings.ai` (lib/aiProviders.ts: the
+ * catalogue, the request shapes per adapter, `aiReady` and friends) straight from the browser:
+ * the key stays in localStorage, nothing relays through ComfyUI or any other backend. The
+ * task-shaped helpers below (`expandPromptFragment`, `generateLayerSet`, `promptFromImage`…)
+ * wrap it with the system prompts the UI sends; keep the user-facing copy in one place.
  *
- * Two public entry points:
- *  - `veniceChat(prompt, opts)` — raw chat helper, returns the assistant string.
- *  - `expandPromptFragment(text, kind, opts)` — task-shaped helper for prompt
- *    iteration: takes a fragment and rewrites it.
- *
- * Both throw on transport/HTTP error so callers can surface a real message.
+ * `fetchProviderModels` / `testProvider` are the settings page's: the provider's own model list
+ * (filtered to chat models), which is also what a Test is.
  */
 import type { LayerKind } from './types';
-import { VENICE_DEFAULT_BASE_URL, VENICE_DEFAULT_MODEL, type PromptStyle, type VeniceSettings } from './storage';
-import { modelLabel, stripThinking } from './llmModels';
-import { ollamaRoot } from './localLlm';
+import {
+  activeEntry, aiNotReadyHint, aiReady, chatRequest, modelsRequest, parseChatReply, parseModels, providerSpec, visionModelOf,
+  type AiMessage, type AiModel, type AiProviderEntry, type AiSettings, type PromptStyle,
+} from './aiProviders';
+import { stripThinking } from './llmModels';
+import { listLocalModels, ollamaVersion } from './localLlm';
 
-/** One slice of a vision-capable user message — either a text run or an
- *  inline image. The `image_url.url` can be `https://…` (publicly fetchable)
- *  or `data:image/png;base64,…` (recommended for our app — we already have
- *  the bytes locally and ComfyUI's outputs aren't reachable from Venice). */
-export type VeniceContentPart =
-  | { type: 'text'; text: string }
-  | { type: 'image_url'; image_url: { url: string } };
+export {
+  aiReady, aiNotReadyHint, aiSourceLabel, aiStatusLine, withChatModel, withVisionModel, visionModelOf, chatModelOf,
+  type AiMessage, type AiContentPart, type AiSettings,
+} from './aiProviders';
 
-/** A chat message. Most calls use a plain string for `content`; multimodal
- *  vision calls use `VeniceContentPart[]` for the user turn (system messages
- *  must stay strings). */
-export type VeniceMessage = {
-  role: 'system' | 'user' | 'assistant';
-  content: string | VeniceContentPart[];
-};
-
-export type VeniceChatOptions = {
-  settings: VeniceSettings;
-  /** Override the model id from settings — useful for ad-hoc one-offs. */
+export type AiChatOptions = {
+  settings: AiSettings;
+  /** Override the active entry's chat model — the vision helpers pass its vision model. */
   model?: string;
   /** Conversation messages. `system` first; rest is a transcript. */
-  messages: VeniceMessage[];
+  messages: AiMessage[];
   temperature?: number;
-  /** Cap response length. Venice tolerates absence; we set a sensible default. */
   maxTokens?: number;
-  /** Extra `venice_parameters` to merge into the default block. The defaults
-   *  (`enable_web_search: 'off'`, `include_venice_system_prompt: false`) are
-   *  always applied; this lets vision callers add `disable_thinking` /
-   *  `strip_thinking_response` without forking the helper. */
-  veniceParams?: Record<string, unknown>;
+  /** Ask a reasoning model to answer straight away (vision calls want a tag list, not a trace). */
+  noThinking?: boolean;
   /** Abort signal — wired through to `fetch`. */
   signal?: AbortSignal;
 };
 
-type ChatResponse = {
-  choices?: Array<{ message?: { content?: string } }>;
-  error?: { message?: string } | string;
-};
-
-/** Resolve the base URL from settings (with a default + a trailing-slash trim). */
-function resolveBaseUrl(s: VeniceSettings): string {
-  const raw = (s.baseUrl?.trim() || VENICE_DEFAULT_BASE_URL).replace(/\/+$/, '');
-  return raw;
-}
-
-/** Can the active provider take a call? Venice needs a key; local needs a server and a model. */
-export function aiReady(s: VeniceSettings): boolean {
-  return s.provider === 'local' ? !!(s.localBaseUrl.trim() && s.localModel) : !!s.apiKey;
-}
-
-/** Why `aiReady` is false, for disabled buttons' titles. */
-export function aiNotReadyHint(s: VeniceSettings): string {
-  return s.provider === 'local'
-    ? 'Pick a local model in Settings → AI'
-    : 'Set a Venice API key in Settings → AI';
-}
-
-/** Short name of the active provider + model, for status lines ("Tagged 20 tags from …"). */
-export function aiSourceLabel(s: VeniceSettings): string {
-  return s.provider === 'local' ? modelLabel(s.localModel) : 'Venice';
-}
-
-/** The settings with `model` as the chat model of whichever provider is active. */
-export function withChatModel(s: VeniceSettings, model: string): VeniceSettings {
-  if (!model) return s;
-  return s.provider === 'local' ? { ...s, localModel: model } : { ...s, model };
-}
-
-/** The model the image helpers use on the active provider. */
-export function visionModelOf(s: VeniceSettings): string {
-  return s.provider === 'local' ? (s.localVisionModel || s.localModel) : s.model;
-}
-
-/** Low-level chat-completion call. Throws on non-2xx with a useful message. */
-export async function veniceChat(opts: VeniceChatOptions): Promise<string> {
-  const { settings, messages, temperature = 0.85, maxTokens = 400, veniceParams, signal } = opts;
-  const local = settings.provider === 'local';
-  const who = local ? 'Local LLM' : 'Venice';
+/** Low-level chat call on the active provider. Throws on non-2xx with a useful message. */
+export async function aiChat(opts: AiChatOptions): Promise<string> {
+  const { settings, messages, temperature = 0.85, maxTokens = 400, noThinking, signal } = opts;
+  const entry = activeEntry(settings);
+  const spec = providerSpec(entry.id);
+  const who = spec.name;
   if (!aiReady(settings)) throw new Error(`${aiNotReadyHint(settings)}.`);
 
-  const url = local
-    ? `${ollamaRoot(settings.localBaseUrl)}/v1/chat/completions`
-    : `${resolveBaseUrl(settings)}/chat/completions`;
-  const body = local
-    ? {
-        model: opts.model || settings.localModel,
-        messages,
-        temperature,
-        max_tokens: maxTokens,
-        // Ollama maps this to `think: false`: reasoning models (Qwen3…) answer
-        // straight away instead of spending the token budget on a trace.
-        reasoning_effort: 'none',
-      }
-    : {
-        model: opts.model || settings.model || VENICE_DEFAULT_MODEL,
-        messages,
-        temperature,
-        max_tokens: maxTokens,
-        // Venice-specific knobs — disable web search (we want the model's own
-        // output, no scraped links) and Venice's prepended system prompt (which
-        // occasionally nudges uncensored models toward refusing explicit content).
-        // Vision callers stack `disable_thinking` / `strip_thinking_response` on
-        // top of these so reasoning models emit clean tag lists.
-        venice_parameters: {
-          enable_web_search: 'off',
-          include_venice_system_prompt: false,
-          ...(veniceParams ?? {}),
-        },
-      };
-
+  const { url, headers, body } = chatRequest(entry, { model: opts.model || entry.model, messages, temperature, maxTokens, noThinking });
   let res: Response;
   try {
-    res = await fetch(url, {
-      method: 'POST',
-      signal,
-      headers: local
-        ? { 'Content-Type': 'application/json' }
-        : { 'Content-Type': 'application/json', Authorization: `Bearer ${settings.apiKey}` },
-      body: JSON.stringify(body),
-    });
+    res = await fetch(url, { method: 'POST', signal, headers, body: JSON.stringify(body) });
   } catch (e) {
-    // Network errors come through as TypeError ("Failed to fetch") — surface
-    // them as a recognisable string.
+    // Network errors come through as TypeError ("Failed to fetch") — surface them as a
+    // recognisable string. A CORS refusal looks the same from here.
     const msg = e instanceof Error ? e.message : String(e);
     throw new Error(`${who} unreachable: ${msg}`);
   }
 
-  let data: ChatResponse | null = null;
+  let data: unknown = null;
   try { data = await res.json(); } catch { /* ignore — handled below */ }
+  const reply = parseChatReply(spec.adapter, data);
+  if (!res.ok) throw new Error(`${who}: ${reply.error || `HTTP ${res.status}`}`);
 
-  if (!res.ok) {
-    const apiMsg = typeof data?.error === 'string'
-      ? data?.error
-      : data?.error?.message || `HTTP ${res.status}`;
-    throw new Error(`${who}: ${apiMsg}`);
-  }
-
-  const out = stripThinking(data?.choices?.[0]?.message?.content ?? '');
+  const out = stripThinking(reply.text);
   if (!out) throw new Error(`${who} returned an empty response`);
   return out;
 }
 
+/** The provider's chat models, from its own list. Local asks Ollama what each model can do. */
+export async function fetchProviderModels(entry: AiProviderEntry, signal?: AbortSignal): Promise<AiModel[]> {
+  if (entry.id === 'local') {
+    const list = await listLocalModels(entry.baseUrl);
+    return parseModels('local', list.map((m) => ({ name: m.name }))).map((m) => ({ ...m, vision: list.find((l) => l.name === m.id)?.vision ?? false }));
+  }
+  const { url, headers } = modelsRequest(entry);
+  const who = providerSpec(entry.id).name;
+  let res: Response;
+  try {
+    res = await fetch(url, { headers, signal });
+  } catch (e) {
+    throw new Error(`${who} unreachable: ${e instanceof Error ? e.message : String(e)}`);
+  }
+  let data: unknown = null;
+  try { data = await res.json(); } catch { /* ignore */ }
+  if (!res.ok) {
+    const err = parseChatReply('openai', data).error;
+    throw new Error(`${who}: ${err || `HTTP ${res.status}`}${res.status === 401 || res.status === 403 ? ' — check the key' : ''}`);
+  }
+  return parseModels(entry.id, data);
+}
+
+/** The settings page's Test: the key (or the local server) answers and lists models. */
+export async function testProvider(entry: AiProviderEntry, signal?: AbortSignal): Promise<{ models: AiModel[]; summary: string }> {
+  const models = await fetchProviderModels(entry, signal);
+  if (entry.id === 'local') {
+    const version = await ollamaVersion(entry.baseUrl).catch(() => '');
+    return { models, summary: `Ollama${version ? ` ${version}` : ''} · ${models.length} model${models.length === 1 ? '' : 's'}` };
+  }
+  return { models, summary: `Works · ${models.length} chat model${models.length === 1 ? '' : 's'}` };
+}
+
 // ---------------------------------------------------------------------------
-// Task-shaped helpers — these wrap `veniceChat` with the system prompts we
+// Task-shaped helpers — these wrap `aiChat` with the system prompts we
 // want the UI to send. Keep the user-facing copy in one place.
 // ---------------------------------------------------------------------------
 
@@ -242,14 +179,14 @@ export async function expandPromptFragment(
   text: string,
   kind: LayerKind,
   style: ExpandStyle,
-  settings: VeniceSettings,
+  settings: AiSettings,
   signal?: AbortSignal,
 ): Promise<string> {
-  const messages: VeniceMessage[] = [
+  const messages: AiMessage[] = [
     { role: 'system', content: systemPrompt(kind, style, settings.promptStyle) },
     { role: 'user', content: text.trim() || (kind === 'positive' ? 'a portrait' : 'low quality') },
   ];
-  return veniceChat({ settings, messages, temperature: style === 'brainstorm' ? 1.0 : 0.75, signal });
+  return aiChat({ settings, messages, temperature: style === 'brainstorm' ? 1.0 : 0.75, signal });
 }
 
 /**
@@ -261,10 +198,10 @@ export async function brainstormSnippets(
   theme: string,
   kind: LayerKind,
   categoryName: string,
-  settings: VeniceSettings,
+  settings: AiSettings,
   signal?: AbortSignal,
 ): Promise<string[]> {
-  const messages: VeniceMessage[] = [
+  const messages: AiMessage[] = [
     {
       role: 'system',
       content: [
@@ -276,7 +213,7 @@ export async function brainstormSnippets(
     },
     { role: 'user', content: theme.trim() || categoryName },
   ];
-  const raw = await veniceChat({ settings, messages, temperature: 1.0, maxTokens: 600, signal });
+  const raw = await aiChat({ settings, messages, temperature: 1.0, maxTokens: 600, signal });
   return raw
     .split(/\r?\n/)
     .map(line => line.replace(/^[\s\-\*\d\.\)]+/, '').trim())
@@ -344,16 +281,16 @@ function parseGeneratedLayers(raw: string): GeneratedSnippet[] {
 export async function generateLayerSet(opts: {
   seed: string;
   source: GenerateLayerSource;
-  settings: VeniceSettings;
+  settings: AiSettings;
   signal?: AbortSignal;
 }): Promise<GeneratedSnippet[]> {
   const seed = opts.seed.trim();
   if (!seed) return [];
-  const messages: VeniceMessage[] = [
+  const messages: AiMessage[] = [
     { role: 'system', content: layerSetSystemPrompt(opts.source, opts.settings.promptStyle) },
     { role: 'user', content: seed },
   ];
-  const raw = await veniceChat({
+  const raw = await aiChat({
     settings: opts.settings,
     messages,
     temperature: opts.source === 'idea' ? 1.0 : 0.7,
@@ -384,12 +321,12 @@ export async function generateVideoPrompt(opts: {
   seed: string;
   source: GenerateLayerSource;
   engine: VideoPromptEngine;
-  settings: VeniceSettings;
+  settings: AiSettings;
   signal?: AbortSignal;
 }): Promise<string> {
   const seed = opts.seed.trim();
   if (!seed) return '';
-  const raw = await veniceChat({
+  const raw = await aiChat({
     settings: opts.settings,
     messages: [{ role: 'system', content: videoPromptSystem(opts.source, opts.engine) }, { role: 'user', content: seed }],
     temperature: opts.source === 'idea' ? 0.95 : 0.7,
@@ -409,13 +346,13 @@ export async function tweakPromptFragment(opts: {
   text: string;
   instruction: string;
   kind: LayerKind;
-  settings: VeniceSettings;
+  settings: AiSettings;
   signal?: AbortSignal;
 }): Promise<string> {
   const target = opts.kind === 'positive'
     ? 'a POSITIVE prompt fragment that describes what should appear in the image'
     : 'a NEGATIVE prompt fragment that lists things to keep OUT of the image';
-  const messages: VeniceMessage[] = [
+  const messages: AiMessage[] = [
     {
       role: 'system',
       content: [
@@ -429,7 +366,7 @@ export async function tweakPromptFragment(opts: {
       content: `Fragment:\n${opts.text.trim() || (opts.kind === 'positive' ? 'a portrait' : 'low quality')}\n\nInstruction:\n${opts.instruction.trim()}`,
     },
   ];
-  return veniceChat({ settings: opts.settings, messages, temperature: 0.7, signal: opts.signal });
+  return aiChat({ settings: opts.settings, messages, temperature: 0.7, signal: opts.signal });
 }
 
 // ---------------------------------------------------------------------------
@@ -437,27 +374,15 @@ export async function tweakPromptFragment(opts: {
 // description, and image-to-prompt actions. All route through the same
 // chat/completions endpoint; the model just needs to be vision-capable.
 //
-// We pass `include_venice_system_prompt: false` + `disable_thinking: true` +
-// `strip_thinking_response: true` and a temperature of 0.2–0.5 so the
-// uncensored Venice models reliably emit a tag list or description rather
-// than refusing on adult content (the primary user is generating NSFW).
+// They run on the active provider's vision model (`visionModelOf`), with thinking off and a
+// temperature of 0.2–0.5 so the models emit a tag list or description rather than a trace.
 // ---------------------------------------------------------------------------
 
 export type TagStyle = 'danbooru' | 'natural' | 'sdxl';
 export type DescribeLength = 'short' | 'detailed';
 
-/** Vision-capable Venice model picks surfaced in the UI. Users can still
- *  type any model id in Settings → AI; this is the curated shortlist for
- *  the Collections panel's "model" dropdown. */
-export const VENICE_VISION_MODELS: Array<{ id: string; label: string; note: string }> = [
-  { id: 'venice-uncensored-1-2',     label: 'Venice Uncensored 1.2', note: 'Cheap · NSFW-tolerant · default tagger' },
-  { id: 'qwen3-vl-235b-a22b',        label: 'Qwen3-VL 235B',         note: "Venice's default vision model" },
-  { id: 'mistral-small-2603',        label: 'Mistral Small 4',       note: 'Cheap general vision' },
-  { id: 'google-gemma-4-26b-a4b-it', label: 'Gemma 4 26B',           note: 'Cheapest credible vision' },
-];
-
-/** Read a Blob as a base64 data URL — the inline-vision input Venice prefers
- *  when the source isn't publicly hosted (ours never is). */
+/** Read a Blob as a base64 data URL — the inline-vision input every provider takes; ours are
+ *  never publicly hosted. */
 export async function blobToDataUrl(blob: Blob): Promise<string> {
   return await new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
@@ -472,7 +397,7 @@ export async function blobToDataUrl(blob: Blob): Promise<string> {
 }
 
 /** Fetch an HTTP(S) image through the browser and re-encode as a data URL.
- *  Necessary because ComfyUI's `/view?…` URLs live on a LAN host Venice can't
+ *  Necessary because ComfyUI's `/view?…` URLs live on a LAN host the provider can't
  *  reach — going through the user's browser is the cheapest path. */
 export async function httpUrlToDataUrl(url: string, signal?: AbortSignal): Promise<string> {
   const res = await fetch(url, { signal });
@@ -484,7 +409,7 @@ export async function httpUrlToDataUrl(url: string, signal?: AbortSignal): Promi
 /** Vision-call defaults vary slightly from text — tighter temperature and
  *  thinking disabled, so uncensored models emit tags rather than reasoning
  *  traces. */
-function visionMessages(systemPrompt: string, dataUrl: string, userPrompt: string): VeniceMessage[] {
+function visionMessages(systemPrompt: string, dataUrl: string, userPrompt: string): AiMessage[] {
   return [
     { role: 'system', content: systemPrompt },
     {
@@ -567,7 +492,7 @@ export const TAG_COUNT_MAX = 60;
 export async function tagImage(
   image: Blob | string,
   style: TagStyle,
-  settings: VeniceSettings,
+  settings: AiSettings,
   opts: { maxTags?: number; signal?: AbortSignal } = {},
 ): Promise<{ tags: string[]; raw: string }> {
   const maxTags = Math.max(TAG_COUNT_MIN, Math.min(TAG_COUNT_MAX, opts.maxTags ?? TAG_COUNT_DEFAULT));
@@ -579,15 +504,16 @@ export async function tagImage(
     ? SYSTEM_TAGGER_ILLUSTRIOUS_SDXL
     : SYSTEM_TAGGER[style];
   const system = rawSystem.replace(/\{N\}/g, String(maxTags));
-  const raw = await veniceChat({
+  const raw = await aiChat({
     settings,
+    model: visionModelOf(settings),
     messages: visionMessages(system, url, `Tag this image. Produce exactly ${maxTags} distinct tags.`),
     temperature: 0.2,
     // Roughly 8 tokens/tag worst-case + a small buffer. Keeps wall-clock down
     // and bounds the duplicate-loop pathology where the model keeps emitting
     // until the response is truncated.
     maxTokens: Math.max(150, maxTags * 12),
-    veniceParams: { disable_thinking: true, strip_thinking_response: true },
+    noThinking: true,
     signal: opts.signal,
   });
   // Tolerate occasional bullet/newline-separated output — split on commas
@@ -616,16 +542,17 @@ export async function tagImage(
 export async function describeImage(
   image: Blob | string,
   length: DescribeLength,
-  settings: VeniceSettings,
+  settings: AiSettings,
   signal?: AbortSignal,
 ): Promise<string> {
   const url = typeof image === 'string' ? image : await blobToDataUrl(image);
-  return await veniceChat({
+  return await aiChat({
     settings,
+    model: visionModelOf(settings),
     messages: visionMessages(SYSTEM_DESCRIBE[length], url, 'Describe this image.'),
     temperature: length === 'short' ? 0.3 : 0.5,
     maxTokens: length === 'short' ? 80 : 280,
-    veniceParams: { disable_thinking: true, strip_thinking_response: true },
+    noThinking: true,
     signal,
   });
 }
@@ -633,19 +560,20 @@ export async function describeImage(
 /** Generate an SDXL-ready prompt from an image. */
 export async function promptFromImage(
   image: Blob | string,
-  settings: VeniceSettings,
+  settings: AiSettings,
   signal?: AbortSignal,
 ): Promise<string> {
   const url = typeof image === 'string' ? image : await blobToDataUrl(image);
   const system = settings.promptStyle === 'illustrious'
     ? SYSTEM_PROMPT_FROM_IMAGE_ILLUSTRIOUS
     : SYSTEM_PROMPT_FROM_IMAGE;
-  return await veniceChat({
+  return await aiChat({
     settings,
+    model: visionModelOf(settings),
     messages: visionMessages(system, url, 'Write a Stable Diffusion prompt for this image.'),
     temperature: 0.4,
     maxTokens: 220,
-    veniceParams: { disable_thinking: true, strip_thinking_response: true },
+    noThinking: true,
     signal,
   });
 }
@@ -662,7 +590,7 @@ export async function generatePromptSet(opts: {
   kind: 'image' | 'video';
   count: number;
   engine?: VideoPromptEngine;
-  settings: VeniceSettings;
+  settings: AiSettings;
   signal?: AbortSignal;
 }): Promise<string> {
   const theme = opts.theme.trim();
@@ -673,7 +601,7 @@ export async function generatePromptSet(opts: {
       ? 'Each prompt is 3–5 sentences for a short video clip: the look and scene, what happens as a short timeline, the camera move, and a final "Audio:" clause.'
       : 'Each prompt is 2–3 sentences for a short video clip: the scene, exactly how things move, and how the camera moves.')
     : `${styleRules(opts.settings.promptStyle)} Each prompt is one complete image prompt: subject, setting, light, mood, style, as a comma-separated phrase list.`;
-  const messages: VeniceMessage[] = [
+  const messages: AiMessage[] = [
     {
       role: 'system',
       content: [
@@ -684,7 +612,7 @@ export async function generatePromptSet(opts: {
     },
     { role: 'user', content: theme },
   ];
-  return veniceChat({ settings: opts.settings, messages, temperature: 1.0, maxTokens: 220 * n + 100, signal: opts.signal });
+  return aiChat({ settings: opts.settings, messages, temperature: 1.0, maxTokens: 220 * n + 100, signal: opts.signal });
 }
 
 function videoFromImageSystem(engine: VideoPromptEngine): string {
@@ -702,18 +630,19 @@ function videoFromImageSystem(engine: VideoPromptEngine): string {
 export async function videoPromptFromImage(
   image: Blob | string,
   engine: VideoPromptEngine,
-  settings: VeniceSettings,
+  settings: AiSettings,
   signal?: AbortSignal,
   hint = '',
 ): Promise<string> {
   const url = typeof image === 'string' && !image.startsWith('data:') ? await httpUrlToDataUrl(image, signal) : typeof image === 'string' ? image : await blobToDataUrl(image);
   const ask = hint.trim() ? `Write the video prompt for a clip starting from this frame. Direction from the user: ${hint.trim()}` : 'Write the video prompt for a clip starting from this frame.';
-  const raw = await veniceChat({
+  const raw = await aiChat({
     settings,
+    model: visionModelOf(settings),
     messages: visionMessages(videoFromImageSystem(engine), url, ask),
     temperature: 0.7,
     maxTokens: 600,
-    veniceParams: { disable_thinking: true, strip_thinking_response: true },
+    noThinking: true,
     signal,
   });
   return raw.trim().replace(/^["“]+|["”]+$/g, '').trim();

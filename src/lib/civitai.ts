@@ -584,6 +584,17 @@ export type NsfwFilter = 'all' | 'sfw' | 'nsfw';
 
 const IMAGE_PAGE_SIZE = 10;
 
+/** /images sort orders (CivitAI's names). Omitted = the API's default order. */
+export type CivitaiImageSort = 'Most Reactions' | 'Most Comments' | 'Most Collected' | 'Newest' | 'Oldest';
+
+export type CivitaiImagesOptions = {
+  sort?: CivitaiImageSort;
+  /** Page size; default 10. */
+  limit?: number;
+  /** Every NSFW level, each image carrying its `nsfwLevel` (sends `nsfw=X`; overrides `nsfw`). */
+  everyLevel?: boolean;
+};
+
 /**
  * Fetch a page of a model version's gallery images from the dedicated Images
  * API.
@@ -602,18 +613,22 @@ export async function fetchCivitaiImages(
   modelVersionId: number,
   cursor?: string | null,
   nsfw: NsfwFilter = 'all',
+  opts: CivitaiImagesOptions = {},
 ): Promise<CivitaiImagePage | null> {
   try {
     const params = new URLSearchParams({
       modelVersionId: String(modelVersionId),
-      limit: String(IMAGE_PAGE_SIZE),
+      limit: String(opts.limit ?? IMAGE_PAGE_SIZE),
       // Without this the API sends `meta: null` on every image (seen 2026-09).
       withMeta: 'true',
     });
     if (cursor) params.set('cursor', cursor);
-    if (nsfw === 'sfw') params.set('nsfw', 'false');
+    if (opts.sort) params.set('sort', opts.sort);
+    if (opts.everyLevel) params.set('nsfw', 'X');
+    else if (nsfw === 'sfw') params.set('nsfw', 'false');
     else if (nsfw === 'nsfw') params.set('nsfw', 'true');
-    // 'all' → omit the param entirely (the API then returns both)
+    // 'all' → omit the param entirely. NB (checked 10-20): the API then sends only the safe
+    // pictures; `everyLevel` (nsfw=X) is what really returns every level.
 
     let res = await fetchWithTimeout(`${CIVITAI_API}/images?${params}`);
     if (res.status === 429) {

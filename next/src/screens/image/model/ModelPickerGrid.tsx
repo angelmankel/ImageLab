@@ -13,6 +13,7 @@ import type { Availability } from '@/hooks/useResourceAvailability';
 import { Chip } from '~/ui';
 import { T } from '~/theme/tokens';
 import { Thumb } from './Thumb';
+import { useModelPreview } from './ModelThumb';
 import { readModelMeta, type ModelMeta } from './useModelMeta';
 import { openModelViewer } from './viewerBridge';
 
@@ -97,19 +98,7 @@ export function ModelPickerGrid({ files, selected, onPick, fits, availability, t
           const title = a && a.servers.length ? `${m.name ?? m.label}\nOn ${a.servers.join(', ')}` : a ? `${m.name ?? m.label}\nNot installed on the current server` : (m.name ?? m.label);
           return (
             <div key={f} style={{ display: 'flex', flexDirection: 'column', gap: 5, minWidth: 0, opacity: dim ? 0.45 : 1 }}>
-              <button
-                type="button"
-                onClick={() => void openModelViewer({ file: f })}
-                aria-label={`Open ${m.name ?? m.label} full screen`}
-                title="Open full screen"
-                style={{ position: 'relative', display: 'block', aspectRatio: '1', borderRadius: T.radius.md, overflow: 'hidden', outline: on ? '3px solid var(--il-ember)' : undefined, outlineOffset: -3, border: 0, padding: 0, background: 'transparent', cursor: 'pointer', width: '100%' }}
-              >
-                <Thumb label={m.label} images={m.images} size={tile} style={{ width: '100%', height: '100%', borderRadius: T.radius.md }} />
-                {m.bucket !== 'Unknown' && (
-                  <span style={{ position: 'absolute', left: 6, bottom: 6, fontSize: 10, fontWeight: 800, borderRadius: 999, padding: '2px 7px', background: 'rgba(20,20,22,.78)', color: 'var(--il-fg2)' }}>{m.bucket}</span>
-                )}
-                {on && <span style={{ position: 'absolute', right: 6, top: 6, fontSize: 10, fontWeight: 800, borderRadius: 999, padding: '2px 7px', background: 'var(--il-ember)', color: 'var(--il-bg)' }}>✓</span>}
-              </button>
+              <PickerPicture meta={m} on={on} tile={tile} />
               <button
                 type="button"
                 onClick={() => onPick(f)}
@@ -130,5 +119,27 @@ export function ModelPickerGrid({ files, selected, onPick, fits, availability, t
         )}
       </div>
     </div>
+  );
+}
+
+/** A tile's picture: opens the viewer on the shown picture; "Model preview starts on" picks it (a hover loads "Most popular"). */
+function PickerPicture({ meta: m, on, tile }: { meta: ModelMeta; on: boolean; tile: number }) {
+  const preview = useModelPreview(m);
+  return (
+    <button
+      type="button"
+      ref={preview.observe}
+      onClick={() => void openModelViewer({ file: m.file, start: preview.viewerStart })}
+      {...preview.hover}
+      aria-label={`Open ${m.name ?? m.label} full screen`}
+      title="Open full screen"
+      style={{ position: 'relative', display: 'block', aspectRatio: '1', borderRadius: T.radius.md, overflow: 'hidden', outline: on ? '3px solid var(--il-ember)' : undefined, outlineOffset: -3, border: 0, padding: 0, background: 'transparent', cursor: 'pointer', width: '100%' }}
+    >
+      <Thumb label={m.label} images={preview.stills} size={tile} style={{ width: '100%', height: '100%', borderRadius: T.radius.md }} />
+      {m.bucket !== 'Unknown' && (
+        <span style={{ position: 'absolute', left: 6, bottom: 6, fontSize: 10, fontWeight: 800, borderRadius: 999, padding: '2px 7px', background: 'rgba(20,20,22,.78)', color: 'var(--il-fg2)' }}>{m.bucket}</span>
+      )}
+      {on && <span style={{ position: 'absolute', right: 6, top: 6, fontSize: 10, fontWeight: 800, borderRadius: 999, padding: '2px 7px', background: 'var(--il-ember)', color: 'var(--il-bg)' }}>✓</span>}
+    </button>
   );
 }

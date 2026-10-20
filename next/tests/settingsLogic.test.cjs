@@ -79,14 +79,25 @@ test('categoryOfHash / hashOfCategory', () => {
   for (const c of L.CATEGORY_IDS) assert.equal(L.categoryOfHash(L.hashOfCategory(c)), c);
 });
 
+test('providerOfHash / hashOfProvider: only under #/settings/ai', () => {
+  assert.equal(L.providerOfHash('#/settings/ai/openrouter'), 'openrouter');
+  assert.equal(L.providerOfHash('#/settings/ai/local?x=1'), 'local');
+  assert.equal(L.categoryOfHash('#/settings/ai/openrouter'), 'ai');
+  assert.equal(L.providerOfHash('#/settings/ai'), null);
+  assert.equal(L.providerOfHash('#/settings/ai/'), null);
+  assert.equal(L.providerOfHash('#/settings/models/x'), null);
+  assert.equal(L.providerOfHash('#/library/ai/x'), null);
+  assert.equal(L.hashOfProvider('xai'), '#/settings/ai/xai');
+  assert.equal(L.providerOfHash(L.hashOfProvider('gemini')), 'gemini');
+});
+
 test('phone summaries', () => {
   assert.equal(L.serversSummary(0, 0), 'No servers yet');
   assert.equal(L.serversSummary(1, 1), '1 server · 1 online');
   assert.equal(L.serversSummary(3, 1), '3 servers · 1 online');
   const label = (n) => n.toUpperCase();
-  assert.equal(L.aiSummary({ provider: 'venice', model: 'venice-uncensored', localModel: '', promptStyle: 'sdxl' }, label), 'venice-uncensored · Generic SDXL');
-  assert.equal(L.aiSummary({ provider: 'local', model: 'x', localModel: 'qwen3:8b', promptStyle: 'illustrious' }, label), 'QWEN3:8B · Illustrious tags');
-  assert.equal(L.aiSummary({ provider: 'local', model: 'x', localModel: '', promptStyle: 'sdxl' }, label), 'Local, no model · Generic SDXL');
+  assert.equal(L.aiSummary('Using Venice · venice-uncensored', 'sdxl'), 'Using Venice · venice-uncensored · Generic SDXL');
+  assert.equal(L.aiSummary('Local · not set up', 'illustrious'), 'Local · not set up · Illustrious tags');
   assert.equal(L.modelsSummary(true, 'First'), 'CivitAI key set · previews: First');
   assert.equal(L.modelsSummary(false, 'Random'), 'No CivitAI key · previews: Random');
   assert.equal(L.appearanceSummary(200), 'Library tiles 200px');

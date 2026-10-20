@@ -115,9 +115,10 @@ export function modelBaseBucket(
 }
 
 // ---------------------------------------------------------------------------
-// Preview ordering — what the popover's hover slideshow plays. Pure function;
-// the caller decides which CivitAI URLs and which local history URLs to feed
-// in. Called once per hover-in so 'random' yields a new shuffle each time.
+// Preview ordering — which picture a model's preview starts on (and what a
+// hover plays). Pure function; the caller decides which CivitAI URLs, popular
+// URLs and local history URLs to feed in. `lib/previewOrder.ts` calls it once
+// per hover-in so 'random' yields a new shuffle each time.
 // ---------------------------------------------------------------------------
 
 import type { ModelPreviewSource } from './storage';
@@ -131,20 +132,22 @@ function shuffleInPlace<T>(arr: T[]): T[] {
 }
 
 /**
- * Build the ordered play-list for one model's preview slideshow.
+ * Build the ordered play-list for one model's preview.
  *  - `urls`: CivitAI image candidates (already in CivitAI's curated order).
  *  - `historyUrls`: locally-generated images using this model, newest first.
  *  - `source`: the user's setting.
+ *  - `popularUrls`: the version's pictures by Most Reactions (`lib/previewOrder.ts`), empty
+ *    until they have loaded.
  *
- * 'first' / 'popular' return CivitAI order verbatim (we don't have per-image
- * stats from `by-hash` yet — 'popular' is reserved for when we do).
- * 'random' shuffles CivitAI's list. 'history' interleaves the most recent
- * local generation in front. In every case duplicates are dropped.
+ * 'first' returns CivitAI's order verbatim. 'popular' puts the most-reacted pictures first, then
+ * the curated ones (so it is 'first' until the popular list arrives). 'random' shuffles CivitAI's
+ * list. 'history' puts the local generations in front. In every case duplicates are dropped.
  */
 export function orderForPreview(
   urls: string[],
   historyUrls: string[],
   source: ModelPreviewSource,
+  popularUrls: string[] = [],
 ): string[] {
   const dedupe = (arr: string[]) => {
     const seen = new Set<string>();
@@ -156,6 +159,7 @@ export function orderForPreview(
     case 'history':
       return dedupe([...historyUrls, ...urls]);
     case 'popular':
+      return dedupe([...popularUrls, ...urls, ...historyUrls]);
     case 'first':
     default:
       return dedupe([...urls, ...historyUrls]);

@@ -3,10 +3,11 @@
  * the phone): cover 3:4 with type / base / version badges, name, creator, stats, and a bottom row
  * that says Installed ✓ + Use, "2 of 3 versions" + ↓, or size + Download. With a picker open the
  * primary action is Use (installed) or "Add & download". A tap on the PICTURE opens the
- * fullscreen model viewer; a tap on the name / body opens the detail panel. An adult cover
- * (beyond the NSFW level) stays hidden until tapped.
+ * fullscreen model viewer (on the cover's picture); a tap on the name / body opens the detail
+ * panel. An adult cover (beyond the NSFW level) stays hidden until tapped. Which picture is the
+ * cover follows Settings → "Model preview starts on" (`useModelCover` → `usePreviewOrder`).
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { IconCheck, IconEyeOff, IconHeartFilled, IconPlus } from '@tabler/icons-react';
 import type { CivitaiModel } from '@/lib/civitai';
 import { civitaiThumbUrl, civitaiVideoUrl, isCivitaiVideo, previewStill } from '@/lib/civitai';
@@ -16,15 +17,29 @@ import { Avatar, CoverBadge, COVER_FALLBACK, EmberBtn, GhostBtn, Stats, type Siz
 import { DownloadButton } from './DownloadButton';
 import { openModelViewer } from './viewerBridge';
 import { isLocalModel } from './localModels';
+import { usePreviewOrder, viewerStart, type PreviewImage } from '~/app/usePreviewOrder';
 
 export const TILE_THUMB = 560;
 
+const NO_IMAGES: PreviewImage[] = [];
+
 /** The sample to show on a cover: the first one inside the NSFW level, else the first. */
-export function coverImage(m: CivitaiModel, versionId: number | null | undefined, mask: number) {
-  const v = m.modelVersions.find((x) => x.id === versionId) ?? m.modelVersions[0];
-  const imgs = v?.images ?? [];
+export function pickCover<T extends PreviewImage>(imgs: readonly T[], mask: number): T | undefined {
   const idx = imgs.findIndex((i) => !isBeyondMask(i.nsfwLevel, mask));
-  return { version: v, image: imgs[idx >= 0 ? idx : 0], imageIndex: Math.max(0, idx) };
+  return imgs[idx >= 0 ? idx : 0];
+}
+
+/**
+ * The first version's pictures in the order "Model preview starts on" asks for, and the cover
+ * among them. `observe` goes on the cover ("Most popular" loads once it is on screen), `start` on
+ * its hover (reshuffles "Random").
+ */
+export function useModelCover(model: CivitaiModel, mask: number) {
+  const version = model.modelVersions[0];
+  const files = useMemo(() => version?.files.map((f) => f.name) ?? [], [version]);
+  const { images, start, observe } = usePreviewOrder(version?.id, version?.images ?? NO_IMAGES, { files });
+  const image = pickCover(images, mask);
+  return { version, images, image, start, observe, viewerStart: image ? viewerStart([image], version?.id) : undefined };
 }
 
 export function ModelTile({ model, selected, installed, mask, revealed, favourite, picking, size = 'desktop', onOpen, onReveal, onUse }: {
@@ -32,13 +47,12 @@ export function ModelTile({ model, selected, installed, mask, revealed, favourit
   onOpen: () => void; onReveal: () => void; onUse: () => void;
 }) {
   const phone = size === 'phone';
-  const { version, image, imageIndex } = coverImage(model, null, mask);
+  const { version, images, image, start, observe, viewerStart: startOn } = useModelCover(model, mask);
   // Hover (pointer devices) plays the first sample clip within the NSFW level — the cover's own
   // clip when it is one, else the first clip among the version's samples (Donny, 10-20).
   const [hover, setHover] = useState(false);
   const clip = (() => {
-    const imgs = version?.images ?? [];
-    const c = image && isCivitaiVideo(image) ? image : imgs.find((i) => isCivitaiVideo(i) && !isBeyondMask(i.nsfwLevel, mask));
+    const c = image && isCivitaiVideo(image) ? image : images.find((i) => isCivitaiVideo(i) && !isBeyondMask(i.nsfwLevel, mask));
     return c?.url ? civitaiVideoUrl(c.url, TILE_THUMB) : null;
   })();
   // A cover whose link is dead falls back to the plain card colour instead of a broken-image icon.
@@ -55,7 +69,7 @@ export function ModelTile({ model, selected, installed, mask, revealed, favourit
   const onCover = () => {
     if (hidden) { onReveal(); return; }
     const file = isLocalModel(model) ? version?.files[0]?.name : null;
-    void openModelViewer(file ? { file } : { modelId: model.id, versionId: version?.id ?? null, imageIndex }).then((opened) => { if (!opened) onOpen(); });
+    void openModelViewer(file ? { file, start: startOn } : { modelId: model.id, versionId: version?.id ?? null, start: startOn }).then((opened) => { if (!opened) onOpen(); });
   };
 
   const h = phone ? 36 : 30;
@@ -85,8 +99,9 @@ export function ModelTile({ model, selected, installed, mask, revealed, favourit
       <button
         type="button"
         aria-label={`${hidden ? 'Show the NSFW cover of' : 'View'} ${model.name}`}
+        ref={observe}
         onClick={onCover}
-        onPointerEnter={(e) => { if (e.pointerType !== 'touch') setHover(true); }}
+        onPointerEnter={(e) => { if (e.pointerType !== 'touch') { setHover(true); start(); } }}
         onPointerLeave={() => setHover(false)}
         style={{
           position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', padding: 0, border: 0, aspectRatio: '3 / 4', borderRadius: 14,

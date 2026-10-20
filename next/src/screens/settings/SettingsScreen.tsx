@@ -10,12 +10,15 @@
  *   └────────────────────┴──────────────────────────────────────┘
  *
  * The pane scrolls on its own (max 760 wide, centred). The open category is remembered
- * (settingsStore); Esc clears the search, Ctrl/⌘+F or "/" focuses it (useSettingsKeys).
+ * (settingsStore); Esc clears the search, Ctrl/⌘+F or "/" focuses it (useSettingsKeys). An AI
+ * provider's page (`#/settings/ai/<id>`, ai/useOpenProvider) replaces the AI helper pane.
  */
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { T } from '~/theme/tokens';
 import { CategoryList } from './CategoryList';
 import { CategoryPane } from './CategoryPane';
+import { ProviderPage } from './ai/ProviderPage';
+import { useOpenProvider } from './ai/useOpenProvider';
 import { SearchResults } from './SearchResults';
 import { SettingsSearch } from './SettingsSearch';
 import { useSettingsUi } from './settingsStore';
@@ -31,6 +34,9 @@ export function SettingsScreen() {
   const input = useRef<HTMLInputElement>(null);
   useSettingsKeys(input);
   const searching = !!query.trim();
+  const { provider, close } = useOpenProvider();
+  // A provider page belongs to the AI helper pane: leaving that pane closes it.
+  useEffect(() => { if (provider && category !== 'ai') close(); }, [provider, category, close]);
 
   return (
     <div style={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex' }}>
@@ -43,7 +49,9 @@ export function SettingsScreen() {
         <div style={{ maxWidth: 760, margin: '0 auto', padding: '18px 24px 48px', boxSizing: 'border-box' }}>
           {searching
             ? <SearchResults onOpen={(c) => { setCategory(c); setQuery(''); }} />
-            : <CategoryPane key={category} id={category} />}
+            : category === 'ai' && provider
+              ? <ProviderPage key={provider} id={provider} onBack={close} />
+              : <CategoryPane key={category} id={category} />}
         </div>
       </div>
     </div>

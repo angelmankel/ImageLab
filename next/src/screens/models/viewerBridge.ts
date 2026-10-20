@@ -3,7 +3,10 @@
  * yet). A glob that matches nothing is an empty object, so the build passes either way; when the
  * folder lands, a tap on a preview image opens it. Loaded lazily on the first tap.
  */
-export type ViewerTarget = { modelId: number; versionId?: number | null; imageIndex?: number } | { file: string };
+import type { PreviewImage } from '@/lib/previewOrder';
+
+type Start = PreviewImage & { versionId?: number };
+export type ViewerTarget = { modelId: number; versionId?: number | null; imageIndex?: number; start?: Start } | { file: string; start?: Start };
 
 const mods = import.meta.glob('../modelViewer/index.ts');
 

@@ -1,7 +1,7 @@
 /**
  * Rule 6 for the Video step: the motion prompt box bound to the main app's `videoStore`
  * (`positive`), ✦ Write it (the LLM writes a motion prompt: from an idea, from the prompt, or
- * from the start picture — `generateVideoPrompt` / `videoPromptFromImage` in `@/lib/venice`),
+ * from the start picture — `generateVideoPrompt` / `videoPromptFromImage` in `@/lib/ai`),
  * Clear, and the negative prompt folded (Wan; it acts above CFG 1 or with NAG).
  */
 import { useEffect, useRef, useState } from 'react';
@@ -9,7 +9,7 @@ import { Modal, Loader } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconX } from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
-import { aiNotReadyHint, aiReady, generateVideoPrompt, videoPromptFromImage, type GenerateLayerSource } from '@/lib/venice';
+import { aiNotReadyHint, aiReady, generateVideoPrompt, videoPromptFromImage, type GenerateLayerSource } from '@/lib/ai';
 import { AiModelPicker } from '@/features/ai/AiModelPicker';
 import { inputViewUrl } from '@/features/studio/ImageInput';
 import { useModeHost } from '@/features/workspace/modeHost';
@@ -49,7 +49,7 @@ function useVideoText(key: 'positive' | 'negative') {
 type Source = GenerateLayerSource | 'picture';
 
 function WriteItModal({ opened, onClose, step }: { opened: boolean; onClose: () => void; step: Step }) {
-  const venice = useStore((s) => s.venice);
+  const ai = useStore((s) => s.ai);
   const engine = useVideo((s) => s.engine);
   const current = useVideo((s) => s.positive);
   const startImage = useVideo((s) => s.startImage);
@@ -63,7 +63,7 @@ function WriteItModal({ opened, onClose, step }: { opened: boolean; onClose: () 
   const [error, setError] = useState<string | null>(null);
   const abort = useRef<AbortController | null>(null);
   useEffect(() => { if (!opened) abort.current?.abort(); }, [opened]);
-  const ready = aiReady(venice);
+  const ready = aiReady(ai);
   const canRun = ready && !busy && (source === 'idea' ? idea.trim().length > 0 : source === 'prompt' ? current.trim().length > 0 : !!pictureUrl);
 
   const run = async () => {
@@ -72,8 +72,8 @@ function WriteItModal({ opened, onClose, step }: { opened: boolean; onClose: () 
     setBusy(true); setError(null);
     try {
       const text = source === 'picture'
-        ? await videoPromptFromImage(pictureUrl!, engine, venice, ctrl.signal, idea.trim())
-        : await generateVideoPrompt({ seed: source === 'idea' ? idea : current, source, engine, settings: venice, signal: ctrl.signal });
+        ? await videoPromptFromImage(pictureUrl!, engine, ai, ctrl.signal, idea.trim())
+        : await generateVideoPrompt({ seed: source === 'idea' ? idea : current, source, engine, settings: ai, signal: ctrl.signal });
       if (ctrl.signal.aborted) return;
       if (!text.trim()) { setError('The AI returned nothing usable — try rephrasing.'); return; }
       const before = useVideo.getState().positive;
@@ -99,7 +99,7 @@ function WriteItModal({ opened, onClose, step }: { opened: boolean; onClose: () 
             style={{ width: '100%', border: 0, borderRadius: 14, background: 'var(--il-card)', color: 'var(--il-fg)', fontSize: 14, lineHeight: 1.5, padding: '10px 12px', resize: 'none', outline: 'none' }} />
         )}
         <AiModelPicker size="xs" />
-        <div style={muted}>{ready ? (engine === 'h3' ? 'A motion prompt for MiniMax H3, with what to hear ("Audio: …").' : 'A motion prompt for Wan 2.2: camera, subject motion, light.') : `${aiNotReadyHint(venice)} to write prompts.`}</div>
+        <div style={muted}>{ready ? (engine === 'h3' ? 'A motion prompt for MiniMax H3, with what to hear ("Audio: …").' : 'A motion prompt for Wan 2.2: camera, subject motion, light.') : `${aiNotReadyHint(ai)} to write prompts.`}</div>
         {error && <div style={{ fontSize: 12, color: 'var(--il-err)' }}>{error}</div>}
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6 }}>
           <button type="button" onClick={onClose} style={btn(false)}>Cancel</button>
@@ -116,7 +116,7 @@ export function VideoPromptTab({ step, large = false }: { step: Step; large?: bo
   const prompt = useVideoText('positive');
   const negative = useVideoText('negative');
   const engine = useVideo((s) => s.engine);
-  const venice = useStore((s) => s.venice);
+  const ai = useStore((s) => s.ai);
   const [writing, setWriting] = useState(false);
   const [negOpen, setNegOpen] = useState(false);
   const negShort = negative.text.trim() === WAN_NEGATIVE ? "Wan's own" : negative.text.trim() ? `${negative.text.trim().slice(0, 28)}${negative.text.trim().length > 28 ? '…' : ''}` : 'none';
@@ -127,7 +127,7 @@ export function VideoPromptTab({ step, large = false }: { step: Step; large?: bo
         <textarea aria-label="Motion prompt" rows={large ? 5 : 6} value={prompt.text} onChange={(e) => prompt.set(e.target.value)} onBlur={prompt.flush}
           placeholder={engine === 'h3' ? 'What happens, how the camera moves — and what to hear ("Audio: …").' : 'What happens, how the camera moves.'} style={box} />
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10 }}>
-          <button type="button" onClick={() => { prompt.flush(); setWriting(true); }} style={btn(true)} title={aiReady(venice) ? 'Let the AI write the motion prompt' : 'Set up the AI helper in Settings to write prompts'}>✦ Write it</button>
+          <button type="button" onClick={() => { prompt.flush(); setWriting(true); }} style={btn(true)} title={aiReady(ai) ? 'Let the AI write the motion prompt' : 'Set up the AI helper in Settings to write prompts'}>✦ Write it</button>
           <div style={{ flex: 1 }} />
           <button type="button" aria-label="Clear prompt" onClick={prompt.clear} style={{ width: 34, height: 34, border: 0, borderRadius: '50%', background: 'var(--il-card-on)', color: 'var(--il-muted)', display: 'grid', placeItems: 'center', cursor: 'pointer' }}><IconX size={14} stroke={2.4} /></button>
         </div>

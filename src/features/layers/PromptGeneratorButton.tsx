@@ -5,7 +5,7 @@ import { IconSparkles } from '@tabler/icons-react';
 import * as Popover from '@/components/ui/popover';
 import { useStore } from '@/lib/store';
 import { compileLayers } from '@/lib/prompt';
-import { aiNotReadyHint, aiReady, generateLayerSet, generateVideoPrompt, type GenerateLayerSource, type VideoPromptEngine } from '@/lib/venice';
+import { aiNotReadyHint, aiReady, generateLayerSet, generateVideoPrompt, type GenerateLayerSource, type VideoPromptEngine } from '@/lib/ai';
 import { AiModelPicker } from '@/features/ai/AiModelPicker';
 import { CloseIcon, SparkleIcon } from '@/components/ui/icons';
 import { cn } from '@/lib/cn';
@@ -34,10 +34,10 @@ export type PromptGeneratorTarget =
 export function PromptGeneratorButton({ variant = 'text', target, label = 'Write it' }: { variant?: 'text' | 'icon' | 'button'; target?: PromptGeneratorTarget; label?: string }) {
   const [open, setOpen] = useState(false);
   const narrow = useMediaQuery('(max-width: 48em)') ?? false;
-  const venice = useStore(s => s.venice);
-  const disabled = !aiReady(venice);
+  const ai = useStore(s => s.ai);
+  const disabled = !aiReady(ai);
   const title = disabled
-    ? `${aiNotReadyHint(venice)} to enable prompt generation`
+    ? `${aiNotReadyHint(ai)} to enable prompt generation`
     : 'Prompt Studio — draft prompt parts with AI';
 
   const trigger = variant === 'icon' ? (
@@ -111,7 +111,7 @@ export function PromptGeneratorButton({ variant = 'text', target, label = 'Write
  *  would cover the window the moment it opens). */
 function PromptGeneratorPopover({ onClose, phone = false, target }: { onClose: () => void; phone?: boolean; target?: PromptGeneratorTarget }) {
   const layers = useStore(s => s.layers);
-  const venice = useStore(s => s.venice);
+  const ai = useStore(s => s.ai);
   const replaceLayers = useStore(s => s.replaceLayers);
 
   const compiledPositive = useMemo(() => (target ? target.current : compileLayers(layers, 'positive')), [layers, target]);
@@ -138,7 +138,7 @@ function PromptGeneratorPopover({ onClose, phone = false, target }: { onClose: (
     try {
       const seed = source === 'idea' ? idea : compiledPositive;
       if (target?.kind === 'video') {
-        const text = await generateVideoPrompt({ seed, source, engine: target.engine, settings: venice, signal: ctrl.signal });
+        const text = await generateVideoPrompt({ seed, source, engine: target.engine, settings: ai, signal: ctrl.signal });
         if (ctrl.signal.aborted) return;
         if (!text) { setError('AI returned nothing — try rephrasing.'); return; }
         target.apply(text);
@@ -146,7 +146,7 @@ function PromptGeneratorPopover({ onClose, phone = false, target }: { onClose: (
         return;
       }
       if (target?.kind === 'text') {
-        const parts = await generateLayerSet({ seed, source, settings: venice, signal: ctrl.signal });
+        const parts = await generateLayerSet({ seed, source, settings: ai, signal: ctrl.signal });
         if (ctrl.signal.aborted) return;
         const text = parts.map(p => p.text.trim()).filter(Boolean).join(', ');
         if (!text) { setError('AI returned nothing — try rephrasing.'); return; }
@@ -157,7 +157,7 @@ function PromptGeneratorPopover({ onClose, phone = false, target }: { onClose: (
       const items = await generateLayerSet({
         seed,
         source,
-        settings: venice,
+        settings: ai,
         signal: ctrl.signal,
       });
       if (ctrl.signal.aborted) return;

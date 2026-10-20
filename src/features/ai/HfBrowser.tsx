@@ -4,6 +4,7 @@ import {
 } from '@mantine/core';
 import { IconChevronDown, IconChevronRight, IconDownload, IconSearch } from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
+import { localEntry } from '@/lib/aiProviders';
 import { formatBytes, hfPullName, vramFit, type VramFit } from '@/lib/llmModels';
 import { hfRepoFiles, searchHfGguf, type HfRepo, type HfRepoFiles, type HfSort } from '@/lib/localLlm';
 import { useLocalModels } from './localModelsStore';
@@ -113,7 +114,8 @@ function RepoRow({ repo, open, onToggle }: { repo: HfRepo; open: boolean; onTogg
 }
 
 function RepoFiles({ repoId }: { repoId: string }) {
-  const venice = useStore((s) => s.venice);
+  const vramGb = useStore((s) => s.ai.localVramGb);
+  const localBaseUrl = useStore((s) => localEntry(s.ai).baseUrl);
   const models = useLocalModels((s) => s.models);
   const pulls = useLocalModels((s) => s.pulls);
   const pull = useLocalModels((s) => s.pull);
@@ -141,7 +143,7 @@ function RepoFiles({ repoId }: { repoId: string }) {
       {files.choices.length === 0 && <Text size="xs" c="dimmed">No single-file quantizations found in this repo.</Text>}
       {files.choices.map((c) => {
         const pullName = hfPullName(repoId, c.quant);
-        const fit = FIT_BADGE[vramFit(c.bytes, venice.localVramGb)];
+        const fit = FIT_BADGE[vramFit(c.bytes, vramGb)];
         const have = installed.has(pullName.toLowerCase());
         const p = pulls[pullName];
         const inFlight = p && !p.done;
@@ -157,7 +159,7 @@ function RepoFiles({ repoId }: { repoId: string }) {
               variant={have ? 'light' : 'default'}
               leftSection={<IconDownload size={12} />}
               disabled={have || inFlight}
-              onClick={() => void pull(venice.localBaseUrl, pullName)}
+              onClick={() => void pull(localBaseUrl, pullName)}
             >
               {have ? 'Installed' : inFlight ? `${p.total ? Math.round((p.completed / p.total) * 100) : 0}%` : 'Download'}
             </Button>

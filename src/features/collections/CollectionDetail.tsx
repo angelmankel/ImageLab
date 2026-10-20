@@ -16,17 +16,16 @@ import {
   promptFromImage,
   tagImage,
   TAG_COUNT_DEFAULT, TAG_COUNT_MIN, TAG_COUNT_MAX,
-  VENICE_VISION_MODELS,
   aiNotReadyHint,
   aiReady,
   aiSourceLabel,
   visionModelOf,
-  withChatModel,
+  withVisionModel,
   type DescribeLength,
   type TagStyle,
-} from '@/lib/venice';
-import { modelLabel } from '@/lib/llmModels';
-import { useLocalModels, useLocalModelsFor } from '@/features/ai/localModelsStore';
+} from '@/lib/ai';
+import { activeEntry, aiModelLabel, shortModelName, visionModels } from '@/lib/aiProviders';
+import { useProviderModels } from '@/features/ai/aiModelsStore';
 import type { Tile } from './useCollectionTiles';
 import { useCopyToClipboard } from '@/hooks/useCopyToClipboard';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
@@ -40,7 +39,7 @@ import { sendBlobToVideo, sendUrlToVideo } from '@/features/video/sendToVideo';
  * stable means tile sizes never change between selection states.
  *
  * Layout: small preview at the top, compact metadata, then a single
- * Venice section that groups Tag / Describe / Prompt into tabs to stop
+ * AI section that groups Tag / Describe / Prompt into tabs to stop
  * the body from running long. Each tab keeps its result inline so users
  * see the most-recent output without expanding anything.
  */
@@ -205,7 +204,7 @@ function EmptyState() {
 }
 
 function DetailBody({ tile }: { tile: Tile }) {
-  const venice = useStore((s) => s.venice);
+  const ai = useStore((s) => s.ai);
   const setItemAi = useStore((s) => s.setItemAi);
   const addLayer = useStore((s) => s.addLayer);
   const layers = useStore((s) => s.layers);
@@ -216,14 +215,11 @@ function DetailBody({ tile }: { tile: Tile }) {
   const [tagStyle, setTagStyle] = useState<TagStyle>('danbooru');
   const [tagCount, setTagCount] = useState<number>(TAG_COUNT_DEFAULT);
   const [descLength, setDescLength] = useState<DescribeLength>('detailed');
-  const [visionModel, setVisionModel] = useState<string>(VENICE_VISION_MODELS[0].id);
-  // Local provider: the image model picked here for this session; '' = the one set in Settings.
-  const [localVision, setLocalVision] = useState('');
-  const local = venice.provider === 'local';
-  useLocalModelsFor(venice.localBaseUrl, local);
-  const localModels = useLocalModels((s) => s.models);
-  const localVisionModels = localModels.filter((m) => m.vision);
-  const localVisionPick = localVision || visionModelOf(venice);
+  // The image model picked here for this session; '' = the active provider's vision model.
+  const [visionPick, setVisionPick] = useState('');
+  const { models } = useProviderModels(activeEntry(ai));
+  const visionList = visionModels(models);
+  const visionModel = visionPick || visionModelOf(ai);
 
   /** Tag <-> layer matching: when a tag is "added as a layer" we use
    *  tag='AI' + the tag text. To toggle a single tag back off we look for
@@ -247,7 +243,7 @@ function DetailBody({ tile }: { tile: Tile }) {
 
   /** Resolve the image bytes for whichever tile is selected — imports come
    *  from IDB, history fetches the ComfyUI `/view?…` URL through the
-   *  browser. Returns a data URL ready to feed Venice. */
+   *  browser. Returns a data URL ready to feed the provider. */
   const resolveImageDataUrl = async (): Promise<string> => {
     if (tile.source === 'import') {
       const blob = await getImportedBlob(tile.id);
@@ -258,7 +254,7 @@ function DetailBody({ tile }: { tile: Tile }) {
     return httpUrlToDataUrl(tile.thumbnailUrl);
   };
 
-  const settingsWithModel = withChatModel(venice, local ? localVisionPick : visionModel);
+  const settingsWithModel = withVisionModel(ai, visionModel);
   const source = aiSourceLabel(settingsWithModel);
 
   const runTag = async () => {
@@ -360,11 +356,11 @@ function DetailBody({ tile }: { tile: Tile }) {
         )}
       </Group>
 
-      {/* Venice AI block — tabs replace the old three stacked Sections. */}
+      {/* AI block — tabs replace the old three stacked Sections. */}
       <Paper withBorder radius="md" p="xs" className="flex flex-col gap-2">
-        {!aiReady(venice) ? (
+        {!aiReady(ai) ? (
           <Text size="xs" c="dimmed">
-            {aiNotReadyHint(venice)} to enable tagging, descriptions, and image-to-prompt.
+            {aiNotReadyHint(ai)} to enable tagging, descriptions, and image-to-prompt.
           </Text>
         ) : (
           <>
@@ -380,35 +376,23 @@ function DetailBody({ tile }: { tile: Tile }) {
                   { value: 'prompt', label: 'Prompt' },
                 ]}
               />
-              {local ? (
-                <Select
-                  size="xs"
-                  w={120}
-                  aria-label="Vision model"
-                  value={localVisionPick}
-                  onChange={(v) => { if (v) setLocalVision(v); }}
-                  allowDeselect={false}
-                  comboboxProps={{ withinPortal: true, shadow: 'md', width: 280, position: 'bottom-end' }}
-                  title={localVisionModels.some((m) => m.name === localVisionPick) ? localVisionPick : 'This model cannot see images — pick a vision model'}
-                  data={[
-                    ...(localVisionModels.some((m) => m.name === localVisionPick)
-                      ? [] : [{ value: localVisionPick, label: `${modelLabel(localVisionPick)} (no vision)` }]),
-                    ...localVisionModels.map((m) => ({ value: m.name, label: modelLabel(m.name) })),
-                  ]}
-                />
-              ) : (
-                <Select
-                  size="xs"
-                  w={120}
-                  aria-label="Vision model"
-                  value={visionModel}
-                  onChange={(v) => { if (v) setVisionModel(v); }}
-                  allowDeselect={false}
-                  comboboxProps={{ withinPortal: true, shadow: 'md', width: 200, position: 'bottom-end' }}
-                  title={VENICE_VISION_MODELS.find((m) => m.id === visionModel)?.note ?? ''}
-                  data={VENICE_VISION_MODELS.map((m) => ({ value: m.id, label: m.label }))}
-                />
-              )}
+              <Select
+                size="xs"
+                w={120}
+                aria-label="Vision model"
+                value={visionModel || null}
+                placeholder="Vision model"
+                onChange={(v) => { if (v) setVisionPick(v); }}
+                allowDeselect={false}
+                searchable
+                comboboxProps={{ withinPortal: true, shadow: 'md', width: 280, position: 'bottom-end' }}
+                title={visionList.some((m) => m.id === visionModel) ? visionModel : 'This model may not read images — pick a vision model'}
+                data={[
+                  ...(visionModel && !visionList.some((m) => m.id === visionModel)
+                    ? [{ value: visionModel, label: `${shortModelName(visionModel)} (no vision)` }] : []),
+                  ...visionList.map((m) => ({ value: m.id, label: aiModelLabel(m) })),
+                ]}
+              />
             </Group>
 
             {error && (
@@ -455,7 +439,7 @@ function DetailBody({ tile }: { tile: Tile }) {
                     className="flex-1"
                     leftSection={<IconSparkles size={13} />}
                     onClick={runTag}
-                    disabled={!aiReady(venice) || running !== null}
+                    disabled={!aiReady(ai) || running !== null}
                   >
                     {running === 'tag' ? 'Tagging…' : tile.tags?.length ? 'Re-tag' : 'Tag image'}
                   </Button>
@@ -532,7 +516,7 @@ function DetailBody({ tile }: { tile: Tile }) {
                     className="flex-1"
                     leftSection={<IconSparkles size={13} />}
                     onClick={runDescribe}
-                    disabled={!aiReady(venice) || running !== null}
+                    disabled={!aiReady(ai) || running !== null}
                   >
                     {running === 'describe' ? 'Describing…' : tile.description ? 'Re-describe' : 'Describe'}
                   </Button>
@@ -554,7 +538,7 @@ function DetailBody({ tile }: { tile: Tile }) {
                   fullWidth
                   leftSection={<IconSparkles size={13} />}
                   onClick={runPrompt}
-                  disabled={!aiReady(venice) || running !== null}
+                  disabled={!aiReady(ai) || running !== null}
                 >
                   {running === 'prompt' ? 'Writing…' : tile.aiPrompt ? 'Re-generate prompt' : 'Generate prompt'}
                 </Button>

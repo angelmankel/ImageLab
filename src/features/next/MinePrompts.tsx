@@ -14,7 +14,7 @@ import { useStore } from '@/lib/store';
 import { profileById } from '@/lib/modelProfiles';
 import { PROMPT_PRESETS, familyForCheckpoint, presetPrompt } from '@/lib/promptLibrary';
 import { filterMine, parsePromptSet, type MinePrompt, type PromptKind } from '@/lib/promptMine';
-import { aiNotReadyHint, aiReady, generatePromptSet } from '@/lib/venice';
+import { aiNotReadyHint, aiReady, generatePromptSet } from '@/lib/ai';
 import { AiModelPicker } from '@/features/ai/AiModelPicker';
 import { useVideo } from '@/features/video/videoStore';
 import { useMine } from './mineStore';
@@ -98,7 +98,7 @@ const COUNTS = [{ value: '4', label: '4' }, { value: '6', label: '6' }, { value:
 
 /** "✨ Make a set": a theme, a count, and N prompts land in Mine. */
 function MakeSet({ kind, large }: { kind: PromptKind; large: boolean }) {
-  const venice = useStore(s => s.venice);
+  const ai = useStore(s => s.ai);
   const engine = useVideo(s => s.engine);
   const save = useMine(s => s.save);
   const [open, setOpen] = useState(false);
@@ -106,7 +106,7 @@ function MakeSet({ kind, large }: { kind: PromptKind; large: boolean }) {
   const [count, setCount] = useState('6');
   const [busy, setBusy] = useState(false);
   const abort = useRef<AbortController | null>(null);
-  const ready = aiReady(venice);
+  const ready = aiReady(ai);
 
   const make = async () => {
     if (!theme.trim() || busy) return;
@@ -115,7 +115,7 @@ function MakeSet({ kind, large }: { kind: PromptKind; large: boolean }) {
     abort.current = ctrl;
     setBusy(true);
     try {
-      const raw = await generatePromptSet({ theme, kind, count: Number(count), engine: engine === 'h3' ? 'h3' : 'wan', settings: venice, signal: ctrl.signal });
+      const raw = await generatePromptSet({ theme, kind, count: Number(count), engine: engine === 'h3' ? 'h3' : 'wan', settings: ai, signal: ctrl.signal });
       if (ctrl.signal.aborted) return;
       const prompts = parsePromptSet(raw);
       let n = 0;
@@ -130,7 +130,7 @@ function MakeSet({ kind, large }: { kind: PromptKind; large: boolean }) {
   return (
     <Popover.Root open={open} onOpenChange={o => { setOpen(o); if (!o) abort.current?.abort(); }}>
       <Popover.Trigger asChild>
-        <Button size={large ? 'md' : 'xs'} variant="light" color="violet" leftSection={<IconSparkles size={14} />} disabled={!ready} title={ready ? 'Ask the AI for a set of prompts on a theme' : `${aiNotReadyHint(venice)} to make a set`} className="shrink-0">
+        <Button size={large ? 'md' : 'xs'} variant="light" color="violet" leftSection={<IconSparkles size={14} />} disabled={!ready} title={ready ? 'Ask the AI for a set of prompts on a theme' : `${aiNotReadyHint(ai)} to make a set`} className="shrink-0">
           Make a set
         </Button>
       </Popover.Trigger>

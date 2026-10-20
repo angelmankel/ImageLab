@@ -7,8 +7,9 @@
  *
  * Opening a category pushes `#/settings/<id>` (settingsLogic.categoryOfHash), so Android back
  * pops it; a swipe to the right (`@/hooks/useSwipe`, as the other phone pages) goes back too.
+ * An AI provider's page is one more level (`#/settings/ai/<id>`, ai/useOpenProvider).
  */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { IconChevronRight } from '@tabler/icons-react';
 import { useSwipe } from '@/hooks/useSwipe';
 import { useRoute } from '~/app/routeStore';
@@ -16,6 +17,9 @@ import { T } from '~/theme/tokens';
 import { BackPill } from '~/ui';
 import { CATEGORIES, categoryById, type CategoryId } from './categories';
 import { CategoryPane } from './CategoryPane';
+import { ProviderPage } from './ai/ProviderPage';
+import { useOpenProvider } from './ai/useOpenProvider';
+import { providerSpec } from '@/lib/aiProviders';
 import { CategorySummary } from './CategorySummary';
 import { SearchResults } from './SearchResults';
 import { SettingsSearch } from './SettingsSearch';
@@ -63,21 +67,21 @@ function CategoryRow({ id, onOpen }: { id: CategoryId; onOpen: () => void }) {
   );
 }
 
-function CategoryPage({ id, onBack }: { id: CategoryId; onBack: () => void }) {
+/** A full-screen page with the "‹ Back" bar: a category's rows, or one AI provider. */
+function PhonePage({ title, backLabel, onBack, children }: { title: string; backLabel: string; onBack: () => void; children: ReactNode }) {
   const root = useRef<HTMLDivElement>(null);
   useSwipe(root, { dir: 1, enabled: true, onSwipe: onBack });
-  const c = categoryById(id);
   return (
     <div ref={root} style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--il-bg)', touchAction: 'pan-y' }}>
       <div style={{ flex: 'none', display: 'flex', alignItems: 'center', gap: 4, padding: `${TOP} 8px 8px`, borderBottom: '1px solid var(--il-line)' }}>
-        <button type="button" onClick={onBack} data-pad-back aria-label="Back to Settings"
+        <button type="button" onClick={onBack} data-pad-back aria-label={backLabel}
           style={{ display: 'inline-flex', alignItems: 'center', gap: 4, height: 36, padding: '0 10px', border: 0, borderRadius: 999, background: 'transparent', color: 'var(--il-ember)', fontSize: 14, fontWeight: 800, cursor: 'pointer' }}>
           <span aria-hidden style={{ fontSize: 20, lineHeight: 1 }}>‹</span>Back
         </button>
-        <span style={{ fontSize: 16, fontWeight: 800, flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.label}</span>
+        <span style={{ fontSize: 16, fontWeight: 800, flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{title}</span>
       </div>
       <div className="il-scroll" style={{ flex: 1, minHeight: 0, padding: `10px 14px calc(24px + var(--il-safe-bottom))`, touchAction: 'pan-y' }}>
-        <CategoryPane id={id} header={false} />
+        {children}
       </div>
     </div>
   );
@@ -90,8 +94,22 @@ export function SettingsPhoneScreen() {
   const input = useRef<HTMLInputElement>(null);
   useSettingsKeys(input);
   const { open, show, close } = useOpenCategory();
+  const { provider, close: closeProvider } = useOpenProvider();
 
-  if (open) return <CategoryPage key={open} id={open} onBack={close} />;
+  if (open === 'ai' && provider) {
+    return (
+      <PhonePage key={provider} title={providerSpec(provider).name} backLabel="Back to AI helper" onBack={closeProvider}>
+        <ProviderPage id={provider} onBack={closeProvider} header={false} />
+      </PhonePage>
+    );
+  }
+  if (open) {
+    return (
+      <PhonePage key={open} title={categoryById(open).label} backLabel="Back to Settings" onBack={close}>
+        <CategoryPane id={open} header={false} />
+      </PhonePage>
+    );
+  }
 
   const searching = !!query.trim();
   return (

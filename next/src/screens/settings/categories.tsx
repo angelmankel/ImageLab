@@ -18,7 +18,7 @@ export interface Category {
 
 export const CATEGORIES: readonly Category[] = [
   { id: 'servers', label: 'Servers', description: 'The ComfyUI servers that render images and video.', icon: IconServer },
-  { id: 'ai', label: 'AI helper', description: 'The model that writes, improves and reads prompts. Keys stay in this browser; calls go straight from this tab to the provider.', icon: IconSparkles },
+  { id: 'ai', label: 'AI helper', description: 'The provider and model that write, improve and read prompts. Keys stay in this browser; calls go straight from this tab to the active provider.', icon: IconSparkles },
   { id: 'models', label: 'Models & CivitAI', description: 'CivitAI access and how model previews play.', icon: IconCube },
   { id: 'appearance', label: 'Appearance', description: 'Sizes and looks of the library.', icon: IconPalette },
   { id: 'sounds', label: 'Sounds', description: 'A blip when a job is queued, a chime when it is done.', icon: IconVolume },
@@ -34,7 +34,7 @@ export interface SettingDef extends SearchableRow {
   wide?: boolean;
   /** The control is small (a switch, a short tab row): stays beside the label on the phone too. */
   compact?: boolean;
-  /** Links shown after the hint ("Get one at venice.ai"). */
+  /** Links shown after the hint ("Get one at openrouter.ai"). */
   links?: ReadonlyArray<{ text: string; href: string }>;
   /** The control. A component, so it may use hooks. */
   Control: () => ReactElement;

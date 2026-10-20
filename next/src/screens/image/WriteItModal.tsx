@@ -1,6 +1,6 @@
 /**
  * "✦ Write it": the LLM writes the prompt (the main app's `generateLayerSet` through
- * `lib/venice`), from an idea or from the current prompt, and replaces every positive layer with
+ * `lib/ai`), from an idea or from the current prompt, and replaces every positive layer with
  * the set it returns, with Undo. The model picker is the main app's `AiModelPicker`.
  */
 import { useEffect, useRef, useState } from 'react';
@@ -8,13 +8,13 @@ import { Modal, Button, Loader } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { useStore } from '@/lib/store';
 import { compileLayers } from '@/lib/prompt';
-import { aiNotReadyHint, aiReady, generateLayerSet, type GenerateLayerSource } from '@/lib/venice';
+import { aiNotReadyHint, aiReady, generateLayerSet, type GenerateLayerSource } from '@/lib/ai';
 import { AiModelPicker } from '@/features/ai/AiModelPicker';
 import { Tabs } from '~/ui';
 import { T } from '~/theme/tokens';
 
 export function WriteItModal({ opened, onClose }: { opened: boolean; onClose: () => void }) {
-  const venice = useStore((s) => s.venice);
+  const ai = useStore((s) => s.ai);
   const current = useStore((s) => compileLayers(s.layers, 'positive'));
   const [source, setSource] = useState<GenerateLayerSource>('idea');
   const [idea, setIdea] = useState('');
@@ -22,7 +22,7 @@ export function WriteItModal({ opened, onClose }: { opened: boolean; onClose: ()
   const [error, setError] = useState<string | null>(null);
   const abort = useRef<AbortController | null>(null);
   useEffect(() => { if (!opened) abort.current?.abort(); }, [opened]);
-  const ready = aiReady(venice);
+  const ready = aiReady(ai);
   const canRun = ready && !busy && (source === 'idea' ? idea.trim().length > 0 : current.trim().length > 0);
 
   const run = async () => {
@@ -31,7 +31,7 @@ export function WriteItModal({ opened, onClose }: { opened: boolean; onClose: ()
     abort.current = ctrl;
     setBusy(true); setError(null);
     try {
-      const items = await generateLayerSet({ seed: source === 'idea' ? idea : current, source, settings: venice, signal: ctrl.signal });
+      const items = await generateLayerSet({ seed: source === 'idea' ? idea : current, source, settings: ai, signal: ctrl.signal });
       if (ctrl.signal.aborted) return;
       if (!items.length) { setError('The AI returned nothing usable — try rephrasing.'); return; }
       const st = useStore.getState();
@@ -57,7 +57,7 @@ export function WriteItModal({ opened, onClose }: { opened: boolean; onClose: ()
           <div style={{ maxHeight: 120, overflow: 'auto', borderRadius: 14, background: 'var(--il-card)', color: 'var(--il-fg2)', fontSize: 12, lineHeight: 1.5, padding: '10px 12px', whiteSpace: 'pre-wrap' }}>{current || '(empty)'}</div>
         )}
         <AiModelPicker size="xs" />
-        <div style={{ fontSize: 11, color: 'var(--il-muted)' }}>{ready ? 'Replaces the prompt with a fresh set of parts: subject, setting, light, style. The negative stays.' : `${aiNotReadyHint(venice)} to write prompts.`}</div>
+        <div style={{ fontSize: 11, color: 'var(--il-muted)' }}>{ready ? 'Replaces the prompt with a fresh set of parts: subject, setting, light, style. The negative stays.' : `${aiNotReadyHint(ai)} to write prompts.`}</div>
         {error && <div style={{ fontSize: 12, color: 'var(--il-err)' }}>{error}</div>}
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6 }}>
           <button type="button" onClick={onClose} style={{ height: 34, padding: '0 14px', border: 0, borderRadius: 999, background: 'var(--il-card-on)', color: 'var(--il-fg2)', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>Cancel</button>

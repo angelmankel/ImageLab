@@ -55,7 +55,7 @@ Nothing ever overlaps the picture. No Simple/Advanced. No preset slots. No mode 
 - Queue/run: `@/lib/comfy.ts`, `@/lib/comfyBus.ts` (ONE websocket per host — never `new WebSocket`), `@/lib/comfyRunner.ts`, `@/features/generate/*` (how the old app submits an image job — find `queuePrompt`/`generate`).
 - Video + workflow runs: `@/features/video/videoRun.ts`, `@/features/studio/studioRun.ts`, `@/features/workspace/modeHost.ts`.
 - CivitAI: `@/lib/civitai.ts`, `@/lib/civitaiCache.ts`, `@/features/browser/*`, `@/features/models/*`.
-- Prompt library: `@/lib/promptLibrary.ts`, `@/lib/promptMine.ts`, `@/features/next/CivitaiLibrary.tsx`, `MinePrompts.tsx`, `@/lib/venice.ts` (LLM "Write it").
+- Prompt library: `@/lib/promptLibrary.ts`, `@/lib/promptMine.ts`, `@/features/next/CivitaiLibrary.tsx`, `MinePrompts.tsx`, `@/lib/ai.ts` (LLM "Write it"; the providers are `@/lib/aiProviders.ts`).
 - Snippets: `@/lib/snippetLibrary.ts`, `@/lib/chips.ts`. Fullscreen: `@/components/FullscreenImage`, `@/components/VideoFullscreen`, `@/hooks/usePager`, `@/lib/pager.ts`, `@/hooks/useSwipe`.
 - History/collections: `@/features/history/*`, `@/features/collections/*`, `@/lib/favorites.ts`, `@/lib/jobsDb.ts`.
 - Server info/roles: `@/lib/serverRoles.ts`, `@/hooks/useVideoServerProbe.ts`, `@/hooks/useComfyConnection.ts`, `@/lib/routing.ts`.

@@ -1,10 +1,11 @@
 /**
  * Settings, desktop: the category list under the search (icon + name; the open one is an ember
  * pill like the rail). While searching, categories with no match dim and the others show their
- * count. A small ember dot marks a category that wants attention (AI helper with no key or no
- * model picked; no server online).
+ * count. A small ember dot marks a category that wants attention (the AI helper's active provider not
+ * set up; no server online).
  */
 import { useStore } from '@/lib/store';
+import { aiReady } from '@/lib/aiProviders';
 import { Count, Dot } from '~/ui';
 import { CATEGORIES, type CategoryId } from './categories';
 import { countByCategory } from './settingsLogic';
@@ -16,10 +17,9 @@ import { useServersUp } from './useServersUp';
 export function useAttention(): Partial<Record<CategoryId, boolean>> {
   const servers = useStore((s) => s.servers);
   const up = useServersUp(servers);
-  const venice = useStore((s) => s.venice);
+  const ai = useStore((s) => s.ai);
   const anyUp = servers.some((s) => s.enabled !== false && up[s.id]);
-  const aiReady = venice.provider === 'local' ? !!venice.localModel : !!venice.apiKey;
-  return { servers: !anyUp, ai: !aiReady };
+  return { servers: !anyUp, ai: !aiReady(ai) };
 }
 
 export function CategoryList() {

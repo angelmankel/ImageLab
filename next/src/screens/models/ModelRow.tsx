@@ -1,7 +1,8 @@
 /**
  * A model as a list row (the desktop list view): cover 64 on the left (a tap opens the
  * fullscreen model viewer), name, "by creator · version · size", base / type / NSFW tags, stats;
- * one 44px round action on the right (installed ✓, download, or "download the latest").
+ * one 44px round action on the right (installed ✓, download, or "download the latest"). The cover
+ * picture follows "Model preview starts on", as the tile's does (`useModelCover`).
  */
 import { IconCheck, IconEyeOff } from '@tabler/icons-react';
 import type { CivitaiModel } from '@/lib/civitai';
@@ -10,14 +11,14 @@ import { primaryFile } from '@/features/model-metadata/civitai';
 import { baseModelShort, fmtSizeKB, isBeyondMask, typeLabel, type InstalledState } from './civitaiQuery';
 import { COVER_FALLBACK, RoundAction, Stats, Tag, EmberBtn } from './bits';
 import { DownloadButton } from './DownloadButton';
-import { coverImage } from './ModelTile';
+import { useModelCover } from './ModelTile';
 import { openModelViewer } from './viewerBridge';
 import { isLocalModel } from './localModels';
 
 export function ModelRow({ model, selected, installed, mask, revealed, picking, onOpen, onReveal, onUse }: {
   model: CivitaiModel; selected: boolean; installed: InstalledState; mask: number; revealed: boolean; picking?: boolean; onOpen: () => void; onReveal: () => void; onUse: () => void;
 }) {
-  const { version, image, imageIndex } = coverImage(model, null, mask);
+  const { version, image, start, observe, viewerStart } = useModelCover(model, mask);
   const hidden = !!image && isBeyondMask(image.nsfwLevel, mask) && !revealed;
   const url = image ? civitaiThumbUrl(previewStill(image, 160), 160) : '';
   const file = version ? primaryFile(version) : null;
@@ -27,14 +28,16 @@ export function ModelRow({ model, selected, installed, mask, revealed, picking, 
   const onCover = () => {
     if (hidden) { onReveal(); return; }
     const file = isLocalModel(model) ? version?.files[0]?.name : null;
-    void openModelViewer(file ? { file } : { modelId: model.id, versionId: version?.id ?? null, imageIndex }).then((opened) => { if (!opened) onOpen(); });
+    void openModelViewer(file ? { file, start: viewerStart } : { modelId: model.id, versionId: version?.id ?? null, start: viewerStart }).then((opened) => { if (!opened) onOpen(); });
   };
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--il-card)', borderRadius: 16, padding: 8, outline: selected ? '2px solid var(--il-ember)' : undefined, outlineOffset: -2 }}>
       <button
         type="button"
+        ref={observe}
         onClick={onCover}
+        onPointerEnter={(e) => { if (e.pointerType !== 'touch') start(); }}
         aria-label={hidden ? `Show the NSFW cover of ${model.name}` : `View ${model.name}`}
         style={{ width: 64, height: 64, borderRadius: 12, flex: 'none', padding: 0, border: 0, background: hidden ? 'var(--il-elev)' : url ? 'var(--il-bg-deep)' : COVER_FALLBACK, overflow: 'hidden', display: 'grid', placeItems: 'center', color: 'var(--il-muted)', cursor: 'pointer' }}
       >

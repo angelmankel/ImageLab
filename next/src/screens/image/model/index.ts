@@ -14,6 +14,7 @@ export { CircleRow } from './CircleRow';
 export { EntryCard, MissingStrip } from './EntryCard';
 export { TriggerWords } from './TriggerWords';
 export { Thumb } from './Thumb';
+export { ModelThumb, useModelPreview } from './ModelThumb';
 export { useModelMeta, readModelMeta, metaLine, type ModelMeta } from './useModelMeta';
 export { KINDS, ALL_KINDS, IMAGE_KINDS, fmtWeight, specWith, type ModelKind, type ModelEntry, type KindSpec, type PickKind } from './kindSpecs';
 export { useKindApi } from './kinds';

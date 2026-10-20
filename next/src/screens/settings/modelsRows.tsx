@@ -4,7 +4,7 @@
  * preview starts on. Logic = `@/lib/store` civitai settings + `modelPreviewSource`, option list
  * from `@/lib/storage`.
  */
-import { PasswordInput } from '@mantine/core';
+import { SecretInput } from './SecretInput';
 import { useStore } from '@/lib/store';
 import { PREVIEW_SOURCES } from '@/lib/storage';
 import { Chip, Row } from '~/ui';
@@ -15,8 +15,8 @@ function CivitaiKeyCtl() {
   const apiKey = useStore((s) => s.civitai.apiKey);
   const setCivitai = useStore((s) => s.setCivitai);
   return (
-    <PasswordInput value={apiKey} onChange={(e) => setCivitai({ apiKey: e.currentTarget.value })} placeholder="CivitAI API key" aria-label="CivitAI API key"
-      size="sm" spellCheck={false} autoCapitalize="off" autoComplete="off" styles={inputStyles} style={ctlStyle} />
+    <SecretInput value={apiKey} onChange={(e) => setCivitai({ apiKey: e.currentTarget.value })} placeholder="CivitAI API key" aria-label="CivitAI API key"
+      size="sm" styles={inputStyles} style={ctlStyle} />
   );
 }
 
@@ -43,7 +43,7 @@ export const MODELS_ROWS: readonly SettingDef[] = [
   },
   {
     id: 'models.preview', category: 'models', label: 'Model preview starts on', wide: true,
-    hint: "Which image a model tile shows first and how its hover slideshow plays.",
+    hint: "Which picture a model's tiles, bubbles and card show first, and the one the viewer opens on.",
     keywords: ['first', 'popular', 'random', 'history', 'slideshow', 'hover', 'thumbnail', 'tile', 'picture'], Control: PreviewCtl,
   },
 ];

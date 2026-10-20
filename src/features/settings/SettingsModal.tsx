@@ -11,7 +11,7 @@ import {
   type Icon as TablerIcon,
 } from '@tabler/icons-react';
 import { ServersTab } from './ServersTab';
-import { VeniceTab } from './VeniceTab';
+import { AiTab } from './AiTab';
 import { CivitaiTab } from './CivitaiTab';
 import { PreviewsTab } from './PreviewsTab';
 import { ThemeTab } from './ThemeTab';
@@ -37,7 +37,7 @@ type CategoryDef = {
 
 const SETTINGS_CATEGORIES: CategoryDef[] = [
   { id: 'servers',    label: 'Servers',     description: 'ComfyUI endpoints and routing',          Icon: IconServer,   Component: ServersTab },
-  { id: 'ai',         label: 'AI',          description: 'Venice or local LLM for prompt helpers',     Icon: IconSparkles, Component: VeniceTab },
+  { id: 'ai',         label: 'AI',          description: 'The AI helper: active provider, model, prompt style, local models', Icon: IconSparkles, Component: AiTab },
   { id: 'civitai',    label: 'CivitAI',     description: 'Model browser credentials',              Icon: IconKey,      Component: CivitaiTab },
   { id: 'previews',   label: 'Previews',    description: 'Model picker hover slideshow',           Icon: IconPhoto,    Component: PreviewsTab },
   { id: 'appearance', label: 'Appearance',  description: 'Theme and visual customization',         Icon: IconPalette,  Component: ThemeTab },
@@ -59,12 +59,9 @@ const SEARCHABLE_SETTINGS: SearchableSetting[] = [
   { categoryId: 'workspace', settingId: 'filmstrip', label: 'Filmstrip', description: 'Thumbnails floating along the bottom of the stage', keywords: ['filmstrip', 'strip', 'thumbnails', 'stage', 'results'] },
   { categoryId: 'servers', settingId: 'servers', label: 'Active Servers', description: 'Rename, re-point, pause, or remove ComfyUI endpoints', keywords: ['server', 'comfyui', 'endpoint', 'host', 'port', 'lan', 'enable', 'disable', 'remove'] },
   { categoryId: 'servers', settingId: 'addServer', label: 'Add Server', description: 'Connect another ComfyUI endpoint', keywords: ['server', 'add', 'new', 'comfyui', 'host', 'routing', 'round-robin'] },
-  { categoryId: 'ai', settingId: 'activeModel', label: 'Active AI Model', description: 'Switch between Venice and local models', keywords: ['ai', 'model', 'llm', 'local', 'ollama', 'venice', 'switch', 'provider', 'gemma', 'qwen'] },
+  { categoryId: 'ai', settingId: 'activeModel', label: 'Active provider and model', description: 'Which added provider the helpers call (Local, Venice, OpenRouter, OpenAI, Anthropic…) and its model', keywords: ['ai', 'model', 'llm', 'local', 'ollama', 'venice', 'openrouter', 'openai', 'anthropic', 'claude', 'gemini', 'switch', 'provider', 'gemma', 'qwen'] },
   { categoryId: 'ai', settingId: 'localLlm', label: 'Local LLM', description: 'Ollama server, installed models, download and browse models', keywords: ['local', 'ollama', 'llm', 'download', 'huggingface', 'gguf', 'abliterated', 'uncensored', 'browse', 'gpu'] },
-  { categoryId: 'ai', settingId: 'apiKey', label: 'Venice API Key', description: 'Key for the snippet library, tagging, and image-to-prompt', keywords: ['venice', 'ai', 'api', 'key', 'llm', 'token'] },
-  { categoryId: 'ai', settingId: 'model', label: 'Venice Model', description: 'Chat model used by every AI helper', keywords: ['venice', 'ai', 'model', 'llm', 'llama'] },
   { categoryId: 'ai', settingId: 'promptStyle', label: 'Prompt Style', description: 'Generic SDXL phrases or Illustrious / Danbooru tags', keywords: ['prompt', 'style', 'sdxl', 'illustrious', 'danbooru', 'tag', 'brainstorm'] },
-  { categoryId: 'ai', settingId: 'baseUrl', label: 'Base URL', description: 'Any OpenAI-compatible endpoint', keywords: ['base', 'url', 'endpoint', 'openai', 'provider', 'advanced'] },
   { categoryId: 'civitai', settingId: 'apiKey', label: 'CivitAI API Key', description: 'Bearer token for the model browser and metadata lookups', keywords: ['civitai', 'red', 'token', 'api', 'key', 'auth', 'browser', 'adult', 'nsfw'] },
   { categoryId: 'previews', settingId: 'previewSource', label: 'Preview Order', description: 'How the model picker hover slideshow orders its images', keywords: ['preview', 'slideshow', 'civitai', 'model', 'image', 'random', 'history', 'popular'] },
   { categoryId: 'appearance', settingId: 'theme', label: 'Theme', description: 'Choose application color theme', keywords: ['theme', 'color', 'dark', 'appearance', 'style', 'palette'] },

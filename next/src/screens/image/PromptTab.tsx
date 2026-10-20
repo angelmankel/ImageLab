@@ -7,7 +7,7 @@
 import { useState } from 'react';
 import { IconBan, IconChevronDown, IconX } from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
-import { aiReady } from '@/lib/venice';
+import { aiReady } from '@/lib/ai';
 import { usePromptText } from './usePromptText';
 import { SnippetRow } from './SnippetRow';
 import { StyleRow } from './StyleRow';
@@ -19,7 +19,7 @@ const btn = (accent: boolean): React.CSSProperties => ({ height: 34, padding: '0
 export function PromptTab({ large = false }: { large?: boolean }) {
   const prompt = usePromptText('positive');
   const negative = usePromptText('negative');
-  const venice = useStore((s) => s.venice);
+  const ai = useStore((s) => s.ai);
   const [writing, setWriting] = useState(false);
   const [library, setLibrary] = useState(false);
   const [negOpen, setNegOpen] = useState(false);
@@ -32,7 +32,7 @@ export function PromptTab({ large = false }: { large?: boolean }) {
           placeholder="What do you want to see?"
           style={{ width: '100%', border: 0, background: 'transparent', color: 'var(--il-fg)', fontSize: 15, lineHeight: 1.5, resize: 'none', outline: 'none', padding: 0, display: 'block' }} />
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10 }}>
-          <button type="button" onClick={() => { prompt.flush(); setWriting(true); }} style={btn(true)} title={aiReady(venice) ? 'Let the AI write the prompt' : 'Set up the AI helper in Settings to write prompts'}>✦ Write it</button>
+          <button type="button" onClick={() => { prompt.flush(); setWriting(true); }} style={btn(true)} title={aiReady(ai) ? 'Let the AI write the prompt' : 'Set up the AI helper in Settings to write prompts'}>✦ Write it</button>
           <button type="button" onClick={() => { prompt.flush(); setLibrary(true); }} style={btn(false)}>Library</button>
           {extraParts > 0 && <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--il-muted)' }} title="More prompt parts are on (snippets, style, written parts)">+{extraParts} part{extraParts === 1 ? '' : 's'}</span>}
           <div style={{ flex: 1 }} />

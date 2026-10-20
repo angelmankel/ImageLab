@@ -4,13 +4,15 @@
  * entry's circle, `CircleRow`). ONE card for
  * every kind of every step: the api says what the entry can do (switch, weight, remove) and hands
  * in its per-kind pieces (`KindApi.card`). A pending entry (not downloaded yet) carries the strip
- * with the Download button; a missing one (named, but no server lists it) says so.
+ * with the Download button; a missing one (named, but no server lists it) says so. The picture
+ * follows "Model preview starts on" (`useModelPreview`, active: the card loads "Most popular").
  */
 import { useState, type ReactNode } from 'react';
 import { IconAlertTriangle, IconChevronDown, IconExternalLink } from '@tabler/icons-react';
 import { T } from '~/theme/tokens';
 import { Switch, SliderRow } from '~/ui';
 import { Thumb } from './Thumb';
+import { useModelPreview } from './ModelThumb';
 import { useModelMeta } from './useModelMeta';
 import { metaLine } from './useModelMeta';
 import { metaWithPending } from './pendingLogic';
@@ -50,6 +52,8 @@ export function MissingStrip({ file }: { file: string }) {
 
 export function EntryCard({ entry, api, onChange }: { entry: ModelEntry; api: KindApi; onChange: () => void }) {
   const meta = metaWithPending(useModelMeta(entry.name), entry.pending);
+  // The selected model, shown big: its "Most popular" list loads now, not on a hover.
+  const preview = useModelPreview(meta, { active: !!entry.name });
   const [more, setMore] = useState(false);
   const { spec, card } = api;
   const pending = entry.pending;
@@ -67,9 +71,9 @@ export function EntryCard({ entry, api, onChange }: { entry: ModelEntry; api: Ki
       {pending && <PendingStrip record={pending} />}
       {!pending && entry.missing && <MissingStrip file={entry.name} />}
       <div style={{ display: 'flex', gap: 12 }}>
-        <button type="button" onClick={() => entry.name && void openModelViewer({ file: entry.name })} aria-label={`Open ${title} full screen`} title="Open full screen"
+        <button type="button" onClick={() => entry.name && void openModelViewer({ file: entry.name, start: preview.viewerStart })} {...preview.hover} aria-label={`Open ${title} full screen`} title="Open full screen"
           style={{ border: 0, padding: 0, background: 'transparent', cursor: entry.name ? 'pointer' : 'default', flex: 'none', borderRadius: T.radius.lg, opacity: pending || entry.missing ? 0.6 : 1 }}>
-          <Thumb label={meta.label || '?'} images={meta.images} size={88} />
+          <Thumb label={meta.label || '?'} images={preview.stills} size={88} />
         </button>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 14, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'flex', alignItems: 'center', gap: 6 }} title={entry.name}>

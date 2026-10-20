@@ -1,0 +1,41 @@
+/**
+ * A model's picture in the Image step (rule 4) with Settings → "Model preview starts on" applied:
+ * `useModelPreview` orders the file's CivitAI pictures through `~/app/usePreviewOrder` (curated ·
+ * most popular · random · local history first) and says which picture the fullscreen viewer
+ * should open on; `ModelThumb` is `Thumb` fed by it: "Most popular" loads when it is on screen, a
+ * hover reshuffles "Random". A pending pick (not downloaded, no hash yet) keeps its pick thumbnail.
+ */
+import { useMemo } from 'react';
+import { previewStill } from '@/lib/civitai';
+import { usePreviewOrder, viewerStart, type PreviewImage } from '~/app/usePreviewOrder';
+import { Thumb } from './Thumb';
+import type { ModelMeta } from './useModelMeta';
+
+type MetaPart = Pick<ModelMeta, 'file' | 'images' | 'samples' | 'versionId'>;
+
+export function useModelPreview(meta: MetaPart, opts: { active?: boolean } = {}) {
+  const curated: PreviewImage[] = useMemo(
+    () => (meta.samples.length ? meta.samples : meta.images.map((url) => ({ url }))),
+    [meta.samples, meta.images],
+  );
+  const files = useMemo(() => (meta.file ? [meta.file] : []), [meta.file]);
+  const { images, start, observe } = usePreviewOrder(meta.versionId, curated, { files, active: opts.active });
+  const stills = useMemo(() => images.map((i) => (i.local ? i.url : previewStill(i))).filter(Boolean), [images]);
+  return {
+    stills,
+    start,
+    /** A callback ref for the picture: "Most popular" loads once it is on screen. */
+    observe,
+    /** Hand to `openModelViewer({ file, start })`. */
+    viewerStart: viewerStart(images, meta.versionId),
+    /** Spread on the element the pointer enters (not touch). */
+    hover: { onPointerEnter: (e: React.PointerEvent) => { if (e.pointerType !== 'touch') start(); } },
+  };
+}
+
+export function ModelThumb({ meta, label, size, round, style, active }: {
+  meta: MetaPart; label: string; size: number; round?: boolean; style?: React.CSSProperties; active?: boolean;
+}) {
+  const p = useModelPreview(meta, { active });
+  return <Thumb label={label} images={p.stills} size={size} round={round} style={style} rootRef={p.observe} {...p.hover} />;
+}
