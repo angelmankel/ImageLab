@@ -22,7 +22,7 @@ function missingOf(step: Step, f: Facts): string | null {
   switch (step.kind) {
     case 'image': return f.checkpoint ? null : 'Pick a model';
     case 'refine': return f.checkpoint ? null : 'Pick a model in step 1 (Refine re-samples with it)';
-    case 'upscale': return step.params?.upscale?.model || f.upscaleModels > 0 ? null : 'No upscale model on the server';
+    // Upscale never misses a field: without an upscale model on the server it does a lanczos resize.
     case 'video': return f.videoPrompt.trim() ? null : 'Write a motion prompt';
     case 'workflow': return f.workflowPicked ? null : 'Pick a workflow';
     default: return null;
