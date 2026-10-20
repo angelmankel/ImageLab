@@ -17,6 +17,7 @@ import { ModelViewerHost } from '~/screens/modelViewer';
 import { useCreditNewResults } from '~/screens/image/resultSteps';
 import { ContextMenuHost } from './contextMenu';
 import { DragLayer, SendToSheet } from '~/dnd';
+import { CompositionSync } from '~/compose/sizeStore';
 import { UiEffects } from '~/ui/UiEffects';
 import './sessionMenus'; // boots the sessions store (fix list 20 / 36) + its right-click entries
 import { useFullscreenHotkey } from './fullscreen';
@@ -31,6 +32,7 @@ export function App() {
       <ModelViewerHost />
       <ContextMenuHost />
       <DragLayer />
+      <CompositionSync />
       <SendToSheet />
       <UiEffects />
     </ErrorBoundary>

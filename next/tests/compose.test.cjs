@@ -44,3 +44,39 @@ test('valueRef: short stays, long is fingerprinted and stable', () => {
   assert.equal(L.fmtDims(832, 1216), '832 × 1216');
   assert.equal(L.fmtDims(0, 5), '');
 });
+
+const S = load('src/compose/sizeLogic.ts');
+
+test('model default = native pixel count in the shape, on the 64 grid (SDXL buckets)', () => {
+  const sz = (area, id) => { const r = S.ratioById(id); const s = S.sizeForArea(area, r.w, r.h); return `${s.width}x${s.height}`; };
+  const xl = 1024 * 1024;
+  assert.equal(sz(xl, '1:1'), '1024x1024');
+  assert.equal(sz(xl, '2:3'), '832x1216');
+  assert.equal(sz(xl, '3:2'), '1216x832');
+  assert.equal(sz(xl, '9:16'), '768x1344');
+  assert.equal(sz(xl, '16:9'), '1344x768');
+  assert.equal(sz(512 * 512, '1:1'), '512x512');
+  for (const id of ['2:3', '3:4', '4:5', '9:16', '3:2', '5:4']) {
+    const r = S.ratioById(id); const s = S.sizeForArea(xl, r.w, r.h);
+    assert.ok(s.width * s.height <= xl, id); assert.equal(s.width % 64, 0); assert.equal(s.height % 64, 0);
+  }
+  assert.equal(S.nativeArea({ width: 512, height: 512 }), 262144);
+  assert.equal(S.nativeArea(null), xl);
+});
+
+test('shapes, flips, nearest ratio', () => {
+  assert.equal(S.flipRatio('2:3'), '3:2'); assert.equal(S.flipRatio('16:9'), '9:16'); assert.equal(S.flipRatio('1:1'), '1:1');
+  assert.equal(S.orientOf(832, 1216), 'portrait'); assert.equal(S.orientOf(1024, 1024), 'square'); assert.equal(S.orientOf(1344, 768), 'landscape');
+  assert.equal(S.nearestRatio(832, 1216).id, '2:3'); assert.equal(S.nearestRatio(1344, 768).id, '16:9'); assert.equal(S.nearestRatio(0, 5).id, '1:1');
+  assert.equal(S.orientOfRatio(S.ratioById('5:4')), 'landscape');
+});
+
+test('steps of 64, snaps, img2img sizes', () => {
+  assert.equal(S.stepSide(1000, 1), 1024); assert.equal(S.stepSide(1000, -1), 960); assert.equal(S.stepSide(1024, 1), 1088); assert.equal(S.stepSide(256, -1), 256);
+  assert.equal(S.snapSide(1001), 1000); assert.equal(S.snapSide(99999), 4096); assert.equal(S.snapSide(NaN), 1024);
+  assert.deepEqual(S.scaleStep(832, 1216, 1), { width: 896, height: 1280 });
+  assert.deepEqual(S.scaledInput(2000, 1000, 1024, 1024), { width: 1024, height: 512 });
+  assert.deepEqual(S.scaledInput(500, 1000, 1024, 1024), { width: 512, height: 1024 });
+  assert.equal(S.nativeLongSide(800, 1200, 1024 * 1024), 1216);
+  assert.equal(S.pictureLongSide(6000, 4000), 4096);
+});

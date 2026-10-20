@@ -18,3 +18,7 @@ export type { LibraryPick, ServerFiles } from './LibraryPicker';
 export { sourceChoices, ORIGIN_LABEL, originOfDrop, displayName, slotLabel, fmtDims, valueRef } from './inputLogic';
 export type { Origin, SourceMode, SourceChoice as SourceChoiceItem } from './inputLogic';
 export { useOrigin, useOrigins, rememberOrigin } from './originStore';
+export { CompositionTab } from './CompositionTab';
+export { useComposition, useCompositionSync, CompositionSync, useNativeArea } from './sizeStore';
+export type { SizeMode, InputSizeMode } from './sizeStore';
+export { Seg } from './Seg';
