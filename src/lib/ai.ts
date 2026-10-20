@@ -35,17 +35,19 @@ export type AiChatOptions = {
   noThinking?: boolean;
   /** Abort signal — wired through to `fetch`. */
   signal?: AbortSignal;
+  /** More body fields (top_p, seed…), from the user's per-provider parameters (`aiParams`). */
+  extra?: Record<string, unknown>;
 };
 
 /** Low-level chat call on the active provider. Throws on non-2xx with a useful message. */
 export async function aiChat(opts: AiChatOptions): Promise<string> {
-  const { settings, messages, temperature = 0.85, maxTokens = 400, noThinking, signal } = opts;
+  const { settings, messages, temperature = 0.85, maxTokens = 400, noThinking, signal, extra } = opts;
   const entry = activeEntry(settings);
   const spec = providerSpec(entry.id);
   const who = spec.name;
   if (!aiReady(settings)) throw new Error(`${aiNotReadyHint(settings)}.`);
 
-  const { url, headers, body } = chatRequest(entry, { model: opts.model || entry.model, messages, temperature, maxTokens, noThinking });
+  const { url, headers, body } = chatRequest(entry, { model: opts.model || entry.model, messages, temperature, maxTokens, noThinking, extra });
   let res: Response;
   try {
     res = await fetch(url, { method: 'POST', signal, headers, body: JSON.stringify(body) });
@@ -233,7 +235,8 @@ export async function brainstormSnippets(
 export type GenerateLayerSource = 'idea' | 'prompt';
 export type GeneratedSnippet = { tag: string; text: string };
 
-function layerSetSystemPrompt(source: GenerateLayerSource, promptStyle: PromptStyle): string {
+/** The stock system prompt of "Write it" (shown, and editable, behind its cog). */
+export function layerSetSystemPrompt(source: GenerateLayerSource, promptStyle: PromptStyle): string {
   const taskLine = source === 'idea'
     ? 'The user gives you a short idea or theme. Invent a vivid, cohesive image based on it.'
     : 'The user gives you an existing prompt. Reinterpret it as a richer set of structured snippets — keep the subject and intent, but spread the details across more dimensions.';
@@ -283,18 +286,23 @@ export async function generateLayerSet(opts: {
   source: GenerateLayerSource;
   settings: AiSettings;
   signal?: AbortSignal;
+  /** The user's own system prompt (empty = the stock one). */
+  systemPrompt?: string;
+  /** The user's parameters for the active provider (`aiParams.paramBody`). */
+  params?: { temperature?: number; maxTokens?: number; extra?: Record<string, unknown> };
 }): Promise<GeneratedSnippet[]> {
   const seed = opts.seed.trim();
   if (!seed) return [];
   const messages: AiMessage[] = [
-    { role: 'system', content: layerSetSystemPrompt(opts.source, opts.settings.promptStyle) },
+    { role: 'system', content: opts.systemPrompt?.trim() || layerSetSystemPrompt(opts.source, opts.settings.promptStyle) },
     { role: 'user', content: seed },
   ];
   const raw = await aiChat({
     settings: opts.settings,
     messages,
-    temperature: opts.source === 'idea' ? 1.0 : 0.7,
-    maxTokens: 800,
+    temperature: opts.params?.temperature ?? (opts.source === 'idea' ? 1.0 : 0.7),
+    maxTokens: opts.params?.maxTokens ?? 800,
+    extra: opts.params?.extra,
     signal: opts.signal,
   });
   return parseGeneratedLayers(raw);

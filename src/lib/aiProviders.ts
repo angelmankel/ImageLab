@@ -478,6 +478,8 @@ export type ChatRequestInput = {
   maxTokens: number;
   /** Ask a reasoning model to answer straight away (Ollama's think-off, Venice's strip). */
   noThinking?: boolean;
+  /** More body fields the user set (top_p, seed…; `aiParams.paramBody`), added as they are. */
+  extra?: Record<string, unknown>;
 };
 
 export type BuiltRequest = { url: string; headers: Record<string, string>; body: Record<string, unknown> };
@@ -501,9 +503,9 @@ export function chatRequest(e: AiProviderEntry, req: ChatRequestInput): BuiltReq
   const spec = providerSpec(e.id);
   const url = `${resolveBaseUrl(e)}${spec.chatPath}`;
   if (spec.adapter === 'anthropic') {
-    return { url, headers: { 'Content-Type': 'application/json', ...anthropicHeaders(e.apiKey) }, body: anthropicBody(req) };
+    return { url, headers: { 'Content-Type': 'application/json', ...anthropicHeaders(e.apiKey) }, body: { ...anthropicBody(req), ...(req.extra ?? {}) } };
   }
-  const body: Record<string, unknown> = { model: req.model, messages: req.messages, temperature: req.temperature, max_tokens: req.maxTokens };
+  const body: Record<string, unknown> = { model: req.model, messages: req.messages, temperature: req.temperature, max_tokens: req.maxTokens, ...(req.extra ?? {}) };
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (spec.adapter === 'openai') headers.Authorization = `Bearer ${e.apiKey}`;
   switch (e.id) {
