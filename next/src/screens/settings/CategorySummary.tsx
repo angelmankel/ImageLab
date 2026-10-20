@@ -6,6 +6,7 @@
 import { useStore } from '@/lib/store';
 import { PREVIEW_SOURCES } from '@/lib/storage';
 import { useSoundStore } from '@/lib/sounds';
+import { useHints } from '~/ui/hints';
 import { useNext } from '@/features/next/nextStore';
 import { aiStatusLine } from '@/lib/aiProviders';
 import type { CategoryId } from './categories';
@@ -46,7 +47,13 @@ function About() {
   return <>{classic ? 'Classic UI on its old workspace' : 'Classic UI, this app'}</>;
 }
 
-const SUMMARY: Record<CategoryId, () => JSX.Element> = { servers: Servers, ai: Ai, models: Models, appearance: Appearance, sounds: Sounds, about: About };
+function Hints() {
+  const on = useHints((s) => s.enabled);
+  const edited = useHints((s) => Object.keys(s.overrides).length);
+  return <>{on ? 'On' : 'Off'}{edited ? ` · ${edited} edited` : ''}</>;
+}
+
+const SUMMARY: Record<CategoryId, () => JSX.Element> = { servers: Servers, ai: Ai, models: Models, appearance: Appearance, sounds: Sounds, hints: Hints, about: About };
 
 export function CategorySummary({ id }: { id: CategoryId }) {
   const S = SUMMARY[id];

@@ -6,8 +6,8 @@
  * the one-line summaries the phone list shows under each category. No imports.
  */
 
-export type CategoryId = 'servers' | 'ai' | 'models' | 'appearance' | 'sounds' | 'about';
-export const CATEGORY_IDS: readonly CategoryId[] = ['servers', 'ai', 'models', 'appearance', 'sounds', 'about'];
+export type CategoryId = 'servers' | 'ai' | 'models' | 'appearance' | 'sounds' | 'hints' | 'about';
+export const CATEGORY_IDS: readonly CategoryId[] = ['servers', 'ai', 'models', 'appearance', 'sounds', 'hints', 'about'];
 
 /** What the search reads from a row; the registry's rows carry more (group, control). */
 export interface SearchableRow {

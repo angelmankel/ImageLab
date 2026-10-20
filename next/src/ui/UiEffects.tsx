@@ -4,10 +4,12 @@
  *   - UI sounds by delegation, so every button in every screen gets them without an edit: a
  *     whisper on mouse hover onto a new control, a tick on press, the toggle sound for switches,
  *     checkboxes and pressed-state buttons (direction = the new state). `data-no-sound` on an
- *     element (or an ancestor) opts it out.
+ *     element (or an ancestor) opts it out;
+ *   - a toast sounds by its colour: red = error, green / teal = success (no edit in the screens).
  * Renders nothing.
  */
 import { useEffect } from 'react';
+import { notificationsStore } from '@mantine/notifications';
 import { useShortcut, ShortcutPriority } from '@/hooks/useShortcut';
 import { playSound } from '@/lib/sounds';
 import { useHints } from './hints';
@@ -62,9 +64,23 @@ export function UiEffects() {
       if (to !== undefined) playSound('toggle', { on: to });
       else if (el.tagName !== 'LABEL') playSound('click');
     };
+    // Toasts: one sound per new toast id, by colour.
+    const seen = new Set(notificationsStore.getState().notifications.map((n) => String(n.id)));
+    const unsub = notificationsStore.subscribe((st) => {
+      for (const n of [...st.notifications, ...st.queue]) {
+        const id = String(n.id);
+        if (seen.has(id)) continue;
+        seen.add(id);
+        const c = String(n.color ?? '');
+        if (c === 'red') playSound('error');
+        else if (c === 'green' || c === 'teal') playSound('success');
+      }
+      if (seen.size > 200) { seen.clear(); for (const n of [...st.notifications, ...st.queue]) seen.add(String(n.id)); }
+    });
     document.addEventListener('pointerover', over, { passive: true });
     document.addEventListener('pointerdown', down, { passive: true, capture: true });
     return () => {
+      unsub();
       document.removeEventListener('pointerover', over);
       document.removeEventListener('pointerdown', down, { capture: true });
     };

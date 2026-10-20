@@ -88,7 +88,7 @@ export function VideoSettingsTab() {
           </>
         ) : (
           <>
-            <Switch label={`Fast (lightx2v, ${fr.steps} steps, CFG ${fr.cfg})`} checked={v.fast} onChange={(fast) => v.set({ fast })} />
+            <Switch hint="video.fast" label={`Fast (lightx2v, ${fr.steps} steps, CFG ${fr.cfg})`} checked={v.fast} onChange={(fast) => v.set({ fast })} />
             {v.fast ? (
               <>
                 <ChipGroup title="Steps">{[4, 6, 8].map((n) => <Chip key={n} small on={fr.steps === n} onClick={() => setFr({ steps: n, switchStep: Math.min(fr.switchStep, n), motionSteps: Math.min(fr.motionSteps, n) })}>{n}</Chip>)}</ChipGroup>

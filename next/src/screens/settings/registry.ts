@@ -10,8 +10,9 @@ import { MODELS_ROWS } from './modelsRows';
 import { COMPOSITION_ROWS } from '~/compose/settingsRows';
 import { SERVERS_ROWS } from './serversRows';
 import { SOUNDS_ROWS } from './soundsRows';
+import { HINTS_ROWS } from './hintsRows';
 
-export const ALL_ROWS: readonly SettingDef[] = [...SERVERS_ROWS, ...AI_ROWS, ...MODELS_ROWS, ...COMPOSITION_ROWS, ...APPEARANCE_ROWS, ...SOUNDS_ROWS, ...ABOUT_ROWS];
+export const ALL_ROWS: readonly SettingDef[] = [...SERVERS_ROWS, ...AI_ROWS, ...MODELS_ROWS, ...COMPOSITION_ROWS, ...APPEARANCE_ROWS, ...SOUNDS_ROWS, ...HINTS_ROWS, ...ABOUT_ROWS];
 
 export const rowsOf = (category: CategoryId): SettingDef[] => ALL_ROWS.filter((r) => r.category === category);
 
