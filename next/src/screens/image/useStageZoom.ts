@@ -53,7 +53,10 @@ export function useStageZoom(ref: RefObject<HTMLElement | null>, resetKey: unkno
     if (e.button !== 0) return;
     const map = pointers.current;
     map.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    // A mouse press on a draggable picture (fit size) may become a native drag (~/dnd): capturing
+    // the pointer would swallow it. Its dragstart cancels the pointer, so it is never a tap.
+    const nativeDrag = e.pointerType === 'mouse' && (e.target as HTMLElement).draggable === true;
+    if (!nativeDrag) (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     if (map.size === 1) {
       pinched.current = false;
       drag.current = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: false };

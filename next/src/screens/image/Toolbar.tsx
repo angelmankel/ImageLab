@@ -1,12 +1,17 @@
 /**
  * Rule 7: the image toolbar, its own 52px row, icons centred, no seek, no info chips:
- * Fit · Zoom in · Zoom out | Crop & re-render · Mask & inpaint · Compare | Vary · Send to next
- * step · ★ · Download · Delete · Fullscreen | Live preview on / off. Fullscreen is the white one. Delete has no confirm: the
- * note offers Undo (`~/app/deleteResult`; the Delete / Backspace key on the stage does the same).
+ * Fit · Zoom in · Zoom out | Crop & re-render · Mask & inpaint · Compare · Remove BG | Vary · Recall ·
+ * Send to next step · ★ · Download · Delete · Fullscreen | Live preview on / off. Fullscreen is the white one.
+ * Delete has no confirm: the note offers Undo (`~/app/deleteResult`; the Delete / Backspace key on
+ * the stage does the same). Item 23 (10-20): every button works except the brush (inpaint, planned
+ * on its own): Crop opens the crop editor and re-renders the crop full size when it changed (img2img
+ * scales the input up), Compare splits the stage (`CompareView`), Remove BG (item 43) makes a
+ * cut-out (`~/app/removeBgAction`), shown over a checkerboard.
  */
 import { useState } from 'react';
 import { notifications } from '@mantine/notifications';
-import { IconArrowsMaximize, IconZoomIn, IconZoomOut, IconCrop, IconBrush, IconColumns2, IconRefresh, IconHistory, IconArrowRight, IconHeart, IconHeartFilled, IconDownload, IconMaximize, IconTrash, IconBroadcast, IconBroadcastOff } from '@tabler/icons-react';
+import { Loader } from '@mantine/core';
+import { IconArrowsMaximize, IconZoomIn, IconZoomOut, IconCrop, IconBrush, IconColumns2, IconRefresh, IconHistory, IconArrowRight, IconHeart, IconHeartFilled, IconDownload, IconMaximize, IconTrash, IconBroadcast, IconBroadcastOff, IconBackground } from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
 import { useViewerPrefs } from '@/features/history/viewerPrefs';
 import { urlToImageState } from '@/features/inputImage/imageOps';
@@ -14,10 +19,12 @@ import { EditImageModal } from '@/features/inputImage/EditImageModal';
 import type { Step } from '~/app/stepsStore';
 import { recallFrom, reuseSettingsFrom, sendToStep } from '~/app/actions';
 import { deleteOutput } from '~/app/deleteResult';
+import { removeBgFrom, useRemovingBg } from '~/app/removeBgAction';
 import { IconBtn, Sep } from '~/ui';
 import { T } from '~/theme/tokens';
 import { StageBadge } from './StageBadge';
 import { useLayout } from './layoutStore';
+import { useStage } from './stageStore';
 import { useStepRun } from './GenerateBar';
 import type { StageMedia } from './useStageMedia';
 import type { useStageZoom } from './useStageZoom';
@@ -47,7 +54,10 @@ export function Toolbar({ step, media, zoom, onFullscreen, canFullscreen, phone 
   const inputImage = useStore((s) => s.workflow.inputImage);
   const setTab = useLayout((s) => s.setTab);
   const { run } = useStepRun(step);
-  const [cropping, setCropping] = useState(false);
+  const [cropping, setCropping] = useState<{ before: unknown } | null>(null);
+  const compare = useStage((s) => s.compare);
+  const setCompare = useStage((s) => s.setCompare);
+  const removing = useRemovingBg(media.item?.url);
   const has = !!media.item;
   /** Zoom is for pictures; a clip (StagePlayer) has none. */
   const zoomable = has && media.item?.kind !== 'video';
@@ -65,9 +75,21 @@ export function Toolbar({ step, media, zoom, onFullscreen, canFullscreen, phone 
       const state = await urlToImageState(media.item.url, media.item.filename);
       useStore.getState().setWorkflow({ inputImage: state });
       setTab('input');
-      setCropping(true);
+      setCropping({ before: useStore.getState().workflow.inputImage });
     } catch (e) { notifications.show({ title: 'Could not load the picture', message: e instanceof Error ? e.message : String(e), color: 'red' }); }
   };
+
+  /** The crop editor closed: a changed crop is re-rendered at full size on an Image step. */
+  const cropDone = () => {
+    const changed = !!cropping && useStore.getState().workflow.inputImage !== cropping.before;
+    setCropping(null);
+    if (!changed) return;
+    if (step.kind === 'image') {
+      run(false);
+      notifications.show({ title: 'Re-rendering the crop', message: 'Full size, from the cropped part.', color: 'teal', autoClose: 2500 });
+    } else notifications.show({ title: 'Cropped', message: "The crop is the Image step's input now.", color: 'teal', autoClose: 2500 });
+  };
+  const comparable = has && media.items.filter((i) => i.kind === 'image').length > 1 && media.item?.kind !== 'video';
 
   return (
     <>
@@ -79,7 +101,8 @@ export function Toolbar({ step, media, zoom, onFullscreen, canFullscreen, phone 
         <Sep />
         <IconBtn icon={<IconCrop size={16} stroke={2.2} />} label="Crop a part and re-render it full size" onClick={() => void crop()} style={round} disabled={!has || media.item?.kind === 'video'} />
         <IconBtn icon={<IconBrush size={16} stroke={2.2} />} label="Mask and inpaint" onClick={() => soon('Mask & inpaint')} style={round} disabled={!has} />
-        <IconBtn icon={<IconColumns2 size={16} stroke={2.2} />} label="Compare with the previous result" onClick={() => soon('Compare')} style={round} disabled={!has} />
+        <IconBtn icon={<IconColumns2 size={16} stroke={2.2} />} label={compare ? 'Close compare' : 'Compare — split view against another result'} on={compare} onClick={() => setCompare(!compare)} style={{ ...round, background: compare ? 'var(--il-ember-soft)' : 'var(--il-elev)' }} disabled={!comparable && !compare} />
+        <IconBtn icon={removing ? <Loader size={14} color="var(--il-ember)" /> : <IconBackground size={16} stroke={2.2} />} label={removing ? 'Removing the background…' : 'Remove BG — cut the subject out (transparent PNG)'} onClick={() => { if (media.item) void removeBgFrom({ url: media.item.url, filename: media.item.filename, entry: media.source === 'image' ? entry : null }); }} style={round} disabled={!has || media.item?.kind === 'video' || removing} />
         <Sep />
         <IconBtn icon={<IconRefresh size={16} stroke={2.2} />} label="Vary — same settings, new seed" onClick={vary} style={round} disabled={!has} />
         <IconBtn icon={<IconHistory size={16} stroke={2.2} />} label="Recall — everything from this image back into the step" onClick={() => { if (entry) recallFrom(entry); }} style={round} disabled={!entry} />
@@ -91,7 +114,7 @@ export function Toolbar({ step, media, zoom, onFullscreen, canFullscreen, phone 
         <Sep />
         <IconBtn icon={livePreview ? <IconBroadcast size={16} stroke={2.2} /> : <IconBroadcastOff size={16} stroke={2.2} />} label={livePreview ? 'Live preview on — frames show while a job runs' : 'Live preview off — the last result stays while a job runs'} on={livePreview} onClick={() => setLivePreview(!livePreview)} style={{ ...round, background: livePreview ? 'var(--il-ember-soft)' : 'var(--il-elev)' }} />
       </div>
-      {cropping && inputImage && <EditImageModal image={inputImage} onClose={() => setCropping(false)} />}
+      {cropping && inputImage && <EditImageModal image={inputImage} onClose={cropDone} />}
     </>
   );
 }

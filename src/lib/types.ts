@@ -69,6 +69,8 @@ export type HistoryEntry = {
   description?: string;
   /** Venice image-to-prompt result, ready to paste into the Layer system. */
   aiPrompt?: string;
+  /** Made from another entry by a one-click tool (next UI: Remove BG): its id and the tool. */
+  derivedFrom?: { id: string; op: string };
 };
 
 /**

@@ -10,6 +10,10 @@
  * Delete / Backspace (desktop, no overlay, not in a text box) deletes the shown result with Undo.
  * No animation anywhere (Donny, 10-20): the viewers open, close and seek on the spot (`instant`),
  * a finished image replaces the picture at once (a keyed `<img>`, no slide).
+ * Item 23 / 43: Compare swaps the picture for the split view (`CompareView`); a picture that may
+ * carry alpha sits on a checkerboard; the picture is a drag source (`~/dnd`, at fit size, so a
+ * drag on a zoomed picture still pans) and has its own right-click menu ('canvas-image',
+ * `./canvasMenu`).
  */
 import { useRef, useState } from 'react';
 import { useStore } from '@/lib/store';
@@ -24,6 +28,13 @@ import { Toolbar } from './Toolbar';
 import { StagePlayer } from './player';
 import { T } from '~/theme/tokens';
 import { deleteOutput } from '~/app/deleteResult';
+import { menuProps } from '~/app/contextMenu';
+import { makePayload, useImageDrag } from '~/dnd';
+import { useStage } from './stageStore';
+import { CompareView } from './CompareView';
+import { compareIndex } from './compareLogic';
+import { CHECKER, mayHaveAlpha } from './checker';
+import { canvasTarget } from './canvasMenu';
 
 export function StageColumn({ step, phone = false }: { step: Step; phone?: boolean }) {
   const media = useStageMedia(step);
@@ -42,7 +53,12 @@ export function StageColumn({ step, phone = false }: { step: Step; phone?: boole
     if (media.source === 'image') { if (history.length || media.live) openViewer(); return; }
     if (media.item) setRunFull(media.index); else if (media.live) setRunFull('live');
   };
-  const zoom = useStageZoom(ref, shown, player ? undefined : open, !player);
+  const compareOn = useStage((s) => s.compare);
+  const compareKey = useStage((s) => s.compareKey);
+  const other = compareOn && !player && !media.live && media.index >= 0 && media.item?.kind === 'image' ? compareIndex(media.items, media.index, compareKey, media.entry?.derivedFrom?.id ?? null) : -1;
+  const comparing = other >= 0;
+  const zoom = useStageZoom(ref, shown, player ? undefined : open, !player && !comparing);
+  const drag = useImageDrag(() => (media.item && !media.live ? makePayload({ url: media.item.url, name: media.item.filename, kind: media.item.kind, key: media.item.key, entryId: media.entry?.id, source: 'canvas' }) : null), { disabled: !media.item || !!media.live || zoom.state.zoom !== 1 });
   const canOpen = !!media.item || !!media.live;
 
   const noOverlay = () => !viewerOpen && runFull === null;
@@ -56,6 +72,8 @@ export function StageColumn({ step, phone = false }: { step: Step; phone?: boole
     if (e.repeat) return;
     deleteOutput({ entry: media.source === 'image' ? media.entry : null, url: item.url });
   }, { priority: ShortcutPriority.Panel + 10, when: () => !phone && noOverlay() });
+
+  useShortcut('Escape', () => useStage.getState().setCompare(false), { priority: ShortcutPriority.Panel + 10, when: () => comparing && noOverlay() });
 
   const pct = media.progress != null ? Math.max(2, Math.round(media.progress * 100)) : null;
   const viewerIndex = Math.max(0, history.findIndex((e) => e.id === media.entry?.id));
@@ -84,12 +102,14 @@ export function StageColumn({ step, phone = false }: { step: Step; phone?: boole
           keysWhen={noOverlay}
           phone={phone}
         />
+      ) : comparing ? (
+        <CompareView items={media.items} shown={media.index} other={other} />
       ) : (
-      <div ref={ref} {...zoom.handlers} aria-label="Stage"
+      <div ref={ref} {...zoom.handlers} {...(media.item && !media.live ? menuProps('canvas-image', canvasTarget(media, zoom, open)) : {})} aria-label="Stage"
         style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--il-bg-deep)', overflow: 'hidden', touchAction: shown ? 'none' : 'auto', cursor: zoom.state.zoom > 1 ? 'grab' : shown ? 'zoom-in' : 'default', position: 'relative', userSelect: 'none' }}>
         {shown ? (
-          <img key={shown} src={shown} alt="" draggable={false} data-viewer-origin={media.entry?.id}
-            style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', display: 'block', transform: transformOf(zoom.state), transformOrigin: 'center', transition: zoom.state.zoom === 1 ? 'transform .15s' : undefined, willChange: 'transform' }} />
+          <img key={shown} src={shown} alt="" {...(media.live ? { draggable: false } : drag)} data-viewer-origin={media.entry?.id}
+            style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', display: 'block', ...(!media.live && mayHaveAlpha(media.item?.filename) ? CHECKER : {}), transform: transformOf(zoom.state), transformOrigin: 'center', transition: zoom.state.zoom === 1 ? 'transform .15s' : undefined, willChange: 'transform' }} />
         ) : (
           <div style={{ textAlign: 'center', color: 'var(--il-muted)', fontSize: 13, fontWeight: 600, padding: 24 }}>
             {media.busy ? (media.statusLine ?? 'Working…') : 'No image yet — press Generate.'}
