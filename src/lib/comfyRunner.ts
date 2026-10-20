@@ -11,6 +11,7 @@ import { create, type StoreApi, type UseBoundStore } from 'zustand';
 import { subscribeComfy, type ComfyEvent } from './comfyBus';
 import { comfyHttpFor, queueGraph, viewUrl } from './comfy';
 import { playCompleteSound, playSubmitSound } from './sounds';
+import { isImageJob } from './promptOwners';
 import type { ApiGraph } from './workflowGraph';
 
 export interface RunResult {
@@ -75,7 +76,14 @@ type HistoryImage = { filename: string; subfolder?: string; type?: string };
 type HistoryRecord = {
   prompt?: [number, string, ...unknown[]];
   outputs?: Record<string, { images?: HistoryImage[] }>;
-  status?: { completed?: boolean };
+  status?: { completed?: boolean; messages?: Array<[string, { timestamp?: number }]> };
+};
+
+/** When a recorded run happened (ms): its last status message's timestamp. `prompt[0]` is only the queue number. */
+const recordTime = (r: HistoryRecord): number => {
+  const msgs = r.status?.messages ?? [];
+  for (let i = msgs.length - 1; i >= 0; i--) { const t = msgs[i]?.[1]?.timestamp; if (typeof t === 'number') return t; }
+  return 0;
 };
 
 /** Every matching file in a server's `/history`, newest first — other clients' runs included. */
@@ -84,14 +92,14 @@ async function loadServerHistory(host: string, keep: KeepResult): Promise<RunRes
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const all = await res.json() as Record<string, HistoryRecord>;
   const runs = Object.entries(all)
-    .filter(([, r]) => r.status?.completed !== false)
+    .filter(([id, r]) => r.status?.completed !== false && !isImageJob(id))
     .sort(([, a], [, b]) => (b.prompt?.[0] ?? 0) - (a.prompt?.[0] ?? 0));
   const out: RunResult[] = [];
   for (const [id, r] of runs) {
     for (const node of Object.values(r.outputs ?? {})) {
       for (const img of node.images ?? []) {
         if (!keep(img)) continue;
-        out.push({ url: viewUrl(img, host), filename: img.filename, promptId: id, createdAt: r.prompt?.[0] ?? 0 });
+        out.push({ url: viewUrl(img, host), filename: img.filename, promptId: id, createdAt: recordTime(r) });
       }
     }
   }
@@ -179,6 +187,7 @@ export function createRunStore(keep: KeepResult = keepAll): RunStore {
         case 'executed': {
           const host = get().host;
           if (!host) return;
+          if (ev.promptId !== waitingFor && isImageJob(ev.promptId)) return; // the image history has it
           const saved = ev.images.filter(keep);
           if (!saved.length) return;
           const took = get().startedAt;

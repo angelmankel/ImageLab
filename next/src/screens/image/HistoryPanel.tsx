@@ -1,6 +1,6 @@
 /**
- * Rule 8: the right panel is history. A filter row only (This step | All, then All · Images · Videos
- * · ★), no title, no search, no date dividers, one grid. This step (the default) shows what the
+ * Rule 8: the right panel is history. A filter row only (This step | All, then the Images · Videos · ★
+ * toggles), no title, no search, no date dividers, one grid. This step (the default) shows what the
  * open step made (`inStep`, tags from `resultSteps.ts`). Click = show on the stage, double-click = fullscreen, the ★
  * toggles favourite. Images from the main store's history; videos from the video / workflow run
  * stores. The pure merge + filter is `historyLogic.ts` (tested).
@@ -16,7 +16,8 @@ import { filterTiles, inStep, mergeTiles, type HistoryFilter, type HistoryScope,
 import { useResultSteps } from './resultSteps';
 
 const SCOPES: Array<{ key: HistoryScope; label: string; title: string }> = [{ key: 'step', label: 'This step', title: 'Only what the open step made' }, { key: 'all', label: 'All', title: 'Every generation' }];
-const FILTERS: Array<{ key: HistoryFilter; label: string }> = [{ key: 'all', label: 'All' }, { key: 'images', label: 'Images' }, { key: 'videos', label: 'Videos' }, { key: 'liked', label: '★' }];
+/** Toggles: tap one to show only that, tap it again for everything (no 'All' chip, Donny 10-20). */
+const FILTERS: Array<{ key: HistoryFilter; label: string }> = [{ key: 'images', label: 'Images' }, { key: 'videos', label: 'Videos' }, { key: 'liked', label: '★' }];
 
 function TileView({ tile, selected, onPick, onOpen, onLike }: { tile: Tile<HistoryEntry>; selected: boolean; onPick: () => void; onOpen: () => void; onLike?: () => void }) {
   return (
@@ -75,7 +76,7 @@ export function HistoryPanel({ columns = 2, phone = false }: { columns?: number;
         <span aria-hidden style={{ width: 1, height: 18, background: 'var(--il-line)', flex: 'none' }} />
         {FILTERS.map((f) => {
           const on = f.key === filter;
-          return <button key={f.key} type="button" onClick={() => setFilter(f.key)} aria-pressed={on} style={{ flex: 'none', height: 30, padding: '0 12px', border: 0, borderRadius: 999, background: on ? 'var(--il-fg)' : 'var(--il-card)', color: on ? 'var(--il-bg)' : 'var(--il-fg2)', fontWeight: on ? 800 : 700, fontSize: 12, cursor: 'pointer' }}>{f.label}</button>;
+          return <button key={f.key} type="button" onClick={() => setFilter(on ? 'all' : f.key)} aria-pressed={on} style={{ flex: 'none', height: 30, padding: '0 12px', border: 0, borderRadius: 999, background: on ? 'var(--il-fg)' : 'var(--il-card)', color: on ? 'var(--il-bg)' : 'var(--il-fg2)', fontWeight: on ? 800 : 700, fontSize: 12, cursor: 'pointer' }}>{f.label}</button>;
         })}
       </div>
       <div className="il-scroll" style={{ flex: 1, minHeight: 0, padding: '0 12px 12px', touchAction: 'pan-y' }}>

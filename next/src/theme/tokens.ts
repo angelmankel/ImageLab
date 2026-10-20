@@ -37,7 +37,7 @@ export const T = {
     toolbar: 52,
     stepPanel: 404,
     stepPanelMin: 320,
-    historyPanel: 300,
+    historyPanel: 470,  // fits This step | All + the four filters on one row (Donny, 10-20)
     libraryPanel: 380,
     modelsPanel: 380,
     collapsedTab: 22,

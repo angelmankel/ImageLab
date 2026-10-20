@@ -42,12 +42,20 @@ export interface StepLike { id: string; kind: string }
 export function inStep(tile: { key: string; source?: ResultSource }, step: StepLike, steps: readonly StepLike[], tags: Readonly<Record<string, string>>): boolean {
   const tag = tags[tile.key];
   if (tag && steps.some((s) => s.id === tag)) return tag === step.id;
-  return !!tile.source && steps.find((s) => s.kind === tile.source)?.id === step.id;
+  return !!tile.source && homeStep(tile.source, steps)?.id === step.id;
 }
 
-/** The step a new result is credited to: the active step when it makes that kind, else the first step that does. */
+/** An Image step that runs a saved ComfyUI workflow puts its results in the workflow run store too. */
+const makes = (kind: string, source: ResultSource) => kind === source || (source === 'workflow' && kind === 'image');
+
+/** Where an untagged result lives: the first step of its own kind, else the first step that can make it. */
+function homeStep(source: ResultSource, steps: readonly StepLike[]): StepLike | undefined {
+  return steps.find((s) => s.kind === source) ?? steps.find((s) => makes(s.kind, source));
+}
+
+/** The step a new result is credited to: the active step when it makes that kind (an Image step makes workflow results too), else its home step. */
 export function creditStep(source: ResultSource, activeId: string, steps: readonly StepLike[]): string | null {
   const active = steps.find((s) => s.id === activeId);
-  if (active && active.kind === source) return active.id;
-  return steps.find((s) => s.kind === source)?.id ?? null;
+  if (active && makes(active.kind, source)) return active.id;
+  return homeStep(source, steps)?.id ?? null;
 }

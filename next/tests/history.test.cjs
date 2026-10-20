@@ -39,7 +39,8 @@ test('This step: tagged tiles go to their step, untagged ones to the first step 
   assert.equal(H.inStep({ key: 'a', source: 'image' }, steps[1], steps, tags), false);
   assert.equal(H.inStep({ key: 'gone', source: 'image' }, steps[0], steps, tags), true);
   assert.equal(H.inStep({ key: 'c', source: 'video' }, steps[2], steps, tags), true);
-  assert.equal(H.inStep({ key: 'c', source: 'workflow' }, steps[0], steps, tags), false);
+  assert.equal(H.inStep({ key: 'c', source: 'workflow' }, steps[0], steps, tags), true);
+  assert.equal(H.inStep({ key: 'c', source: 'workflow' }, steps[0], [...steps, { id: 'w1', kind: 'workflow' }], tags), false);
 });
 
 test('a new result is credited to the active step when it makes that kind', () => {
@@ -47,5 +48,6 @@ test('a new result is credited to the active step when it makes that kind', () =
   assert.equal(H.creditStep('image', 's2', steps), 's2');
   assert.equal(H.creditStep('image', 'v1', steps), 's1');
   assert.equal(H.creditStep('video', 's1', steps), 'v1');
-  assert.equal(H.creditStep('workflow', 's1', steps), null);
+  assert.equal(H.creditStep('workflow', 's1', steps), 's1');
+  assert.equal(H.creditStep('workflow', 'v1', steps), 's1');
 });

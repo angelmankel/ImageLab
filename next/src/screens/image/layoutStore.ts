@@ -35,6 +35,15 @@ export const useLayout = create<LayoutState>()(
       toggleHist: () => set((s) => ({ histOpen: !s.histOpen })),
       setTab: (tab) => set({ tab }),
     }),
-    { name: 'imagelab.next.layout.v1' },
+    {
+      name: 'imagelab.next.layout.v1',
+      // v1: the history panel's default grew 300 → 470; a saved width under it moves up once.
+      version: 1,
+      migrate: (saved, from) => {
+        const st = saved as Partial<LayoutState>;
+        if (from < 1 && (st.histW ?? 0) < T.size.historyPanel) st.histW = T.size.historyPanel;
+        return st as LayoutState;
+      },
+    },
   ),
 );

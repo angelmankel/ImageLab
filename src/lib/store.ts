@@ -35,6 +35,7 @@ import { putJob, deleteJob as deleteJobDb, deleteJobsForServer } from './jobsDb'
 import { playCompleteSound } from './sounds';
 import { jobStages } from './pipeline';
 import { defaultEmbeddingTarget } from './embeddings';
+import { setImageJobCheck } from './promptOwners';
 
 /** Which server's preview the canvas shows: every server (`all`, a 2×2/3×3
  *  grid), whichever job streamed most recently (`last`), or one server id. */
@@ -1505,5 +1506,8 @@ const runScopeSync = () => {
   _scopeSyncLastScope = wantScope;
 };
 useCanvasStore.subscribe(runScopeSync);
+
+// The run stores skip prompts this store owns (promptOwners.ts): they are already image history.
+setImageJobCheck((id) => { const s = useStore.getState(); return s.jobs.some(j => j.id === id) || s.history.some(h => h.promptId === id); });
 
 
