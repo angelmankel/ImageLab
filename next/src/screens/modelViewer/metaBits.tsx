@@ -36,8 +36,8 @@ export function CopyBtn({ text, what, size = 12 }: { text: string; what?: string
   );
 }
 
-export function Mono({ children, style }: { children: ReactNode; style?: CSSProperties }) {
-  return <span style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 11, letterSpacing: 0, ...style }}>{children}</span>;
+export function Mono({ children, style, title }: { children: ReactNode; style?: CSSProperties; title?: string }) {
+  return <span title={title} style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 11, letterSpacing: 0, ...style }}>{children}</span>;
 }
 
 /** One key/value row of a grid: 11px muted label above a 12px value; a copy button when asked. */

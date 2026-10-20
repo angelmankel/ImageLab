@@ -115,7 +115,7 @@ export function LibraryScreen() {
         )}
         <div className="il-scroll" style={{ flex: 1, minHeight: 0, padding: '4px 10px 10px', touchAction: 'pan-y' }}>
           {visible.length
-            ? <LibraryGrid items={visible} size={tileSize} selectedKey={current?.key ?? null} selecting={selecting} picked={picked} onClick={onClick} onOpen={onOpen} />
+            ? <LibraryGrid items={visible} size={tileSize} selectedKey={current?.key ?? null} selecting={selecting} picked={picked} paused={viewer !== null} onClick={onClick} onOpen={onOpen} />
             : <EmptyState total={all.length} />}
         </div>
       </main>

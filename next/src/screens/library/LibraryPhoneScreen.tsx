@@ -78,7 +78,7 @@ export function LibraryPhoneScreen() {
         </div>
         <div style={{ padding: `8px ${T.pad.panel}px calc(84px + var(--il-safe-bottom))` }}>
           {visible.length
-            ? <LibraryGrid items={visible} size="m" fixedColumns={3} gap={6} radius={12} selectedKey={selecting ? null : selectedKey} selecting={selecting} picked={picked} onClick={onClick} onOpen={onOpen} />
+            ? <LibraryGrid items={visible} size="m" fixedColumns={3} gap={6} radius={12} selectedKey={selecting ? null : selectedKey} selecting={selecting} picked={picked} paused={viewer !== null} onClick={onClick} onOpen={onOpen} />
             : <EmptyState total={all.length} />}
         </div>
       </div>

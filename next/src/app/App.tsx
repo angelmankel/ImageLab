@@ -13,12 +13,14 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { useIsPhone } from './useIsPhone';
 import { DesktopShell } from '~/screens/image/DesktopShell';
 import { PhoneShell } from '~/screens/phone/PhoneShell';
+import { ModelViewerHost } from '~/screens/modelViewer';
 
 export function App() {
   const phone = useIsPhone();
   return (
     <ErrorBoundary label="ImageLab">
       {phone ? <PhoneShell /> : <DesktopShell />}
+      <ModelViewerHost />
     </ErrorBoundary>
   );
 }

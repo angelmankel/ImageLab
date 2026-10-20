@@ -3,10 +3,12 @@
  * starred, play + duration bottom-left for videos. Hover (pointer devices only): an expand button
  * top-left and the model · time along the bottom. Selected = 3px ember ring inside; in Select
  * mode a round check top-left. Click = select (or pick), double-click / expand = fullscreen.
+ * Videos autoplay muted while on screen; the grid's controller (useVideoAutoplay) owns src/play/pause.
  */
 import { memo, useState } from 'react';
 import { IconArrowsMaximize, IconCheck, IconPlayerPlayFilled, IconStarFilled } from '@tabler/icons-react';
 import { durationLabel, prettyModel, whenLabel, type LibItem } from './libraryLogic';
+import { useAutoplayVideo } from './useVideoAutoplay';
 
 export const Tile = memo(function Tile({ item, selected, selecting, picked, radius, onClick, onOpen }: {
   item: LibItem; selected: boolean; selecting: boolean; picked: boolean; radius: number;
@@ -14,6 +16,7 @@ export const Tile = memo(function Tile({ item, selected, selecting, picked, radi
 }) {
   const [dur, setDur] = useState<number | null>(null);
   const [broken, setBroken] = useState(false);
+  const videoRef = useAutoplayVideo(item.url, item.kind === 'video' && !broken);
   const ring = picked || (selected && !selecting);
   const model = item.entry ? prettyModel(item.entry.workflow?.checkpoints?.[0]?.name || item.entry.model || '') : '';
 
@@ -30,7 +33,9 @@ export const Tile = memo(function Tile({ item, selected, selecting, picked, radi
       {broken ? (
         <span style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', color: 'var(--il-dim)', fontSize: 11, fontWeight: 700 }}>Not on the server</span>
       ) : item.kind === 'video' ? (
-        <video src={`${item.url}#t=0.1`} muted playsInline preload="metadata" onLoadedMetadata={(e) => setDur(e.currentTarget.duration)} onError={() => setBroken(true)} />
+        <video ref={videoRef} muted loop playsInline preload="none" disablePictureInPicture
+          onLoadedMetadata={(e) => { const d = e.currentTarget.duration; if (Number.isFinite(d)) setDur(d); }}
+          onError={(e) => { if (e.currentTarget.getAttribute('src')) setBroken(true); }} />
       ) : (
         <img src={item.url} alt="" loading="lazy" decoding="async" draggable={false} onError={() => setBroken(true)} />
       )}
