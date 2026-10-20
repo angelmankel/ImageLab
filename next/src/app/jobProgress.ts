@@ -71,7 +71,8 @@ export function useJobProgressEffect() {
 
       const title = tabTitleOf(next, BASE_TITLE);
       if (document.title !== title) document.title = title;
-      const href = faviconHrefOf(next) ?? baseHref;
+      // The idle icon is the chosen logo (`app/logo.tsx` keeps it in the link's data-base), else the page's own.
+      const href = faviconHrefOf(next) ?? (link?.dataset.base || baseHref);
       if (link && href && href !== shownHref) { link.setAttribute('href', href); shownHref = href; }
     };
 
@@ -89,7 +90,7 @@ export function useJobProgressEffect() {
       window.clearTimeout(flashTimer);
       window.clearTimeout(bootTimer);
       document.title = BASE_TITLE;
-      if (link && baseHref) link.setAttribute('href', baseHref);
+      if (link && baseHref) link.setAttribute('href', link.dataset.base || baseHref);
     };
   }, []);
 }

@@ -19,22 +19,21 @@ import { ServerChip } from './servers/ServerChip';
 import { MuteToggle } from '~/ui/MuteToggle';
 import './topbar/shell.css';
 import { SessionTabs } from './topbar/SessionTabs';
+import { LogoMark, LogoWordmark } from '~/app/logo';
 
 /** The tall hairline that frames the tab strip (fix list 36: after the logo, before the right-side items). */
 function Divider() {
   return <span aria-hidden style={{ width: 1, height: 26, background: 'var(--il-line-strong)', margin: '0 6px', flex: 'none' }} />;
 }
 
+/** The chosen logo's wordmark (fix list 47: Settings → Appearance → Logo). */
 export function Wordmark({ size = 17 }: { size?: number }) {
-  return <span style={{ fontWeight: 800, fontSize: size, letterSpacing: '-.4px', whiteSpace: 'nowrap' }}>Image<span style={{ color: 'var(--il-ember)' }}>Lab</span></span>;
+  return <LogoWordmark size={size} />;
 }
 
+/** The chosen logo's mark. */
 export function Logo({ size = 32 }: { size?: number }) {
-  return (
-    <div aria-hidden style={{ width: size, height: size, borderRadius: Math.round(size * 0.31), background: 'var(--il-ember)', display: 'grid', placeItems: 'center', flex: 'none' }}>
-      <svg width={size * 0.62} height={size * 0.62} viewBox="0 0 24 24" fill="none"><path d="M12 2.5c1 3.5 5.5 5.5 5.5 10.5a5.5 5.5 0 0 1-11 0c0-2 .8-3.4 1.8-4.6.3 1.6 1.2 2.6 2.4 2.6 1.6 0 2.3-1.8 1.3-4.5C11.6 5.2 11.6 3.8 12 2.5z" fill="#141416" /><circle cx="12" cy="14.5" r="2.2" fill="#FFF1E6" /></svg>
-    </div>
-  );
+  return <LogoMark size={size} />;
 }
 
 /** "Queue 2 · ↓ 1": opens the queue list; the downloads count is the active model downloads. */
