@@ -16,6 +16,7 @@ import { useSteps } from '~/app/stepsStore';
 import { deleteOutput } from '~/app/deleteResult';
 import { filterTiles, inStep, mergeTiles, type HistoryFilter, type HistoryScope, type Tile } from './historyLogic';
 import { useResultSteps } from './resultSteps';
+import { makePayload, useImageDrag, useLongPress, openSendTo } from '~/dnd';
 
 const SCOPES: Array<{ key: HistoryScope; label: string; title: string }> = [{ key: 'step', label: 'This step', title: 'Only what the open step made' }, { key: 'all', label: 'All', title: 'Every generation' }];
 /** Toggles: tap one to show only that, tap it again for everything (no 'All' chip, Donny 10-20). */
@@ -24,14 +25,17 @@ const FILTERS: Array<{ key: HistoryFilter; label: string }> = [{ key: 'images', 
 const corner: React.CSSProperties = { position: 'absolute', top: 6, width: 26, height: 26, border: 0, borderRadius: '50%', background: 'rgba(15,15,17,.6)', display: 'grid', placeItems: 'center', cursor: 'pointer' };
 
 function TileView({ tile, selected, onPick, onOpen, onLike, onDelete }: { tile: Tile<HistoryEntry>; selected: boolean; onPick: () => void; onOpen: () => void; onLike?: () => void; onDelete: () => void }) {
+  // A tile is a drag source app-wide (fix list 42); a long-press opens the Send-to sheet on a phone.
+  const payload = () => makePayload({ url: tile.url, name: tile.filename, kind: tile.kind, key: tile.key, entryId: tile.entryId ?? undefined, source: 'history' });
+  const drag = useImageDrag(payload);
+  const press = useLongPress(() => openSendTo(payload()));
   return (
     <div style={{ position: 'relative', aspectRatio: '1', borderRadius: 14, overflow: 'hidden', background: 'var(--il-bg-deep)', outline: selected ? '3px solid var(--il-ember)' : undefined, outlineOffset: -3 }}>
-      <button type="button" onClick={onPick} onDoubleClick={onOpen} aria-label={tile.filename} aria-pressed={selected} data-viewer-origin={tile.entryId}
+      <button type="button" onClick={onPick} onDoubleClick={onOpen} aria-label={tile.filename} aria-pressed={selected} data-viewer-origin={tile.entryId} {...press}
         style={{ display: 'block', width: '100%', height: '100%', padding: 0, border: 0, background: 'transparent', cursor: 'pointer' }}>
         {tile.kind === 'video'
           ? <video src={tile.url} muted playsInline preload="metadata" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', pointerEvents: 'none' }} />
-          : <img src={tile.url} alt="" loading="lazy" draggable style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-              onDragStart={(e) => { e.dataTransfer.setData('application/x-imagelab-image', JSON.stringify({ url: tile.url, name: tile.filename })); e.dataTransfer.setData('text/uri-list', tile.url); }} />}
+          : <img src={tile.url} alt="" loading="lazy" {...drag} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />}
       </button>
       {onLike && (
         <button type="button" onClick={(e) => { e.stopPropagation(); onLike(); }} aria-label={tile.liked ? 'Remove from favourites' : 'Favourite'} aria-pressed={tile.liked}

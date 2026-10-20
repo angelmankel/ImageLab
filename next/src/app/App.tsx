@@ -16,6 +16,7 @@ import { PhoneShell } from '~/screens/phone/PhoneShell';
 import { ModelViewerHost } from '~/screens/modelViewer';
 import { useCreditNewResults } from '~/screens/image/resultSteps';
 import { ContextMenuHost } from './contextMenu';
+import { DragLayer, SendToSheet } from '~/dnd';
 
 export function App() {
   const phone = useIsPhone();
@@ -25,6 +26,8 @@ export function App() {
       {phone ? <PhoneShell /> : <DesktopShell />}
       <ModelViewerHost />
       <ContextMenuHost />
+      <DragLayer />
+      <SendToSheet />
     </ErrorBoundary>
   );
 }
