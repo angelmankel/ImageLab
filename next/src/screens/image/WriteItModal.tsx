@@ -38,7 +38,7 @@ export function WriteItModal({ opened, onClose }: { opened: boolean; onClose: ()
       const before = st.layers;
       st.replaceLayers('positive', items);
       const id = `write-it-${Date.now()}`;
-      notifications.show({ id, color: 'teal', autoClose: 6000, title: 'Prompt written', message: <Button size="compact-xs" variant="light" mt={4} onClick={() => { useStore.getState().setPromptLayers(before); notifications.hide(id); }}>Undo</Button> });
+      notifications.show({ id, color: 'teal', autoClose: 3000, title: 'Prompt written', message: <Button size="compact-xs" variant="light" mt={4} onClick={() => { useStore.getState().setPromptLayers(before); notifications.hide(id); }}>Undo</Button> });
       onClose();
     } catch (e) {
       if (!ctrl.signal.aborted) setError(e instanceof Error ? e.message : 'Generation failed');

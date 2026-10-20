@@ -93,5 +93,5 @@ export async function startWorkflowStepRun(step: Step, host: string, info: Objec
   run.setHost(host);
   await run.run(workflowStepSource(step, host, info, newSeed));
   const err = useWorkflowRun.getState().error;
-  if (err) notifications.show({ color: 'red', title: 'Could not generate', message: err, autoClose: 8000 });
+  if (err) notifications.show({ color: 'red', title: 'Could not generate', message: err, autoClose: 3000 });
 }

@@ -59,6 +59,6 @@ export function deleteWithUndo(s: Snippet) {
     id: noteId,
     title: `Deleted "${s.name}"`,
     message: <Button size="compact-xs" variant="light" mt={4} onClick={restore}>Undo</Button>,
-    autoClose: 6000,
+    autoClose: 3000,
   });
 }

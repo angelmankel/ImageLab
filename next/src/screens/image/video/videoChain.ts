@@ -22,7 +22,7 @@ import { resolveStart, type Task } from './videoStepLogic';
 /** The task the engine in use is on. */
 export const taskOf = (v: Pick<VideoState, 'engine' | 'mode' | 'h3'>): Task => (v.engine === 'h3' ? v.h3.mode : v.mode);
 
-const fail = (title: string, message: string) => notifications.show({ title, message, color: 'red', autoClose: 7000 });
+const fail = (title: string, message: string) => notifications.show({ title, message, color: 'red', autoClose: 3000 });
 
 /** The main store's status text when it is an error (the send-to-video helpers report there). */
 const lastError = () => { const s = useStore.getState().status; return s.kind === 'error' ? s.text : null; };

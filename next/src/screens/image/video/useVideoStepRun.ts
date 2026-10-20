@@ -37,8 +37,8 @@ export function useVideoStepRun(step: Step): StepRun {
   return {
     run: (newSeed = false) => {
       // The desktop button is already off; the phone dock's orb is not, so say why here.
-      if (!host || disabled) { notifications.show({ title: 'Cannot generate', message: disabled ?? 'No video server', color: 'yellow', autoClose: 4000 }); return; }
-      if (run.busy || preparing) { notifications.show({ title: 'A video is rendering', message: 'The video runner takes one clip at a time — Stop it, or wait for it to finish.', color: 'gray', autoClose: 4000 }); return; }
+      if (!host || disabled) { notifications.show({ title: 'Cannot generate', message: disabled ?? 'No video server', color: 'yellow', autoClose: 3000 }); return; }
+      if (run.busy || preparing) { notifications.show({ title: 'A video is rendering', message: 'The video runner takes one clip at a time — Stop it, or wait for it to finish.', color: 'gray', autoClose: 3000 }); return; }
       setPreparing(true);
       void runVideoStep(step, host, newSeed).finally(() => setPreparing(false));
     },

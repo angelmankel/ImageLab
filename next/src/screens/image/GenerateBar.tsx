@@ -42,7 +42,7 @@ export function useStepRun(step: Step): { run: (newSeed?: boolean) => void; stop
     const activity = jobActivity(jobs, submitting, online);
     const running = jobs.find((j) => j.status === 'running') ?? jobs.find((j) => j.status === 'queued');
     return {
-      run: (newSeed = false) => { void fireFromStore(newSeed, NO_PASSES).then(() => { const st = useStore.getState(); if (st.status.kind === 'error') notifications.show({ title: 'Could not generate', message: st.status.text, color: 'red', autoClose: 8000 }); }); },
+      run: (newSeed = false) => { void fireFromStore(newSeed, NO_PASSES).then(() => { const st = useStore.getState(); if (st.status.kind === 'error') notifications.show({ title: 'Could not generate', message: st.status.text, color: 'red', autoClose: 3000 }); }); },
       stop: () => { if (running) cancelQueueRow(running.id); },
       busy: !!running || submitting,
       busyLabel: submitting ? 'Queueing…' : running?.status === 'queued' ? 'Queued' : 'Generating',

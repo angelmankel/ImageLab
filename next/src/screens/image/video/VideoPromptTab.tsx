@@ -79,7 +79,7 @@ function WriteItModal({ opened, onClose, step }: { opened: boolean; onClose: () 
       const before = useVideo.getState().positive;
       useVideo.getState().set({ positive: text.trim() });
       const id = `write-video-${Date.now()}`;
-      notifications.show({ id, color: 'teal', autoClose: 6000, title: 'Motion prompt written', message: <button type="button" onClick={() => { useVideo.getState().set({ positive: before }); notifications.hide(id); }} style={btn(false)}>Undo</button> });
+      notifications.show({ id, color: 'teal', autoClose: 3000, title: 'Motion prompt written', message: <button type="button" onClick={() => { useVideo.getState().set({ positive: before }); notifications.hide(id); }} style={btn(false)}>Undo</button> });
       onClose();
     } catch (e) { if (!ctrl.signal.aborted) setError(e instanceof Error ? e.message : 'Generation failed'); }
     finally { if (!ctrl.signal.aborted) setBusy(false); }

@@ -21,7 +21,7 @@ function deletedNote(onUndo: () => void) {
   const id = `il-deleted-${++seq}`;
   notifications.show({
     id,
-    autoClose: 6000,
+    autoClose: 3000,
     message: (
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontWeight: 700 }}>
         Deleted<span aria-hidden style={{ color: 'var(--il-muted)' }}>·</span>
