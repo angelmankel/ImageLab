@@ -23,6 +23,7 @@ import { useComfyServer } from './useComfyServer';
 import { useComfyWorkflows } from './useComfyWorkflows';
 import { WorkflowList } from './WorkflowList';
 import { useServersUp } from '~/screens/settings/useServersUp';
+import { ParamMapModal } from '~/screens/image/workflow/ParamMapModal';
 
 const QUEUE_OPEN_KEY = 'imagelab.next.comfy.queueOpen';
 const QUEUE_W_KEY = 'imagelab.next.comfy.queueWidth';
@@ -65,6 +66,7 @@ export function ComfyScreen() {
           <LogBox host={host} />
         </div>
       </Panel>
+      <ParamMapModal />
     </div>
   );
 }

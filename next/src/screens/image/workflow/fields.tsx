@@ -8,7 +8,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { IconArrowBackUp, IconDice5, IconLock, IconLockOpen, IconPin, IconPinned } from '@tabler/icons-react';
 import { randomSeed, type WorkflowParam } from '@/features/studio/params';
-import { Chip, IconBtn, SearchSelect, Slider, NumberField as UiNumberField } from '~/ui';
+import { Chip, IconBtn, SearchSelect, Slider, Tip, NumberField as UiNumberField } from '~/ui';
 import { useIsPhone } from '~/app/useIsPhone';
 import { formatNumber, humanize, numberRange, presetsFor } from './workflowStepLogic';
 
@@ -42,15 +42,21 @@ export interface FieldRowProps {
   /** A control that sits in the header line (a switch). */
   inline?: ReactNode;
   children?: ReactNode;
+  /** Item 39: the label's tooltip — a hint id (`~/ui/hints`) or the mapping's own text. */
+  hint?: string;
+  hintText?: string;
 }
 
-export function FieldRow({ label, sub, value, changed, onReset, pinned, onPin, inline, children }: FieldRowProps) {
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '6px 0' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, minHeight: 26 }}>
+export function FieldRow({ label, sub, value, changed, onReset, pinned, onPin, inline, children, hint, hintText }: FieldRowProps) {
+  const text = (
         <span style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: 700, color: 'var(--il-fg2)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {label}{sub && <span style={{ fontWeight: 600, color: 'var(--il-muted)' }}> · {sub}</span>}
         </span>
+  );
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '6px 0' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, minHeight: 26 }}>
+        {hintText ? <Tip label={hintText} multiline w={260}>{text}</Tip> : hint ? <Tip hint={hint}>{text}</Tip> : text}
         {value != null && <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--il-fg)', fontVariantNumeric: 'tabular-nums' }}>{value}</span>}
         {inline}
         {changed && onReset && <IconBtn size={24} icon={<IconArrowBackUp size={13} />} label="Back to the value saved in ComfyUI" onClick={onReset} />}
@@ -68,75 +74,85 @@ function NumberBox({ label, value, min, max, step, isInt, onChange, width }: { l
   return <UiNumberField label={label} value={value} min={min} max={max} step={isInt ? Math.max(1, Math.round(step)) : step} onChange={onChange} width={width} />;
 }
 
-export interface ParamFieldProps { p: WorkflowParam; value: unknown; onChange: (v: unknown) => void; onReset: () => void; pinned?: boolean; onPin?: () => void; sub?: string }
+export interface ParamFieldProps {
+  p: WorkflowParam; value: unknown; onChange: (v: unknown) => void; onReset: () => void; pinned?: boolean; onPin?: () => void; sub?: string;
+  /** Item 39 (the mapping layer): the friendly label, the hint id / text, a forced control. */
+  label?: string; hint?: string; hintText?: string; control?: 'auto' | 'slider' | 'box' | 'chips' | 'select';
+}
 
-export function NumberField({ p, value, onChange, onReset, pinned, onPin, sub }: ParamFieldProps) {
-  const r = numberRange(p);
+export function NumberField({ p, value, onChange, onReset, pinned, onPin, sub, label, hint, hintText, control }: ParamFieldProps) {
+  const name = label ?? humanize(p.name);
+  const auto = numberRange(p);
+  const r = { ...auto, slider: control === 'slider' ? auto.max > auto.min : control === 'box' ? false : auto.slider };
   const n = Number(value ?? p.default ?? r.min);
   const presets = r.slider ? presetsFor(p, r) : undefined;
   const fmt = (v: number) => formatNumber(v, p);
   const phone = useIsPhone();
   return (
-    <FieldRow label={humanize(p.name)} sub={sub} changed={value !== p.value} onReset={onReset} pinned={pinned} onPin={onPin}
-      inline={r.slider ? <UiNumberField label={humanize(p.name)} value={n} min={r.min} max={r.max} step={r.step} onChange={onChange} format={fmt} size={phone ? 'lg' : 'sm'} width={phone ? 150 : 116} /> : undefined}>
+    <FieldRow label={name} hint={hint} hintText={hintText} sub={sub} changed={value !== p.value} onReset={onReset} pinned={pinned} onPin={onPin}
+      inline={r.slider ? <UiNumberField label={name} value={n} min={r.min} max={r.max} step={r.step} onChange={onChange} format={fmt} size={phone ? 'lg' : 'sm'} width={phone ? 150 : 116} /> : undefined}>
       {r.slider ? (
         <>
           {presets && <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>{presets.map((v) => <Chip key={v} small on={Math.abs(v - n) < r.step / 2} onClick={() => onChange(v)}>{fmt(v)}</Chip>)}</div>}
-          <Slider value={n} min={r.min} max={r.max} step={r.step} onChange={onChange} aria-label={`${humanize(p.name)} slider`} />
+          <Slider value={n} min={r.min} max={r.max} step={r.step} onChange={onChange} aria-label={`${name} slider`} />
         </>
       ) : (
-        <NumberBox label={humanize(p.name)} value={n} min={r.min} max={r.max} step={r.step} isInt={p.type === 'INT'} onChange={onChange} />
+        <NumberBox label={name} value={n} min={r.min} max={r.max} step={r.step} isInt={p.type === 'INT'} onChange={onChange} />
       )}
     </FieldRow>
   );
 }
 
-export function ComboField({ p, value, onChange, onReset, pinned, onPin, sub }: ParamFieldProps) {
+export function ComboField({ p, value, onChange, onReset, pinned, onPin, sub, label, hint, hintText, control }: ParamFieldProps) {
+  const name = label ?? humanize(p.name);
   const options = (p.options ?? []).map(String);
   const cur = String(value ?? '');
   return (
-    <FieldRow label={humanize(p.name)} sub={sub} changed={value !== p.value} onReset={onReset} pinned={pinned} onPin={onPin}>
+    <FieldRow label={name} hint={hint} hintText={hintText} sub={sub} changed={value !== p.value} onReset={onReset} pinned={pinned} onPin={onPin}>
       {!options.length ? (
         <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--il-muted)' }}>Nothing to choose from on this server.</span>
-      ) : options.length <= MAX_CHIPS ? (
+      ) : control === 'chips' || (control !== 'select' && options.length <= MAX_CHIPS) ? (
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>{options.map((o) => <Chip key={o} small on={o === cur} onClick={() => onChange(o)}>{o}</Chip>)}</div>
       ) : (
-        <Pick label={humanize(p.name)} value={cur} options={options} onChange={onChange} />
+        <Pick label={name} value={cur} options={options} onChange={onChange} />
       )}
     </FieldRow>
   );
 }
 
-export function BoolField({ p, value, onChange, onReset, pinned, onPin, sub }: ParamFieldProps) {
+export function BoolField({ p, value, onChange, onReset, pinned, onPin, sub, label, hint, hintText }: ParamFieldProps) {
+  const name = label ?? humanize(p.name);
   const on = value === true || value === 'true';
   return (
-    <FieldRow label={humanize(p.name)} sub={sub} changed={value !== p.value} onReset={onReset} pinned={pinned} onPin={onPin}
+    <FieldRow label={name} hint={hint} hintText={hintText} sub={sub} changed={value !== p.value} onReset={onReset} pinned={pinned} onPin={onPin}
       inline={<Chip small on={on} onClick={() => onChange(!on)} title={on ? 'On · tap to switch off' : 'Off · tap to switch on'}>{on ? 'on' : 'off'}</Chip>} />
   );
 }
 
-export function StringField({ p, value, onChange, onReset, pinned, onPin, sub, rows = 3 }: ParamFieldProps & { rows?: number }) {
+export function StringField({ p, value, onChange, onReset, pinned, onPin, sub, label, hint, hintText, rows = 3 }: ParamFieldProps & { rows?: number }) {
+  const name = label ?? humanize(p.name);
   const s = String(value ?? '');
   const style: React.CSSProperties = { width: '100%', border: '1px solid var(--il-line-strong)', borderRadius: 10, background: 'var(--il-panel)', color: 'var(--il-fg)', fontSize: 13, lineHeight: 1.45, padding: '7px 9px', outline: 'none', display: 'block', fontFamily: 'inherit' };
   return (
-    <FieldRow label={humanize(p.name)} sub={sub} changed={value !== p.value} onReset={onReset} pinned={pinned} onPin={onPin}>
+    <FieldRow label={name} hint={hint} hintText={hintText} sub={sub} changed={value !== p.value} onReset={onReset} pinned={pinned} onPin={onPin}>
       {p.multiline
-        ? <textarea aria-label={humanize(p.name)} rows={rows} value={s} onChange={(e) => onChange(e.currentTarget.value)} style={{ ...style, resize: 'vertical' }} />
-        : <input aria-label={humanize(p.name)} value={s} onChange={(e) => onChange(e.currentTarget.value)} style={{ ...style, height: 32, padding: '0 9px' }} />}
+        ? <textarea aria-label={name} rows={rows} value={s} onChange={(e) => onChange(e.currentTarget.value)} style={{ ...style, resize: 'vertical' }} />
+        : <input aria-label={name} value={s} onChange={(e) => onChange(e.currentTarget.value)} style={{ ...style, height: 32, padding: '0 9px' }} />}
     </FieldRow>
   );
 }
 
 /** Seed: a number box, a dice (new seed now), and keep / random each run (`kept` = used as set). */
-export function SeedField({ p, value, onChange, onReset, pinned, onPin, sub, kept, onToggleKept }: ParamFieldProps & { kept: boolean; onToggleKept: () => void }) {
+export function SeedField({ p, value, onChange, onReset, pinned, onPin, sub, label, hint, hintText, kept, onToggleKept }: ParamFieldProps & { kept: boolean; onToggleKept: () => void }) {
+  const name = label ?? humanize(p.name);
   const n = Number(value ?? 0);
   const [draft, setDraft] = useState(String(n));
   useEffect(() => { setDraft(String(n)); }, [n]);
   const commit = () => { const v = Math.max(0, Math.min(MAX_SEED, Math.trunc(Number(draft)) || 0)); setDraft(String(v)); if (v !== n) onChange(v); };
   return (
-    <FieldRow label={humanize(p.name)} sub={sub ?? (kept ? 'kept as set' : 'random each run')} changed={value !== p.value} onReset={onReset} pinned={pinned} onPin={onPin}>
+    <FieldRow label={name} hint={hint} hintText={hintText} sub={sub ?? (kept ? 'kept as set' : 'random each run')} changed={value !== p.value} onReset={onReset} pinned={pinned} onPin={onPin}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-        <input aria-label={humanize(p.name)} type="number" inputMode="numeric" min={0} value={draft} onChange={(e) => setDraft(e.currentTarget.value)} onBlur={commit}
+        <input aria-label={name} type="number" inputMode="numeric" min={0} value={draft} onChange={(e) => setDraft(e.currentTarget.value)} onBlur={commit}
           onKeyDown={(e) => { if (e.key === 'Enter') (e.currentTarget as HTMLInputElement).blur(); }}
           title={kept ? 'This seed is used as set' : 'A new seed is rolled for every run (the dice rolls one now)'}
           style={{ ...box, flex: 1, textAlign: 'right', color: kept ? 'var(--il-fg)' : 'var(--il-muted)' }} />

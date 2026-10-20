@@ -19,6 +19,7 @@ import { useComfyServer, type ComfyServerPick } from './useComfyServer';
 import { useComfyWorkflows } from './useComfyWorkflows';
 import { WorkflowList } from './WorkflowList';
 import { useServersUp } from '~/screens/settings/useServersUp';
+import { ParamMapModal } from '~/screens/image/workflow/ParamMapModal';
 
 type Seg = 'servers' | 'workflows' | 'queue';
 
@@ -107,6 +108,7 @@ export function ComfyPhoneScreen() {
       </div>
 
       <BackPill onClick={() => go('step')} />
+      <ParamMapModal />
     </div>
   );
 }
