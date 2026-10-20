@@ -6,7 +6,7 @@
  * assets never change under a name, so they are served from cache once seen. Everything else —
  * ComfyUI, the ImageLab API, images, websockets — goes straight to the network, untouched.
  */
-const CACHE = 'imagelab-next-shell-v1';
+const CACHE = 'imagelab-next-shell-v2';
 
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (event) => {

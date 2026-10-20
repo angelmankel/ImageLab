@@ -1,5 +1,6 @@
 import { createTheme, type MantineColorsTuple } from '@mantine/core';
 import { T } from './tokens';
+import { viewerLayerRef } from './scrollShards';
 
 /**
  * Mantine wears the Ember palette. The `dark` scale is laid out so the MAIN app's Tailwind tokens
@@ -35,5 +36,8 @@ export const emberTheme = createTheme({
   fontSizes: { xs: '11px', sm: '12px', md: '13px', lg: '14px', xl: '16px' },
   components: {
     Tooltip: { defaultProps: { withArrow: false, openDelay: 400 } },
+    // The model viewer sits above these, outside their DOM: let it scroll (see scrollShards.ts).
+    Modal: { defaultProps: { removeScrollProps: { shards: [viewerLayerRef] } } },
+    Drawer: { defaultProps: { removeScrollProps: { shards: [viewerLayerRef] } } },
   },
 });

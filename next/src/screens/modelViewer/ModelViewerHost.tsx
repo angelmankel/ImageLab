@@ -8,6 +8,7 @@ import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { T } from '~/theme/tokens';
+import { viewerLayerRef } from '~/theme/scrollShards';
 import { useModelViewer } from './viewerStore';
 import { ModelViewer } from './ModelViewer';
 
@@ -22,7 +23,13 @@ const STOP = 'data-mantine-stop-propagation';
 export function ModelViewerHost(): JSX.Element | null {
   const opened = useModelViewer((s) => s.opened);
   const root = useRef<HTMLDivElement>(null);
-  useEffect(() => { if (opened) root.current?.focus({ preventScroll: true }); }, [opened]);
+  useEffect(() => {
+    if (!opened) return;
+    root.current?.focus({ preventScroll: true });
+    // An open Modal's scroll lock lets this layer scroll (scrollShards.ts).
+    viewerLayerRef.current = root.current;
+    return () => { viewerLayerRef.current = null; };
+  }, [opened]);
   if (!opened) return null;
   return createPortal(
     <div ref={root} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Model" data-no-swipe data-pad-layer {...{ [STOP]: 'true' }}
