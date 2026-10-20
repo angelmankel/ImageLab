@@ -9,8 +9,8 @@ import { useMemo } from 'react';
 import { useStore } from '@/lib/store';
 import { useVideoRun } from '@/features/video/videoRun';
 import { useWorkflowRun } from '@/features/studio/studioRun';
-import { useSteps } from './stepsStore';
-import { orderRows, rowOfJob, rowOfRun, type QueueRow } from './queueLogic';
+import { useSteps, type Step } from './stepsStore';
+import { orderRows, rowOfJob, rowOfRun, type QueueRow, type RunLike } from './queueLogic';
 
 export type { QueueRow } from './queueLogic';
 
@@ -33,6 +33,27 @@ export function cancelQueueRow(id: string): void {
   useStore.getState().cancelJob(id);
 }
 
+/** Every running / queued job as rows (the hook below and `jobProgress.ts` share it). */
+export function rowsOf(
+  jobs: ReturnType<typeof useStore.getState>['jobs'],
+  servers: ReturnType<typeof useStore.getState>['servers'],
+  video: RunLike, workflow: RunLike, steps: readonly Step[],
+): QueueRow[] {
+  const imageStep = steps.find((s) => s.kind === 'image')?.id;
+  const videoStep = steps.find((s) => s.kind === 'video')?.id;
+  const workflowStep = steps.find((s) => s.kind === 'workflow')?.id;
+  const out: QueueRow[] = [];
+  for (const j of jobs) {
+    const r = rowOfJob(j, servers.find((sv) => sv.id === j.serverId)?.name, imageStep);
+    if (r) out.push(r);
+  }
+  const v = rowOfRun('video', video, videoStep);
+  if (v) out.push(v);
+  const w = rowOfRun('workflow', workflow, workflowStep);
+  if (w) out.push(w);
+  return out.length ? orderRows(out) : NONE;
+}
+
 /** Live rows: the running job first, then the queue, oldest first. */
 export function useQueue(): Queue {
   const jobs = useStore((s) => s.jobs);
@@ -41,21 +62,7 @@ export function useQueue(): Queue {
   const workflow = useWorkflowRun((s) => s);
   const steps = useSteps((s) => s.steps);
 
-  const rows = useMemo(() => {
-    const imageStep = steps.find((s) => s.kind === 'image')?.id;
-    const videoStep = steps.find((s) => s.kind === 'video')?.id;
-    const workflowStep = steps.find((s) => s.kind === 'workflow')?.id;
-    const out: QueueRow[] = [];
-    for (const j of jobs) {
-      const r = rowOfJob(j, servers.find((sv) => sv.id === j.serverId)?.name, imageStep);
-      if (r) out.push(r);
-    }
-    const v = rowOfRun('video', video, videoStep);
-    if (v) out.push(v);
-    const w = rowOfRun('workflow', workflow, workflowStep);
-    if (w) out.push(w);
-    return out.length ? orderRows(out) : NONE;
-  }, [jobs, servers, video, workflow, steps]);
+  const rows = useMemo(() => rowsOf(jobs, servers, video, workflow, steps), [jobs, servers, video, workflow, steps]);
 
   const running = rows.find((r) => r.status === 'running') ?? null;
   const queued = useMemo(() => rows.filter((r) => r.status === 'queued'), [rows]);

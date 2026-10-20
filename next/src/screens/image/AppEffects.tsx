@@ -12,13 +12,13 @@ import { useDownloads } from '@/hooks/useDownloads';
 import { useServerFavorites } from '@/hooks/useServerFavorites';
 import { useModelProfileSync } from '@/hooks/useModelProfileSync';
 import { useVideoServerProbe } from '@/hooks/useVideoServerProbe';
-import { useTabStatus } from '@/hooks/useTabStatus';
 import { useInstalledWanFiles } from '@/features/video/videoControls';
 import { useModeHost } from '@/features/workspace/modeHost';
 import { useVideoRun } from '@/features/video/videoRun';
 import { useWorkflowRun } from '@/features/studio/studioRun';
 import { notifications } from '@mantine/notifications';
 import { useSteps } from '~/app/stepsStore';
+import { useJobProgressEffect } from '~/app/jobProgress';
 import { ensureStepWorkflowOpen } from '~/screens/comfy';
 import { usePendingReconcile } from '~/screens/image/model';
 import { useWorkflowFollow } from './workflow/followWorkflow';
@@ -30,7 +30,8 @@ export function AppEffects() {
   useServerFavorites();
   useModelProfileSync();
   useVideoServerProbe();
-  useTabStatus();
+  // The tab title + favicon and the footer's job progress (items 47 + 19).
+  useJobProgressEffect();
   useInstalledWanFiles();
   // Models added before their download: flip them on when the file lands, whichever tab is open.
   usePendingReconcile();
