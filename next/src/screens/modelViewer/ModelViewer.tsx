@@ -18,6 +18,7 @@ import { useIsPhone } from '~/app/useIsPhone';
 import { BackPill } from '~/ui';
 import { useModels } from '~/screens/models/modelsStore';
 import { isBeyondMask } from '~/screens/models/civitaiQuery';
+import { useKeepScroll } from '~/screens/models/useKeepScroll';
 import { useModelViewer } from './viewerStore';
 import { useViewerModel } from './useViewerModel';
 import { useViewerKeys } from './useViewerKeys';
@@ -42,6 +43,9 @@ export function ModelViewer() {
   const { model, version, gallery, index, local, loading } = data;
   const images = gallery.items;
   const image: CivitaiImage | undefined = images[index];
+  // Reopening the same model finds its metadata column (phone: the whole page) and strip where they were.
+  const keepMeta = useKeepScroll(data.modelId != null ? `viewer:${data.modelId}` : null);
+  const stripKey = data.modelId != null && version ? `viewerStrip:${data.modelId}:${version.id}` : null;
 
   const [revealed, setRevealed] = useState<Set<string>>(() => new Set());
   const isHidden = useCallback((img: CivitaiImage) => isBeyondMask(img.nsfwLevel, mask) && !revealed.has(img.url), [mask, revealed]);
@@ -69,7 +73,7 @@ export function ModelViewer() {
 
   const title = model?.name ?? local?.meta.name ?? local?.meta.label ?? (loading ? 'Loading…' : 'Model');
   const empty = local && local.state !== 'found' ? 'No preview' : 'No sample images';
-  const strip = <ThumbStrip images={images} index={index} onSelect={setImage} isHidden={isHidden} hasMore={gallery.hasMore} onMore={() => void gallery.loadMore()} loading={gallery.loading} />;
+  const strip = <ThumbStrip images={images} index={index} onSelect={setImage} isHidden={isHidden} hasMore={gallery.hasMore} onMore={() => void gallery.loadMore()} loading={gallery.loading} scrollKey={stripKey} />;
   const top = <TopRow model={model} version={version} title={title} count={images.length} index={index} hasMore={gallery.hasMore} phone={phone} onClose={close} />;
 
   if (phone) {
@@ -77,7 +81,7 @@ export function ModelViewer() {
     return (
       <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', background: 'var(--il-bg)' }}>
         {top}
-        <div className="il-scroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto', touchAction: 'pan-y', display: 'flex', flexDirection: 'column' }}>
+        <div ref={keepMeta} className="il-scroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto', touchAction: 'pan-y', display: 'flex', flexDirection: 'column' }}>
           <div ref={pictureRef} style={{ width: '100%', aspectRatio: ratio, maxHeight: '56vh', flex: 'none', display: 'grid', touchAction: 'pan-y' }}>
             <Picture image={image} hidden={!!image && isHidden(image)} onReveal={reveal} loading={gallery.loading} empty={empty} edges={false} canPrev={canPrev} canNext={canNext} onPrev={prev} onNext={next} />
           </div>
@@ -96,7 +100,7 @@ export function ModelViewer() {
         <Picture image={image} hidden={!!image && isHidden(image)} onReveal={reveal} loading={gallery.loading} empty={empty} edges canPrev={canPrev} canNext={canNext} onPrev={prev} onNext={next} />
         {strip}
       </div>
-      <MetaColumn data={data} onVersion={setVersion} phone={false} onClose={close} style={{ minHeight: 0, overflowY: 'auto', borderLeft: '1px solid var(--il-line)' }} />
+      <MetaColumn data={data} onVersion={setVersion} phone={false} onClose={close} scrollRef={keepMeta} style={{ minHeight: 0, overflowY: 'auto', borderLeft: '1px solid var(--il-line)' }} />
     </div>
   );
 }

@@ -9,12 +9,14 @@ import { IconHeart, IconHeartFilled } from '@tabler/icons-react';
 import { BackPill } from '~/ui';
 import { useModels } from './modelsStore';
 import { Detail } from './Detail';
+import { useKeepScroll } from './useKeepScroll';
 
 export function PhoneModel({ modelId }: { modelId: number }) {
   const close = useModels((s) => s.close);
   const name = useModels((s) => s.items.find((m) => m.id === modelId)?.name);
   const fav = useModels((s) => s.favourites.includes(modelId));
   const toggleFavourite = useModels((s) => s.toggleFavourite);
+  const keepScroll = useKeepScroll(`detail:${modelId}`);
 
   // The phone's back button closes the model instead of leaving the screen.
   useEffect(() => {
@@ -36,7 +38,7 @@ export function PhoneModel({ modelId }: { modelId: number }) {
           {fav ? <IconHeartFilled size={18} /> : <IconHeart size={18} stroke={2.2} />}
         </button>
       </div>
-      <div className="il-scroll" style={{ flex: 1, minHeight: 0, padding: '8px 0 100px', touchAction: 'pan-y' }}>
+      <div ref={keepScroll} className="il-scroll" style={{ flex: 1, minHeight: 0, padding: '8px 0 100px', touchAction: 'pan-y' }}>
         <Detail modelId={modelId} size="phone" />
       </div>
       <BackPill onClick={close} />

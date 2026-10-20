@@ -3,7 +3,8 @@
  * while loading, an inline error with Retry, and a sentinel that loads the next page when it
  * scrolls into view. `scroll` makes it its own scroll container (desktop); the phone page scrolls
  * the whole screen and renders this inline. `minTile` sets the tile width (desktop 240 per the
- * picker brief; the phone passes a 2-per-row value).
+ * picker brief; the phone passes a 2-per-row value). `scrollKey` keeps the scroll container's
+ * position across unmounts (`useKeepScroll`).
  */
 import { useEffect, useRef } from 'react';
 import type { CivitaiModel } from '@/lib/civitai';
@@ -12,14 +13,16 @@ import type { Installed } from './useInstalled';
 import { ModelTile } from './ModelTile';
 import { ModelRow } from './ModelRow';
 import { GhostBtn, type Size } from './bits';
+import { useKeepScroll } from './useKeepScroll';
 
-export function ModelList({ items, view, selectedId, mask, revealed, favourites, installed, picking, size = 'desktop', loading, loadingMore, error, hasMore, hidden, onOpen, onReveal, onUse, onLoadMore, onRetry, scroll, minTile = 240, columns }: {
+export function ModelList({ items, view, selectedId, mask, revealed, favourites, installed, picking, size = 'desktop', loading, loadingMore, error, hasMore, hidden, onOpen, onReveal, onUse, onLoadMore, onRetry, scroll, scrollKey = null, minTile = 240, columns }: {
   items: CivitaiModel[]; view: View; selectedId: number | null; mask: number; revealed: number[]; favourites?: number[]; installed: Installed; picking?: boolean; size?: Size;
   loading: boolean; loadingMore: boolean; error: string | null; hasMore: boolean; hidden: number;
   onOpen: (m: CivitaiModel) => void; onReveal: (id: number) => void; onUse: (m: CivitaiModel) => void; onLoadMore: () => void; onRetry: () => void;
-  scroll?: boolean; minTile?: number; columns?: number;
+  scroll?: boolean; scrollKey?: string | null; minTile?: number; columns?: number;
 }) {
   const sentinel = useRef<HTMLDivElement>(null);
+  const keepScroll = useKeepScroll(scroll ? scrollKey : null);
   useEffect(() => {
     const el = sentinel.current;
     if (!el || !hasMore) return;
@@ -55,7 +58,7 @@ export function ModelList({ items, view, selectedId, mask, revealed, favourites,
   );
 
   if (!scroll) return <div>{body}</div>;
-  return <div className="il-scroll" style={{ flex: 1, minHeight: 0, padding: '2px 12px 12px', touchAction: 'pan-y' }}>{body}</div>;
+  return <div ref={keepScroll} className="il-scroll" style={{ flex: 1, minHeight: 0, padding: '2px 12px 12px', touchAction: 'pan-y' }}>{body}</div>;
 }
 
 function Skeleton({ style, grid }: { style: React.CSSProperties; grid: boolean }) {

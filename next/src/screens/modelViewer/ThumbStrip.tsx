@@ -2,29 +2,44 @@
  * The thumbnail strip under the picture: its own row (rule 1), scrolls sideways, the current
  * thumb ember-outlined and kept in view, "load more" at the end while the gallery has more.
  * Thumbs are stills even for clips; a hidden (NSFW) sample shows a dim eye instead of a blur.
+ * `scrollKey` keeps its sideways position per model + version (`useKeepScroll`): a reopen lands
+ * where it was, and only centres the current thumb when that one is out of view.
  */
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { IconEyeOff } from '@tabler/icons-react';
 import type { CivitaiImage } from '@/lib/civitai';
 import { civitaiThumbUrl, previewStill } from '@/lib/civitai';
 import { COVER_FALLBACK } from '~/screens/models/bits';
+import { useKeepScroll, keptScroll } from '~/screens/models/useKeepScroll';
 
 export const STRIP_H = 84;
 const THUMB = 66;
 
-export function ThumbStrip({ images, index, onSelect, isHidden, hasMore, onMore, loading }: {
+export function ThumbStrip({ images, index, onSelect, isHidden, hasMore, onMore, loading, scrollKey = null }: {
   images: CivitaiImage[]; index: number; onSelect: (i: number) => void; isHidden: (img: CivitaiImage) => boolean;
-  hasMore: boolean; onMore: () => void; loading: boolean;
+  hasMore: boolean; onMore: () => void; loading: boolean; scrollKey?: string | null;
 }) {
-  const row = useRef<HTMLDivElement>(null);
+  const row = useRef<HTMLDivElement | null>(null);
+  const keep = useKeepScroll(scrollKey);
+  const setRow = useCallback((el: HTMLDivElement | null) => { row.current = el; keep(el); }, [keep]);
+  const first = useRef(true);
 
   useEffect(() => {
-    const el = row.current?.children[index] as HTMLElement | undefined;
-    el?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
-  }, [index]);
+    const isFirst = first.current;
+    first.current = false;
+    const r = row.current;
+    const el = r?.children[index] as HTMLElement | undefined;
+    if (!r || !el) return;
+    const a = el.getBoundingClientRect();
+    const b = r.getBoundingClientRect();
+    // On open with a kept position, leave the strip where it was if the current thumb shows.
+    if (isFirst && keptScroll(scrollKey) && a.left >= b.left && a.right <= b.right) return;
+    // Centre it by scrolling the strip itself only (scrollIntoView would also move the phone's page).
+    r.scrollTo({ left: r.scrollLeft + (a.left - b.left) - (b.width - a.width) / 2, behavior: 'smooth' });
+  }, [index]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <div ref={row} className="il-scroll-x" style={{ height: STRIP_H, display: 'flex', alignItems: 'center', gap: 6, padding: '0 10px', overflowX: 'auto', background: 'var(--il-bg)', borderTop: '1px solid var(--il-line)', touchAction: 'pan-x' }}>
+    <div ref={setRow} className="il-scroll-x" style={{ height: STRIP_H, display: 'flex', alignItems: 'center', gap: 6, padding: '0 10px', overflowX: 'auto', background: 'var(--il-bg)', borderTop: '1px solid var(--il-line)', touchAction: 'pan-x' }}>
       {images.map((img, i) => {
         const on = i === index;
         const hidden = isHidden(img);

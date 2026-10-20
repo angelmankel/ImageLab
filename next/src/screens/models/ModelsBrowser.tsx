@@ -14,6 +14,7 @@ import { useShown } from './useShown';
 import { useInstalled } from './useInstalled';
 import { useModelActions } from './useModelActions';
 import { usePick } from './pickContext';
+import { useKeepScroll, modelsListKey } from './useKeepScroll';
 import { FilterBar } from './FilterBar';
 import { ModelList } from './ModelList';
 import { Detail } from './Detail';
@@ -51,7 +52,11 @@ export function DesktopBrowser() {
   const panelWidth = useModels((s) => s.panelWidth);
   const setPanelOpen = useModels((s) => s.setPanelOpen);
   const setPanelWidth = useModels((s) => s.setPanelWidth);
+  const source = useModels((s) => s.source);
+  const kind = useModels((s) => s.kind);
+  const pickKind = usePick().kind;
   const shown = useShown();
+  const keepDetail = useKeepScroll(selectedId != null ? `detail:${selectedId}` : null);
   const installed = useInstalled();
   const actions = useModelActions();
 
@@ -66,7 +71,7 @@ export function DesktopBrowser() {
       <main style={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
         <FilterBar count={count} pool={shown.pool} />
         <ModelList
-          scroll
+          scroll scrollKey={kind === pickKind ? modelsListKey(source, kind, f.query) : null /* until the store has the picker's kind */}
           items={shown.items} view={view} selectedId={selectedId} mask={f.nsfwMask} revealed={revealed} favourites={favourites} installed={installed} picking={actions.picking}
           loading={shown.loading} loadingMore={shown.loadingMore} error={shown.error} hasMore={shown.hasMore} hidden={shown.hidden}
           onOpen={onOpen} onReveal={reveal} onUse={onUse} onLoadMore={onLoadMore} onRetry={() => void refresh()}
@@ -74,7 +79,7 @@ export function DesktopBrowser() {
         />
       </main>
       <Panel side="right" width={panelWidth} min={320} max={560} open={panelOpen} onResize={setPanelWidth} onToggle={() => setPanelOpen(!panelOpen)} tabLabel="Model">
-        <div className="il-scroll" style={{ flex: 1, minHeight: 0 }}>
+        <div ref={keepDetail} className="il-scroll" style={{ flex: 1, minHeight: 0 }}>
           {selectedId != null ? (
             <Detail modelId={selectedId} size="desktop" />
           ) : (

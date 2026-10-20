@@ -8,7 +8,9 @@
  * images — see CONVENTIONS.md → Favourites.
  *
  * Fetching: one AbortController; a filter change restarts from the top; "load more" follows the
- * cursor. Pages come through `civitaiApi`'s in-memory cache.
+ * cursor. Pages come through `civitaiApi`'s in-memory cache. A search already loaded this session
+ * comes back with every page it had (`loadedLists`), so a reopened picker or a trip through another
+ * kind finds the same rows under its kept scroll position (`useKeepScroll`).
  */
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
@@ -87,6 +89,16 @@ interface ModelsState {
 
 let ctrl: AbortController | null = null;
 let seq = 0;
+
+/** Every search loaded this session (by its plan), with all its pages — memory only, newest last. */
+interface LoadedList { items: CivitaiModel[]; nextCursor: string | null; totalItems: number | null }
+const loadedLists = new Map<string, LoadedList>();
+const MAX_LISTS = 12;
+function keepList(key: string, list: LoadedList) {
+  loadedLists.delete(key);
+  loadedLists.set(key, list);
+  if (loadedLists.size > MAX_LISTS) loadedLists.delete(loadedLists.keys().next().value as string);
+}
 
 function messageOf(e: unknown): string {
   if (e instanceof CivitaiError) return e.message;
@@ -176,11 +188,17 @@ export const useModels = create<ModelsState>()(
         const my = ++seq;
         const s = get();
         const plan = planSearch(searchFilters(s), { hasKey: hasApiKey(), favouriteIds: s.favourites, followedUsers: s.followed });
+        const key = JSON.stringify(plan);
+        const had = loadedLists.get(key);
+        // Loaded before this session: the same pages back at once, no refetch, no reset.
+        if (had) { set({ loading: false, loadingMore: false, error: null, ...had }); return; }
         set({ loading: true, error: null, items: [], nextCursor: null, totalItems: null });
         try {
           const page = await runSearchPlan(plan, { limit: PAGE_SIZE }, c.signal);
           if (my !== seq || c.signal.aborted) return;
-          set({ loading: false, items: page.items, nextCursor: page.nextCursor, totalItems: page.totalItems ?? null });
+          const list = { items: page.items, nextCursor: page.nextCursor, totalItems: page.totalItems ?? null };
+          keepList(key, list);
+          set({ loading: false, ...list });
         } catch (e) {
           if (my !== seq || c.signal.aborted) return;
           set({ loading: false, error: messageOf(e) });
@@ -197,7 +215,9 @@ export const useModels = create<ModelsState>()(
           const page = await runSearchPlan(plan, { limit: PAGE_SIZE, cursor: s.nextCursor }, ctrl?.signal);
           if (my !== seq) return;
           const seen = new Set(get().items.map((m) => m.id));
-          set({ loadingMore: false, items: [...get().items, ...page.items.filter((m) => !seen.has(m.id))], nextCursor: page.nextCursor });
+          const items = [...get().items, ...page.items.filter((m) => !seen.has(m.id))];
+          keepList(JSON.stringify(plan), { items, nextCursor: page.nextCursor, totalItems: get().totalItems });
+          set({ loadingMore: false, items, nextCursor: page.nextCursor });
         } catch (e) {
           if (my !== seq) return;
           set({ loadingMore: false, error: messageOf(e) });

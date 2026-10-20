@@ -2,7 +2,8 @@
  * The metadata column (desktop: 420px at the right, scrolls; phone: the sections under the
  * strip): the titled sections in the brief's order — header · stats · version · trigger words ·
  * description · tags · this sample · actions — with a loading line while the full payload is on
- * its way, and the local-file section for `{ file }` targets. Never a blank page.
+ * its way, and the local-file section for `{ file }` targets. Never a blank page. `scrollRef`
+ * (desktop, where it is the scroller) keeps its position per model (`useKeepScroll`).
  */
 import type { CSSProperties } from 'react';
 import { GhostBtn } from '~/screens/models/bits';
@@ -14,13 +15,13 @@ import { SectionSample } from './SectionSample';
 import { SectionActions } from './SectionActions';
 import { SectionLocalFile } from './SectionLocalFile';
 
-export function MetaColumn({ data, onVersion, phone, onClose, style }: { data: ViewerData; onVersion: (id: number) => void; phone: boolean; onClose: () => void; style?: CSSProperties }) {
+export function MetaColumn({ data, onVersion, phone, onClose, style, scrollRef }: { data: ViewerData; onVersion: (id: number) => void; phone: boolean; onClose: () => void; style?: CSSProperties; scrollRef?: (el: HTMLElement | null) => void }) {
   const { model, version, full, loading, error, retry, gallery, index, local } = data;
   const image = gallery.items[index];
   const line = (text: string, tone: 'muted' | 'err' = 'muted') => <div style={{ fontSize: 11, fontWeight: 700, color: tone === 'err' ? 'var(--il-err)' : 'var(--il-muted)', padding: '2px 0' }}>{text}</div>;
 
   return (
-    <div className="il-scroll" style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: phone ? '12px 12px 96px' : 12, touchAction: 'pan-y', ...style }}>
+    <div ref={scrollRef} className="il-scroll" style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: phone ? '12px 12px 96px' : 12, touchAction: 'pan-y', ...style }}>
       {local && <SectionLocalFile local={local} modelType={model?.type} />}
       {!model && !local && line(loading ? 'Loading the model…' : error ?? 'Nothing here')}
       {!model && local && local.state === 'found' && line(loading ? 'Loading the model…' : error ?? 'Could not load the model')}

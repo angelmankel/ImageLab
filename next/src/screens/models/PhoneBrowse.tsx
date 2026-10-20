@@ -20,6 +20,7 @@ import { SearchBox, SourceChips } from './FilterBar';
 import { ModelList } from './ModelList';
 import { PhoneFilters } from './PhoneFilters';
 import { SelectedTagChips } from './TagsRow';
+import { useKeepScroll, modelsListKey } from './useKeepScroll';
 
 const ROW_TYPES = MODEL_TYPES.filter((t) => ['Checkpoint', 'LORA', 'LoCon', 'TextualInversion', 'Controlnet', 'VAE', 'Upscaler', 'MotionModule', 'Workflows'].includes(t));
 
@@ -36,6 +37,10 @@ export function PhoneBrowse() {
   const loadMore = useModels((s) => s.loadMore);
   const setSheetOpen = useModels((s) => s.setSheetOpen);
   const tagCount = useModels((s) => s.selectedTags.length);
+  const source = useModels((s) => s.source);
+  const storeKind = useModels((s) => s.kind);
+  // No key until the store has taken the picker's kind (its effect runs after the first render).
+  const keepScroll = useKeepScroll(storeKind === (kind ?? null) ? modelsListKey(source, storeKind, f.query, true) : null);
   const shown = useShown();
   const installed = useInstalled();
   const actions = useModelActions();
@@ -56,7 +61,7 @@ export function PhoneBrowse() {
           <span style={{ fontWeight: 800, fontSize: 18 }}>Models</span>
         </div>
       )}
-      <div className="il-scroll" style={{ flex: 1, minHeight: 0, padding: `10px 16px ${close ? 24 : 100}px`, display: 'flex', flexDirection: 'column', gap: 8, touchAction: 'pan-y' }}>
+      <div ref={keepScroll} className="il-scroll" style={{ flex: 1, minHeight: 0, padding: `10px 16px ${close ? 24 : 100}px`, display: 'flex', flexDirection: 'column', gap: 8, touchAction: 'pan-y' }}>
         <SearchBox height={44} fontSize={13} />
         <div style={{ display: 'flex', gap: 6 }}>
           <MenuPill<Sort> size="phone" grow label="Sort" value={f.sort} onChange={(sort) => set({ sort })} options={SORTS.map((s) => ({ key: s, label: SORT_SHORT[s] }))} />
