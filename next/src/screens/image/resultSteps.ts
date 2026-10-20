@@ -7,6 +7,7 @@ import { useEffect, useRef } from 'react';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { useImageResults, useVideoResults, useWorkflowResults } from '@/features/workspace/results';
+import { useStore } from '@/lib/store';
 import { useSteps } from '~/app/stepsStore';
 import { creditStep, type HistoryScope, type ResultSource } from './historyLogic';
 
@@ -38,6 +39,26 @@ export const useResultSteps = create<ResultStepsState>()(
   ),
 );
 
+/**
+ * Which step was open when each image job was queued (job id = ComfyUI prompt id = the result's
+ * `promptId`). A picture that lands after a session / step switch still goes to the step that
+ * asked for it, not to whatever is open when it arrives (fix list 36: sessions run side by side).
+ */
+const queuedFrom = new Map<string, string>();
+let knownJobs = new Set<string>();
+useStore.subscribe((st, prev) => {
+  if (st.jobs === prev.jobs) return;
+  const ids = new Set(st.jobs.map((j) => j.id));
+  const { steps, activeId } = useSteps.getState();
+  for (const id of ids) {
+    if (knownJobs.has(id)) continue;
+    const step = creditStep('image', activeId, steps);
+    if (step) queuedFrom.set(id, step);
+  }
+  knownJobs = ids;
+  if (queuedFrom.size > 500) for (const k of [...queuedFrom.keys()].slice(0, queuedFrom.size - 500)) queuedFrom.delete(k);
+});
+
 export function useCreditNewResults(): void {
   const images = useImageResults();
   const videos = useVideoResults();
@@ -56,7 +77,9 @@ export function useCreditNewResults(): void {
         if (seen.current.has(r.key)) continue;
         seen.current.add(r.key);
         if (tagged[r.key]) continue;
-        const id = creditStep(source, activeId, steps);
+        const promptId = (r as { entry?: { promptId?: string } }).entry?.promptId;
+        const asked = promptId ? queuedFrom.get(promptId) : undefined;
+        const id = asked ?? creditStep(source, activeId, steps);
         if (id) pairs.push([r.key, id]);
       }
     }
