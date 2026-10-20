@@ -1,0 +1,54 @@
+/* The next UI's global sheet. The main app's sheet comes first (Mantine layers, the Tailwind
+   colour tokens the reused viewer needs, scrollbars, viewer animations); this file then sets the
+   Ember look on top. Tailwind scans BOTH src trees (`@source`), so classes in ../src compile. */
+@import "../../../src/styles/index.css";
+@source "../../../src";
+@source "../";
+
+:root {
+  --il-bg: #141416; --il-bg-deep: #0F0F11; --il-panel: #1A1A1E; --il-elev: #1C1C21; --il-card: #222228;
+  --il-card-on: #2B2B33; --il-line: #26262C; --il-line-soft: #2A2A31; --il-line-strong: #2F2F38;
+  --il-fg: #F2F2F4; --il-fg2: #C9C9D2; --il-muted: #9A9AA6; --il-dim: #5E5E6A;
+  --il-ember: #F0863A; --il-ember-hi: #FFB36B; --il-ember-soft: #2A2420; --il-ember-line: #5A4A3E;
+  --il-ok: #3DD68C; --il-ok-soft: #1F2A2A; --il-ok-line: #3E5050;
+  --il-warn: #C9B84F; --il-err: #C96A6A; --il-info: #6FA0CF;
+  --il-font: "Manrope Variable", Manrope, system-ui, sans-serif;
+  --il-blur: blur(18px);
+  --il-safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+html, body, #root { height: 100%; margin: 0; }
+body {
+  background: var(--il-bg);
+  color: var(--il-fg);
+  font-family: var(--il-font);
+  font-size: 13px;
+  font-weight: 500;
+  font-feature-settings: normal;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+}
+button, input, select, textarea { font-family: inherit; }
+a { color: var(--il-ember); } a:hover { color: var(--il-ember-hi); }
+
+/* Every scroll container in the app: thin bars, Ember greys. */
+.il-scroll { overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--il-line-strong) transparent; }
+.il-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+.il-scroll::-webkit-scrollbar-thumb { background: var(--il-line-strong); border-radius: 3px; }
+.il-scroll-x { overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
+.il-scroll-x::-webkit-scrollbar { display: none; }
+
+/* Eyebrow: "STEP 1 · WORKFLOW". */
+.il-eyebrow { font-size: 10px; font-weight: 800; letter-spacing: .6px; color: var(--il-muted); text-transform: uppercase; }
+
+/* Glass: the phone dock, the Back pill, floating toolbars. */
+.il-glass {
+  background: rgba(20, 20, 22, .72);
+  backdrop-filter: var(--il-blur);
+  -webkit-backdrop-filter: var(--il-blur);
+  border: 1px solid rgba(255, 255, 255, .08);
+}
+
+/* Focus ring (keyboard only). */
+:focus-visible { outline: 2px solid var(--il-ember); outline-offset: 2px; border-radius: 6px; }
