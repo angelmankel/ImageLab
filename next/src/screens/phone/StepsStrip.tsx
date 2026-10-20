@@ -10,6 +10,7 @@ import { useSteps, STEP_LABEL, ADDABLE_KINDS } from '~/app/stepsStore';
 import { T } from '~/theme/tokens';
 import { stepChipLabel } from './phoneLogic';
 import { menuProps } from '~/app/contextMenu';
+import { generateAll } from '~/screens/image/GenerateAll';
 
 export function StepsStrip({ onJump }: { onJump: (id: string) => void }) {
   const steps = useSteps((s) => s.steps);
@@ -52,6 +53,8 @@ export function StepsStrip({ onJump }: { onJump: (id: string) => void }) {
           </button>
         </Menu.Target>
         <Menu.Dropdown style={{ background: 'var(--il-elev)', border: '1px solid var(--il-line-soft)' }}>
+          <Menu.Item onClick={() => void generateAll()} style={{ fontWeight: 800, color: 'var(--il-ember)' }}>Generate all steps</Menu.Item>
+          <Menu.Divider />
           <Menu.Label>Add a step</Menu.Label>
           {ADDABLE_KINDS.map((k) => (
             <Menu.Item key={k} onClick={() => addStep(k)} style={{ fontWeight: 700 }}>{STEP_LABEL[k]}</Menu.Item>

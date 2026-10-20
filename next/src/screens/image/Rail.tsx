@@ -24,6 +24,7 @@ import { useStepProblem } from './useStepProblem';
 import { useLayout } from './layoutStore';
 import { removeStepWithUndo } from './stepActions';
 import './stepMenuEntries';
+import { GenerateAllButton } from './GenerateAll';
 
 export { KIND_ICON } from '~/app/stepKindPicker';
 
@@ -192,6 +193,7 @@ export function Rail() {
             <span style={{ fontSize: 10, fontWeight: 700 }}>Add</span>
           </button>
         </Tip>
+        <GenerateAllButton />
       </div>
       <div style={{ flex: 1 }} />
       <span aria-hidden style={{ width: 40, height: 1, background: 'var(--il-line)', margin: '8px 0' }} />

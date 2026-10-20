@@ -1,0 +1,137 @@
+/**
+ * Fix list 17: "Generate all" — the button under "+ Add" in the rail runs EVERY step in order
+ * (the Generate bar keeps running only the open step). Each step waits for the one above it to
+ * finish, so it chains to that fresh output; each result is credited to the step that made it.
+ *
+ * It refuses a broken chain up front and says why (one line per broken step; the rail's red rings
+ * show the same): a step missing a required field, or one that needs a picture and has none.
+ * A step waiting on the step above is fine here (that step runs first). While it runs the button
+ * shows "Step 2 / 4" and a click stops after the current step.
+ */
+import { create } from 'zustand';
+import { notifications } from '@mantine/notifications';
+import { IconPlayerPlay, IconPlayerStop } from '@tabler/icons-react';
+import { useStore } from '@/lib/store';
+import { comfyHttpFor } from '@/lib/comfy';
+import type { ObjectInfo } from '@/lib/workflowGraph';
+import { fireFromStore } from '@/features/generate/GenerateButton';
+import { useVideoRun } from '@/features/video/videoRun';
+import { useWorkflowRun } from '@/features/studio/studioRun';
+import { objectInfoNow } from '@/features/studio/useStudioRun';
+import { modeHostNow } from '@/features/workspace/modeHost';
+import { useSteps, brokenChainMessage, STEP_LABEL, type Step } from '~/app/stepsStore';
+import { enqueueRun } from '~/app/runQueue';
+import { stepWorkflowNow } from '~/screens/comfy';
+import { Tip } from '~/ui/Tip';
+import { stepProblemNow } from './useStepProblem';
+import { OWN_KINDS, runKindStep } from './kinds/kindRun';
+import { IMAGE_STEP_ONLY } from './kinds/imageStepOnly';
+import { trackRun } from './kinds/trackRun';
+import { runVideoStep } from './video/videoChain';
+import { startWorkflowStepRun } from './workflow';
+
+interface AllState { running: boolean; at: number; total: number; stop: boolean }
+const useAll = create<AllState>(() => ({ running: false, at: 0, total: 0, stop: false }));
+
+const note = (title: string, message: string, color = 'red') => notifications.show({ title, message, color, autoClose: 3000 });
+
+/** Wait until the image jobs queued since `before` have all left the queue; their error if one failed. */
+function waitImageJobs(before: Set<string>): Promise<string | null> {
+  return new Promise((resolve) => {
+    const mine = () => useStore.getState().jobs.filter((j) => !before.has(j.id));
+    const check = () => {
+      const jobs = mine();
+      const failed = jobs.find((j) => j.status === 'error');
+      if (failed) { done(failed.error ?? 'The image job failed'); return; }
+      if (!jobs.some((j) => j.status === 'queued' || j.status === 'running')) done(null);
+    };
+    const unsub = useStore.subscribe(check);
+    const done = (err: string | null) => { unsub(); resolve(err); };
+    check();
+  });
+}
+
+async function infoFor(host: string): Promise<ObjectInfo | null> {
+  const cached = objectInfoNow(host);
+  if (cached) return cached;
+  try { const r = await fetch(`${comfyHttpFor(host)}/object_info`); return r.ok ? ((await r.json()) as ObjectInfo) : null; } catch { return null; }
+}
+
+/** Run one step and wait for it to finish. null = done, else why it failed. */
+async function runStepToEnd(step: Step): Promise<string | null> {
+  if (step.kind === 'image') {
+    const before = new Set(useStore.getState().jobs.map((j) => j.id));
+    await enqueueRun(() => fireFromStore(false, IMAGE_STEP_ONLY));
+    const queued = useStore.getState().jobs.some((j) => !before.has(j.id));
+    if (!queued) { const st = useStore.getState().status; return st.kind === 'error' ? st.text : 'The picture was not queued'; }
+    return waitImageJobs(before);
+  }
+  if (OWN_KINDS.has(step.kind)) return runKindStep(step, false, true);
+  if (step.kind === 'video') {
+    const host = modeHostNow('video');
+    if (!host) return 'No video server';
+    if (useVideoRun.getState().busy) return 'A video is already rendering';
+    const tracked = trackRun(useVideoRun, step.id);
+    await runVideoStep(step, host, false);
+    if (!tracked.started() && !useVideoRun.getState().busy) tracked.cancel(useVideoRun.getState().error ?? 'The video did not start');
+    return tracked.done;
+  }
+  // Workflow.
+  const host = stepWorkflowNow(step.id)?.host ?? modeHostNow('workflow');
+  if (!host) return 'No server';
+  if (useWorkflowRun.getState().busy) return 'The workflow runner is busy';
+  const info = await infoFor(host);
+  if (!info) return 'Could not read the server’s node list';
+  const tracked = trackRun(useWorkflowRun, step.id);
+  await startWorkflowStepRun(step, host, info, false);
+  if (!tracked.started() && !useWorkflowRun.getState().busy) tracked.cancel(useWorkflowRun.getState().error ?? 'The workflow did not start');
+  return tracked.done;
+}
+
+/** Run one step now (the step menu's "Run this step"), its error as a note. */
+export async function runStepNow(step: Step): Promise<void> {
+  const err = await runStepToEnd(step);
+  if (err) note(`Step · ${STEP_LABEL[step.kind]}`, err);
+}
+
+/** Generate every step in order. Refuses (and says why) when the chain is broken. */
+export async function generateAll(): Promise<void> {
+  if (useAll.getState().running) { useAll.setState({ stop: true }); return; }
+  const steps = useSteps.getState().steps;
+  const refusal = brokenChainMessage(steps.map((s, index) => ({ index, kind: s.kind, problem: stepProblemNow(s, true) })));
+  if (refusal) { note('Generate all: fix these first', refusal); return; }
+  useAll.setState({ running: true, at: 0, total: steps.length, stop: false });
+  try {
+    for (let i = 0; i < steps.length; i++) {
+      if (useAll.getState().stop) { note('Generate all stopped', `After step ${i}`, 'gray'); return; }
+      // The step as it is now (an earlier step's run does not change it, but the user may have).
+      const step = useSteps.getState().steps.find((s) => s.id === steps[i].id);
+      if (!step) continue;
+      useAll.setState({ at: i + 1 });
+      const err = await runStepToEnd(step);
+      if (err) { note(`Generate all stopped at step ${i + 1} · ${STEP_LABEL[step.kind]}`, err); return; }
+    }
+    note('Generate all', `All ${steps.length} steps done`, 'teal');
+  } finally {
+    useAll.setState({ running: false, at: 0, total: 0, stop: false });
+  }
+}
+
+export function GenerateAllButton() {
+  const { running, at, total, stop } = useAll();
+  const label = running ? (stop ? 'Stopping…' : `${at} / ${total}`) : 'All';
+  return (
+    <Tip label={running ? 'Stop after the current step' : 'Generate all — run every step in order'} position="right">
+      <button type="button" aria-label={running ? 'Stop Generate all' : 'Generate all steps'} className="il-btn" onClick={() => void generateAll()}
+        style={{ width: 72, border: 0, background: 'transparent', color: 'var(--il-fg2)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, padding: 0, marginTop: 10, cursor: 'pointer', flex: 'none' }}>
+        <span style={{ width: 46, height: 46, borderRadius: '50%', display: 'grid', placeItems: 'center', background: running ? 'var(--il-card-on)' : 'var(--il-ember)', color: running ? 'var(--il-ember-hi)' : 'var(--il-bg)' }}>
+          {running ? <IconPlayerStop size={18} stroke={2.6} /> : <IconPlayerPlay size={18} stroke={2.6} />}
+        </span>
+        <span style={{ fontSize: 10, fontWeight: 800, whiteSpace: 'nowrap' }}>{running ? label : 'Generate all'}</span>
+      </button>
+    </Tip>
+  );
+}
+
+/** The run's state for other callers (the step menu, the phone dock). */
+export const useGenerateAll = () => useAll((s) => s.running);
