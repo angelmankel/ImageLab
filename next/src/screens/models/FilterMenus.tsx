@@ -57,7 +57,7 @@ export function SourceMenu() {
         const on = it.key === value;
         return (
           <button key={it.key} type="button" role="radio" aria-checked={on} title={it.title} onClick={() => pick(it.key)}
-            style={{ height: 30, padding: '0 12px', border: 0, borderRadius: 999, background: on ? 'var(--il-card-on)' : 'transparent', color: on ? 'var(--il-fg)' : 'var(--il-muted)', fontWeight: 800, fontSize: 12, whiteSpace: 'nowrap', cursor: 'pointer' }}>
+            style={{ height: 30, padding: '0 12px', border: 0, borderRadius: 999, background: on ? 'var(--il-ember)' : 'transparent', color: on ? 'var(--il-bg)' : 'var(--il-muted)', fontWeight: 800, fontSize: 12, whiteSpace: 'nowrap', cursor: 'pointer' }}>
             {it.label}
           </button>
         );
