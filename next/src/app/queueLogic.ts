@@ -49,12 +49,12 @@ export function parseRunRowId(id: string): { source: 'video' | 'workflow'; promp
 }
 
 /** One row per run of ours (item 46: several may be queued); the store's single row while it is still building. */
-export function rowsOfRun(source: 'video' | 'workflow', run: RunLike, stepId?: string): QueueRow[] {
+export function rowsOfRun(source: 'video' | 'workflow', run: RunLike, stepId?: string, stepOf?: (promptId: string) => string | undefined): QueueRow[] {
   if (!run.busy) return [];
   if (!run.jobs?.length) { const r = rowOfRun(source, run, stepId); return r ? [r] : []; }
   const label = source === 'video' ? 'Video' : 'Workflow';
   return run.jobs.map((j) => ({
-    id: `${source}-run:${j.promptId}`, stepId, source, label, status: j.running ? 'running' : 'queued',
+    id: `${source}-run:${j.promptId}`, stepId: stepOf?.(j.promptId) ?? stepId, source, label, status: j.running ? 'running' : 'queued',
     progress: j.running ? (j.progress ?? undefined) : undefined, startedAt: j.queuedAt,
     detail: j.running ? (run.currentNode ?? run.status ?? undefined) : undefined,
   }));

@@ -12,6 +12,7 @@ import { useModeHost } from '@/features/workspace/modeHost';
 import { useSteps, type Step } from '~/app/stepsStore';
 import { cancelQueueRow } from '~/app/queue';
 import { enqueueRun } from '~/app/runQueue';
+import { runTagged } from '~/app/runSteps';
 import { useStepInput } from '../useStepOutput';
 import { blockReason } from './videoStepLogic';
 import { runVideoStep } from './videoChain';
@@ -41,7 +42,7 @@ export function useVideoStepRun(step: Step): StepRun {
       if (!host || disabled) { notifications.show({ title: 'Cannot generate', message: disabled ?? 'No video server', color: 'yellow', autoClose: 3000 }); return; }
       // Item 46: a press while a clip renders queues one more (presses take turns, `enqueueRun`).
       setPreparing(true);
-      void enqueueRun(() => runVideoStep(step, host, newSeed)).finally(() => setPreparing(false));
+      void enqueueRun(() => runTagged(useVideoRun, step.id, () => runVideoStep(step, host, newSeed))).finally(() => setPreparing(false));
     },
     stop: () => cancelQueueRow('video-run'),
     busy: run.busy || preparing,

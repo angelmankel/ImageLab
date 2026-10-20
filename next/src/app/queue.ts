@@ -10,6 +10,7 @@ import { useStore } from '@/lib/store';
 import { useVideoRun } from '@/features/video/videoRun';
 import { useWorkflowRun } from '@/features/studio/studioRun';
 import { useSteps, type Step } from './stepsStore';
+import { runStepOf } from './runSteps';
 import { orderRows, parseRunRowId, rowOfJob, rowsOfRun, type QueueRow, type RunLike } from './queueLogic';
 
 export type { QueueRow } from './queueLogic';
@@ -47,7 +48,7 @@ export function rowsOf(
     const r = rowOfJob(j, servers.find((sv) => sv.id === j.serverId)?.name, imageStep);
     if (r) out.push(r);
   }
-  out.push(...rowsOfRun('video', video, videoStep), ...rowsOfRun('workflow', workflow, workflowStep));
+  out.push(...rowsOfRun('video', video, videoStep, runStepOf), ...rowsOfRun('workflow', workflow, workflowStep, runStepOf));
   return out.length ? orderRows(out) : NONE;
 }
 

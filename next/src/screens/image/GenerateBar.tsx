@@ -19,6 +19,7 @@ import { useStepWorkflow } from '~/screens/comfy';
 import type { Step } from '~/app/stepsStore';
 import { cancelQueueRow, useQueue } from '~/app/queue';
 import { enqueueRun } from '~/app/runQueue';
+import { runTagged } from '~/app/runSteps';
 import { nextInCycle, useCycleOf } from '~/app/batchCycle';
 import { Tip } from '~/ui';
 import { useVideoStepRun } from './video';
@@ -68,7 +69,7 @@ export function useStepRun(step: Step): { run: (newSeed?: boolean) => void; stop
     // The step's own runner opens its workflow, uploads the chained picture, re-rolls the seeds
     // (dice = every seed; Generate = only the unlocked ones) and queues the run.
     return {
-      run: (newSeed = false) => { if (wfHost) void enqueueRun(() => startWorkflowStepRun(step, wfHost, info, newSeed)); },
+      run: (newSeed = false) => { if (wfHost) void enqueueRun(() => runTagged(useWorkflowRun, step.id, () => startWorkflowStepRun(step, wfHost, info, newSeed))); },
       stop: () => cancelQueueRow('workflow-run'),
       busy: workflow.busy, busyLabel: workflow.status ?? 'Running', progress: workflow.progress,
       disabled: !wfHost ? 'No server' : !info ? 'Reading the server…' : !stepWf ? 'Pick a workflow in the step' : null,
