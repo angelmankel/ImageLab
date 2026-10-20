@@ -83,7 +83,7 @@ function StepNode({ step, index, lifted, onGrab }: { step: Step; index: number; 
               background: on ? 'var(--il-ember)' : 'var(--il-panel)', color: on ? 'var(--il-bg)' : 'var(--il-fg2)',
               border: on ? 0 : '1px solid var(--il-line-soft)',
               boxShadow: [
-                problem ? '0 0 0 2px var(--il-err)' : on ? '0 0 0 4px rgba(240,134,58,.18)' : '',
+                problem ? '0 0 0 2px var(--il-err)' : on ? '0 0 0 4px color-mix(in srgb, var(--il-ember) 18%, transparent)' : '',
                 lifted ? '0 10px 24px rgba(0,0,0,.45)' : '',
               ].filter(Boolean).join(', ') || undefined,
               transform: lifted ? 'scale(1.08)' : undefined, transition: 'transform .12s, box-shadow .12s',

@@ -86,7 +86,7 @@ function Tile({ s, out, isOpen, now, phone }: { s: Session; out?: SessionOutput;
       </div>
       {isOpen && <span style={{ position: 'absolute', top: 8, left: 8, height: 22, padding: '0 8px', borderRadius: 999, background: 'var(--il-ember)', color: 'var(--il-bg)', fontSize: 10, fontWeight: 800, display: 'grid', placeItems: 'center', letterSpacing: '.4px' }}>OPEN</span>}
       <button type="button" aria-label="Session menu" onClick={more} className="il-home-more"
-        style={{ position: 'absolute', top: 6, right: 6, width: phone ? 40 : 30, height: phone ? 40 : 30, borderRadius: '50%', border: 0, background: 'rgba(15,15,17,.62)', color: 'var(--il-fg)', display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
+        style={{ position: 'absolute', top: 6, right: 6, width: phone ? 40 : 30, height: phone ? 40 : 30, borderRadius: '50%', border: 0, background: 'color-mix(in srgb, var(--il-bg-deep) 62%, transparent)', color: 'var(--il-fg)', display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
         <IconDots size={16} stroke={2.6} />
       </button>
     </div>

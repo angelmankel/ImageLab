@@ -53,7 +53,7 @@ export const Tile = memo(function Tile({ item, selected, selecting, picked, radi
         </span>
       )}
       {selecting && (
-        <span className="lib-badge" style={{ left: 8, top: 8, width: 22, height: 22, background: picked ? 'var(--il-ember)' : 'rgba(20,20,22,.7)', color: 'var(--il-bg)', border: picked ? 0 : '2px solid var(--il-fg2)' }}>
+        <span className="lib-badge" style={{ left: 8, top: 8, width: 22, height: 22, background: picked ? 'var(--il-ember)' : 'color-mix(in srgb, var(--il-bg) 70%, transparent)', color: 'var(--il-bg)', border: picked ? 0 : '2px solid var(--il-fg2)' }}>
           {picked && <IconCheck size={13} stroke={3.4} />}
         </span>
       )}
@@ -74,7 +74,7 @@ export const Tile = memo(function Tile({ item, selected, selecting, picked, radi
           {item.kind === 'image' && (
             <span style={{
               position: 'absolute', left: 0, right: 0, bottom: 0, padding: '18px 8px 7px', display: 'flex', justifyContent: 'space-between', gap: 6,
-              background: 'linear-gradient(to top, rgba(15,15,17,.85), rgba(15,15,17,0))', fontSize: 10, fontWeight: 700, color: 'var(--il-fg2)', textAlign: 'left',
+              background: 'linear-gradient(to top, color-mix(in srgb, var(--il-bg-deep) 85%, transparent), color-mix(in srgb, var(--il-bg-deep) 0%, transparent))', fontSize: 10, fontWeight: 700, color: 'var(--il-fg2)', textAlign: 'left',
             }}>
               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{model || 'Image'}</span>
               <span style={{ flex: 'none', color: 'var(--il-muted)' }}>{whenLabel(item.createdAt).replace('Today · ', '')}</span>

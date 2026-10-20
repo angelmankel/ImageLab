@@ -141,14 +141,14 @@ export function ModelTile({ model, selected, installed, mask, revealed, favourit
           <CoverBadge at="tl">{typeLabel(model.type).toUpperCase()}</CoverBadge>
           {version?.baseModel && <CoverBadge at="tr" tone="ember">{baseModelShort(version.baseModel)}</CoverBadge>}
           {!hidden && (
-            <span className="ilm-touch-eye" aria-hidden style={{ position: 'absolute', left: 8, bottom: 8, width: 26, height: 26, borderRadius: '50%', background: 'rgba(20,20,22,.78)', color: 'var(--il-fg)', placeItems: 'center' }}>
+            <span className="ilm-touch-eye" aria-hidden style={{ position: 'absolute', left: 8, bottom: 8, width: 26, height: 26, borderRadius: '50%', background: 'color-mix(in srgb, var(--il-bg) 78%, transparent)', color: 'var(--il-fg)', placeItems: 'center' }}>
               <IconArrowsMaximize size={13} stroke={2.4} />
             </span>
           )}
         </button>
         {!local && (
           <button type="button" className="ilm-heart" onClick={() => toggleFavourite(model.id)} aria-pressed={!!favourite} aria-label={favourite ? `Remove ${model.name} from favourites` : `Add ${model.name} to favourites`}
-            style={{ position: 'absolute', right: 8, bottom: 8, width: phone ? 36 : 30, height: phone ? 36 : 30, border: 0, padding: 0, borderRadius: '50%', background: 'rgba(20,20,22,.78)', color: favourite ? 'var(--il-ember)' : 'var(--il-fg2)', display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
+            style={{ position: 'absolute', right: 8, bottom: 8, width: phone ? 36 : 30, height: phone ? 36 : 30, border: 0, padding: 0, borderRadius: '50%', background: 'color-mix(in srgb, var(--il-bg) 78%, transparent)', color: favourite ? 'var(--il-ember)' : 'var(--il-fg2)', display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
             {favourite ? <IconHeartFilled size={14} /> : <IconHeart size={14} stroke={2.2} />}
           </button>
         )}

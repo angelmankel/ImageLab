@@ -94,7 +94,7 @@ export function GenerateOrb() {
         style={{
           width: SIZE, height: SIZE, padding: 0, border: 0, borderRadius: '50%', cursor: 'pointer',
           background: 'var(--il-ember)', color: 'var(--il-bg)', display: 'grid', placeItems: 'center',
-          boxShadow: '0 6px 18px rgba(240,134,58,.35)', touchAction: 'manipulation',
+          boxShadow: '0 6px 18px color-mix(in srgb, var(--il-ember) 35%, transparent)', touchAction: 'manipulation',
           userSelect: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none',
         }}
       >

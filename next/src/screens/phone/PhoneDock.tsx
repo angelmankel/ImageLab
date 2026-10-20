@@ -42,7 +42,7 @@ export function PhoneDock({ onJump }: { onJump: (id: string) => void }) {
   return (
     <GlassBar style={{
       left: 12, right: 12, bottom: 'calc(10px + var(--il-safe-bottom))', borderRadius: 30, padding: '10px 10px 8px', gap: 8,
-      background: 'rgba(28,28,33,.72)', boxShadow: '0 10px 30px rgba(0,0,0,.35)',
+      background: 'color-mix(in srgb, var(--il-elev) var(--il-glass-pct, 72%), transparent)', boxShadow: '0 10px 30px rgba(0,0,0,.35)',
     }}>
       <StepsStrip onJump={onJump} />
       <div style={{ height: 62, display: 'flex', alignItems: 'center', justifyContent: 'space-around', padding: '0 4px' }}>

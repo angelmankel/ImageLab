@@ -137,7 +137,7 @@ function PickerPicture({ meta: m, on, tile }: { meta: ModelMeta; on: boolean; ti
     >
       <Thumb label={m.label} images={preview.stills} size={tile} style={{ width: '100%', height: '100%', borderRadius: T.radius.md }} />
       {m.bucket !== 'Unknown' && (
-        <span style={{ position: 'absolute', left: 6, bottom: 6, fontSize: 10, fontWeight: 800, borderRadius: 999, padding: '2px 7px', background: 'rgba(20,20,22,.78)', color: 'var(--il-fg2)' }}>{m.bucket}</span>
+        <span style={{ position: 'absolute', left: 6, bottom: 6, fontSize: 10, fontWeight: 800, borderRadius: 999, padding: '2px 7px', background: 'color-mix(in srgb, var(--il-bg) 78%, transparent)', color: 'var(--il-fg2)' }}>{m.bucket}</span>
       )}
       {on && <span style={{ position: 'absolute', right: 6, top: 6, fontSize: 10, fontWeight: 800, borderRadius: 999, padding: '2px 7px', background: 'var(--il-ember)', color: 'var(--il-bg)' }}>✓</span>}
     </button>

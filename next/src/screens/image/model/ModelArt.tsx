@@ -53,7 +53,7 @@ export function ModelArt({ pictures, label, height, onOpen, rootRef, onPointerEn
           more={i === shown.length - 1 && more > 0 ? more : undefined}
           style={shown.length === 3 && i === 0 ? { gridRow: '1 / 3', borderRadius: 12 } : undefined} />
       ))}
-      <span aria-hidden style={{ position: 'absolute', left: 6, top: 6, width: 24, height: 24, borderRadius: '50%', background: 'rgba(20,20,22,.72)', color: 'var(--il-fg)', display: 'grid', placeItems: 'center', pointerEvents: 'none' }}>
+      <span aria-hidden style={{ position: 'absolute', left: 6, top: 6, width: 24, height: 24, borderRadius: '50%', background: 'color-mix(in srgb, var(--il-bg) var(--il-glass-pct, 72%), transparent)', color: 'var(--il-fg)', display: 'grid', placeItems: 'center', pointerEvents: 'none' }}>
         <IconArrowsMaximize size={12} stroke={2.4} />
       </span>
     </div>

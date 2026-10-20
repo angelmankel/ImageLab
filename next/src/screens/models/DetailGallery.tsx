@@ -21,8 +21,8 @@ export function Media({ img, width, reveal, blurred, style, cover = true, still 
         ? <video src={civitaiVideoUrl(img.url, width)} poster={civitaiThumbUrl(previewStill(img, width), width)} muted loop autoPlay playsInline style={base} />
         : <img src={civitaiThumbUrl(previewStill(img, width), width)} alt="" loading="lazy" decoding="async" style={base} />}
       {blurred && (
-        <button type="button" onClick={(e) => { e.stopPropagation(); reveal(); }} style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', border: 0, background: 'rgba(20,20,22,.35)', color: 'var(--il-fg)', cursor: 'pointer' }}>
-          <span style={{ height: 26, padding: '0 10px', borderRadius: 999, background: 'rgba(20,20,22,.8)', fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6 }}><IconEyeOff size={12} />NSFW · tap to show</span>
+        <button type="button" onClick={(e) => { e.stopPropagation(); reveal(); }} style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', border: 0, background: 'color-mix(in srgb, var(--il-bg) 35%, transparent)', color: 'var(--il-fg)', cursor: 'pointer' }}>
+          <span style={{ height: 26, padding: '0 10px', borderRadius: 999, background: 'color-mix(in srgb, var(--il-bg) 80%, transparent)', fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6 }}><IconEyeOff size={12} />NSFW · tap to show</span>
         </button>
       )}
     </>

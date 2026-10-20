@@ -29,7 +29,7 @@ export function PhoneFilters({ count, pool }: { count: number; pool: CivitaiMode
       zIndex={T.z.modal + 10}
       overlayProps={{ backgroundOpacity: 0.6, blur: 0 }}
       styles={{
-        content: { background: 'rgba(28,28,33,.94)', backdropFilter: T.blur, WebkitBackdropFilter: T.blur, borderRadius: '24px 24px 0 0', borderTop: '1px solid rgba(255,255,255,.08)', boxShadow: '0 -10px 30px rgba(0,0,0,.35)', display: 'flex', flexDirection: 'column' },
+        content: { background: 'color-mix(in srgb, var(--il-elev) 94%, transparent)', backdropFilter: T.blur, WebkitBackdropFilter: T.blur, borderRadius: '24px 24px 0 0', borderTop: '1px solid rgba(255,255,255,.08)', boxShadow: '0 -10px 30px rgba(0,0,0,.35)', display: 'flex', flexDirection: 'column' },
         body: { padding: 0, display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, height: '100%' },
       }}
     >

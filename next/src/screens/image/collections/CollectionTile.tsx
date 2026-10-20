@@ -36,7 +36,7 @@ export function CollectionTile({ c, count, cover, coverIsVideo, active, onPick }
           ? <video src={cover} muted playsInline preload="metadata" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', pointerEvents: 'none' }} />
           : <img src={cover} alt="" loading="lazy" draggable={false} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />)}
         {!cover && <IconFolder size={22} stroke={1.8} style={{ position: 'absolute', left: '50%', top: 18, transform: 'translateX(-50%)', color: 'var(--il-muted)' }} />}
-        <span aria-hidden style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 34, background: 'linear-gradient(transparent, rgba(15,15,17,.85))' }} />
+        <span aria-hidden style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 34, background: 'linear-gradient(transparent, color-mix(in srgb, var(--il-bg-deep) 85%, transparent))' }} />
         {!renaming && (
           <span style={{ position: 'absolute', left: 6, right: 6, bottom: 5, display: 'flex', alignItems: 'baseline', gap: 4, textAlign: 'left' }}>
             <span style={{ flex: 1, minWidth: 0, fontSize: 10, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</span>

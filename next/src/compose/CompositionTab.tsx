@@ -41,8 +41,8 @@ function AspectPreview({ w, h, height }: { w: number; h: number; height: number 
   const k = Math.min((maxW * 340) / w, (maxH * height) / h);
   return (
     <div style={{ height, borderRadius: T.radius.md, background: 'var(--il-bg-deep)', display: 'grid', placeItems: 'center', position: 'relative', overflow: 'hidden' }}>
-      <div aria-hidden style={{ width: Math.round(w * k), height: Math.round(h * k), maxWidth: '86%', border: '2px solid var(--il-ember)', borderRadius: 6, background: 'repeating-linear-gradient(45deg, rgba(240,134,58,.08) 0 8px, transparent 8px 16px)', transition: 'width .18s ease, height .18s ease' }} />
-      <span aria-live="polite" style={{ position: 'absolute', padding: '3px 9px', borderRadius: 999, background: 'rgba(15,15,17,.78)', fontSize: 14, fontWeight: 800, color: 'var(--il-fg)', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{fmt(w, h)}</span>
+      <div aria-hidden style={{ width: Math.round(w * k), height: Math.round(h * k), maxWidth: '86%', border: '2px solid var(--il-ember)', borderRadius: 6, background: 'repeating-linear-gradient(45deg, color-mix(in srgb, var(--il-ember) 8%, transparent) 0 8px, transparent 8px 16px)', transition: 'width .18s ease, height .18s ease' }} />
+      <span aria-live="polite" style={{ position: 'absolute', padding: '3px 9px', borderRadius: 999, background: 'color-mix(in srgb, var(--il-bg-deep) 78%, transparent)', fontSize: 14, fontWeight: 800, color: 'var(--il-fg)', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{fmt(w, h)}</span>
     </div>
   );
 }

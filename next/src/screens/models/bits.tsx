@@ -46,7 +46,7 @@ export function CoverBadge({ children, at, tone = 'fg' }: { children: ReactNode;
   const color = tone === 'ember' ? 'var(--il-ember-hi)' : tone === 'muted' ? 'var(--il-fg2)' : 'var(--il-fg)';
   return (
     <span style={{
-      position: 'absolute', ...pos, height: 20, padding: '0 7px', borderRadius: 999, background: 'rgba(20,20,22,.72)', color,
+      position: 'absolute', ...pos, height: 20, padding: '0 7px', borderRadius: 999, background: 'color-mix(in srgb, var(--il-bg) var(--il-glass-pct, 72%), transparent)', color,
       fontSize: tone === 'muted' ? 10 : 9, fontWeight: tone === 'muted' ? 700 : 800, letterSpacing: tone === 'fg' ? '.5px' : undefined,
       display: 'flex', alignItems: 'center', maxWidth: 'calc(100% - 16px)', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', pointerEvents: 'none',
     }}>{children}</span>
@@ -218,4 +218,4 @@ export function RoundAction({ children, onClick, label, tone = 'ember', disabled
 }
 
 /** A soft placeholder gradient for a cover that has no image yet. */
-export const COVER_FALLBACK = 'linear-gradient(135deg, #2B2B33, #1C1C21)';
+export const COVER_FALLBACK = 'linear-gradient(135deg, var(--il-card-on), var(--il-elev))';

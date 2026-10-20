@@ -94,7 +94,7 @@ function BatchCycle({ stepId, h }: { stepId: string; h: number }) {
           ×{batch}
         </button>
       </Tip>
-      <span aria-hidden style={{ width: 1, alignSelf: 'stretch', background: 'rgba(20,20,22,.25)', margin: '10px 0' }} />
+      <span aria-hidden style={{ width: 1, alignSelf: 'stretch', background: 'color-mix(in srgb, var(--il-bg) 25%, transparent)', margin: '10px 0' }} />
     </>
   );
 }
@@ -122,11 +122,11 @@ export function GenerateBar({ step, large = false }: { step: Step; large?: boole
             style={{ ...seg, flex: 1, minWidth: 0, fontSize: 16, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
             <IconSparkles size={18} stroke={2.4} />Generate
             {pending > 0 && (
-              <span aria-label={`${pending} on the way`} style={{ minWidth: 22, height: 22, padding: '0 7px', borderRadius: 999, background: 'rgba(20,20,22,.82)', color: 'var(--il-ember-hi)', fontSize: 12, fontWeight: 800, display: 'grid', placeItems: 'center', fontVariantNumeric: 'tabular-nums' }}>{pending}</span>
+              <span aria-label={`${pending} on the way`} style={{ minWidth: 22, height: 22, padding: '0 7px', borderRadius: 999, background: 'color-mix(in srgb, var(--il-bg) 82%, transparent)', color: 'var(--il-ember-hi)', fontSize: 12, fontWeight: 800, display: 'grid', placeItems: 'center', fontVariantNumeric: 'tabular-nums' }}>{pending}</span>
             )}
           </button>
         </Tip>
-        <span aria-hidden style={{ width: 1, background: 'rgba(20,20,22,.25)', margin: '10px 0' }} />
+        <span aria-hidden style={{ width: 1, background: 'color-mix(in srgb, var(--il-bg) 25%, transparent)', margin: '10px 0' }} />
         <Tip label={pending ? 'Queue one more with a new random seed' : 'Generate with a new random seed'}>
           <button type="button" className="il-btn" onClick={() => { if (!off) run(true); }} aria-label="Generate with a random seed"
             style={{ ...seg, width: 64, display: 'grid', placeItems: 'center', flex: 'none' }}>
@@ -134,10 +134,10 @@ export function GenerateBar({ step, large = false }: { step: Step; large?: boole
           </button>
         </Tip>
         {busy && (
-          <div aria-hidden style={{ position: 'absolute', left: 18, right: 18, bottom: 5, height: 3, borderRadius: 2, background: 'rgba(20,20,22,.22)', overflow: 'hidden', pointerEvents: 'none' }}>
+          <div aria-hidden style={{ position: 'absolute', left: 18, right: 18, bottom: 5, height: 3, borderRadius: 2, background: 'color-mix(in srgb, var(--il-bg) 22%, transparent)', overflow: 'hidden', pointerEvents: 'none' }}>
             {pct != null
-              ? <div style={{ height: '100%', width: `${pct}%`, background: 'rgba(20,20,22,.75)', transition: 'width .2s' }} />
-              : <div className="il-sweep" style={{ height: '100%', width: '33%', background: 'linear-gradient(90deg, transparent, rgba(20,20,22,.75), transparent)' }} />}
+              ? <div style={{ height: '100%', width: `${pct}%`, background: 'color-mix(in srgb, var(--il-bg) 75%, transparent)', transition: 'width .2s' }} />
+              : <div className="il-sweep" style={{ height: '100%', width: '33%', background: 'linear-gradient(90deg, transparent, color-mix(in srgb, var(--il-bg) 75%, transparent), transparent)' }} />}
           </div>
         )}
       </div>

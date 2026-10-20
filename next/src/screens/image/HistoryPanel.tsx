@@ -33,7 +33,7 @@ const SCOPES: Array<{ key: HistoryScope; label: string; title: string }> = [{ ke
 /** Toggles: tap one to show only that, tap it again for everything (no 'All' chip, Donny 10-20). */
 const FILTERS: Array<{ key: HistoryFilter; label: string }> = [{ key: 'images', label: 'Images' }, { key: 'videos', label: 'Videos' }, { key: 'liked', label: '★' }];
 
-const corner: React.CSSProperties = { position: 'absolute', top: 6, width: 26, height: 26, border: 0, borderRadius: '50%', background: 'rgba(15,15,17,.6)', display: 'grid', placeItems: 'center', cursor: 'pointer' };
+const corner: React.CSSProperties = { position: 'absolute', top: 6, width: 26, height: 26, border: 0, borderRadius: '50%', background: 'color-mix(in srgb, var(--il-bg-deep) 60%, transparent)', display: 'grid', placeItems: 'center', cursor: 'pointer' };
 
 function TileView({ tile, selected, onPick, onOpen, onLike, onDelete }: { tile: Tile<HistoryEntry>; selected: boolean; onPick: () => void; onOpen: () => void; onLike?: () => void; onDelete: () => void }) {
   // A tile is a drag source app-wide (fix list 42); a long-press opens the Send-to sheet on a phone.
@@ -51,15 +51,15 @@ function TileView({ tile, selected, onPick, onOpen, onLike, onDelete }: { tile: 
       </button>
       {onLike && (
         <button type="button" onClick={(e) => { e.stopPropagation(); onLike(); }} aria-label={tile.liked ? 'Remove from favourites' : 'Favourite'} aria-pressed={tile.liked}
-          style={{ ...corner, right: 6, color: tile.liked ? 'var(--il-ember)' : 'rgba(242,242,244,.8)', opacity: tile.liked ? 1 : undefined }} className="il-tile-like">
+          style={{ ...corner, right: 6, color: tile.liked ? 'var(--il-ember)' : 'color-mix(in srgb, var(--il-fg) 80%, transparent)', opacity: tile.liked ? 1 : undefined }} className="il-tile-like">
           {tile.liked ? <IconHeartFilled size={13} /> : <IconHeart size={13} stroke={2.4} />}
         </button>
       )}
       <button type="button" onClick={(e) => { e.stopPropagation(); onDelete(); }} onDoubleClick={(e) => e.stopPropagation()} aria-label="Delete" title="Delete (Undo in the note)"
-        style={{ ...corner, left: 6, color: 'rgba(242,242,244,.8)' }} className="il-tile-del">
+        style={{ ...corner, left: 6, color: 'color-mix(in srgb, var(--il-fg) 80%, transparent)' }} className="il-tile-del">
         <IconTrash size={13} stroke={2.4} />
       </button>
-      {tile.kind === 'video' && <span style={{ position: 'absolute', left: 8, bottom: 6, fontSize: 10, fontWeight: 800, color: 'rgba(242,242,244,.9)', background: 'rgba(15,15,17,.6)', borderRadius: 999, padding: '2px 7px' }}>VIDEO</span>}
+      {tile.kind === 'video' && <span style={{ position: 'absolute', left: 8, bottom: 6, fontSize: 10, fontWeight: 800, color: 'color-mix(in srgb, var(--il-fg) 90%, transparent)', background: 'color-mix(in srgb, var(--il-bg-deep) 60%, transparent)', borderRadius: 999, padding: '2px 7px' }}>VIDEO</span>}
     </div>
   );
 }
