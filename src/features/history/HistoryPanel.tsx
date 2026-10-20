@@ -33,6 +33,8 @@ export interface HistoryPanelProps {
    * uses this since the canvas compositor doesn't react to selection.
    */
   tileClickMode?: 'select-then-open' | 'open-immediately';
+  /** Render the fullscreen viewer here (default). The new workspace's stage renders its own. */
+  viewer?: boolean;
 }
 
 /**
@@ -43,7 +45,7 @@ export interface HistoryPanelProps {
  * Laid out as v1's OutputPanel: a slim controls bar (grid-size slider, filters,
  * bulk delete), the running-job strip, then a square-tile grid.
  */
-export function HistoryPanel({ tileClickMode = 'select-then-open' }: HistoryPanelProps = {}) {
+export function HistoryPanel({ tileClickMode = 'select-then-open', viewer = true }: HistoryPanelProps = {}) {
   // In 'open-immediately' mode the panel doesn't write to the global
   // `selectedEntry` — that selection drives the generate-view canvas
   // (StrippedCanvas), and bleeding canvas-view clicks into it would make the
@@ -292,7 +294,7 @@ export function HistoryPanel({ tileClickMode = 'select-then-open' }: HistoryPane
         )}
       </div>
 
-      {viewerOpen && (list.length > 0 || hasLiveFrame) && (
+      {viewer && viewerOpen && (list.length > 0 || hasLiveFrame) && (
         <FullscreenViewer
           list={list}
           index={Math.max(0, viewerIndex)}

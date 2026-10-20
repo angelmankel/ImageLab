@@ -23,7 +23,7 @@ import type { ResultItem } from '@/lib/workspace';
 const SIDES = [-1, 0, 1] as const;
 const NO_ITEMS: readonly ResultItem[] = [];
 
-export function HeroResult({ items = NO_ITEMS, currentKey = null, onPick, preview, busy, progress, statusLine, queued, onOpen, onDragProgress, empty, children, className }: {
+export function HeroResult({ items = NO_ITEMS, currentKey = null, onPick, preview, busy, progress, statusLine, queued, onOpen, onDragProgress, empty, children, className, bare, hideProgress }: {
   /** Every result, in strip order (newest first); the hero shows `currentKey` and pages among them. */
   items?: readonly ResultItem[];
   currentKey?: string | null;
@@ -45,6 +45,10 @@ export function HeroResult({ items = NO_ITEMS, currentKey = null, onPick, previe
   empty?: ReactNode;
   children?: ReactNode;
   className?: string;
+  /** No frame, no rounding: the stage of the new workspace, which fills its column edge to edge. */
+  bare?: boolean;
+  /** The caller draws its own progress band (the stage floats one above its filmstrip). */
+  hideProgress?: boolean;
 }) {
   const index = items.findIndex(i => i.key === currentKey);
   const item = items[index] ?? null;
@@ -124,7 +128,11 @@ export function HeroResult({ items = NO_ITEMS, currentKey = null, onPick, previe
       onWheel={onWheel}
       // pan-y: the browser keeps any vertical scroll; sideways is ours.
       style={{ touchAction: 'pan-y' }}
-      className={cn('relative flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-xl border border-border-default bg-bg-base', className)}
+      className={cn(
+        'flex items-center justify-center overflow-hidden bg-bg-base',
+        bare ? 'absolute inset-0' : 'relative min-h-0 flex-1 rounded-xl border border-border-default',
+        className,
+      )}
     >
       {item && !live ? (
         <div ref={pager.trackRef} className="absolute inset-0">
@@ -151,7 +159,7 @@ export function HeroResult({ items = NO_ITEMS, currentKey = null, onPick, previe
         </div>
       )}
 
-      {busy && (
+      {busy && !hideProgress && (
         <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col gap-1 bg-gradient-to-t from-black/75 to-transparent px-3 pb-2 pt-6">
           <div className="flex items-baseline justify-between gap-2 text-[11.5px] text-white/85">
             <span className="truncate">{statusLine ?? 'Working…'}</span>

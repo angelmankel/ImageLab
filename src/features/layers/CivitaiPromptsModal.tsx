@@ -5,7 +5,7 @@
  * from the Images API (the only endpoint that keeps `meta`). "Use prompt" replaces the Prompt and
  * Negative boxes with Undo; "+ settings" also copies steps, CFG and seed.
  */
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useMediaQuery } from '@mantine/hooks';
 import {
   ActionIcon, Badge, Box, Button, Group, Loader, Modal, Paper, ScrollArea, SegmentedControl, SimpleGrid, Stack, Text, TextInput,
@@ -13,43 +13,9 @@ import {
 } from '@mantine/core';
 import { IconArrowLeft, IconExternalLink, IconSearch } from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
-import {
-  civitaiThumbUrl, fetchCivitaiImages, isCivitaiVideo, type CivitaiImage, type CivitaiVersionByHash, type NsfwFilter,
-} from '@/lib/civitai';
-import { modelLabel } from '@/components/models/modelInfo';
-import { bucketForBaseModel } from '@/lib/modelHash';
-import { isVideoModelName } from '@/lib/wanGraph';
+import { civitaiThumbUrl, type CivitaiImage, type NsfwFilter } from '@/lib/civitai';
 import { applyWithUndo } from './PresetLibraryModal';
-
-type Installed = { file: string; versionId: number; modelId: number; model: string; version: string; type: string; preview?: string; video: boolean };
-
-const NSFW_KEY = 'imagelab.civitaiPrompts.nsfw';
-const typeRank = (t: string) => (t === 'Checkpoint' ? 0 : /lora|locon|dora/i.test(t) ? 1 : 2);
-
-/** Every installed file CivitAI resolved, current checkpoint and LoRAs first. */
-function useInstalled(): Installed[] {
-  const hashes = useStore((s) => s.modelHashes);
-  const byHash = useStore((s) => s.civitaiByHash);
-  const checkpoint = useStore((s) => s.workflow.checkpoints[0]?.name);
-  const loras = useStore((s) => s.workflow.loras);
-  return useMemo(() => {
-    const active = new Set([checkpoint, ...loras.map((l) => l.name)].filter(Boolean));
-    const seen = new Set<number>();
-    const list: Installed[] = [];
-    for (const h of hashes) {
-      const e = byHash[h.hash];
-      if (!e || e.status !== 'found') continue;
-      const d = e.data as CivitaiVersionByHash;
-      if (!d?.id || seen.has(d.id)) continue;
-      seen.add(d.id);
-      const bucket = bucketForBaseModel(d.baseModel);
-      list.push({ file: h.filename, versionId: d.id, modelId: d.modelId, model: d.model?.name ?? modelLabel(h.filename), version: d.name, type: d.model?.type ?? '', preview: d.images?.[0]?.url,
-        video: bucket === 'Wan Video' || bucket === 'MiniMax H3' || isVideoModelName(h.filename) });
-    }
-    const isActive = (m: Installed) => [...active].some((a) => a && (m.file === a || m.file.endsWith(`/${a}`) || a.endsWith(`/${m.file}`) || modelLabel(a) === modelLabel(m.file)));
-    return list.sort((a, b) => Number(isActive(b)) - Number(isActive(a)) || typeRank(a.type) - typeRank(b.type) || a.model.localeCompare(b.model));
-  }, [hashes, byHash, checkpoint, loras]);
-}
+import { loadNsfw, saveNsfw, useCivitaiGallery, useInstalledCivitai } from './civitaiPrompts';
 
 export function CivitaiPromptsModal({ opened, onClose, only, onUse }: {
   opened: boolean; onClose: () => void;
@@ -59,38 +25,17 @@ export function CivitaiPromptsModal({ opened, onClose, only, onUse }: {
   onUse?: (p: { positive: string; negative?: string }) => void;
 }) {
   const narrow = useMediaQuery('(max-width: 48em)') ?? false;
-  const all = useInstalled();
-  const installed = useMemo(() => (only === 'video' ? all.filter((m) => m.video) : only === 'image' ? all.filter((m) => !m.video) : all), [all, only]);
+  const installed = useInstalledCivitai(only);
   const [picked, setPicked] = useState<number | null>(null);
   const [filter, setFilter] = useState('');
-  const [nsfw, setNsfw] = useState<NsfwFilter>(() => (localStorage.getItem(NSFW_KEY) as NsfwFilter) || 'all');
-  const [items, setItems] = useState<CivitaiImage[]>([]);
-  const [cursor, setCursor] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [failed, setFailed] = useState(false);
+  const [nsfw, setNsfw] = useState<NsfwFilter>(loadNsfw);
   const [open, setOpen] = useState<CivitaiImage | null>(null);
-  const gen = useRef(0);
 
   const model = installed.find((m) => m.versionId === picked) ?? installed[0] ?? null;
   useEffect(() => { if (opened && picked == null && installed[0]) setPicked(installed[0].versionId); }, [opened, installed, picked]);
-  useEffect(() => { localStorage.setItem(NSFW_KEY, nsfw); }, [nsfw]);
-
-  const load = async (versionId: number, next: string | null, append: boolean) => {
-    const my = ++gen.current;
-    setLoading(true); setFailed(false);
-    // CivitAI pages are 10; pull a few at once so the grid fills.
-    const got: CivitaiImage[] = []; let c = next;
-    for (let i = 0; i < 3; i++) {
-      const page = await fetchCivitaiImages(versionId, c, nsfw);
-      if (my !== gen.current) return;
-      if (!page) { setFailed(got.length === 0 && !append); break; }
-      got.push(...page.items); c = page.nextCursor; if (!c) break;
-    }
-    const usable = got.filter((i) => !isCivitaiVideo(i) && i.meta?.prompt);
-    setItems((prev) => (append ? [...prev, ...usable] : usable));
-    setCursor(c); setLoading(false);
-  };
-  useEffect(() => { if (opened && model) { setItems([]); setOpen(null); void load(model.versionId, null, false); } }, [opened, model?.versionId, nsfw]);
+  useEffect(() => { saveNsfw(nsfw); }, [nsfw]);
+  const { items, loading, failed, hasMore, more } = useCivitaiGallery(model?.versionId ?? null, nsfw, opened);
+  useEffect(() => { setOpen(null); }, [model?.versionId, nsfw]);
 
   const visibleModels = useMemo(() => {
     const q = filter.trim().toLowerCase();
@@ -198,7 +143,7 @@ export function CivitaiPromptsModal({ opened, onClose, only, onUse }: {
           ))}
         </SimpleGrid>
         <Group justify="center" py="md">
-          {loading ? <Loader size="sm" /> : cursor && model ? <Button variant="default" size="xs" onClick={() => load(model.versionId, cursor, true)}>Load more</Button> : null}
+          {loading ? <Loader size="sm" /> : hasMore && model ? <Button variant="default" size="xs" onClick={more}>Load more</Button> : null}
         </Group>
       </ScrollArea>
     </Stack>

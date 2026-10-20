@@ -62,7 +62,11 @@ function useKindLayers(kind: LayerKind) {
 // The main text box
 // ============================================
 
-function PromptBox({ kind }: { kind: LayerKind }) {
+/**
+ * The big text box of one kind. `hub`: inside the prompt hub (`features/next/PromptHub`), which has
+ * its own Library and Mine tabs and its own save, so the box keeps only the AI pen and Clear.
+ */
+export function PromptBox({ kind, hub, minRows }: { kind: LayerKind; hub?: boolean; minRows?: number }) {
   const parts = useKindLayers(kind);
   const main = parts[0] as Layer | undefined;
   const positive = kind === 'positive';
@@ -126,12 +130,12 @@ function PromptBox({ kind }: { kind: LayerKind }) {
       label={positive ? 'Prompt' : 'Negative Prompt'}
       rightSection={
         <Group gap="xs" wrap="nowrap">
-          <Tooltip label={positive ? 'Use a preset prompt' : 'Use a preset negative'}>
+          {!hub && <Tooltip label={positive ? 'Use a preset prompt' : 'Use a preset negative'}>
             <ActionIcon size="sm" variant="subtle" onClick={() => { flush(); setPresetsOpen(true); }} aria-label={positive ? 'Prompt presets' : 'Negative presets'}>
               <IconBooks size="1rem" />
             </ActionIcon>
-          </Tooltip>
-          {positive && (
+          </Tooltip>}
+          {positive && !hub && (
             <Tooltip label="Browse prompts people used with your models (CivitAI)">
               <ActionIcon size="sm" variant="subtle" onClick={() => { flush(); setCivitaiOpen(true); }} aria-label="Prompts from CivitAI">
                 <IconPhotoSearch size="1rem" />
@@ -139,11 +143,11 @@ function PromptBox({ kind }: { kind: LayerKind }) {
             </Tooltip>
           )}
           {positive && <PromptGeneratorButton variant="icon" />}
-          <Tooltip label="Save to library">
+          {!hub && <Tooltip label="Save to library">
             <ActionIcon size="sm" variant="subtle" onClick={saveToLibrary} disabled={!draft.trim()} aria-label="Save prompt to library">
               <IconDeviceFloppy size="1rem" />
             </ActionIcon>
-          </Tooltip>
+          </Tooltip>}
           <Tooltip label="Clear">
             <ActionIcon size="sm" variant="subtle" onClick={clear} disabled={!draft.trim()} aria-label={positive ? 'Clear prompt' : 'Clear negative prompt'}>
               <IconX size="1rem" />
@@ -158,7 +162,7 @@ function PromptBox({ kind }: { kind: LayerKind }) {
         onChange={(e) => onChange(e.currentTarget.value)}
         onBlur={flush}
         autosize
-        minRows={positive ? 4 : 2}
+        minRows={minRows ?? (positive ? 4 : 2)}
         maxRows={positive ? 14 : 8}
         aria-label={positive ? 'Prompt' : 'Negative prompt'}
         classNames={{ input: `prompt-accent-${accent}` }}
@@ -170,8 +174,8 @@ function PromptBox({ kind }: { kind: LayerKind }) {
           },
         }}
       />
-      <PresetLibraryModal opened={presetsOpen} onClose={() => setPresetsOpen(false)} kind={kind} />
-      {positive && <CivitaiPromptsModal opened={civitaiOpen} onClose={() => setCivitaiOpen(false)} only="image" />}
+      {!hub && <PresetLibraryModal opened={presetsOpen} onClose={() => setPresetsOpen(false)} kind={kind} />}
+      {positive && !hub && <CivitaiPromptsModal opened={civitaiOpen} onClose={() => setCivitaiOpen(false)} only="image" />}
     </FieldWrapper>
   );
 }
@@ -180,7 +184,7 @@ function PromptBox({ kind }: { kind: LayerKind }) {
 // Snippets row (every part after the first)
 // ============================================
 
-function SnippetsRow({ kind, compact }: { kind: LayerKind; compact?: boolean }) {
+export function SnippetsRow({ kind, compact }: { kind: LayerKind; compact?: boolean }) {
   const parts = useKindLayers(kind);
   const extras = parts.slice(1);
   const layers = useStore((s) => s.layers);

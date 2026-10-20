@@ -24,6 +24,16 @@ export function isImageParam(p: WorkflowParam): boolean {
   return p.type === 'COMBO' && p.name === 'image' && /LoadImage|ImageLoad/i.test(p.nodeType);
 }
 
+/** ComfyUI serves an uploaded input image from the same /view endpoint as an output, with type=input. */
+export function inputViewUrl(host: string, ref: string): string | null {
+  if (!ref) return null;
+  return `${comfyHttpFor(host)}/view?` + new URLSearchParams({
+    filename: ref.includes('/') ? ref.slice(ref.lastIndexOf('/') + 1) : ref,
+    subfolder: ref.includes('/') ? ref.slice(0, ref.lastIndexOf('/')) : '',
+    type: 'input',
+  });
+}
+
 export function ImageInput({
   param, value, onChange, host, large,
 }: {
@@ -41,14 +51,7 @@ export function ImageInput({
   const [dragging, setDragging] = useState(false);
 
   const current = String(value ?? '');
-  // ComfyUI serves an input image from the same /view endpoint as an output, with type=input.
-  const preview = current
-    ? `${comfyHttpFor(host)}/view?` + new URLSearchParams({
-        filename: current.includes('/') ? current.slice(current.lastIndexOf('/') + 1) : current,
-        subfolder: current.includes('/') ? current.slice(0, current.lastIndexOf('/')) : '',
-        type: 'input',
-      })
-    : null;
+  const preview = inputViewUrl(host, current);
 
   const accept = async (picked: File | undefined) => {
     if (!picked) return;

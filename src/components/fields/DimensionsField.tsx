@@ -16,7 +16,7 @@ type InputMode = 'presets' | 'sliders';
 
 export type PresetGroup = { group: string; items: Array<{ value: string; label: string }> };
 
-const DIMENSION_PRESETS: PresetGroup[] = [
+export const DIMENSION_PRESETS: PresetGroup[] = [
   { group: 'Square', items: [
     { value: '512x512', label: '512 × 512' },
     { value: '768x768', label: '768 × 768' },

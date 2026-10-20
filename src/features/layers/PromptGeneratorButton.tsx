@@ -1,5 +1,5 @@
 import { cloneElement, useEffect, useMemo, useRef, useState } from 'react';
-import { ActionIcon, Modal } from '@mantine/core';
+import { ActionIcon, Button, Modal } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 import { IconSparkles } from '@tabler/icons-react';
 import * as Popover from '@/components/ui/popover';
@@ -26,7 +26,7 @@ import { cn } from '@/lib/cn';
 /** Where the result goes. Default: the image's positive layers. `video`: one prose prompt for the Video panel. */
 export type PromptGeneratorTarget = { kind: 'video'; engine: VideoPromptEngine; current: string; apply: (text: string) => void };
 
-export function PromptGeneratorButton({ variant = 'text', target }: { variant?: 'text' | 'icon'; target?: PromptGeneratorTarget }) {
+export function PromptGeneratorButton({ variant = 'text', target, label = 'Write it' }: { variant?: 'text' | 'icon' | 'button'; target?: PromptGeneratorTarget; label?: string }) {
   const [open, setOpen] = useState(false);
   const narrow = useMediaQuery('(max-width: 48em)') ?? false;
   const venice = useStore(s => s.venice);
@@ -39,6 +39,10 @@ export function PromptGeneratorButton({ variant = 'text', target }: { variant?: 
           <ActionIcon size="sm" variant="subtle" color="violet" disabled={disabled} title={title} aria-label="Generate prompt with AI">
             <IconSparkles size="1rem" />
           </ActionIcon>
+        ) : variant === 'button' ? (
+          <Button size="xs" variant="light" color="violet" disabled={disabled} title={title} leftSection={<IconSparkles size={14} />} aria-label="Generate prompt with AI" className="shrink-0">
+            {label}
+          </Button>
         ) : (
           <button
             type="button"

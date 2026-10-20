@@ -318,6 +318,66 @@ modes: Image (input image, img2img), Video (start frame), Workflow (the open wor
 LoadImage input, uploaded to the Workflow server). A video result sends its last frame
 (`lastFrame`, a detached <video> drawn to a canvas), so a clip can be continued in Video.
 
+## The new workspace (next/)
+
+Donny's spec (10-19): "go in and out of each step, each step with its own full interface; the
+image / video / canvas always centred, full height, no padding on desktop; full width keeping its
+aspect on mobile; prompts easier with the LLM; one prompt library; the original fullscreen viewer
+from anywhere; tap, not type". `src/features/next/` is that shell; `workspace/WorkspaceView`
+mounts it unless Settings → Workspace → **Classic workspace** is on (`next/nextStore.ts`,
+`imagelab.next.v1`), which falls back to the old `DesktopWorkspace` / `MobileWorkspace`.
+
+- **Steps** are the modes (`mainView` generate / video / studio, `lib/workspace.ts`), so
+  `setMainView('video')` and "Send to video" land in the Video step. The steps switch sits in the
+  bar that floats over the stage (desktop, `next/StageBar.tsx`) or above it (phone), with the
+  status cluster, the job tray, fullscreen, the filmstrip toggle and the two column toggles.
+- **The stage** (`next/Stage.tsx`) is `HeroResult` **bare** (no frame, `absolute inset-0`,
+  `hideProgress`) in a column that is the window's full height on desktop; the bar, the filmstrip
+  (`ResultsStrip`, toggle in the bar / `nextStore.filmstrip`), the result actions
+  (`GenerateNavActions` / `SendToButtons`) and the progress band all float over it with
+  `data-no-swipe`, so nothing takes height from the picture. Phone: `aspect-ratio` of what it
+  shows (`hooks/useMediaAspect` reads the result or preview frame; falls back to the workflow
+  size), full width, in one scroll with the step's controls; the run bar is pinned under them.
+  Fullscreen is always there: image → `openViewer()` and the stage renders the history
+  `FullscreenViewer` itself (`HistoryPanel viewer={false}` in the right column, so there is one
+  viewer); video / workflow → `FullscreenImage`, with `liveUrl` when only a preview is showing.
+  Keys: ←/→ older / newer (Panel+10), Space (video / workflow here; the image viewer's Space is
+  `useGlobalShortcuts`), Ctrl/⌘+Enter in the step's run bar (`next/RunBars.tsx`; the classic
+  `GenerateButton` is not mounted, so nothing is double-bound).
+- **The step panel** (left column, docked / resizable as before; phone: under the stage) is, top
+  to bottom: the run bar (`RunBar` → Stop, seed row, `GenerationProgress`), the **prompt hub**,
+  then **settings as chips**.
+- **Prompt hub** (`next/PromptHub.tsx`, one component for `kind: 'image' | 'video'`): tabs
+  Write · Library · Mine (`nextStore.hubTab`). Write = the image `PromptBox` (exported from
+  `layers/PromptFields`, `hub` prop drops its presets / CivitAI / save icons) with `SnippetChips`,
+  the negative and the parts folded; video = its own motion-prompt box bound to `videoStore`. AI
+  pens: "Write it" (`PromptGeneratorButton variant="button"`, video target for video), "Improve"
+  (`expandPromptFragment` 'improve' / `generateVideoPrompt` from the prompt), "From the picture" /
+  "From the frame" (`promptFromImage` / `videoPromptFromImage` in `lib/venice.ts`, the vision
+  model on the input image or the start frame via `studio/ImageInput.inputViewUrl`), "Save to
+  Mine". Library = `next/CivitaiLibrary.tsx`: the installed models' CivitAI galleries inline
+  (data in `layers/civitaiPrompts.ts`, shared with the old modal); tap = use the prompt (image:
+  positive + negative + steps / CFG / seed when present; video: rewritten as a motion prompt),
+  "As input" = img2img input / start frame. Mine = `next/MinePrompts.tsx` on `next/mineStore.ts`
+  (`imagelab.prompts.mine.v1`, rules in `lib/promptMine.ts`, tested): saved whole prompts per
+  kind, "Make a set" (`generatePromptSet` → `parsePromptSet`), the built-in starters
+  (`lib/promptLibrary`) underneath. Replacing always offers Undo (`applyWithUndo` /
+  `applyToVideo`).
+- **Chips** (`next/ChipPopover.tsx`, values in `lib/chips.ts`, tested): a chip reads `Name
+  value`, filled when it differs from its default (the fresh workflow merged with the model
+  type's start values), `!` when the server lacks the file. Tap = `components/ui/popover` beside
+  it on desktop (preset values to tap, then the real field — `components/fields`, `ModelFields`,
+  `InputImageSection`, `LoopbackField`, `PipelinePanel`), a full-screen window on a phone. The
+  Image rows (`next/ImageChips.tsx`): Model · Size · Quality · Input · Passes, a search box on
+  top (`filterChips`); the preset slots (`PanelToolbar`) sit under them. **Chip editors open
+  modals** (model pickers, the image browser), so their popover is `zIndex 190`
+  (`POPOVER_UNDER_MODALS_Z`, under modals' 200) and the popover base ignores a close that comes
+  with a click inside another overlay (`closeCameFromNestedClick` in `ui/popover.tsx`: a Select's
+  option list, a modal) — without it Mantine's click-outside would unmount the modal with the
+  popover.
+- **Video and Workflow steps** still show the classic section columns / phone lists inside the new
+  shell until their own steps land (Phase 2 / 3).
+
 ## Desktop layout
 
 - **One workspace** (`features/desktop/DesktopWorkspace.tsx`, mounted by `workspace/WorkspaceView`

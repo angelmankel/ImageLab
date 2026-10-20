@@ -17,7 +17,7 @@ import { PromptGeneratorButton } from '@/features/layers/PromptGeneratorButton';
 import { useVideo } from './videoStore';
 
 /** Replace the video prompt (and negative) with Undo, like the image presets do. */
-function applyToVideo(changes: Partial<Record<LayerKind, string>>, name: string) {
+export function applyToVideo(changes: Partial<Record<LayerKind, string>>, name: string) {
   const v = useVideo.getState();
   const before = { positive: v.positive, negative: v.negative };
   v.set({ ...(changes.positive != null ? { positive: changes.positive } : {}), ...(changes.negative != null ? { negative: changes.negative } : {}) });

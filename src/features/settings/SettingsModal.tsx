@@ -7,7 +7,7 @@ import {
 import { useMediaQuery } from '@mantine/hooks';
 import {
   IconSearch, IconServer, IconSparkles, IconKey, IconPhoto, IconPalette, IconVolume,
-  IconChevronRight, IconChevronLeft,
+  IconChevronRight, IconChevronLeft, IconLayout,
   type Icon as TablerIcon,
 } from '@tabler/icons-react';
 import { ServersTab } from './ServersTab';
@@ -16,6 +16,7 @@ import { CivitaiTab } from './CivitaiTab';
 import { PreviewsTab } from './PreviewsTab';
 import { ThemeTab } from './ThemeTab';
 import { SoundsTab } from './SoundsTab';
+import { WorkspaceTab } from './WorkspaceTab';
 
 type Props = { open: boolean; onOpenChange: (o: boolean) => void };
 
@@ -35,6 +36,7 @@ type CategoryDef = {
 };
 
 const SETTINGS_CATEGORIES: CategoryDef[] = [
+  { id: 'workspace',  label: 'Workspace',   description: 'The new steps layout or the classic one',  Icon: IconLayout,   Component: WorkspaceTab },
   { id: 'servers',    label: 'Servers',     description: 'ComfyUI endpoints and routing',          Icon: IconServer,   Component: ServersTab },
   { id: 'ai',         label: 'AI',          description: 'Venice or local LLM for prompt helpers',     Icon: IconSparkles, Component: VeniceTab },
   { id: 'civitai',    label: 'CivitAI',     description: 'Model browser credentials',              Icon: IconKey,      Component: CivitaiTab },
@@ -53,6 +55,8 @@ type SearchableSetting = {
 
 // v1's search index: one row per setting, matched on every word of the query.
 const SEARCHABLE_SETTINGS: SearchableSetting[] = [
+  { categoryId: 'workspace', settingId: 'classic', label: 'Classic workspace', description: 'Go back to the folding-cards workspace instead of the steps layout', keywords: ['classic', 'old', 'layout', 'workspace', 'steps', 'new', 'ui', 'cards', 'chips'] },
+  { categoryId: 'workspace', settingId: 'filmstrip', label: 'Filmstrip', description: 'Thumbnails floating along the bottom of the stage', keywords: ['filmstrip', 'strip', 'thumbnails', 'stage', 'results'] },
   { categoryId: 'servers', settingId: 'servers', label: 'Active Servers', description: 'Rename, re-point, pause, or remove ComfyUI endpoints', keywords: ['server', 'comfyui', 'endpoint', 'host', 'port', 'lan', 'enable', 'disable', 'remove'] },
   { categoryId: 'servers', settingId: 'addServer', label: 'Add Server', description: 'Connect another ComfyUI endpoint', keywords: ['server', 'add', 'new', 'comfyui', 'host', 'routing', 'round-robin'] },
   { categoryId: 'ai', settingId: 'activeModel', label: 'Active AI Model', description: 'Switch between Venice and local models', keywords: ['ai', 'model', 'llm', 'local', 'ollama', 'venice', 'switch', 'provider', 'gemma', 'qwen'] },

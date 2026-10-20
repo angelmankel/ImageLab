@@ -19,11 +19,33 @@ import { Popover as MPopover, type FloatingPosition } from '@mantine/core';
 
 /** Above modals' content (200) and the rail (70), below notifications. */
 export const POPOVER_Z = 300;
+/**
+ * For a popover whose body opens modals (the chip editors' model pickers, the input image
+ * browser): under the modals (200) so they show on top, still above every panel and the rail.
+ */
+export const POPOVER_UNDER_MODALS_Z = 190;
+
+// Mantine closes a popover on any mousedown outside its target and dropdown — a click in a
+// nested portal too (a Select's option list, a modal the dropdown opened), which would unmount
+// that modal with the popover. The last pointer-down is remembered (capture phase, so before
+// Mantine's listener) and a close that comes with a click inside another overlay is ignored.
+let lastDown: { target: EventTarget | null; at: number } = { target: null, at: 0 };
+if (typeof document !== 'undefined') {
+  for (const ev of ['mousedown', 'touchstart'] as const) {
+    document.addEventListener(ev, (e) => { lastDown = { target: e.target, at: performance.now() }; }, true);
+  }
+}
+const NESTED_OVERLAY = '.mantine-Modal-root, .mantine-Drawer-root, .mantine-Combobox-dropdown, .mantine-Popover-dropdown, .mantine-Menu-dropdown, .mantine-Notifications-root, [data-nested-overlay]';
+function closeCameFromNestedClick(): boolean {
+  if (performance.now() - lastDown.at > 150) return false;
+  const t = lastDown.target as Element | null;
+  return !!(t && typeof t.closest === 'function' && t.closest(NESTED_OVERLAY));
+}
 
 type Side = 'top' | 'right' | 'bottom' | 'left';
 type Align = 'start' | 'center' | 'end';
 
-interface Placement { side?: Side; align?: Align; sideOffset?: number; alignOffset?: number; collisionPadding?: number }
+interface Placement { side?: Side; align?: Align; sideOffset?: number; alignOffset?: number; collisionPadding?: number; zIndex?: number }
 
 interface Ctx {
   open: boolean;
@@ -53,6 +75,7 @@ export function Root({ open: controlled, defaultOpen = false, onOpenChange, chil
   const [placement, setPlacement] = useState<Placement>({});
   const open = controlled ?? inner;
   const setOpen = (next: boolean) => {
+    if (!next && open && closeCameFromNestedClick()) return;
     if (controlled === undefined) setInner(next);
     onOpenChange?.(next);
   };
@@ -65,7 +88,7 @@ export function Root({ open: controlled, defaultOpen = false, onOpenChange, chil
         offset={{ mainAxis: placement.sideOffset ?? 4, crossAxis: placement.alignOffset ?? 0 }}
         middlewares={{ ...DROPDOWN_MIDDLEWARES, shift: { padding: placement.collisionPadding ?? 8 }, inline: false }}
         withinPortal
-        zIndex={POPOVER_Z}
+        zIndex={placement.zIndex ?? POPOVER_Z}
         unstyled
         trapFocus={false}
         returnFocus
@@ -110,13 +133,13 @@ export interface ContentProps extends Placement, Omit<HTMLAttributes<HTMLDivElem
 }
 
 export function Content({
-  side, align, sideOffset, alignOffset, collisionPadding, className, style, children,
+  side, align, sideOffset, alignOffset, collisionPadding, zIndex, className, style, children,
   onOpenAutoFocus: _open, onCloseAutoFocus: _close, ...rest
 }: ContentProps) {
   const { setPlacement } = usePopover('Content');
   useLayoutEffect(() => {
-    setPlacement({ side, align, sideOffset, alignOffset, collisionPadding });
-  }, [side, align, sideOffset, alignOffset, collisionPadding, setPlacement]);
+    setPlacement({ side, align, sideOffset, alignOffset, collisionPadding, zIndex });
+  }, [side, align, sideOffset, alignOffset, collisionPadding, zIndex, setPlacement]);
   return (
     // `unstyled` drops Mantine's own `position: absolute`, without which floating-ui's
     // top/left do nothing and the dropdown lands at the foot of <body>. The max width keeps a

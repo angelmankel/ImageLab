@@ -649,3 +649,72 @@ export async function promptFromImage(
     signal,
   });
 }
+
+// ---------------------------------------------------------------------------
+// The prompt hub's helpers (features/next/PromptHub): a set of whole prompts on a theme for
+// "Mine", and a motion prompt written from a picture (the video step's start frame, a library
+// picture) by the vision model.
+// ---------------------------------------------------------------------------
+
+/** N whole prompts on a theme, one per line; parsed by `lib/promptMine.parsePromptSet`. */
+export async function generatePromptSet(opts: {
+  theme: string;
+  kind: 'image' | 'video';
+  count: number;
+  engine?: VideoPromptEngine;
+  settings: VeniceSettings;
+  signal?: AbortSignal;
+}): Promise<string> {
+  const theme = opts.theme.trim();
+  if (!theme) return '';
+  const n = Math.max(1, Math.min(12, Math.round(opts.count)));
+  const shape = opts.kind === 'video'
+    ? (opts.engine === 'h3'
+      ? 'Each prompt is 3–5 sentences for a short video clip: the look and scene, what happens as a short timeline, the camera move, and a final "Audio:" clause.'
+      : 'Each prompt is 2–3 sentences for a short video clip: the scene, exactly how things move, and how the camera moves.')
+    : `${styleRules(opts.settings.promptStyle)} Each prompt is one complete image prompt: subject, setting, light, mood, style, as a comma-separated phrase list.`;
+  const messages: VeniceMessage[] = [
+    {
+      role: 'system',
+      content: [
+        `Write ${n} different ${opts.kind} prompts on the user's theme. Vary subject, framing and mood so no two are alike.`,
+        shape,
+        'Return ONE prompt per line, in plain text. No numbering, no bullets, no titles, no blank lines, no commentary.',
+      ].join(' '),
+    },
+    { role: 'user', content: theme },
+  ];
+  return veniceChat({ settings: opts.settings, messages, temperature: 1.0, maxTokens: 220 * n + 100, signal: opts.signal });
+}
+
+function videoFromImageSystem(engine: VideoPromptEngine): string {
+  const shape = engine === 'h3'
+    ? 'Write 4–7 sentences: the look and the scene as seen in the picture first; then what happens as a timeline with time ranges in brackets, like "[0–2 s] …, [2–5 s] …"; then the camera move; then one final line starting with "Audio:" that names the ambience, sound effects, music if any, and any speech in quotes.'
+    : 'Write 2–4 sentences: the scene as seen in the picture, who or what is in it, exactly how they move from this starting frame, and how the camera moves (push in, pan, orbit, static). Mention light and mood briefly. No sound.';
+  return [
+    'You write prompts for an image-to-video model. The user gives you the first frame of the clip. Describe a short clip that starts from exactly this picture: keep every subject, the setting and the style as they are, and invent plausible, concrete motion.',
+    shape,
+    'Output only the prompt. No title, no quotes, no bullets, no commentary.',
+  ].join(' ');
+}
+
+/** A motion prompt for a clip that starts from this picture (the video step's "from the frame"). */
+export async function videoPromptFromImage(
+  image: Blob | string,
+  engine: VideoPromptEngine,
+  settings: VeniceSettings,
+  signal?: AbortSignal,
+  hint = '',
+): Promise<string> {
+  const url = typeof image === 'string' && !image.startsWith('data:') ? await httpUrlToDataUrl(image, signal) : typeof image === 'string' ? image : await blobToDataUrl(image);
+  const ask = hint.trim() ? `Write the video prompt for a clip starting from this frame. Direction from the user: ${hint.trim()}` : 'Write the video prompt for a clip starting from this frame.';
+  const raw = await veniceChat({
+    settings,
+    messages: visionMessages(videoFromImageSystem(engine), url, ask),
+    temperature: 0.7,
+    maxTokens: 600,
+    veniceParams: { disable_thinking: true, strip_thinking_response: true },
+    signal,
+  });
+  return raw.trim().replace(/^["“]+|["”]+$/g, '').trim();
+}
