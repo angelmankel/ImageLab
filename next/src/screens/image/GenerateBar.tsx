@@ -58,7 +58,7 @@ export function useStepRun(step: Step): { run: (newSeed?: boolean) => void; stop
   if (OWN_KINDS.has(step.kind)) {
     // Refine / Upscale / Remove BG (`./kinds`): the step's input through its own graph on the workflow runner.
     return {
-      run: (newSeed = false) => { void enqueueRun(() => runKindStep(step, newSeed)); },
+      run: (newSeed = false) => { void enqueueRun(() => runTagged(useWorkflowRun, step.id, () => runKindStep(step, newSeed))); },
       stop: () => cancelQueueRow('workflow-run'),
       busy: workflow.busy, busyLabel: workflow.status ?? 'Running', progress: workflow.progress,
       disabled: problem,
