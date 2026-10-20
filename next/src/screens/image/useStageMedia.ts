@@ -5,6 +5,7 @@
  * stores, picked by key in `stageStore`. A run result picked in the history panel shows on any
  * step's stage until an image is picked again.
  */
+import { useMemo } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useStore } from '@/lib/store';
 import { jobActivity } from '@/lib/jobActivity';
@@ -17,6 +18,8 @@ import { useVideoRun } from '@/features/video/videoRun';
 import { useWorkflowRun } from '@/features/studio/studioRun';
 import type { Step } from '~/app/stepsStore';
 import { useStage } from './stageStore';
+import { OWN_KINDS } from './kinds/kindRun';
+import { useStepResults } from './useStepOutput';
 
 export interface StageMedia {
   /** 'image' = the history (fullscreen through the store's viewer); 'run' = a run store's results. */
@@ -53,13 +56,17 @@ export function useStageMedia(step: Step): StageMedia {
   const video = useVideoRun(useShallow((s) => ({ busy: s.busy, progress: s.progress, preview: s.preview, status: s.status, node: s.currentNode, queue: s.queueRemaining })));
   const workflow = useWorkflowRun(useShallow((s) => ({ busy: s.busy, progress: s.progress, preview: s.preview, status: s.status, node: s.currentNode, queue: s.queueRemaining })));
 
-  const runItems = videos.find((v) => v.key === runKey) ? videos : runs.find((r) => r.key === runKey) ? runs : step.kind === 'video' ? videos : step.kind === 'workflow' ? runs : NONE;
-  const useRun = !!runKey || step.kind === 'video' || step.kind === 'workflow';
+  // Refine / Upscale / Remove BG run on the workflow runner too, and show only their own results (fix list 15 / 22 / 43).
+  const ownResults = useStepResults(OWN_KINDS.has(step.kind) ? step : null);
+  const ownRuns = useMemo(() => { const keys = new Set(ownResults.map((r) => r.key)); return runs.filter((r) => keys.has(r.key)); }, [ownResults, runs]);
+  const stepRuns = OWN_KINDS.has(step.kind) ? ownRuns : runs;
+  const runItems = videos.find((v) => v.key === runKey) ? videos : stepRuns.find((r) => r.key === runKey) ? stepRuns : runs.find((r) => r.key === runKey) ? runs : step.kind === 'video' ? videos : step.kind === 'workflow' || OWN_KINDS.has(step.kind) ? stepRuns : NONE;
+  const useRun = !!runKey || step.kind === 'video' || step.kind === 'workflow' || OWN_KINDS.has(step.kind);
 
   if (useRun) {
     const run = runItems === videos ? video : workflow;
     const index = runKey ? Math.max(0, runItems.findIndex((i) => i.key === runKey)) : runItems.length ? 0 : -1;
-    const busy = step.kind === 'video' ? video.busy : step.kind === 'workflow' ? workflow.busy : false;
+    const busy = step.kind === 'video' ? video.busy : step.kind === 'workflow' || OWN_KINDS.has(step.kind) ? workflow.busy : false;
     const line = busy ? `${run.node ?? run.status ?? 'Working…'}${run.queue ? ` · ${run.queue} queued` : ''}` : null;
     return {
       source: 'run', items: runItems, index, item: runItems[index] ?? null, entry: null,

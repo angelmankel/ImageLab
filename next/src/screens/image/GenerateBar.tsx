@@ -11,7 +11,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { useStore } from '@/lib/store';
 import { jobActivity } from '@/lib/jobActivity';
 import { useShortcut, ShortcutPriority } from '@/hooks/useShortcut';
-import { fireFromStore, NO_PASSES } from '@/features/generate/GenerateButton';
+import { fireFromStore } from '@/features/generate/GenerateButton';
 import { useWorkflowRun } from '@/features/studio/studioRun';
 import { useObjectInfo } from '@/features/studio/useStudioRun';
 import { useModeHost } from '@/features/workspace/modeHost';
@@ -23,6 +23,9 @@ import { nextInCycle, useCycleOf } from '~/app/batchCycle';
 import { Tip } from '~/ui';
 import { useVideoStepRun } from './video';
 import { startWorkflowStepRun } from './workflow';
+import { IMAGE_STEP_ONLY } from './kinds/imageStepOnly';
+import { OWN_KINDS, runKindStep } from './kinds/kindRun';
+import { useStepProblem } from './useStepProblem';
 
 /** What the step's Generate does and whether it is running. Pure of look; the phone dock uses it too. */
 export function useStepRun(step: Step): { run: (newSeed?: boolean) => void; stop: () => void; busy: boolean; busyLabel: string; progress: number | null; disabled: string | null } {
@@ -37,17 +40,27 @@ export function useStepRun(step: Step): { run: (newSeed?: boolean) => void; stop
   const stepWf = useStepWorkflow(step.kind === 'workflow' ? step.id : null);
   const wfHost = stepWf?.host ?? workflowHost;
   const { info } = useObjectInfo(step.kind === 'workflow' ? wfHost : null);
+  const problem = useStepProblem(step);
 
   if (step.kind === 'image') {
     const activity = jobActivity(jobs, submitting, online);
     const running = jobs.find((j) => j.status === 'running') ?? jobs.find((j) => j.status === 'queued');
     return {
-      run: (newSeed = false) => { void enqueueRun(() => fireFromStore(newSeed, NO_PASSES)).then(() => { const st = useStore.getState(); if (st.status.kind === 'error') notifications.show({ title: 'Could not generate', message: st.status.text, color: 'red', autoClose: 3000 }); }); },
+      run: (newSeed = false) => { void enqueueRun(() => fireFromStore(newSeed, IMAGE_STEP_ONLY)).then(() => { const st = useStore.getState(); if (st.status.kind === 'error') notifications.show({ title: 'Could not generate', message: st.status.text, color: 'red', autoClose: 3000 }); }); },
       stop: () => { if (running) cancelQueueRow(running.id); },
       busy: !!running || submitting,
       busyLabel: submitting ? 'Queueing…' : running?.status === 'queued' ? 'Queued' : 'Generating',
       progress: activity.percent != null ? activity.percent / 100 : null,
       disabled: online ? null : 'No server online',
+    };
+  }
+  if (OWN_KINDS.has(step.kind)) {
+    // Refine / Upscale / Remove BG (`./kinds`): the step's input through its own graph on the workflow runner.
+    return {
+      run: (newSeed = false) => { void enqueueRun(() => runKindStep(step, newSeed)); },
+      stop: () => cancelQueueRow('workflow-run'),
+      busy: workflow.busy, busyLabel: workflow.status ?? 'Running', progress: workflow.progress,
+      disabled: problem,
     };
   }
   if (step.kind === 'video') return video;

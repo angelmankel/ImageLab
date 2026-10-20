@@ -31,15 +31,12 @@ export function resultsOfStep(step: Step, steps: readonly Step[], tags: Readonly
   return results.filter((r) => inStep(r, step, steps, tags)).sort((a, b) => b.createdAt - a.createdAt);
 }
 
-/**
- * A step's newest output: the newest result it made; an Upscale step (no runner yet) passes its
- * explicit input through, as before.
- */
+/** A step's newest output: the newest result it made. */
 export function newestResultOf(step: Step | null, steps: readonly Step[], tags: Readonly<Record<string, string>>, results: readonly StepResult[]): StepInput | null {
   if (!step) return null;
   const own = resultsOfStep(step, steps, tags, results)[0];
   if (own) return { url: own.url, name: own.name };
-  return step.kind === 'upscale' ? step.input ?? null : null;
+  return null;
 }
 
 export interface ChainCandidate {

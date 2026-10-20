@@ -22,6 +22,7 @@ import { useJobProgressEffect } from '~/app/jobProgress';
 import { ensureStepWorkflowOpen } from '~/screens/comfy';
 import { usePendingReconcile } from '~/screens/image/model';
 import { useWorkflowFollow } from './workflow/followWorkflow';
+import { useLoopbackToRefine } from './kinds/migrateLoopback';
 
 export function AppEffects() {
   useComfyConnection();
@@ -35,6 +36,8 @@ export function AppEffects() {
   useInstalledWanFiles();
   // Models added before their download: flip them on when the file lands, whichever tab is open.
   usePendingReconcile();
+  // Loopback left the Image step (fix list 15): a saved Loopback becomes a Refine step once.
+  useLoopbackToRefine();
   // Workflow steps that follow step 1's models (fix list item 40): kept in step live.
   useWorkflowFollow();
   const videoHost = useModeHost('video');

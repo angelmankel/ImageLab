@@ -30,9 +30,9 @@ test('a step\'s own results: tagged to it, or untagged of its kind; newest first
   assert.deepEqual(L.resultsOfStep(s3, steps, tags, results).map((r) => r.key), ['c', 'w1']);
   assert.deepEqual(L.newestResultOf(s1, steps, tags, results), { url: 'u/a', name: 'a.png' });
   assert.equal(L.newestResultOf(null, steps, tags, results), null);
-  // An Upscale step (no runner yet) passes its explicit input through.
+  // An Upscale step runs for real now (fix list 22): its input is not its output.
   const up = { id: 'up', kind: 'upscale', name: 'Up', edited: false, chained: true, input: { url: 'u/x', name: 'x.png' } };
-  assert.deepEqual(L.newestResultOf(up, [s1, up], tags, results), { url: 'u/x', name: 'x.png' });
+  assert.equal(L.newestResultOf(up, [s1, up], tags, results), null);
 });
 
 test('Auto: the newest result made BY the previous step, not the newest of its kind', () => {

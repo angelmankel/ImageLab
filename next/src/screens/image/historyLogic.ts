@@ -45,8 +45,10 @@ export function inStep(tile: { key: string; source?: ResultSource }, step: StepL
   return !!tile.source && homeStep(tile.source, steps)?.id === step.id;
 }
 
-/** An Image step that runs a saved ComfyUI workflow puts its results in the workflow run store too. */
-const makes = (kind: string, source: ResultSource) => kind === source || (source === 'workflow' && kind === 'image');
+/** An Image step that runs a saved ComfyUI workflow puts its results in the workflow run store too; so do Refine / Upscale / Remove BG. */
+const makes = (kind: string, source: ResultSource) => kind === source || (source === 'workflow' && WORKFLOW_RUNNERS.has(kind));
+/** Step kinds whose results land in the workflow run store (Refine / Upscale / Remove BG run there, fix list 15 / 22 / 43). */
+const WORKFLOW_RUNNERS = new Set(['image', 'refine', 'upscale', 'remove-bg']);
 
 /** Where an untagged result lives: the first step of its own kind, else the first step that can make it. */
 function homeStep(source: ResultSource, steps: readonly StepLike[]): StepLike | undefined {

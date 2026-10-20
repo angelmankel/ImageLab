@@ -28,13 +28,23 @@ const label11 = { fontSize: 11, fontWeight: 700, color: 'var(--il-muted)' } as c
 const fmtGrow = (v: number) => `×${fmtNum(v)}`;
 const fmtNoise = (v: number) => (v > 0 ? fmtNum(v) : 'off');
 
-export function LoopbackCard() {
+/**
+ * With `value` + `onChange` it edits those settings instead of the main workflow's (the Refine
+ * step keeps its own, fix list 15); `always` = no on / off switch (the step IS the rounds);
+ * `size` = the picture the rounds start from, for the size label.
+ */
+export function LoopbackCard({ value, onChange, always = false, title = 'Loopback', size }: {
+  value?: LoopbackSettings; onChange?: (lb: LoopbackSettings) => void; always?: boolean; title?: string; size?: { width: number; height: number } | null;
+} = {}) {
   const saved = useStore((s) => s.workflow.loopback);
-  const width = useStore((s) => s.workflow.width);
-  const height = useStore((s) => s.workflow.height);
+  const wfWidth = useStore((s) => s.workflow.width);
+  const wfHeight = useStore((s) => s.workflow.height);
+  const width = size?.width ?? wfWidth;
+  const height = size?.height ?? wfHeight;
   const setWorkflow = useStore((s) => s.setWorkflow);
-  const lb: LoopbackSettings = saved ?? DEFAULT_LOOPBACK;
-  const save = (next: LoopbackSettings) => setWorkflow({ loopback: next });
+  const own = value ?? saved ?? DEFAULT_LOOPBACK;
+  const lb: LoopbackSettings = always ? { ...own, enabled: true } : own;
+  const save = (next: LoopbackSettings) => (onChange ? onChange(next) : setWorkflow({ loopback: next }));
 
   const hasExtras = !!lb.ramps && Object.keys(lb.ramps).length > 0;
   const [more, setMore] = useState(() => hasExtras || (lb.noise ?? 0) > 0 || !!lb.frame?.enabled);
@@ -51,7 +61,7 @@ export function LoopbackCard() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, minWidth: 0 }}>
-            <span style={label11}>Loopback</span>
+            <span style={label11}>{title}</span>
             {lb.enabled && (
               <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--il-fg)', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>
                 {loopbackSummary(lb)}
@@ -60,7 +70,7 @@ export function LoopbackCard() {
           </div>
           <span style={{ fontSize: 10, color: 'var(--il-muted)' }}>re-samples the image N times, growing it each round</span>
         </div>
-        <MSwitch checked={lb.enabled} onChange={(e) => save(setEnabled(lb, e.currentTarget.checked))} aria-label="Loopback on or off" color="ember" size="sm" style={{ flex: 'none' }} />
+        {!always && <MSwitch checked={lb.enabled} onChange={(e) => save(setEnabled(lb, e.currentTarget.checked))} aria-label="Loopback on or off" color="ember" size="sm" style={{ flex: 'none' }} />}
       </div>
 
       {lb.enabled && (

@@ -4,7 +4,7 @@
  * Generate group (left out on the phone: the dock has Generate). Which tab bodies render is per
  * `step.kind` (`TABS_BY_KIND`): the Image step's own tabs, the Video step's (`./video`), the
  * Workflow step's through `./workflowBridge` (another owner's folder, loaded when it exists);
- * an Upscale step keeps the Image Input tab (its chain input) until its workflow comes.
+ * Refine / Upscale / Remove BG through `./kinds` (fix list 15, 22, 43).
  */
 import { useEffect, useRef, useState, type ComponentType } from 'react';
 import { IconAlignLeft, IconCube, IconAdjustmentsHorizontal, IconPhoto } from '@tabler/icons-react';
@@ -23,6 +23,10 @@ import { SettingsTab } from './settings';
 import { VideoPromptTab, VideoModelTab, VideoSettingsTab, VideoInputTab } from './video';
 import { WorkflowTab } from './workflowBridge';
 import './stepMenuEntries';
+import {
+  RefinePromptTab, RefineModelTab, RefineSettingsTab, UpscalePromptTab, UpscaleModelTab, UpscaleSettingsTab,
+  RemoveBgPromptTab, RemoveBgModelTab, RemoveBgSettingsTab,
+} from './kinds/KindTabs';
 
 /** Fix list 25: Prompt · Composition · Model · Parameters (keys stay 'input' / 'settings' so saved state and callers keep working). */
 const TAB_DEFS: Array<{ key: StepTab; title: string; Icon: typeof IconAlignLeft }> = [
@@ -64,9 +68,9 @@ const TABS_BY_KIND: Record<StepKind, TabBodies> = {
     prompt: ({ step }) => <WorkflowTab tab="prompt" step={step} />, model: ({ step }) => <WorkflowTab tab="model" step={step} />,
     settings: ({ step }) => <WorkflowTab tab="settings" step={step} />, input: ({ step }) => <WorkflowTab tab="input" step={step} />,
   },
-  upscale: { input: InputTab },
-  refine: { input: InputTab },
-  'remove-bg': { input: InputTab },
+  refine: { prompt: RefinePromptTab, model: RefineModelTab, settings: RefineSettingsTab, input: InputTab },
+  upscale: { prompt: UpscalePromptTab, model: UpscaleModelTab, settings: UpscaleSettingsTab, input: InputTab },
+  'remove-bg': { prompt: RemoveBgPromptTab, model: RemoveBgModelTab, settings: RemoveBgSettingsTab, input: InputTab },
 };
 
 /** Marks the step "edited" once its parameters change after mount (the Image step's workflow + prompt, the Video step's store). */
