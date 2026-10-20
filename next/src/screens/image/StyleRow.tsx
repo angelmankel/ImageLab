@@ -4,6 +4,7 @@
  * (never a generated picture). The pure list is `styles.ts`.
  */
 import { useStore } from '@/lib/store';
+import { useWheelSideways } from '~/ui';
 import { STYLES, STYLE_TAG, type StyleDef } from './styles';
 
 function useStyleLayer() {
@@ -20,6 +21,7 @@ export function applyStyle(style: StyleDef) {
 
 export function StyleRow() {
   const layer = useStyleLayer();
+  const wheelRef = useWheelSideways<HTMLDivElement>();
   const current = STYLES.find((s) => s.text && layer?.text === s.text)?.id ?? (layer?.text ? 'custom' : 'none');
   return (
     <div>
@@ -27,7 +29,7 @@ export function StyleRow() {
         <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--il-muted)' }}>Style</span>
         {current === 'custom' && <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--il-ember-hi)' }} title={layer?.text}>custom</span>}
       </div>
-      <div className="il-scroll-x" data-no-swipe style={{ display: 'flex', gap: 10, touchAction: 'pan-x pan-y' }}>
+      <div ref={wheelRef} className="il-scroll-x" data-no-swipe style={{ display: 'flex', gap: 10, touchAction: 'pan-x pan-y' }}>
         {STYLES.map((s) => {
           const on = s.id === current;
           return (

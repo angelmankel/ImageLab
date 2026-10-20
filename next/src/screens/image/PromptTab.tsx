@@ -1,10 +1,11 @@
 /**
  * Rule 6: the Prompt tab. The prompt box; Write it (LLM) · Library · Clear; snippet chips (tap to
- * add); Style thumbs; the Negative prompt row (opens its own box). The text binds to the main
+ * add); Style thumbs; the Negative prompt as one folding card (header: icon, name, a short
+ * reading of what it avoids, chevron; open: the box and the negative snippets inside the card). The text binds to the main
  * store's prompt layers (`usePromptText`), so the job gets exactly what the old app would.
  */
 import { useState } from 'react';
-import { IconX } from '@tabler/icons-react';
+import { IconBan, IconChevronDown, IconX } from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
 import { aiReady } from '@/lib/venice';
 import { usePromptText } from './usePromptText';
@@ -40,22 +41,30 @@ export function PromptTab({ large = false }: { large?: boolean }) {
       </div>
       <SnippetRow kind="positive" />
       <StyleRow />
-      <button type="button" onClick={() => setNegOpen((v) => !v)} aria-expanded={negOpen} style={{ display: 'flex', alignItems: 'center', width: '100%', height: 44, padding: '0 14px', border: 0, borderRadius: 14, background: 'var(--il-card)', color: 'var(--il-fg)', fontSize: 13, fontWeight: 700, textAlign: 'left', cursor: 'pointer' }}>
-        <span style={{ flex: 1 }}>Negative prompt</span>
-        <span style={{ color: 'var(--il-muted)', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '60%' }}>{negative.text.trim() ? `${negative.text.trim().slice(0, 28)}${negative.text.trim().length > 28 ? '…' : ''}` : 'nothing to avoid yet'} {negOpen ? '⌄' : '›'}</span>
-      </button>
-      {negOpen && (
-        <>
-          <div style={{ background: 'var(--il-card)', borderRadius: 16, padding: '10px 12px 10px' }}>
-            <textarea aria-label="Negative prompt" rows={3} value={negative.text} onChange={(e) => negative.set(e.target.value)} onBlur={negative.flush} placeholder="blurry, lowres, extra fingers…"
-              style={{ width: '100%', border: 0, background: 'transparent', color: 'var(--il-fg)', fontSize: 14, lineHeight: 1.5, resize: 'none', outline: 'none', padding: 0, display: 'block' }} />
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 6 }}>
-              <button type="button" aria-label="Clear negative prompt" onClick={negative.clear} style={{ width: 30, height: 30, border: 0, borderRadius: '50%', background: 'var(--il-card-on)', color: 'var(--il-muted)', display: 'grid', placeItems: 'center', cursor: 'pointer' }}><IconX size={13} stroke={2.4} /></button>
+      <div style={{ background: 'var(--il-card)', borderRadius: 16, overflow: 'hidden' }}>
+        <button type="button" onClick={() => setNegOpen((v) => !v)} aria-expanded={negOpen}
+          style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', height: 48, padding: '0 12px 0 14px', border: 0, background: 'transparent', color: 'var(--il-fg)', textAlign: 'left', cursor: 'pointer' }}>
+          <IconBan size={16} stroke={2.2} style={{ color: 'var(--il-muted)', flex: 'none' }} />
+          <span style={{ fontSize: 13, fontWeight: 800, flex: 'none' }}>Negative prompt</span>
+          <span style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: 600, color: 'var(--il-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'right', opacity: negOpen ? 0 : 1 }}>
+            {negative.text.trim() || 'nothing to avoid yet'}
+          </span>
+          <IconChevronDown size={16} stroke={2.4} style={{ color: 'var(--il-muted)', flex: 'none', transform: negOpen ? 'rotate(180deg)' : undefined, transition: 'transform .15s' }} />
+        </button>
+        {negOpen && (
+          <div style={{ padding: '0 12px 12px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ position: 'relative', background: 'var(--il-bg-deep)', borderRadius: 12, padding: '10px 40px 10px 12px' }}>
+              <textarea aria-label="Negative prompt" rows={3} value={negative.text} onChange={(e) => negative.set(e.target.value)} onBlur={negative.flush} placeholder="blurry, lowres, extra fingers…"
+                style={{ width: '100%', border: 0, background: 'transparent', color: 'var(--il-fg)', fontSize: 14, lineHeight: 1.5, resize: 'none', outline: 'none', padding: 0, display: 'block' }} />
+              {negative.text.trim() && (
+                <button type="button" aria-label="Clear negative prompt" onClick={negative.clear} style={{ position: 'absolute', top: 8, right: 8, width: 26, height: 26, border: 0, borderRadius: '50%', background: 'var(--il-card-on)', color: 'var(--il-muted)', display: 'grid', placeItems: 'center', cursor: 'pointer' }}><IconX size={12} stroke={2.4} /></button>
+              )}
             </div>
+            <div style={{ height: 1, background: 'var(--il-line-soft)' }} />
+            <SnippetRow kind="negative" />
           </div>
-          <SnippetRow kind="negative" />
-        </>
-      )}
+        )}
+      </div>
       <WriteItModal opened={writing} onClose={() => setWriting(false)} />
       <LibraryModal opened={library} onClose={() => setLibrary(false)} />
     </>
