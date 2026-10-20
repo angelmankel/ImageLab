@@ -12,6 +12,7 @@ import type { ResultItem } from '@/lib/workspace';
 import type { HistoryEntry } from '@/lib/types';
 import { useImageResults, useVideoResults, useWorkflowResults, type ImageResultItem } from '@/features/workspace/results';
 import { useLiveFrame } from '@/features/history/FullscreenViewer';
+import { useViewerPrefs } from '@/features/history/viewerPrefs';
 import { useVideoRun } from '@/features/video/videoRun';
 import { useWorkflowRun } from '@/features/studio/studioRun';
 import type { Step } from '~/app/stepsStore';
@@ -44,6 +45,8 @@ export function useStageMedia(step: Step): StageMedia {
   const jobs = useStore((s) => s.jobs);
   const submitting = useStore((s) => s.isSubmitting);
   const online = useStore((s) => Object.keys(s.serverInfo).length > 0);
+  /** The toolbar's Live toggle (shared with the viewer's): off, the last result stays while a job runs. */
+  const livePreview = useViewerPrefs((s) => s.livePreview);
   const liveFrame = useLiveFrame();
   const runKey = useStage((s) => s.runKey);
   const showRun = useStage((s) => s.showRun);
@@ -60,7 +63,7 @@ export function useStageMedia(step: Step): StageMedia {
     const line = busy ? `${run.node ?? run.status ?? 'Working…'}${run.queue ? ` · ${run.queue} queued` : ''}` : null;
     return {
       source: 'run', items: runItems, index, item: runItems[index] ?? null, entry: null,
-      live: busy ? run.preview : null, busy, progress: busy ? run.progress : null, statusLine: line,
+      live: busy && livePreview ? run.preview : null, busy, progress: busy ? run.progress : null, statusLine: line,
       pick: (i) => { const it = runItems[i]; if (it) showRun(it.key); },
     };
   }
@@ -71,7 +74,7 @@ export function useStageMedia(step: Step): StageMedia {
   const item: ImageResultItem | null = images[index] ?? null;
   return {
     source: 'image', items: images, index, item, entry: item?.entry ?? current,
-    live: activity.active ? liveFrame : null, busy: activity.active,
+    live: activity.active && livePreview ? liveFrame : null, busy: activity.active,
     progress: activity.percent != null ? activity.percent / 100 : null,
     statusLine: activity.active ? (activity.queued > 0 ? `${activity.label} · ${activity.queued} queued` : activity.label) : null,
     pick: (i) => { const it = images[i]; if (it) { select(it.entry); showRun(null); } },

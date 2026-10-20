@@ -8,6 +8,8 @@
  * A video result (or a video step's live render) goes to `StagePlayer`: the clip fills the same
  * box, its controls are their own 44px row under it (rule 1), ←/→ seek there instead of paging.
  * Delete / Backspace (desktop, no overlay, not in a text box) deletes the shown result with Undo.
+ * No animation anywhere (Donny, 10-20): the viewers open, close and seek on the spot (`instant`),
+ * a finished image replaces the picture at once (a keyed `<img>`, no slide).
  */
 import { useRef, useState } from 'react';
 import { useStore } from '@/lib/store';
@@ -99,7 +101,7 @@ export function StageColumn({ step, phone = false }: { step: Step; phone?: boole
       </div>
       )}
       {viewerOpen && media.source === 'image' && (history.length > 0 || !!media.live) && (
-        <FullscreenViewer list={history} index={viewerIndex} onIndexChange={(i) => { const e = history[i]; if (e) select(e); }} onClose={closeViewer} instantClose />
+        <FullscreenViewer list={history} index={viewerIndex} onIndexChange={(i) => { const e = history[i]; if (e) select(e); }} onClose={closeViewer} instant />
       )}
       {runFull !== null && (
         <FullscreenImage
@@ -108,7 +110,7 @@ export function StageColumn({ step, phone = false }: { step: Step; phone?: boole
           liveUrl={runFull === 'live' ? media.live : null}
           onIndexChange={(i) => { setRunFull(i); media.pick(i); }}
           onClose={() => setRunFull(null)}
-          instantClose
+          instant
           pageCaption={runFull === 'live' ? 'Live preview' : media.items[runFull]?.filename}
         />
       )}

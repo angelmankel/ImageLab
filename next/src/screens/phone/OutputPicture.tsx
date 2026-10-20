@@ -72,6 +72,7 @@ export function OutputPicture({ items, currentKey, onPick, onOpen, live, busy, s
       <HeroResult
         bare
         hideProgress
+        slideOnlyOnDrag
         items={items}
         currentKey={currentKey}
         onPick={onPick}

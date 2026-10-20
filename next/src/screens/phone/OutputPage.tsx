@@ -13,6 +13,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { IconChevronRight, IconDownload, IconMaximize, IconStar, IconStarFilled, IconTrash } from '@tabler/icons-react';
 import { FullscreenImage } from '@/components/FullscreenImage';
 import { FullscreenViewer, useLiveFrame } from '@/features/history/FullscreenViewer';
+import { useViewerPrefs } from '@/features/history/viewerPrefs';
 import { useImageResults, useVideoResults, useWorkflowResults } from '@/features/workspace/results';
 import { useModeHost } from '@/features/workspace/modeHost';
 import { useVideoRun } from '@/features/video/videoRun';
@@ -53,12 +54,13 @@ function ImageOutput({ step, index }: { step: Step; index: number }) {
   const online = useStore((s) => Object.keys(s.serverInfo).length > 0);
   const width = useStore((s) => s.workflow.width);
   const height = useStore((s) => s.workflow.height);
+  const livePreview = useViewerPrefs((s) => s.livePreview);
   const liveFrame = useLiveFrame();
 
   const current = selected ?? history[0] ?? null;
   const item = items.find((i) => i.key === current?.id) ?? null;
   const activity = jobActivity(jobs, submitting, online);
-  const live = activity.active ? liveFrame : null;
+  const live = activity.active && livePreview ? liveFrame : null;
   const status = activity.queued > 0 ? `${activity.label} · ${activity.queued} queued` : activity.label;
   const pick = (key: string) => { const e = history.find((h) => h.id === key); if (e) select(e); };
   const open = (key?: string) => {
@@ -86,7 +88,7 @@ function ImageOutput({ step, index }: { step: Step; index: number }) {
       onLike={current ? () => toggleLiked(current.id) : undefined}
       onDelete={current ? () => deleteImage(current) : undefined}
       viewer={viewerOpen && (history.length > 0 || !!liveFrame) ? (
-        <FullscreenViewer list={history} index={viewerIndex} onIndexChange={(i) => { const e = history[i]; if (e) select(e); }} onClose={closeViewer} instantClose />
+        <FullscreenViewer list={history} index={viewerIndex} onIndexChange={(i) => { const e = history[i]; if (e) select(e); }} onClose={closeViewer} instant />
       ) : null}
     />
   );
@@ -115,7 +117,8 @@ function RunOutput({ mode, step, index }: { mode: 'video' | 'workflow'; step: St
   useEffect(() => { setPicked(null); }, [latest?.url]);
   const i = picked ? Math.max(0, items.findIndex((x) => x.key === picked)) : items.length ? 0 : -1;
   const item = items[i] ?? null;
-  const live = busy ? preview : null;
+  const livePreview = useViewerPrefs((s) => s.livePreview);
+  const live = busy && livePreview ? preview : null;
   const open = (key?: string) => {
     const at = key ? items.findIndex((x) => x.key === key) : i;
     if (at >= 0) { setPicked(items[at].key); setFull(at); } else if (preview) setFull('live');
@@ -145,7 +148,7 @@ function RunOutput({ mode, step, index }: { mode: 'video' | 'workflow'; step: St
           liveUrl={full === 'live' ? preview : null}
           onIndexChange={(n) => { setFull(n); setPicked(items[n]?.key ?? null); }}
           onClose={() => setFull(null)}
-          instantClose
+          instant
           pageCaption={full === 'live' ? 'Live preview' : items[full]?.filename}
         />
       ) : null}

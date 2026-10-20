@@ -23,7 +23,7 @@ import type { ResultItem } from '@/lib/workspace';
 const SIDES = [-1, 0, 1] as const;
 const NO_ITEMS: readonly ResultItem[] = [];
 
-export function HeroResult({ items = NO_ITEMS, currentKey = null, onPick, preview, busy, progress, statusLine, queued, onOpen, onDragProgress, empty, children, className, bare, hideProgress }: {
+export function HeroResult({ items = NO_ITEMS, currentKey = null, onPick, preview, busy, progress, statusLine, queued, onOpen, onDragProgress, empty, children, className, bare, hideProgress, slideOnlyOnDrag }: {
   /** Every result, in strip order (newest first); the hero shows `currentKey` and pages among them. */
   items?: readonly ResultItem[];
   currentKey?: string | null;
@@ -49,6 +49,8 @@ export function HeroResult({ items = NO_ITEMS, currentKey = null, onPick, previe
   bare?: boolean;
   /** The caller draws its own progress band (the stage floats one above its filmstrip). */
   hideProgress?: boolean;
+  /** Only a finger's swipe slides; a pick, a key, a wheel or a new result arriving is a cut (the next UI). */
+  slideOnlyOnDrag?: boolean;
 }) {
   const index = items.findIndex(i => i.key === currentKey);
   const item = items[index] ?? null;
@@ -65,6 +67,7 @@ export function HeroResult({ items = NO_ITEMS, currentKey = null, onPick, previe
     index,
     onIndexChange: i => { const it = items[i]; if (it) onPick?.(it.key); },
     enabled: canPage && !!onPick,
+    slideOnlyOnDrag,
     onProgress: onDragProgress,
   });
   usePreloadAround(items.map(i => i.url), index);

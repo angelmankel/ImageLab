@@ -1,13 +1,14 @@
 /**
  * Rule 7: the image toolbar, its own 52px row, icons centred, no seek, no info chips:
  * Fit · Zoom in · Zoom out | Crop & re-render · Mask & inpaint · Compare | Vary · Send to next
- * step · ★ · Download · Delete · Fullscreen. Fullscreen is the white one. Delete has no confirm: the
+ * step · ★ · Download · Delete · Fullscreen | Live preview on / off. Fullscreen is the white one. Delete has no confirm: the
  * note offers Undo (`~/app/deleteResult`; the Delete / Backspace key on the stage does the same).
  */
 import { useState } from 'react';
 import { notifications } from '@mantine/notifications';
-import { IconArrowsMaximize, IconZoomIn, IconZoomOut, IconCrop, IconBrush, IconColumns2, IconRefresh, IconHistory, IconArrowRight, IconHeart, IconHeartFilled, IconDownload, IconMaximize, IconTrash } from '@tabler/icons-react';
+import { IconArrowsMaximize, IconZoomIn, IconZoomOut, IconCrop, IconBrush, IconColumns2, IconRefresh, IconHistory, IconArrowRight, IconHeart, IconHeartFilled, IconDownload, IconMaximize, IconTrash, IconBroadcast, IconBroadcastOff } from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
+import { useViewerPrefs } from '@/features/history/viewerPrefs';
 import { urlToImageState } from '@/features/inputImage/imageOps';
 import { EditImageModal } from '@/features/inputImage/EditImageModal';
 import type { Step } from '~/app/stepsStore';
@@ -41,6 +42,8 @@ export function Toolbar({ step, media, zoom, onFullscreen, canFullscreen, phone 
   step: Step; media: StageMedia; zoom: ReturnType<typeof useStageZoom>; onFullscreen: () => void; canFullscreen: boolean; phone?: boolean;
 }) {
   const toggleLiked = useStore((s) => s.toggleHistoryLiked);
+  const livePreview = useViewerPrefs((s) => s.livePreview);
+  const setLivePreview = useViewerPrefs((s) => s.setLivePreview);
   const inputImage = useStore((s) => s.workflow.inputImage);
   const setTab = useLayout((s) => s.setTab);
   const { run } = useStepRun(step);
@@ -85,6 +88,8 @@ export function Toolbar({ step, media, zoom, onFullscreen, canFullscreen, phone 
         <IconBtn icon={<IconDownload size={16} stroke={2.2} />} label="Download" onClick={() => { if (media.item) void download(media.item.url, media.item.filename); }} style={round} disabled={!has} />
         <IconBtn icon={<IconTrash size={16} stroke={2.2} />} label="Delete (Undo in the note)" onClick={() => { if (media.item) deleteOutput({ entry: media.source === 'image' ? entry : null, url: media.item.url }); }} style={round} disabled={!has} />
         <IconBtn icon={<IconMaximize size={16} stroke={2.2} />} label="Fullscreen" onClick={onFullscreen} style={{ borderRadius: '50%', background: 'var(--il-fg)', color: 'var(--il-bg)' }} disabled={!canFullscreen} />
+        <Sep />
+        <IconBtn icon={livePreview ? <IconBroadcast size={16} stroke={2.2} /> : <IconBroadcastOff size={16} stroke={2.2} />} label={livePreview ? 'Live preview on — frames show while a job runs' : 'Live preview off — the last result stays while a job runs'} on={livePreview} onClick={() => setLivePreview(!livePreview)} style={{ ...round, background: livePreview ? 'var(--il-ember-soft)' : 'var(--il-elev)' }} />
       </div>
       {cropping && inputImage && <EditImageModal image={inputImage} onClose={() => setCropping(false)} />}
     </>

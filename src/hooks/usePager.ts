@@ -43,7 +43,7 @@ export interface Pager {
 
 const reducedMotion = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-export function usePager({ keys, index, onIndexChange, enabled = true, animate = true, onProgress }: {
+export function usePager({ keys, index, onIndexChange, enabled = true, animate = true, slideOnlyOnDrag = false, onProgress }: {
   keys: readonly string[];
   index: number;
   onIndexChange: (i: number) => void;
@@ -51,6 +51,12 @@ export function usePager({ keys, index, onIndexChange, enabled = true, animate =
   enabled?: boolean;
   /** Off, an index change is a plain cut (the slideshow runs its own crossfade). */
   animate?: boolean;
+  /**
+   * Only a finger's release slides; every other index change (a button, a key, a tapped
+   * thumbnail, a new result arriving) is a cut, on touch too. The next UI (Donny, 10-20: no
+   * seek animation except a phone swipe; a new image shows at once).
+   */
+  slideOnlyOnDrag?: boolean;
   /** -1..1: how far the track is towards the next (+) or previous (−) item; 0 when settled. */
   onProgress?: (fraction: number) => void;
 }): Pager {
@@ -58,8 +64,8 @@ export function usePager({ keys, index, onIndexChange, enabled = true, animate =
   const [ghost, setGhost] = useState<Pager['ghost']>(null);
 
   // Everything the imperative handlers read, so they never see a stale render.
-  const latest = useRef({ keys, index, onIndexChange, enabled, animate, onProgress });
-  latest.current = { keys, index, onIndexChange, enabled, animate, onProgress };
+  const latest = useRef({ keys, index, onIndexChange, enabled, animate, slideOnlyOnDrag, onProgress });
+  latest.current = { keys, index, onIndexChange, enabled, animate, slideOnlyOnDrag, onProgress };
 
   const offset = useRef(0);
   const raf = useRef(0);
@@ -125,7 +131,7 @@ export function usePager({ keys, index, onIndexChange, enabled = true, animate =
     if (!el) return;
     // A drag always lands smoothly; any other change (keys, wheel, a click, the controller) slides
     // only for touch and cuts on a desktop.
-    if (!latest.current.animate || (!was?.drag && !lastInputWasTouch())) { stopSettle(); settled(); return; }
+    if (!latest.current.animate || (!was?.drag && (latest.current.slideOnlyOnDrag || !lastInputWasTouch()))) { stopSettle(); settled(); return; }
     if (reducedMotion()) {
       stopSettle();
       settled();
