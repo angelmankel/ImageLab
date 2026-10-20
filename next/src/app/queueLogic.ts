@@ -15,6 +15,8 @@ export interface QueueRow {
   startedAt?: number;
   /** A short second line: the server, the node. */
   detail?: string;
+  /** Images this job makes (an image job's batch), when more than one. */
+  count?: number;
 }
 
 export interface JobLike {
@@ -25,6 +27,7 @@ export interface JobLike {
   node?: string;
   serverId: string;
   positive?: string;
+  workflow?: { batch?: number };
 }
 
 export interface RunLike {
@@ -35,6 +38,26 @@ export interface RunLike {
   startedAt: number | null;
   /** Jobs waiting on that server (other clients' too). */
   queueRemaining: number;
+  /** Every run of ours still to finish (several when Generate was pressed again while one ran). */
+  jobs?: ReadonlyArray<{ promptId: string; queuedAt: number; running: boolean; progress: number | null }>;
+}
+
+/** A run row's id: `video-run` (the whole store) or `video-run:<promptId>` (one queued run). */
+export function parseRunRowId(id: string): { source: 'video' | 'workflow'; promptId?: string } | null {
+  const m = /^(video|workflow)-run(?::(.+))?$/.exec(id);
+  return m ? { source: m[1] as 'video' | 'workflow', promptId: m[2] } : null;
+}
+
+/** One row per run of ours (item 46: several may be queued); the store's single row while it is still building. */
+export function rowsOfRun(source: 'video' | 'workflow', run: RunLike, stepId?: string): QueueRow[] {
+  if (!run.busy) return [];
+  if (!run.jobs?.length) { const r = rowOfRun(source, run, stepId); return r ? [r] : []; }
+  const label = source === 'video' ? 'Video' : 'Workflow';
+  return run.jobs.map((j) => ({
+    id: `${source}-run:${j.promptId}`, stepId, source, label, status: j.running ? 'running' : 'queued',
+    progress: j.running ? (j.progress ?? undefined) : undefined, startedAt: j.queuedAt,
+    detail: j.running ? (run.currentNode ?? run.status ?? undefined) : undefined,
+  }));
 }
 
 const short = (text: string | undefined, n = 48) => {
@@ -47,7 +70,7 @@ export function rowOfJob(j: JobLike, serverName?: string, stepId?: string): Queu
   const progress = j.progress && j.progress.max > 0 ? Math.min(1, Math.max(0, j.progress.value / j.progress.max)) : undefined;
   return {
     id: j.id, stepId, source: 'image', label: short(j.positive), status: j.status,
-    progress, startedAt: j.createdAt,
+    progress, startedAt: j.createdAt, ...((j.workflow?.batch ?? 1) > 1 ? { count: j.workflow!.batch } : {}),
     detail: [serverName, j.status === 'running' ? j.node : undefined].filter(Boolean).join(' · ') || undefined,
   };
 }

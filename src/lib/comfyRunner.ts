@@ -7,13 +7,17 @@
  * result landing in the strip when it is done. The socket is the shared bus (one per host); this
  * subscribes while a view is attached or a run is in flight, and lets go when neither is true.
  *
+ * Several runs at once (next UI, item 46): every `run` queues its graph even while another is in
+ * flight; `jobs` lists ours until each finishes, `cancel(promptId)` stops one. `busy`, `progress`,
+ * `currentNode` and `preview` follow whichever of ours is executing.
+ *
  * Delete: `removeResult(url)` drops a result and remembers its url (`hiddenResults.ts`, persisted
  * per store under `hideKey`), so the next `/history` reload does not bring it back; the file stays
  * on the server. `restoreResult` is the Undo.
  */
 import { create, type StoreApi, type UseBoundStore } from 'zustand';
 import { subscribeComfy, type ComfyEvent } from './comfyBus';
-import { comfyHttpFor, queueGraph, viewUrl } from './comfy';
+import { comfyHttpFor, deleteQueuedPrompt, queueGraph, viewUrl } from './comfy';
 import { playCompleteSound, playSubmitSound } from './sounds';
 import { isImageJob } from './promptOwners';
 import type { ApiGraph } from './workflowGraph';
@@ -41,6 +45,15 @@ export interface RunSource {
   onFinished?: (run: FinishedRun) => void;
 }
 
+/** One run of ours that has not finished yet. */
+export interface RunJob {
+  promptId: string;
+  queuedAt: number;
+  running: boolean;
+  /** 0..1 through the running node's steps, null when unknown or waiting. */
+  progress: number | null;
+}
+
 export interface RunState {
   host: string | null;
   busy: boolean;
@@ -60,13 +73,17 @@ export interface RunState {
   queueRemaining: number;
   /** When the current run was queued, for the tray's timer. */
   startedAt: number | null;
+  /** Every run of ours still to finish, oldest first (several may wait: each Generate press queues one). */
+  jobs: RunJob[];
 
   /** Point the runner at a host (the view's server). Results reload from its `/history`. */
   setHost: (host: string | null) => void;
   /** A view is on screen: hold the socket open for it. Returns the release. */
   attach: () => () => void;
+  /** Queue a run. A run already in flight does not block it: ComfyUI queues the next one. */
   run: (source: RunSource) => Promise<void>;
-  cancel: () => Promise<void>;
+  /** Cancel one run (running = interrupt, waiting = taken off the server's queue), or all of ours. */
+  cancel: (promptId?: string) => Promise<void>;
   clearError: () => void;
   /** Delete a result from the list (the file stays on the server); it stays gone across reloads. */
   removeResult: (url: string) => void;
@@ -130,11 +147,13 @@ export function createRunStore(keep: KeepResult = keepAll, hideKey?: string): Ru
   // Per-store mutable bookkeeping that is not UI state.
   let unsubscribe: (() => void) | null = null;
   let attached = 0;
-  let waitingFor: string | null = null;
-  let nodeNames: Record<string, string> = {};
+  type Timing = { graph: ApiGraph; start: number; node: string | null; since: number; nodeMs: Record<string, number> };
+  type Pending = { source: RunSource; timing: Timing; queuedAt: number; watchdog: ReturnType<typeof setInterval> | null; nodeNames: Record<string, string> };
+  /** Our runs that have not finished, by prompt id (insertion order = queue order). */
+  const pending = new Map<string, Pending>();
+  /** Runs still building their graph / being queued. */
+  let building = 0;
   let previewUrl: string | null = null;
-  let timing: { graph: ApiGraph; start: number; node: string | null; since: number; nodeMs: Record<string, number> } | null = null;
-  let source: RunSource | null = null;
   let historyFor: string | null = null;
   // Deleted urls: read once, written on every change. No key (or no storage) = this session only.
   let hidden: string[] = [];
@@ -151,37 +170,61 @@ export function createRunStore(keep: KeepResult = keepAll, hideKey?: string): Ru
       if (previewUrl) { URL.revokeObjectURL(previewUrl); previewUrl = null; }
       set({ preview: null });
     };
+    const jobsNow = (patch?: (j: RunJob) => RunJob): RunJob[] => {
+      const prev = get().jobs;
+      return [...pending.entries()].map(([promptId, p]) => {
+        const j = prev.find((x) => x.promptId === promptId) ?? { promptId, queuedAt: p.queuedAt, running: false, progress: null };
+        return patch ? patch(j) : j;
+      });
+    };
     const finish = () => {
-      waitingFor = null;
-      set({ busy: false, progress: null, currentNode: null, status: null, startedAt: null });
+      for (const p of pending.values()) if (p.watchdog) clearInterval(p.watchdog);
+      pending.clear();
+      set({ busy: building > 0, progress: null, currentNode: null, status: building > 0 ? 'Queued' : null, startedAt: null, jobs: [] });
       clearPreview();
       // Nobody on screen and nothing running: let the socket go.
       if (!attached) release();
+    };
+    /** One of ours is done (finished, failed or cancelled): drop it; the last one ends the busy state. */
+    const done = (promptId: string) => {
+      const p = pending.get(promptId);
+      if (!p) return;
+      if (p.watchdog) clearInterval(p.watchdog);
+      pending.delete(promptId);
+      if (!pending.size && !building) { finish(); return; }
+      const first = pending.values().next().value as Pending | undefined;
+      set({ jobs: jobsNow(), progress: null, currentNode: null, startedAt: first?.queuedAt ?? null });
     };
     const release = () => {
       if (unsubscribe && !attached && !get().busy) { unsubscribe(); unsubscribe = null; set({ connected: false }); }
     };
     const onEvent = (ev: ComfyEvent) => {
-      if ('promptId' in ev && ev.promptId && waitingFor && ev.promptId !== waitingFor) return; // another client's job
+      if ('promptId' in ev && ev.promptId && pending.size && !pending.has(ev.promptId)) return; // another client's job
       switch (ev.type) {
         case 'status':
           return set({ queueRemaining: ev.queueRemaining });
-        case 'execution_start':
-          if (timing && ev.promptId === waitingFor) timing.start = timing.since = performance.now();
-          return set({ status: 'Running', progress: null });
+        case 'execution_start': {
+          const p = pending.get(ev.promptId);
+          if (p) p.timing.start = p.timing.since = performance.now();
+          return set({ status: 'Running', progress: null, jobs: jobsNow((j) => (j.promptId === ev.promptId ? { ...j, running: true } : j)), ...(p ? { startedAt: p.queuedAt } : {}) });
+        }
         case 'executing': {
-          const t = timing;
-          if (t && ev.promptId === waitingFor) {
+          const p = pending.get(ev.promptId);
+          const t = p?.timing;
+          if (t) {
             const now = performance.now();
             if (t.node) t.nodeMs[t.node] = (t.nodeMs[t.node] ?? 0) + (now - t.since);
             t.node = ev.node ?? null;
             t.since = now;
           }
           if (ev.node == null) return;             // null means "this prompt is done"
-          return set({ currentNode: nodeNames[ev.node] ?? `node ${ev.node}`, progress: null });
+          const names = p?.nodeNames ?? {};
+          return set({ currentNode: names[ev.node] ?? `node ${ev.node}`, progress: null, jobs: p ? jobsNow((j) => (j.promptId === ev.promptId ? { ...j, running: true, progress: null } : j)) : get().jobs });
         }
-        case 'progress':
-          return set({ progress: ev.max > 0 ? ev.value / ev.max : null });
+        case 'progress': {
+          const progress = ev.max > 0 ? ev.value / ev.max : null;
+          return set({ progress, jobs: pending.has(ev.promptId) ? jobsNow((j) => (j.promptId === ev.promptId ? { ...j, running: true, progress } : j)) : get().jobs });
+        }
         case 'binary': {
           if (!get().busy) return;
           const url = URL.createObjectURL(new Blob([ev.bytes as BlobPart], { type: ev.mime }));
@@ -189,33 +232,33 @@ export function createRunStore(keep: KeepResult = keepAll, hideKey?: string): Ru
           previewUrl = url;
           return set({ preview: url });
         }
-        case 'execution_success':
-          if (ev.promptId === waitingFor) {
-            const t = timing;
-            if (t) {
-              const now = performance.now();
-              if (t.node) t.nodeMs[t.node] = (t.nodeMs[t.node] ?? 0) + (now - t.since);
-              timing = null;
-              try { source?.onFinished?.({ graph: t.graph, nodeMs: t.nodeMs, totalMs: now - t.start }); } catch { /* best effort */ }
-            }
+        case 'execution_success': {
+          const p = pending.get(ev.promptId);
+          if (p) {
+            const t = p.timing;
+            const now = performance.now();
+            if (t.node) t.nodeMs[t.node] = (t.nodeMs[t.node] ?? 0) + (now - t.since);
+            try { p.source.onFinished?.({ graph: t.graph, nodeMs: t.nodeMs, totalMs: now - t.start }); } catch { /* best effort */ }
             playCompleteSound();
-            finish();
+            done(ev.promptId);
           }
           return;
+        }
         case 'executed': {
           const host = get().host;
           if (!host) return;
-          if (ev.promptId !== waitingFor && isImageJob(ev.promptId)) return; // the image history has it
+          const p = pending.get(ev.promptId);
+          if (!p && isImageJob(ev.promptId)) return; // the image history has it
           const saved = ev.images.filter(keep);
           if (!saved.length) return;
-          const took = get().startedAt;
-          const made = saved.map(img => ({ url: viewUrl(img, host), filename: img.filename, promptId: ev.promptId, createdAt: Date.now(), ...(took ? { durationMs: Date.now() - took } : {}) }));
+          const made = saved.map(img => ({ url: viewUrl(img, host), filename: img.filename, promptId: ev.promptId, createdAt: Date.now(), ...(p ? { durationMs: Date.now() - p.queuedAt } : {}) }));
           const results = mergeShown(get().results, made, true);
           return set({ results, latest: results[0] ?? null });
         }
         case 'execution_error':
+          if (!pending.has(ev.promptId)) return;
           set({ error: ev.message });
-          return finish();
+          return done(ev.promptId);
         default:
           return;
       }
@@ -232,7 +275,7 @@ export function createRunStore(keep: KeepResult = keepAll, hideKey?: string): Ru
 
     return {
       host: null, busy: false, status: null, error: null, results: [], latest: null, progress: null,
-      currentNode: null, preview: null, connected: false, queueRemaining: 0, startedAt: null,
+      currentNode: null, preview: null, connected: false, queueRemaining: 0, startedAt: null, jobs: [],
 
       setHost: (host) => {
         if (host === get().host) return;
@@ -253,10 +296,10 @@ export function createRunStore(keep: KeepResult = keepAll, hideKey?: string): Ru
       attach: () => {
         attached++;
         listen();
-        let done = false;
+        let released = false;
         return () => {
-          if (done) return;
-          done = true;
+          if (released) return;
+          released = true;
           attached--;
           release();
         };
@@ -264,29 +307,38 @@ export function createRunStore(keep: KeepResult = keepAll, hideKey?: string): Ru
 
       run: async (src) => {
         const host = get().host;
-        if (!host || get().busy) return;
-        source = src;
-        set({ error: null, busy: true, status: 'Queued', startedAt: Date.now() });
-        clearPreview();
+        if (!host) return;
+        const first = !get().busy;
+        building++;
+        set({ error: null, busy: true, ...(first ? { status: 'Queued', startedAt: Date.now() } : {}) });
+        if (first) clearPreview();
         listen();
+        const settle = (error?: string) => {
+          building--;
+          if (error) set({ error });
+          if (!pending.size && !building) { set({ busy: false, status: null, startedAt: null }); release(); }
+        };
         try {
           const built = await src.build();
-          if ('error' in built) { set({ error: built.error, busy: false, status: null, startedAt: null }); release(); return; }
+          if ('error' in built) { settle(built.error); return; }
           const { graph, warnings = [] } = built;
           if (warnings.length) set({ status: warnings[0] });
-          nodeNames = Object.fromEntries(Object.entries(graph).map(([id, n]) => {
+          const nodeNames = Object.fromEntries(Object.entries(graph).map(([id, n]) => {
             const node = n as { class_type: string; _meta?: { title?: string } };
             return [id, node._meta?.title || node.class_type];
           }));
           const queued = await queueGraph(host, graph);
-          if (!queued.ok) { set({ error: queued.error, busy: false, status: null, startedAt: null }); release(); return; }
-          waitingFor = queued.promptId;
-          timing = { graph, start: performance.now(), node: null, since: performance.now(), nodeMs: {} };
+          if (!queued.ok) { settle(queued.error); return; }
+          const id = queued.promptId;
+          const now = performance.now();
+          const entry: Pending = { source: src, timing: { graph, start: now, node: null, since: now, nodeMs: {} }, queuedAt: Date.now(), watchdog: null, nodeNames };
+          pending.set(id, entry);
+          building--;
+          set({ jobs: jobsNow(), startedAt: get().startedAt ?? entry.queuedAt });
           playSubmitSound();
 
-          const id = queued.promptId;
-          const watchdog = setInterval(async () => {
-            if (waitingFor !== id) { clearInterval(watchdog); return; }
+          entry.watchdog = setInterval(async () => {
+            if (!pending.has(id)) { if (entry.watchdog) clearInterval(entry.watchdog); return; }
             try {
               const res = await fetch(`${comfyHttpFor(host)}/history/${id}`);
               const rec = (await res.json())?.[id];
@@ -294,25 +346,34 @@ export function createRunStore(keep: KeepResult = keepAll, hideKey?: string): Ru
               const found: RunResult[] = [];
               for (const out of Object.values(rec.outputs ?? {}) as Array<{ images?: HistoryImage[] }>) {
                 for (const img of out.images ?? []) {
-                  if (keep(img)) found.push({ url: viewUrl(img, host), filename: img.filename, promptId: id, createdAt: Date.now(), ...(get().startedAt ? { durationMs: Date.now() - get().startedAt! } : {}) });
+                  if (keep(img)) found.push({ url: viewUrl(img, host), filename: img.filename, promptId: id, createdAt: Date.now(), durationMs: Date.now() - entry.queuedAt });
                 }
               }
               const results = mergeShown(get().results, found, true);
               set({ results, latest: results[0] ?? null });
-              clearInterval(watchdog);
-              finish();
+              done(id);
             } catch { /* the socket is still the primary path */ }
           }, WATCHDOG_MS);
         } catch (err) {
-          set({ error: err instanceof Error ? err.message : String(err), busy: false, status: null, startedAt: null });
-          release();
+          settle(err instanceof Error ? err.message : String(err));
         }
       },
 
-      cancel: async () => {
+      cancel: async (promptId) => {
         const host = get().host;
-        if (host) { try { await fetch(`${comfyHttpFor(host)}/interrupt`, { method: 'POST' }); } catch { /* best effort */ } }
-        finish();
+        const running = get().jobs.find((j) => j.running)?.promptId;
+        const ids = promptId ? [promptId] : [...pending.keys()];
+        if (host) {
+          for (const id of ids) {
+            try {
+              if (id === running || (!running && !promptId)) await fetch(`${comfyHttpFor(host)}/interrupt`, { method: 'POST' });
+              else await deleteQueuedPrompt(host, id);
+            } catch { /* best effort */ }
+          }
+          // Nothing of ours known yet (still building): the old Stop = interrupt what runs.
+          if (!ids.length && !promptId) { try { await fetch(`${comfyHttpFor(host)}/interrupt`, { method: 'POST' }); } catch { /* best effort */ } }
+        }
+        if (promptId) done(promptId); else finish();
       },
 
       clearError: () => set({ error: null }),

@@ -10,7 +10,7 @@ import { useStore } from '@/lib/store';
 import { useVideoRun } from '@/features/video/videoRun';
 import { useWorkflowRun } from '@/features/studio/studioRun';
 import { useSteps, type Step } from './stepsStore';
-import { orderRows, rowOfJob, rowOfRun, type QueueRow, type RunLike } from './queueLogic';
+import { orderRows, parseRunRowId, rowOfJob, rowsOfRun, type QueueRow, type RunLike } from './queueLogic';
 
 export type { QueueRow } from './queueLogic';
 
@@ -28,8 +28,8 @@ export interface Queue {
 
 /** Cancel by row id without a hook (the Generate button's Stop, the phone). */
 export function cancelQueueRow(id: string): void {
-  if (id === 'video-run') { void useVideoRun.getState().cancel(); return; }
-  if (id === 'workflow-run') { void useWorkflowRun.getState().cancel(); return; }
+  const run = parseRunRowId(id);
+  if (run) { void (run.source === 'video' ? useVideoRun : useWorkflowRun).getState().cancel(run.promptId); return; }
   useStore.getState().cancelJob(id);
 }
 
@@ -47,10 +47,7 @@ export function rowsOf(
     const r = rowOfJob(j, servers.find((sv) => sv.id === j.serverId)?.name, imageStep);
     if (r) out.push(r);
   }
-  const v = rowOfRun('video', video, videoStep);
-  if (v) out.push(v);
-  const w = rowOfRun('workflow', workflow, workflowStep);
-  if (w) out.push(w);
+  out.push(...rowsOfRun('video', video, videoStep), ...rowsOfRun('workflow', workflow, workflowStep));
   return out.length ? orderRows(out) : NONE;
 }
 

@@ -25,6 +25,7 @@ import { useStageMedia } from './useStageMedia';
 import { useStageZoom } from './useStageZoom';
 import { transformOf } from './stageZoom';
 import { Toolbar } from './Toolbar';
+import { JobRow } from './jobs/JobRow';
 import { StagePlayer } from './player';
 import { T } from '~/theme/tokens';
 import { deleteOutput } from '~/app/deleteResult';
@@ -88,6 +89,7 @@ export function StageColumn({ step, phone = false }: { step: Step; phone?: boole
           </div>
         )}
       </div>
+      <JobRow />
       {player ? (
         <StagePlayer
           src={isVideo ? media.item!.url : null}

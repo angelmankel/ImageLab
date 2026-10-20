@@ -55,7 +55,7 @@ export function useStepRun(step: Step): { run: (newSeed?: boolean) => void; stop
     // The step's own runner opens its workflow, uploads the chained picture, re-rolls the seeds
     // (dice = every seed; Generate = only the unlocked ones) and queues the run.
     return {
-      run: (newSeed = false) => { if (wfHost) void startWorkflowStepRun(step, wfHost, info, newSeed); },
+      run: (newSeed = false) => { if (wfHost) void enqueueRun(() => startWorkflowStepRun(step, wfHost, info, newSeed)); },
       stop: () => cancelQueueRow('workflow-run'),
       busy: workflow.busy, busyLabel: workflow.status ?? 'Running', progress: workflow.progress,
       disabled: !wfHost ? 'No server' : !info ? 'Reading the server…' : !stepWf ? 'Pick a workflow in the step' : null,

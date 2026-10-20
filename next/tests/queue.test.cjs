@@ -34,3 +34,19 @@ test('order: running first, then queued, each oldest first', () => {
   ];
   assert.deepEqual(Q.orderRows(rows).map((r) => r.id), ['r1', 'r2', 'q1', 'q2']);
 });
+
+test('runs with several queued prompts: one row each; ids parse back', () => {
+  const run = { busy: true, status: 'Running', progress: 0.3, currentNode: 'KSampler', startedAt: 1, queueRemaining: 2,
+    jobs: [{ promptId: 'p1', queuedAt: 1, running: true, progress: 0.3 }, { promptId: 'p2', queuedAt: 2, running: false, progress: null }] };
+  const rows = Q.rowsOfRun('workflow', run, 'step-w');
+  assert.equal(rows.length, 2);
+  assert.equal(rows[0].id, 'workflow-run:p1');
+  assert.equal(rows[0].status, 'running');
+  assert.equal(rows[0].progress, 0.3);
+  assert.equal(rows[1].status, 'queued');
+  assert.deepEqual(Q.parseRunRowId('workflow-run:p2'), { source: 'workflow', promptId: 'p2' });
+  assert.deepEqual(Q.parseRunRowId('video-run'), { source: 'video', promptId: undefined });
+  assert.equal(Q.parseRunRowId('abc'), null);
+  assert.equal(Q.rowsOfRun('video', { ...run, busy: false }).length, 0);
+  assert.equal(Q.rowsOfRun('video', { ...run, jobs: [] })[0].id, 'video-run');
+});
