@@ -4,11 +4,12 @@
  * progress along its bottom. Several presses while one runs = queued (ComfyUI queues; so does the
  * store). Image step → the main app's `fireFromStore`; video → `./video`'s `useVideoStepRun`
  * (chains the previous step's output, then `startVideoRun`); workflow → the step's `startWorkflowStepRun`.
- * Ctrl/⌘+Enter generates, inside a text box too.
+ * Ctrl/⌘+Enter generates, inside a text box too. An Image step carries its Batch stepper at the
+ * left of the bar (moved here from Settings on desktop, Donny 10-20; the phone keeps it in Settings).
  */
 import { Tooltip } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import { IconDice5, IconSparkles, IconPlayerStop } from '@tabler/icons-react';
+import { IconDice5, IconMinus, IconPlus, IconSparkles, IconPlayerStop } from '@tabler/icons-react';
 import { useShallow } from 'zustand/react/shallow';
 import { useStore } from '@/lib/store';
 import { jobActivity } from '@/lib/jobActivity';
@@ -63,6 +64,22 @@ export function useStepRun(step: Step): { run: (newSeed?: boolean) => void; stop
   return { run: () => notifications.show({ title: 'Coming soon', message: "This step's workflow is coming.", color: 'gray', autoClose: 2500 }), stop: () => {}, busy: false, busyLabel: '', progress: null, disabled: null };
 }
 
+/** Batch − n + inside the bar: how many images one press queues (the main workflow's `batch`, 1–16). */
+function BatchStepper({ h, busy }: { h: number; busy: boolean }) {
+  const batch = useStore((s) => s.workflow.batch);
+  const set = useStore((s) => s.setWorkflow);
+  const fg = busy ? 'var(--il-ember-hi)' : 'var(--il-bg)';
+  const btn = (disabled: boolean): React.CSSProperties => ({ width: 30, height: h, border: 0, background: 'transparent', color: fg, display: 'grid', placeItems: 'center', cursor: disabled ? 'default' : 'pointer', opacity: disabled ? 0.4 : 0.85 });
+  return (
+    <div role="group" aria-label="Batch" title="Images per Generate" style={{ display: 'flex', alignItems: 'center', flex: 'none', paddingLeft: 6 }}>
+      <button type="button" aria-label="One image fewer" disabled={batch <= 1} onClick={() => set({ batch: Math.max(1, batch - 1) })} style={btn(batch <= 1)}><IconMinus size={15} stroke={2.6} /></button>
+      <span style={{ minWidth: 30, textAlign: 'center', color: fg, fontSize: 14, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>×{batch}</span>
+      <button type="button" aria-label="One image more" disabled={batch >= 16} onClick={() => set({ batch: Math.min(16, batch + 1) })} style={btn(batch >= 16)}><IconPlus size={15} stroke={2.6} /></button>
+      <span aria-hidden style={{ width: 1, alignSelf: 'stretch', background: busy ? 'var(--il-line)' : 'rgba(20,20,22,.25)', margin: '10px 0 10px 6px' }} />
+    </div>
+  );
+}
+
 export function GenerateBar({ step, large = false }: { step: Step; large?: boolean }) {
   const { run, stop, busy, busyLabel, progress, disabled } = useStepRun(step);
   useShortcut('cmd+Enter', (e) => { e.preventDefault(); if (!disabled) run(); }, { priority: ShortcutPriority.Global, skipTyping: false });
@@ -72,6 +89,7 @@ export function GenerateBar({ step, large = false }: { step: Step; large?: boole
   return (
     <div style={{ padding: large ? '10px 12px 12px' : '12px 20px 18px', borderTop: '1px solid var(--il-line)', flex: 'none' }}>
       <div style={{ position: 'relative', display: 'flex', height: h, borderRadius: 999, overflow: 'hidden', background: busy ? 'var(--il-card-on)' : 'var(--il-ember)' }}>
+        {step.kind === 'image' && <BatchStepper h={h} busy={busy} />}
         {busy ? (
           <button type="button" onClick={stop} style={mainStyle} aria-label="Stop">
             <IconPlayerStop size={18} stroke={2.4} />Stop<span style={{ fontSize: 12, fontWeight: 700, color: 'var(--il-muted)' }}>· {busyLabel}{pct != null ? ` ${pct}%` : ''}</span>

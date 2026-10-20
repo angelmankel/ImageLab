@@ -60,7 +60,9 @@ html[data-viewer-open] .il-glass { backdrop-filter: none; -webkit-backdrop-filte
 /* An indeterminate progress sweep (the Generate group, the stage's progress line). */
 @keyframes il-sweep { from { transform: translateX(-100%); } to { transform: translateX(300%); } }
 .il-sweep { animation: il-sweep 1.2s linear infinite; }
-/* History tiles: the favourite button shows on hover, always when liked. */
-.il-tile-like { opacity: 0; transition: opacity .12s; }
-*:hover > .il-tile-like, .il-tile-like[aria-pressed="true"] { opacity: 1; }
+/* History tiles: the favourite and delete buttons show on hover (or keyboard focus); the favourite always when liked. */
+.il-tile-like, .il-tile-del { opacity: 0; transition: opacity .12s; }
+*:hover > .il-tile-like, .il-tile-like[aria-pressed="true"], .il-tile-like:focus-visible,
+*:hover > .il-tile-del, .il-tile-del:focus-visible { opacity: 1; }
+.il-tile-del:hover { color: var(--il-err) !important; }
 @media (prefers-reduced-motion: reduce) { .il-sweep { animation: none; width: 100% !important; opacity: .5; } }

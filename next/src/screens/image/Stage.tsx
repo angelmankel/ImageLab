@@ -7,6 +7,7 @@
  * the picture while this step's job runs; its progress is a thin line under the toolbar row.
  * A video result (or a video step's live render) goes to `StagePlayer`: the clip fills the same
  * box, its controls are their own 44px row under it (rule 1), ←/→ seek there instead of paging.
+ * Delete / Backspace (desktop, no overlay, not in a text box) deletes the shown result with Undo.
  */
 import { useRef, useState } from 'react';
 import { useStore } from '@/lib/store';
@@ -20,6 +21,7 @@ import { transformOf } from './stageZoom';
 import { Toolbar } from './Toolbar';
 import { StagePlayer } from './player';
 import { T } from '~/theme/tokens';
+import { deleteOutput } from '~/app/deleteResult';
 
 export function StageColumn({ step, phone = false }: { step: Step; phone?: boolean }) {
   const media = useStageMedia(step);
@@ -45,6 +47,13 @@ export function StageColumn({ step, phone = false }: { step: Step; phone?: boole
   const pageKeys = () => noOverlay() && !isVideo;
   useShortcut('ArrowLeft', () => media.pick(media.index + 1), { priority: ShortcutPriority.Panel + 10, when: pageKeys });
   useShortcut('ArrowRight', () => media.pick(media.index - 1), { priority: ShortcutPriority.Panel + 10, when: pageKeys });
+  useShortcut(['Delete', 'Backspace'], (e) => {
+    const item = media.item;
+    if (!item || (e.target as HTMLElement | null)?.closest?.('[role="dialog"], [role="menu"], [role="listbox"]')) return false;
+    e.preventDefault();
+    if (e.repeat) return;
+    deleteOutput({ entry: media.source === 'image' ? media.entry : null, url: item.url });
+  }, { priority: ShortcutPriority.Panel + 10, when: () => !phone && noOverlay() });
 
   const pct = media.progress != null ? Math.max(2, Math.round(media.progress * 100)) : null;
   const viewerIndex = Math.max(0, history.findIndex((e) => e.id === media.entry?.id));

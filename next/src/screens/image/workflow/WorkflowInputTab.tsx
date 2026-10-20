@@ -1,22 +1,21 @@
 /**
  * The Workflow step's Input tab (rule 2: a step can take the previous step's output): the
- * workflow's LoadImage widget(s). The first one is THE input: "Use previous step's output"
- * (chained; on Generate `startWorkflowStepRun` fetches that output, uploads it to the step's
+ * workflow's LoadImage widget(s). The first one is THE input: the Off · Auto · Pick card
+ * (`../ChainInputCard`: the previous step's last or a picked result; on Generate `startWorkflowStepRun` fetches that output, uploads it to the step's
  * host and sets it into the widget — the classic sendTo "Workflow" logic), or a picture of your
  * own: upload / From history (uploaded at once, the widget set to the server's name) / one already
  * on the server. More LoadImage nodes get a compact row each. No LoadImage: one line says so.
  */
 import { useRef, useState } from 'react';
 import { notifications } from '@mantine/notifications';
-import { IconLink, IconPhoto, IconUpload, IconX } from '@tabler/icons-react';
+import { IconPhoto, IconUpload, IconX } from '@tabler/icons-react';
 import { loadImageRef, uploadImage } from '@/lib/comfy';
 import { useStudio } from '@/features/studio/studioStore';
 import { inputViewUrl } from '@/features/studio/ImageInput';
 import type { WorkflowParam } from '@/features/studio/params';
 import { InputImageBrowserModal } from '@/features/inputImage/InputImageBrowserModal';
-import { useSteps, type Step } from '~/app/stepsStore';
-import { Switch } from '~/ui';
-import { usePrevStepOutput } from '../useStepOutput';
+import { useSteps, chainModeOf, type Step } from '~/app/stepsStore';
+import { ChainInputCard } from '../ChainInputCard';
 import { Pick } from './fields';
 import { Hint } from './Hint';
 import { WorkflowPicker } from './WorkflowPicker';
@@ -110,15 +109,13 @@ function Picture({ host, p, value, step, main }: { host: string | null; p: Workf
 export function WorkflowInputTab({ step }: { step: Step }) {
   const { ref, host, open, loading } = useWorkflowStepHost(step);
   const steps = useSteps((s) => s.steps);
-  const updateStep = useSteps((s) => s.updateStep);
   const setStepInput = useSteps((s) => s.setStepInput);
   const params = useStudio((s) => s.params);
   const values = useStudio((s) => (s.path ? s.values[s.path] ?? NO_VALUES : NO_VALUES));
-  const prev = usePrevStepOutput(step);
   const first = steps[0]?.id === step.id;
   const images = open ? params.filter(isImageParam) : [];
   const [main, ...more] = images;
-  const chained = !first && step.chained && !step.input;
+  const chained = !first && chainModeOf(step) !== 'off';
   const valueOf = (p: WorkflowParam) => (p.id in values ? values[p.id] : p.value);
 
   return (
@@ -130,14 +127,8 @@ export function WorkflowInputTab({ step }: { step: Step }) {
       {main && (
         <div style={{ background: 'var(--il-card)', borderRadius: 14, padding: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--il-fg2)' }}>{main.nodeLabel} <span style={{ color: 'var(--il-muted)', fontWeight: 600 }}>#{main.nodeId} · the input</span></div>
-          {!first && (
-            <Switch label="Use previous step's output" checked={chained} onChange={(on) => { updateStep(step.id, { chained: on }); if (on) setStepInput(step.id, null); }} />
-          )}
-          {chained ? (
-            prev
-              ? <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><img src={prev.url} alt="" style={{ width: 44, height: 44, borderRadius: 10, objectFit: 'cover', background: 'var(--il-bg-deep)' }} /><span style={{ fontSize: 11, fontWeight: 600, color: 'var(--il-muted)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}><IconLink size={11} /> {prev.name} — sent to the workflow on Generate</span></div>
-              : <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--il-muted)' }}>The previous step has no output yet — Generate waits for one, or switch this off and pick a picture.</div>
-          ) : (
+          {!first && <ChainInputCard step={step} bare note="— sent to the workflow on Generate" />}
+          {!chained && (
             <>
               <Picture host={host} p={main} value={valueOf(main)} step={step} main />
               {step.input && (

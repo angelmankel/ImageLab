@@ -3,28 +3,28 @@
  * its widget values, on the shared workflow run store (`@/features/studio/studioRun`'s
  * `useWorkflowRun`, so the queue pill, Stop and the stage see it as before).
  *
- * On top of the classic `startWorkflowRun`: the previous step's picture is chained into the
- * workflow's first LoadImage (fetched through the browser, uploaded to the step's host, the
- * widget set to the name the server gave back — what `features/workspace/sendTo.tsx` does for its
- * "Workflow" target; a video output sends its last frame), and only the seeds NOT kept are
- * re-rolled on Generate while the dice re-rolls every one.
+ * On top of the classic `startWorkflowRun`: the step's resolved input (`stepInputNow`: the
+ * previous step's last or picked result, or an explicit picture — the one rule in
+ * `~/screens/image/stepInputLogic.ts`) is chained into the workflow's first LoadImage (fetched
+ * through the browser, uploaded to the step's host, the widget set to the name the server gave
+ * back — what `features/workspace/sendTo.tsx` does for its "Workflow" target; a video output
+ * sends its last frame), and only the seeds NOT kept are re-rolled on Generate while the dice
+ * re-rolls every one.
  */
 import { notifications } from '@mantine/notifications';
 import { loadImageRef, uploadImage } from '@/lib/comfy';
-import { viewUrl } from '@/lib/comfyHost';
-import { useStore } from '@/lib/store';
 import type { RunSource } from '@/lib/comfyRunner';
 import type { ObjectInfo } from '@/lib/workflowGraph';
 import { buildApiGraph, randomSeed } from '@/features/studio/params';
 import { useStudio } from '@/features/studio/studioStore';
 import { useWorkflowRun } from '@/features/studio/studioRun';
 import { objectInfoNow } from '@/features/studio/useStudioRun';
-import { useVideoRun } from '@/features/video/videoRun';
 import { lastFrame } from '@/features/workspace/sendTo';
-import { useSteps, prevStepId, type Step } from '~/app/stepsStore';
+import type { Step } from '~/app/stepsStore';
 import { ensureStepWorkflowOpen } from '~/screens/comfy';
+import { stepInputNow } from '../useStepOutput';
 import { keptSeedsNow } from './workflowStepStore';
-import { isImageParam, resolveChainInput, seedIdsToReroll, uploadName, type ChainSource } from './workflowStepLogic';
+import { isImageParam, chainInputFrom, seedIdsToReroll, uploadName, type ChainSource } from './workflowStepLogic';
 
 const VIDEO = /\.(mp4|webm|mov|mkv)(\?|$)/i;
 
@@ -54,26 +54,6 @@ export async function uploadSource(host: string, src: ChainSource): Promise<stri
   return ref;
 }
 
-/**
- * The newest output of the step before `stepId`, outside React (the hook version is
- * `~/screens/image/useStepOutput.ts`'s `usePrevStepOutput`; the rules are the same).
- */
-export function prevStepOutputNow(stepId: string): ChainSource | null {
-  const steps = useSteps.getState().steps;
-  const prevId = prevStepId(steps, stepId);
-  const prev = steps.find((s) => s.id === prevId);
-  if (!prev) return null;
-  if (prev.kind === 'image') {
-    const st = useStore.getState();
-    const entry = st.history[0];
-    const host = entry ? st.servers.find((sv) => sv.id === entry.serverId)?.host : undefined;
-    return entry && host ? { url: viewUrl(entry, host), name: entry.filename } : null;
-  }
-  if (prev.kind === 'video') { const v = useVideoRun.getState().latest; return v ? { url: v.url, name: v.filename } : null; }
-  if (prev.kind === 'workflow') { const r = useWorkflowRun.getState().latest; return r ? { url: r.url, name: r.filename } : null; }
-  return prev.input ?? null;
-}
-
 /** The step's run source: chained picture in, seeds rolled, the graph built from the studio store. */
 export function workflowStepSource(step: Step, host: string, info: ObjectInfo | null, newSeed: boolean): RunSource {
   return {
@@ -82,10 +62,9 @@ export function workflowStepSource(step: Step, host: string, info: ObjectInfo | 
       const catalogue = info ?? objectInfoNow(host);
       if (!catalogue) return { error: 'The server has not sent its node list yet' };
       if (!st.workflow || !st.path) return { error: 'No workflow open' };
-      // The step as it is now (the Input tab may have changed it since the handler was made).
-      const live = useSteps.getState().steps.find((s) => s.id === step.id) ?? step;
+      // The step as it is NOW in the store (the Input tab may have changed it since the handler was made).
       const image = st.params.find(isImageParam);
-      const chain = resolveChainInput(live, prevStepOutputNow(step.id), !!image);
+      const chain = chainInputFrom(stepInputNow(step.id), !!image);
       if (chain.kind === 'waiting') return { error: 'The previous step has no output yet — generate it first, or pick a picture in Input' };
       if (chain.kind === 'chained' || chain.kind === 'explicit') {
         try {

@@ -453,6 +453,8 @@ type Store = {
   clearHistory: () => void;
   toggleHistoryLiked: (id: string) => void;
   removeHistoryEntry: (id: string) => void;
+  /** Undo of `removeHistoryEntry`: put `entry` back at `index` (no-op when it is still there); `select` shows it. */
+  restoreHistoryEntry: (entry: HistoryEntry, index: number, select?: boolean) => void;
   clearUnliked: () => void;
   /** Replace the cached favorite list for a server (called by the polling hook). */
   setServerFavorites: (serverId: string, version: string, favorites: ServerFavorite[]) => void;
@@ -1270,6 +1272,14 @@ export const useStore = create<Store>((set, get) => {
         }
         return { history: next, selectedEntry };
       });
+    },
+    restoreHistoryEntry: (entry, index, select = false) => {
+      const prev = get().history;
+      if (prev.some(h => h.id === entry.id)) return;
+      const i = Math.max(0, Math.min(index, prev.length));
+      const next = [...prev.slice(0, i), entry, ...prev.slice(i)];
+      if (next.length > HISTORY_MAX) next.length = HISTORY_MAX;
+      set(s => ({ history: next, selectedEntry: select ? entry : s.selectedEntry }));
     },
     clearUnliked: () => {
       const next = get().history.filter(h => h.liked);

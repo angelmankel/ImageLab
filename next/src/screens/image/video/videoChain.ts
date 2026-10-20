@@ -1,9 +1,10 @@
 /**
- * Chaining for real (rule 2): when the Video step is chained, Generate takes the previous step's
- * CURRENT output, runs it through the main app's send-to-video path (fetch → upload to the video
- * host → `startImage`, a portrait picture flips a landscape size), then queues the video run.
- * Plain functions, no hooks: the Generate bar, the phone dock and the toolbar's "Send to next
- * step" all land here.
+ * Chaining for real (rule 2): when the Video step is chained, Generate takes the step's resolved
+ * input as it is NOW (`stepInputNow`: the previous step's last or picked result — the one rule in
+ * `../stepInputLogic.ts`), runs it through the main app's send-to-video path (fetch → upload to
+ * the video host → `startImage`, a portrait picture flips a landscape size), then queues the
+ * video run. Plain functions, no hooks: the Generate bar, the phone dock and the toolbar's
+ * "Send to next step" all land here.
  */
 import { notifications } from '@mantine/notifications';
 import { useStore } from '@/lib/store';
@@ -14,8 +15,8 @@ import { startVideoRun, useVideoRun } from '@/features/video/videoRun';
 import { sendBlobToVideo, sendUrlToVideo } from '@/features/video/sendToVideo';
 import { sendToVideo } from '@/features/workspace/sendTo';
 import { modeHostNow } from '@/features/workspace/modeHost';
-import { useSteps, prevStepId, type Step } from '~/app/stepsStore';
-import { stepOutputNow } from '../useStepOutput';
+import { useSteps, type Step } from '~/app/stepsStore';
+import { stepInputNow } from '../useStepOutput';
 import { resolveStart, type Task } from './videoStepLogic';
 
 /** The task the engine in use is on. */
@@ -65,13 +66,12 @@ export async function uploadToVideoHost(src: Blob | string, name: string): Promi
  * uploaded now), then queue the run on `host`. `newSeed` rolls a seed and shows it in the store.
  */
 export async function runVideoStep(step: Step, host: string, newSeed = false): Promise<void> {
-  const steps = useSteps.getState().steps;
-  const prev = steps.find((s) => s.id === prevStepId(steps, step.id)) ?? null;
   const v = useVideo.getState();
   if (taskOf(v) === 'i2v') {
-    const start = resolveStart({ chained: step.chained && !step.input, hasPrev: !!prev, prev: stepOutputNow(prev), startImage: v.startImage });
+    const res = stepInputNow(step.id);
+    const start = resolveStart({ resolved: res, startImage: v.startImage });
     if (start.source === 'none') {
-      fail('No start picture', prev && step.chained ? `Step ${steps.indexOf(prev) + 1} has no output yet.` : 'Pick a start picture in the Input tab.');
+      fail('No start picture', res?.kind === 'waiting' ? `Step ${useSteps.getState().steps.indexOf(res.from) + 1} has no output yet.` : 'Pick a start picture in the Input tab.');
       return;
     }
     if (start.source === 'prev' && !(await setStartFrameFrom(start.prev.url, start.prev.name))) return;

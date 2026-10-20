@@ -167,17 +167,18 @@ export function seedIdsToReroll(params: readonly WorkflowParam[], kept: readonly
 export interface ChainSource { url: string; name: string }
 
 /**
- * What goes into the workflow's first LoadImage on Generate: the step's explicit picture ("Send to
- * step", upload), else the previous step's output when chained (waiting = chained but nothing made
- * yet), else nothing (the widget keeps what it holds).
+ * What goes into the workflow's first LoadImage on Generate, from the step's resolved input
+ * (`~/screens/image/stepInputLogic.ts`'s `resolveStepInput`, the one rule every step follows):
+ * the step's explicit picture ("Send to step", upload), else the previous step's last or picked
+ * result when chained (waiting = chained but nothing made yet), else nothing (the widget keeps
+ * what it holds). No LoadImage in the workflow = nothing, whatever the step says.
  */
 export type ChainInput = { kind: 'none' } | { kind: 'waiting' } | { kind: 'explicit' | 'chained'; src: ChainSource };
 
-export function resolveChainInput(step: { chained: boolean; input?: ChainSource | null }, prev: ChainSource | null, hasImageInput: boolean): ChainInput {
-  if (!hasImageInput) return { kind: 'none' };
-  if (step.input) return { kind: 'explicit', src: step.input };
-  if (step.chained) return prev ? { kind: 'chained', src: prev } : { kind: 'waiting' };
-  return { kind: 'none' };
+export function chainInputFrom(resolved: { kind: 'none' | 'waiting' } | { kind: 'explicit' | 'chained'; src: ChainSource } | null, hasImageInput: boolean): ChainInput {
+  if (!hasImageInput || !resolved) return { kind: 'none' };
+  if (resolved.kind === 'explicit' || resolved.kind === 'chained') return { kind: resolved.kind, src: resolved.src };
+  return { kind: resolved.kind };
 }
 
 /** A safe upload name: unique per upload, the original name kept readable. */

@@ -6,6 +6,12 @@ export type StepKind = 'image' | 'upscale' | 'video' | 'workflow';
 
 export interface StepInput { url: string; name: string }
 
+/** A specific result of the previous step, chosen as this step's input (`key` = the result's key: history id or run url). */
+export interface ChainPick extends StepInput { key: string }
+
+/** Where a step 2+ takes its input from: Off = its own picture, Auto = the previous step's last result, Pick = one chosen result. */
+export type ChainMode = 'off' | 'auto' | 'pick';
+
 export interface Step {
   id: string;
   kind: StepKind;
@@ -17,6 +23,20 @@ export interface Step {
   chained: boolean;
   /** An explicit input picked for this step (Send to step, drop); wins over `chained` when set. */
   input?: StepInput | null;
+  /** How a chained step follows the previous step: its last result (`auto`, the default and what old saves mean) or `chainPick`. */
+  chainMode?: 'auto' | 'pick';
+  /** The chosen result in `pick` mode; kept when the mode changes so Pick comes back to it. */
+  chainPick?: ChainPick | null;
+}
+
+/** The step's input mode as the Input tab shows it: an explicit input or `chained: false` = Off. */
+export const chainModeOf = (step: Pick<Step, 'chained' | 'input' | 'chainMode'>): ChainMode =>
+  !step.chained || step.input ? 'off' : step.chainMode ?? 'auto';
+
+/** The step with its input mode set. Auto and Pick drop the explicit input (it is what Off means); `pick` given sets the chosen result. */
+export function withChainMode<S extends Pick<Step, 'chained' | 'input' | 'chainMode' | 'chainPick'>>(step: S, mode: ChainMode, pick?: ChainPick | null): S {
+  if (mode === 'off') return { ...step, chained: false };
+  return { ...step, chained: true, chainMode: mode, input: null, chainPick: pick === undefined ? step.chainPick ?? null : pick };
 }
 
 export const STEP_LABEL: Record<StepKind, string> = { image: 'Image', upscale: 'Upscale', video: 'Video', workflow: 'Workflow' };

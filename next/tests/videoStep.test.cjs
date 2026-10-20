@@ -58,11 +58,11 @@ test('tasks and fields per engine', () => {
 
 test('the start frame resolves: chained wins, then the own picture', () => {
   const prev = { url: 'http://x/view?f=a.png', name: 'a.png' };
-  assert.deepEqual(L.resolveStart({ chained: true, hasPrev: true, prev, startImage: 'imagelab/old.png' }), { source: 'prev', prev });
-  assert.deepEqual(L.resolveStart({ chained: true, hasPrev: true, prev: null, startImage: 'imagelab/old.png' }), { source: 'none' });
-  assert.deepEqual(L.resolveStart({ chained: true, hasPrev: false, prev: null, startImage: 'imagelab/old.png' }), { source: 'own', ref: 'imagelab/old.png' });
-  assert.deepEqual(L.resolveStart({ chained: false, hasPrev: true, prev, startImage: 'imagelab/old.png' }), { source: 'own', ref: 'imagelab/old.png' });
-  assert.deepEqual(L.resolveStart({ chained: false, hasPrev: true, prev, startImage: '' }), { source: 'none' });
+  assert.deepEqual(L.resolveStart({ resolved: { kind: 'chained', src: prev }, startImage: 'imagelab/old.png' }), { source: 'prev', prev });
+  assert.deepEqual(L.resolveStart({ resolved: { kind: 'waiting' }, startImage: 'imagelab/old.png' }), { source: 'none' });
+  assert.deepEqual(L.resolveStart({ resolved: { kind: 'none' }, startImage: 'imagelab/old.png' }), { source: 'own', ref: 'imagelab/old.png' });
+  assert.deepEqual(L.resolveStart({ resolved: { kind: 'explicit' }, startImage: 'imagelab/old.png' }), { source: 'own', ref: 'imagelab/old.png' });
+  assert.deepEqual(L.resolveStart({ resolved: null, startImage: '' }), { source: 'none' });
 });
 
 test('why Generate is off', () => {

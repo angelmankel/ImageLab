@@ -10,10 +10,10 @@
  */
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { appendStep, removeStepFrom, STEP_LABEL, type Step, type StepInput, type StepKind } from './stepsLogic';
+import { appendStep, removeStepFrom, withChainMode, STEP_LABEL, type ChainMode, type ChainPick, type Step, type StepInput, type StepKind } from './stepsLogic';
 
-export { STEP_LABEL, stepTitle, nextStepId, prevStepId } from './stepsLogic';
-export type { Step, StepKind, StepInput } from './stepsLogic';
+export { STEP_LABEL, stepTitle, nextStepId, prevStepId, chainModeOf } from './stepsLogic';
+export type { Step, StepKind, StepInput, ChainMode, ChainPick } from './stepsLogic';
 
 const uid = () => Math.random().toString(36).slice(2, 10);
 
@@ -28,6 +28,8 @@ interface StepsState {
   updateStep: (id: string, patch: Partial<Omit<Step, 'id'>>) => void;
   /** Give a step an explicit input (Send to step). Clears with null; the step stops chaining. */
   setStepInput: (id: string, input: StepInput | null) => void;
+  /** Off · Auto · Pick for a step's input (`stepsLogic.withChainMode`); `pick` sets the chosen result in Pick mode. */
+  setChainMode: (id: string, mode: ChainMode, pick?: ChainPick | null) => void;
   renameSession: (name: string) => void;
 }
 
@@ -48,6 +50,7 @@ export const useSteps = create<StepsState>()(
       removeStep: (id) => set((s) => removeStepFrom(s.steps, id, s.activeId)),
       updateStep: (id, patch) => set((s) => ({ steps: s.steps.map((x) => (x.id === id ? { ...x, ...patch } : x)) })),
       setStepInput: (id, input) => set((s) => ({ steps: s.steps.map((x) => (x.id === id ? { ...x, input, chained: input ? false : x.chained } : x)) })),
+      setChainMode: (id, mode, pick) => set((s) => ({ steps: s.steps.map((x) => (x.id === id ? withChainMode(x, mode, pick) : x)) })),
       renameSession: (sessionName) => set({ sessionName: sessionName.trim() || 'Session' }),
     }),
     {

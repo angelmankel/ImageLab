@@ -1,20 +1,20 @@
 /**
  * The Input tab: the Image step's output size first (aspect + longest side, `settings/SizeControl`;
- * moved here from Settings, Donny 10-20), then the input image for img2img / inpaint. Steps 2+: "Use previous step's output"
- * (chained) with that output shown; any step: drop / upload / paste, "From history" (the main
+ * moved here from Settings, Donny 10-20), then the input image for img2img / inpaint. Steps 2+: the
+ * Off · Auto · Pick card (`ChainInputCard`: the previous step's last or a picked result); any step: drop / upload / paste, "From history" (the main
  * app's past-generations browser), Edit (the main app's editor: crop, rotate, filters, remove
  * background), Clear, and the Denoise slider. Logic from `features/inputImage` and the main
  * store's `workflow.inputImage`; the look is this file.
  */
 import { useRef, useState } from 'react';
-import { IconUpload, IconPhoto, IconBrush, IconX, IconLink } from '@tabler/icons-react';
+import { IconUpload, IconPhoto, IconBrush, IconX } from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
 import { fileToImageState, urlToImageState } from '@/features/inputImage/imageOps';
 import { InputImageBrowserModal } from '@/features/inputImage/InputImageBrowserModal';
 import { EditImageModal } from '@/features/inputImage/EditImageModal';
-import { useSteps, type Step } from '~/app/stepsStore';
-import { Switch, SliderRow, Chip } from '~/ui';
-import { usePrevStepOutput } from './useStepOutput';
+import { useSteps, chainModeOf, type Step } from '~/app/stepsStore';
+import { SliderRow, Chip } from '~/ui';
+import { ChainInputCard } from './ChainInputCard';
 import { SizeControl } from './settings/SizeControl';
 
 const SIZES = [768, 1024, 1280, 1536, 2048];
@@ -23,10 +23,8 @@ const smallBtn: React.CSSProperties = { height: 30, padding: '0 11px', border: 0
 
 export function InputTab({ step }: { step: Step; phone?: boolean }) {
   const steps = useSteps((s) => s.steps);
-  const updateStep = useSteps((s) => s.updateStep);
   const setStepInput = useSteps((s) => s.setStepInput);
   const first = steps[0]?.id === step.id;
-  const prev = usePrevStepOutput(step);
   const inputImage = useStore((s) => s.workflow.inputImage);
   const inputDenoise = useStore((s) => s.workflow.inputDenoise);
   const inputMaxSize = useStore((s) => s.workflow.inputMaxSize);
@@ -60,21 +58,12 @@ export function InputTab({ step }: { step: Step; phone?: boolean }) {
     if (/^(https?:|blob:|data:)/.test(url)) void load(() => urlToImageState(url, name));
   };
   const clear = () => (first ? setWorkflow({ inputImage: null }) : setStepInput(step.id, null));
-  const chained = !first && step.chained && !step.input;
+  const chained = !first && chainModeOf(step) !== 'off';
 
   return (
     <>
       {step.kind === 'image' && <SizeControl />}
-      {!first && (
-        <div style={{ background: 'var(--il-card)', borderRadius: 14, padding: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <Switch label="Use previous step's output" checked={step.chained && !step.input} onChange={(on) => { updateStep(step.id, { chained: on }); if (on) setStepInput(step.id, null); }} />
-          {chained && (
-            prev
-              ? <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><img src={prev.url} alt="" style={{ width: 44, height: 44, borderRadius: 10, objectFit: 'cover', background: 'var(--il-bg-deep)' }} /><span style={{ fontSize: 11, fontWeight: 600, color: 'var(--il-muted)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}><IconLink size={11} /> {prev.name}</span></div>
-              : <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--il-muted)' }}>The previous step has no output yet — it will be used once it does.</div>
-          )}
-        </div>
-      )}
+      {!first && <ChainInputCard step={step} />}
       {!chained && (
         <>
           <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => { ingest(e.target.files?.[0]); e.target.value = ''; }} />

@@ -15,7 +15,7 @@ import { inputViewUrl } from '@/features/studio/ImageInput';
 import { useModeHost } from '@/features/workspace/modeHost';
 import { useVideo } from '@/features/video/videoStore';
 import { WAN_NEGATIVE } from '@/lib/wanGraph';
-import type { Step } from '~/app/stepsStore';
+import { chainModeOf, type Step } from '~/app/stepsStore';
 import { Tabs } from '~/ui';
 import { T } from '~/theme/tokens';
 import { usePrevStepOutput } from '../useStepOutput';
@@ -55,7 +55,7 @@ function WriteItModal({ opened, onClose, step }: { opened: boolean; onClose: () 
   const startImage = useVideo((s) => s.startImage);
   const host = useModeHost('video');
   const prev = usePrevStepOutput(step);
-  const chained = step.chained && !step.input;
+  const chained = chainModeOf(step) !== 'off';
   const pictureUrl = chained ? prev?.url ?? null : startImage && host ? inputViewUrl(host, startImage) : null;
   const [source, setSource] = useState<Source>(pictureUrl ? 'picture' : 'idea');
   const [idea, setIdea] = useState('');

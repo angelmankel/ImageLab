@@ -6,6 +6,10 @@
  * while a video renders keeps the run tracked, its progress visible in the job tray, and its
  * result landing in the strip when it is done. The socket is the shared bus (one per host); this
  * subscribes while a view is attached or a run is in flight, and lets go when neither is true.
+ *
+ * Delete: `removeResult(url)` drops a result and remembers its url (`hiddenResults.ts`, persisted
+ * per store under `hideKey`), so the next `/history` reload does not bring it back; the file stays
+ * on the server. `restoreResult` is the Undo.
  */
 import { create, type StoreApi, type UseBoundStore } from 'zustand';
 import { subscribeComfy, type ComfyEvent } from './comfyBus';
@@ -13,6 +17,7 @@ import { comfyHttpFor, queueGraph, viewUrl } from './comfy';
 import { playCompleteSound, playSubmitSound } from './sounds';
 import { isImageJob } from './promptOwners';
 import type { ApiGraph } from './workflowGraph';
+import { hideUrl, insertResult, parseHidden, unhideUrl, withoutHidden } from './hiddenResults';
 
 export interface RunResult {
   url: string;
@@ -63,6 +68,10 @@ export interface RunState {
   run: (source: RunSource) => Promise<void>;
   cancel: () => Promise<void>;
   clearError: () => void;
+  /** Delete a result from the list (the file stays on the server); it stays gone across reloads. */
+  removeResult: (url: string) => void;
+  /** Undo of `removeResult`: un-hide `result` and put it back at `index`. */
+  restoreResult: (result: RunResult, index: number) => void;
 }
 
 export type RunStore = UseBoundStore<StoreApi<RunState>>;
@@ -117,7 +126,7 @@ function merge(prev: RunResult[], fresh: RunResult[], onTop: boolean): RunResult
  * `keep` is fixed per store: a store is "the video results" or "the workflow results", and the
  * history it preloads has to be filtered the same way as the files its runs produce.
  */
-export function createRunStore(keep: KeepResult = keepAll): RunStore {
+export function createRunStore(keep: KeepResult = keepAll, hideKey?: string): RunStore {
   // Per-store mutable bookkeeping that is not UI state.
   let unsubscribe: (() => void) | null = null;
   let attached = 0;
@@ -127,6 +136,15 @@ export function createRunStore(keep: KeepResult = keepAll): RunStore {
   let timing: { graph: ApiGraph; start: number; node: string | null; since: number; nodeMs: Record<string, number> } | null = null;
   let source: RunSource | null = null;
   let historyFor: string | null = null;
+  // Deleted urls: read once, written on every change. No key (or no storage) = this session only.
+  let hidden: string[] = [];
+  if (hideKey) { try { hidden = parseHidden(localStorage.getItem(hideKey)); } catch { /* private mode */ } }
+  const saveHidden = (next: string[]) => {
+    hidden = next;
+    if (hideKey) { try { localStorage.setItem(hideKey, JSON.stringify(next)); } catch { /* quota / private mode */ } }
+  };
+  /** Every merge goes through here, so a deleted result never comes back from a reload or the watchdog. */
+  const mergeShown = (prev: RunResult[], fresh: RunResult[], onTop: boolean) => merge(prev, withoutHidden(fresh, hidden), onTop);
 
   const store = create<RunState>()((set, get) => {
     const clearPreview = () => {
@@ -192,7 +210,7 @@ export function createRunStore(keep: KeepResult = keepAll): RunStore {
           if (!saved.length) return;
           const took = get().startedAt;
           const made = saved.map(img => ({ url: viewUrl(img, host), filename: img.filename, promptId: ev.promptId, createdAt: Date.now(), ...(took ? { durationMs: Date.now() - took } : {}) }));
-          const results = merge(get().results, made, true);
+          const results = mergeShown(get().results, made, true);
           return set({ results, latest: results[0] ?? null });
         }
         case 'execution_error':
@@ -227,7 +245,7 @@ export function createRunStore(keep: KeepResult = keepAll): RunStore {
         historyFor = host;
         void loadServerHistory(host, keep).then(found => {
           if (get().host !== host || historyFor !== host) return;
-          const results = merge(get().results, found, false);
+          const results = mergeShown(get().results, found, false);
           set({ results, latest: results[0] ?? null });
         }).catch(() => { /* no history is not an error worth showing */ });
       },
@@ -279,7 +297,7 @@ export function createRunStore(keep: KeepResult = keepAll): RunStore {
                   if (keep(img)) found.push({ url: viewUrl(img, host), filename: img.filename, promptId: id, createdAt: Date.now(), ...(get().startedAt ? { durationMs: Date.now() - get().startedAt! } : {}) });
                 }
               }
-              const results = merge(get().results, found, true);
+              const results = mergeShown(get().results, found, true);
               set({ results, latest: results[0] ?? null });
               clearInterval(watchdog);
               finish();
@@ -298,6 +316,18 @@ export function createRunStore(keep: KeepResult = keepAll): RunStore {
       },
 
       clearError: () => set({ error: null }),
+
+      removeResult: (url) => {
+        saveHidden(hideUrl(hidden, url));
+        const results = get().results.filter(r => r.url !== url);
+        if (results.length !== get().results.length) set({ results, latest: results[0] ?? null });
+      },
+
+      restoreResult: (result, index) => {
+        saveHidden(unhideUrl(hidden, result.url));
+        const results = insertResult(get().results, index, result);
+        set({ results, latest: results[0] ?? null });
+      },
     };
   });
 

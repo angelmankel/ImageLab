@@ -12,6 +12,7 @@ import { usePromptFrom, reuseSettingsFrom, recallFrom, sendToStep } from '~/app/
 import { useRoute } from '~/app/routeStore';
 import { T } from '~/theme/tokens';
 import { useLibrary } from './libraryStore';
+import { runStoreOf } from '~/app/deleteResult';
 import type { LibItem } from './libraryLogic';
 
 const toStep = () => useRoute.getState().go('step');
@@ -86,7 +87,7 @@ export async function downloadMany(items: readonly LibItem[]) {
   }
 }
 
-/** Ask, then remove: images leave the history, videos leave the library (the file stays on the server). */
+/** Ask, then remove: images leave the history, videos leave the library and their run store, so the step's history drops them too (the file stays on the server). */
 export function confirmDelete(items: readonly LibItem[], onDone?: () => void) {
   if (!items.length) return;
   const n = items.length;
@@ -105,7 +106,10 @@ export function confirmDelete(items: readonly LibItem[], onDone?: () => void) {
         else videos.push(it.key);
         s.removeItemFromAllCollections(it.key);
       }
-      if (videos.length) useLibrary.getState().hideVideos(videos);
+      if (videos.length) {
+        useLibrary.getState().hideVideos(videos);
+        for (const url of videos) runStoreOf(url)?.getState().removeResult(url);
+      }
       onDone?.();
     },
   });

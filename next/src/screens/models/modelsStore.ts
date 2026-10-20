@@ -176,9 +176,8 @@ export const useModels = create<ModelsState>()(
       clearTags: () => { const had = get().selectedTags.length > 0; set({ selectedTags: EMPTY_STR }); if (had) void get().refresh(); },
       markDownloaded: () => {
         if (get().hasDownloadedOnce) return;
-        // The first download ever: from now on the list opens on all of CivitAI, not just the pod.
-        set({ hasDownloadedOnce: true, source: 'civitai' });
-        if (get().items.length === 0) void get().refresh();
+        // Only remembered: the source stays what Donny picked (10-20: no switching it for him).
+        set({ hasDownloadedOnce: true });
       },
 
       refresh: async () => {
@@ -250,8 +249,8 @@ export const useModels = create<ModelsState>()(
           ...current, ...p,
           filters,
           hasDownloadedOnce,
-          // Downloaded is the default until something has been downloaded once.
-          source: hasDownloadedOnce ? (p.source ?? current.source) : 'installed',
+          // Downloaded on a new install; after that whatever was picked last.
+          source: p.source === 'civitai' || p.source === 'installed' ? p.source : 'installed',
           favourites: Array.isArray(p.favourites) ? p.favourites.filter((n) => Number.isInteger(n)) : EMPTY_IDS,
           followed: Array.isArray(p.followed) ? p.followed.filter((u) => typeof u === 'string') : EMPTY_STR,
         };

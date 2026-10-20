@@ -86,14 +86,15 @@ test('seedIdsToReroll: the dice rolls every seed, Generate only the ones not kep
   assert.deepEqual(L.seedIdsToReroll([n], [], true), []);
 });
 
-test('resolveChainInput: explicit wins, chained waits for an output, no LoadImage = none', () => {
+test('chainInputFrom: the resolved step input into the LoadImage; no LoadImage = none', () => {
   const prev = { url: 'http://pod/view?f=1', name: '1.png' };
-  assert.deepEqual(L.resolveChainInput({ chained: true }, prev, false), { kind: 'none' });
-  assert.deepEqual(L.resolveChainInput({ chained: true }, prev, true), { kind: 'chained', src: prev });
-  assert.deepEqual(L.resolveChainInput({ chained: true }, null, true), { kind: 'waiting' });
-  assert.deepEqual(L.resolveChainInput({ chained: false }, prev, true), { kind: 'none' });
+  assert.deepEqual(L.chainInputFrom({ kind: 'chained', src: prev }, false), { kind: 'none' });
+  assert.deepEqual(L.chainInputFrom({ kind: 'chained', src: prev }, true), { kind: 'chained', src: prev });
+  assert.deepEqual(L.chainInputFrom({ kind: 'waiting' }, true), { kind: 'waiting' });
+  assert.deepEqual(L.chainInputFrom({ kind: 'none' }, true), { kind: 'none' });
+  assert.deepEqual(L.chainInputFrom(null, true), { kind: 'none' });
   const mine = { url: 'data:x', name: 'mine.png' };
-  assert.deepEqual(L.resolveChainInput({ chained: true, input: mine }, prev, true), { kind: 'explicit', src: mine });
+  assert.deepEqual(L.chainInputFrom({ kind: 'explicit', src: mine }, true), { kind: 'explicit', src: mine });
 });
 
 test('workflow list grouping: root first, folders after, names sorted naturally', () => {

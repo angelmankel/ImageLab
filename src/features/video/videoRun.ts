@@ -16,7 +16,7 @@ import { randomVideoSeed, useVideo } from './videoStore';
 import { useVideoTimings } from './videoTimings';
 
 /** Only videos: the same server's images belong to the other modes. */
-export const useVideoRun = createRunStore((img) => isVideoName(img.filename));
+export const useVideoRun = createRunStore((img) => isVideoName(img.filename), 'imagelab.video.deleted.v1');
 
 export function videoRunSource(host: string, override: Partial<VideoSettings> = {}): RunSource {
   return {

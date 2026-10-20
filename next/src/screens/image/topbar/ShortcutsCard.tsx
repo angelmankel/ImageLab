@@ -23,6 +23,7 @@ const GROUPS: { title: string; rows: Row[] }[] = [
   { title: 'Step', rows: [
     { keys: [[MOD, 'Enter']], what: 'Generate (also while typing)' },
     { keys: [['←'], ['→']], what: 'Step through the results' },
+    { keys: [['Delete'], ['Backspace']], what: 'Delete the shown result (Undo in the note)' },
   ] },
   { title: 'Fullscreen viewer', rows: [
     { keys: [['←'], ['→']], what: 'Previous / next' },

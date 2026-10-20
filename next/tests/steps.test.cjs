@@ -33,3 +33,23 @@ test('remove keeps step 1 and moves the active step', () => {
   assert.equal(r.activeId, 'b');
   assert.equal(L.removeStepFrom(steps, 'b', 'c').activeId, 'c');
 });
+
+test('input mode: Off · Auto · Pick on the step, old saves read as Auto', () => {
+  const old = { id: 'b', kind: 'upscale', name: 'B', edited: false, chained: true };
+  assert.equal(L.chainModeOf(old), 'auto');
+  assert.equal(L.chainModeOf({ ...old, chained: false }), 'off');
+  assert.equal(L.chainModeOf({ ...old, input: { url: 'u', name: 'n' } }), 'off');
+  const pick = { key: 'k', url: 'u/k', name: 'k.png' };
+  const picked = L.withChainMode({ ...old, input: { url: 'u', name: 'n' } }, 'pick', pick);
+  assert.equal(L.chainModeOf(picked), 'pick');
+  assert.equal(picked.input, null);
+  assert.deepEqual(picked.chainPick, pick);
+  // Off keeps the pick so Pick comes back to it; Auto keeps it too (only the mode changes).
+  const off = L.withChainMode(picked, 'off');
+  assert.equal(L.chainModeOf(off), 'off');
+  assert.deepEqual(off.chainPick, pick);
+  assert.equal(L.chainModeOf(L.withChainMode(off, 'pick')), 'pick');
+  assert.deepEqual(L.withChainMode(off, 'pick').chainPick, pick);
+  assert.equal(L.chainModeOf(L.withChainMode(picked, 'auto')), 'auto');
+  assert.equal(L.withChainMode(picked, 'pick', null).chainPick, null);
+});

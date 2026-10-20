@@ -7,7 +7,7 @@ import type { ObjectInfo } from '@/lib/workflowGraph';
 import { buildApiGraph } from './params';
 import { useStudio } from './studioStore';
 
-export const useWorkflowRun = createRunStore();
+export const useWorkflowRun = createRunStore(undefined, 'imagelab.workflow.deleted.v1');
 
 export function workflowRunSource(info: ObjectInfo | null): RunSource {
   return {

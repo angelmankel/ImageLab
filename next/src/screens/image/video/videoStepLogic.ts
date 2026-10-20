@@ -87,18 +87,20 @@ export function visibleFields(engine: Engine, task: Task): {
 
 export interface StartSource { url: string; name: string }
 
+/** The step's input as `~/screens/image/stepInputLogic.ts` resolves it (the part the start frame needs). */
+export type ResolvedInput = { kind: 'none' | 'explicit' } | { kind: 'waiting' } | { kind: 'chained'; src: StartSource };
+
 /**
  * Where the start frame comes from when Generate is pressed:
- *   'prev'  — the step is chained and the previous step has an output: fetch + upload it;
+ *   'prev'  — the step is chained and resolves to the previous step's picture: fetch + upload it;
  *   'own'   — the step has its own uploaded start image (`startImage`, a LoadImage reference);
- *   'none'  — nothing to start from (text → video runs; image → video is refused).
+ *   'none'  — nothing to start from (chained but waiting; text → video runs; image → video is refused).
  */
-export function resolveStart(input: { chained: boolean; hasPrev: boolean; prev: StartSource | null; startImage: string }):
+export function resolveStart(input: { resolved: ResolvedInput | null; startImage: string }):
   { source: 'prev'; prev: StartSource } | { source: 'own'; ref: string } | { source: 'none' } {
-  if (input.chained && input.hasPrev) {
-    if (input.prev) return { source: 'prev', prev: input.prev };
-    return { source: 'none' };
-  }
+  const r = input.resolved;
+  if (r?.kind === 'chained') return { source: 'prev', prev: r.src };
+  if (r?.kind === 'waiting') return { source: 'none' };
   if (input.startImage) return { source: 'own', ref: input.startImage };
   return { source: 'none' };
 }

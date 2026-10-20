@@ -9,9 +9,9 @@ import { useShallow } from 'zustand/react/shallow';
 import { useVideo } from '@/features/video/videoStore';
 import { useVideoRun } from '@/features/video/videoRun';
 import { useModeHost } from '@/features/workspace/modeHost';
-import { useSteps, prevStepId, type Step } from '~/app/stepsStore';
+import { useSteps, type Step } from '~/app/stepsStore';
 import { cancelQueueRow } from '~/app/queue';
-import { useStepOutput } from '../useStepOutput';
+import { useStepInput } from '../useStepOutput';
 import { blockReason } from './videoStepLogic';
 import { runVideoStep } from './videoChain';
 
@@ -21,8 +21,9 @@ export function useVideoStepRun(step: Step): StepRun {
   const host = useModeHost('video');
   const run = useVideoRun(useShallow((s) => ({ busy: s.busy, progress: s.progress, status: s.status })));
   const steps = useSteps((s) => s.steps);
-  const prev = steps.find((s) => s.id === prevStepId(steps, step.id)) ?? null;
-  const prevOut = useStepOutput(prev);
+  // The step's input by the one rule (Off · Auto · Pick): chained = it follows the previous step, prevHasOutput = that resolves to a picture.
+  const res = useStepInput(step);
+  const chained = res.kind === 'chained' || res.kind === 'waiting';
   const task = useVideo((s) => (s.engine === 'h3' ? s.h3.mode : s.mode));
   const prompt = useVideo((s) => s.positive);
   const startImage = useVideo((s) => s.startImage);
@@ -30,7 +31,7 @@ export function useVideoStepRun(step: Step): StepRun {
   const [preparing, setPreparing] = useState(false);
 
   const disabled = step.kind === 'video'
-    ? blockReason({ host, task, chained: step.chained && !step.input, hasPrev: !!prev, prevIndex: prev ? steps.indexOf(prev) : -1, prevHasOutput: !!prevOut, prompt, startImage, refs })
+    ? blockReason({ host, task, chained, hasPrev: chained, prevIndex: 'from' in res ? steps.indexOf(res.from) : -1, prevHasOutput: res.kind === 'chained', prompt, startImage, refs })
     : null;
 
   return {

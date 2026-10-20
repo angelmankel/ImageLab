@@ -4,13 +4,13 @@
  *   the picture (OutputPicture: full width, aspect kept, nothing over it)
  *   the progress line while the step's job runs
  *   the results strip
- *   the prompt line + actions (Send to the next step · ★ · Download)
+ *   the prompt line + actions (Send to the next step · ★ · Download · Delete — no confirm, the note has Undo)
  *   the Queue card (Stop / Cancel per job)
  * Image steps read the generate history and open the history viewer (the same `openViewer()` the
  * desktop stage uses); video / workflow steps read their run store and open `FullscreenImage`.
  */
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { IconChevronRight, IconDownload, IconMaximize, IconStar, IconStarFilled } from '@tabler/icons-react';
+import { IconChevronRight, IconDownload, IconMaximize, IconStar, IconStarFilled, IconTrash } from '@tabler/icons-react';
 import { FullscreenImage } from '@/components/FullscreenImage';
 import { FullscreenViewer, useLiveFrame } from '@/features/history/FullscreenViewer';
 import { useImageResults, useVideoResults, useWorkflowResults } from '@/features/workspace/results';
@@ -21,6 +21,7 @@ import { jobActivity } from '@/lib/jobActivity';
 import { useStore } from '@/lib/store';
 import type { ResultItem } from '@/lib/workspace';
 import { sendToStep } from '~/app/actions';
+import { deleteImage, deleteRun } from '~/app/deleteResult';
 import { useRoute } from '~/app/routeStore';
 import { useSteps, STEP_LABEL, type Step } from '~/app/stepsStore';
 import { T } from '~/theme/tokens';
@@ -83,6 +84,7 @@ function ImageOutput({ step, index }: { step: Step; index: number }) {
       current={item}
       liked={!!current?.liked}
       onLike={current ? () => toggleLiked(current.id) : undefined}
+      onDelete={current ? () => deleteImage(current) : undefined}
       viewer={viewerOpen && (history.length > 0 || !!liveFrame) ? (
         <FullscreenViewer list={history} index={viewerIndex} onIndexChange={(i) => { const e = history[i]; if (e) select(e); }} onClose={closeViewer} instantClose />
       ) : null}
@@ -135,6 +137,7 @@ function RunOutput({ mode, step, index }: { mode: 'video' | 'workflow'; step: St
       fallbackAspect={mode === 'video' ? 16 / 9 : 1}
       caption={null}
       current={item}
+      onDelete={item ? () => { setPicked((items[i + 1] ?? items[i - 1])?.key ?? null); deleteRun(item.url); } : undefined}
       viewer={full !== null ? (
         <FullscreenImage
           items={full === 'live' ? [] : fsItems}
@@ -152,7 +155,7 @@ function RunOutput({ mode, step, index }: { mode: 'video' | 'workflow'; step: St
 
 // ── Layout ──────────────────────────────────────────────────────────────────
 
-function OutputLayout({ step, index, items, currentKey, onPick, onOpen, live, busy, progress, status, fallbackAspect, caption, current, liked, onLike, viewer }: {
+function OutputLayout({ step, index, items, currentKey, onPick, onOpen, live, busy, progress, status, fallbackAspect, caption, current, liked, onLike, onDelete, viewer }: {
   step: Step;
   index: number;
   items: readonly ResultItem[];
@@ -168,6 +171,7 @@ function OutputLayout({ step, index, items, currentKey, onPick, onOpen, live, bu
   current: (ResultItem & { entry?: unknown }) | null;
   liked?: boolean;
   onLike?: () => void;
+  onDelete?: () => void;
   viewer: ReactNode;
 }) {
   const go = useRoute((s) => s.go);
@@ -205,7 +209,7 @@ function OutputLayout({ step, index, items, currentKey, onPick, onOpen, live, bu
         {caption && (
           <p style={{ margin: `0 ${T.pad.panel}px`, fontSize: 13, color: 'var(--il-fg2)', lineHeight: 1.45, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{caption}</p>
         )}
-        {current && <Actions step={step} current={current} liked={liked} onLike={onLike} />}
+        {current && <Actions step={step} current={current} liked={liked} onLike={onLike} onDelete={onDelete} />}
         <div style={{ padding: `0 ${T.pad.panel}px` }}><QueueCard ref={queueRef} /></div>
       </div>
       {viewer}
@@ -227,7 +231,7 @@ function ProgressLine({ status, progress }: { status: string | null; progress: n
   );
 }
 
-function Actions({ step, current, liked, onLike }: { step: Step; current: ResultItem & { entry?: unknown }; liked?: boolean; onLike?: () => void }) {
+function Actions({ step, current, liked, onLike, onDelete }: { step: Step; current: ResultItem & { entry?: unknown }; liked?: boolean; onLike?: () => void; onDelete?: () => void }) {
   const steps = useSteps((s) => s.steps);
   const at = steps.findIndex((s) => s.id === step.id);
   const next = at >= 0 ? steps[at + 1] : undefined;
@@ -249,6 +253,11 @@ function Actions({ step, current, liked, onLike }: { step: Step; current: Result
       <a href={current.url} download={current.filename} target="_blank" rel="noreferrer" aria-label="Download" style={{ ...btn, width: 44, textDecoration: 'none' }}>
         <IconDownload size={18} />
       </a>
+      {onDelete && (
+        <button type="button" aria-label="Delete" onClick={onDelete} style={{ ...btn, width: 44 }}>
+          <IconTrash size={18} />
+        </button>
+      )}
     </div>
   );
 }

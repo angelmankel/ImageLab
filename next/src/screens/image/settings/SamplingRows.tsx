@@ -1,5 +1,6 @@
 /**
- * Sampler · Scheduler · Seed · Batch · Clip skip (rule 5): compact 44px rows, two per line.
+ * Sampler · Scheduler · Seed · Batch · Clip skip (rule 5): compact 44px rows, two per line. Batch is
+ * phone-only here; on desktop it sits in the Generate bar (`GenerateBar`'s BatchStepper).
  * Sampler and scheduler from the servers' lists; the seed box with a dice (new seed now) and a
  * lock (keep this seed vs a new one every run = `randomizeSeed`); batch as a stepper; clip skip
  * as a pick.
@@ -11,6 +12,7 @@ import { useStore } from '@/lib/store';
 import { DEFAULT_CLIP_SKIP } from '@/lib/pipeline';
 import { IconBtn } from '~/ui';
 import { T } from '~/theme/tokens';
+import { useIsPhone } from '~/app/useIsPhone';
 
 const MAX_SEED = 0xFFFFFFFF;
 const newSeed = () => Math.floor(Math.random() * MAX_SEED);
@@ -52,6 +54,7 @@ function Pick({ label, value, options, onChange }: { label: string; value: strin
 
 export function SamplingRows() {
   const w = useStore((s) => s.workflow);
+  const phone = useIsPhone();
   const samplers = useStore((s) => s.server.samplers);
   const schedulers = useStore((s) => s.server.schedulers);
   const set = useStore((s) => s.setWorkflow);
@@ -87,13 +90,13 @@ export function SamplingRows() {
         <IconBtn size={30} tone="card" on={!w.randomizeSeed} icon={w.randomizeSeed ? <IconLockOpen size={16} /> : <IconLock size={16} />}
           label={w.randomizeSeed ? 'New seed every run · tap to keep this seed' : 'Seed kept · tap for a new seed every run'} onClick={() => set({ randomizeSeed: !w.randomizeSeed })} />
       </Row>
-      <Row label="Batch">
+      {phone && <Row label="Batch">
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
           <IconBtn size={28} icon={<IconMinus size={14} />} label="One image fewer" disabled={w.batch <= 1} onClick={() => set({ batch: Math.max(1, w.batch - 1) })} tooltip={false} />
           <span style={{ minWidth: 26, textAlign: 'center', fontSize: 12, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>{w.batch}</span>
           <IconBtn size={28} icon={<IconPlus size={14} />} label="One image more" disabled={w.batch >= 16} onClick={() => set({ batch: Math.min(16, w.batch + 1) })} tooltip={false} />
         </span>
-      </Row>
+      </Row>}
       <Row label="Clip skip">
         <Pick label="Clip skip" value={String(clip)} options={CLIP_SKIPS.map((n) => ({ value: String(n), label: n === -1 ? 'off' : String(n) }))} onChange={(v) => set({ clipSkip: Number(v) })} />
       </Row>

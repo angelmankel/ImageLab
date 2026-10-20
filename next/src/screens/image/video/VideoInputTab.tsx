@@ -1,22 +1,22 @@
 /**
- * The Video step's Input tab (rule 2): the start frame. "Use previous step's output" (chained,
- * default on when a step comes before; its current output is shown and uploaded at Generate
- * time), or a picture of your own (drop / upload / paste / from history → uploaded to the video
+ * The Video step's Input tab (rule 2): the start frame. The Off · Auto · Pick card
+ * (`../ChainInputCard`: the previous step's last or a picked result, default Auto when a step
+ * comes before; uploaded at Generate time), or a picture of your own (drop / upload / paste / from history → uploaded to the video
  * host as the `LoadImage` start image, the main app's send-to-video path); an optional end frame
  * (Wan first/last frame, H3 last frame); H3's reference pictures (up to 9). State: the main
  * app's `videoStore` (`startImage`, `endImage`, `h3.refImages`) and the step's `chained` flag.
  */
 import { useRef, useState, type ReactNode } from 'react';
-import { IconUpload, IconPhoto, IconX, IconLink, IconPlus } from '@tabler/icons-react';
+import { IconUpload, IconPhoto, IconX, IconPlus } from '@tabler/icons-react';
 import { InputImageBrowserModal } from '@/features/inputImage/InputImageBrowserModal';
 import { inputViewUrl } from '@/features/studio/ImageInput';
 import { useModeHost } from '@/features/workspace/modeHost';
 import { useVideo } from '@/features/video/videoStore';
-import { useSteps, type Step } from '~/app/stepsStore';
-import { Switch, Chip } from '~/ui';
+import { useSteps, chainModeOf, type Step } from '~/app/stepsStore';
+import { Chip } from '~/ui';
+import { ChainInputCard } from '../ChainInputCard';
 import { usePrevStepOutput } from '../useStepOutput';
 import { setStartFrameFile, setStartFrameFrom, uploadToVideoHost, taskOf } from './videoChain';
-import { shortFile } from './videoStepLogic';
 import { card, muted, pillBtn } from './bits';
 
 /** A picture slot: drop / click to upload / paste; shows the picture it holds. */
@@ -61,8 +61,7 @@ function PictureSlot({ url, label, onFile, onUrl, onClear, small = false, loadin
 
 export function VideoInputTab({ step }: { step: Step; phone?: boolean }) {
   const steps = useSteps((s) => s.steps);
-  const updateStep = useSteps((s) => s.updateStep);
-  const setStepInput = useSteps((s) => s.setStepInput);
+  const setChainMode = useSteps((s) => s.setChainMode);
   const first = steps[0]?.id === step.id;
   const prev = usePrevStepOutput(step);
   const prevIndex = steps.findIndex((s) => s.id === step.id) - 1;
@@ -71,10 +70,10 @@ export function VideoInputTab({ step }: { step: Step; phone?: boolean }) {
   const [busy, setBusy] = useState<string | null>(null);
   const task = taskOf(v);
   const h3 = v.engine === 'h3';
-  const chained = !first && step.chained && !step.input;
+  const chained = !first && chainModeOf(step) !== 'off';
   const view = (ref: string) => (ref && host ? inputViewUrl(host, ref) : null);
 
-  const ownStart = async (work: () => Promise<boolean>) => { setBusy('start'); try { if (await work()) updateStep(step.id, { chained: false }); } finally { setBusy(null); } };
+  const ownStart = async (work: () => Promise<boolean>) => { setBusy('start'); try { if (await work()) setChainMode(step.id, 'off'); } finally { setBusy(null); } };
   const upload = async (what: 'end' | 'ref', src: Blob | string, name: string) => {
     setBusy(what);
     try {
@@ -131,15 +130,9 @@ export function VideoInputTab({ step }: { step: Step; phone?: boolean }) {
   return (
     <>
       {!first && (
-        <div style={card}>
-          <Switch label="Use previous step's output" checked={chained} onChange={(on) => { updateStep(step.id, { chained: on }); if (on) setStepInput(step.id, null); }} />
-          {chained && (
-            prev
-              ? <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><img src={prev.url} alt="" style={{ width: 56, height: 56, borderRadius: 10, objectFit: 'cover', background: 'var(--il-bg-deep)' }} /><span style={{ ...muted, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}><IconLink size={11} /> Step {prevIndex + 1} · {shortFile(prev.name)}</span></div>
-              : <div style={muted}>Step {prevIndex + 1} has no output yet — Generate there first; this step takes its newest picture when you press Generate here.</div>
-          )}
-          {chained && <div style={muted}>Uploaded to the video server at Generate time{h3 ? '; H3 stretches it to the video size, so the size follows the picture\'s shape.' : '; a portrait picture flips the size to portrait.'}</div>}
-        </div>
+        <ChainInputCard step={step} thumb={56}>
+          <div style={muted}>Uploaded to the video server at Generate time{h3 ? '; H3 stretches it to the video size, so the size follows the picture\'s shape.' : '; a portrait picture flips the size to portrait.'}</div>
+        </ChainInputCard>
       )}
       {!chained && (
         <div style={card}>

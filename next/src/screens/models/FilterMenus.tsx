@@ -2,7 +2,8 @@
  * Row 2 of the desktop filter bar (Donny's 10-20 layout): Source · Type · Base · Tags · More, each a
  * labelled `FilterMenu` chip whose value comes from `filterSummary.ts`. Every setting the old chip
  * wall and the Filters panel had is in one of these menus, on the same store fields:
- *   Source  Downloaded (`source`) · ★ Favourites · CivitAI account favourites
+ *   Source  a segmented control, not a menu (Donny 10-20): CivitAI · Downloaded · ★ Favourites ·
+ *           Account ★ — one at a time (`source` + `filters.favorites` / `accountFavorites`)
  *   Type    the row types + other types; fixed with a lock when the step asked for a kind
  *   Base    the main base models, the long tail folded under "More base models"
  *   Tags    the tag groups of the loaded models (`TagGroups`)
@@ -13,7 +14,7 @@ import { IconChevronDown } from '@tabler/icons-react';
 import type { CivitaiModel } from '@/lib/civitai';
 import { T } from '~/theme/tokens';
 import { MAIN_BASE_MODELS, MORE_BASE_MODELS, typeLabel, baseModelShort, toggleIn } from './civitaiQuery';
-import { ROW_TYPES, OTHER_TYPES, sourceChip, typeChip, baseChip, tagsChip, moreChip, hasMoreBase } from './filterSummary';
+import { ROW_TYPES, OTHER_TYPES, typeChip, baseChip, tagsChip, moreChip, hasMoreBase } from './filterSummary';
 import { useModels } from './modelsStore';
 import { hasApiKey } from './civitaiApi';
 import { FilterMenu, MenuHead, MenuSep, CheckRow, CheckGrid } from './FilterMenu';
@@ -30,21 +31,38 @@ function Fold({ label, open, onToggle }: { label: string; open: boolean; onToggl
   );
 }
 
+type SourcePick = 'civitai' | 'installed' | 'favourites' | 'account';
+
 export function SourceMenu() {
   const source = useModels((s) => s.source);
   const setSource = useModels((s) => s.setSource);
   const f = useModels((s) => s.filters);
   const set = useModels((s) => s.setFilters);
   const favCount = useModels((s) => s.favourites.length);
-  const chip = sourceChip(source, f);
   const keyed = hasApiKey();
+  const value: SourcePick = source === 'installed' ? 'installed' : f.accountFavorites ? 'account' : f.favorites ? 'favourites' : 'civitai';
+  const pick = (v: SourcePick) => {
+    setSource(v === 'installed' ? 'installed' : 'civitai');
+    set({ favorites: v === 'favourites', accountFavorites: v === 'account' });
+  };
+  const items: Array<{ key: SourcePick; label: string; title: string }> = [
+    { key: 'civitai', label: 'CivitAI', title: 'Everything on CivitAI' },
+    { key: 'installed', label: 'Downloaded', title: 'What is on the server' },
+    { key: 'favourites', label: `★ Favourites${favCount ? ` ${favCount}` : ''}`, title: 'Models you ♥ here (this browser, across pods)' },
+    { key: 'account', label: 'Account ★', title: keyed ? "The key's favourites on civitai.com" : 'Needs the API key (Settings → CivitAI)' },
+  ];
   return (
-    <FilterMenu label="Source" value={chip.value} on={chip.on} width={280}>
-      <MenuHead onClear={chip.on ? () => { if (source === 'installed') setSource('civitai'); if (f.favorites || f.accountFavorites) set({ favorites: false, accountFavorites: false }); } : undefined}>SHOW ONLY</MenuHead>
-      <CheckRow label="Downloaded" hint="What is on the pod" on={source === 'installed'} onChange={(on) => setSource(on ? 'installed' : 'civitai')} />
-      <CheckRow label={`★ Favourites${favCount ? ` · ${favCount}` : ''}`} hint="Models you ♥ here (this browser, across pods)" on={f.favorites} onChange={(favorites) => set({ favorites })} />
-      <CheckRow label="CivitAI account favourites" hint={keyed ? 'The key\'s favourites on civitai.com' : 'Needs the API key (Settings → CivitAI)'} on={f.accountFavorites} onChange={(accountFavorites) => set({ accountFavorites })} />
-    </FilterMenu>
+    <div role="radiogroup" aria-label="Source" style={{ display: 'flex', gap: 2, padding: 3, height: 36, boxSizing: 'border-box', borderRadius: 999, background: 'var(--il-bg-deep)', flex: 'none' }}>
+      {items.map((it) => {
+        const on = it.key === value;
+        return (
+          <button key={it.key} type="button" role="radio" aria-checked={on} title={it.title} onClick={() => pick(it.key)}
+            style={{ height: 30, padding: '0 12px', border: 0, borderRadius: 999, background: on ? 'var(--il-card-on)' : 'transparent', color: on ? 'var(--il-fg)' : 'var(--il-muted)', fontWeight: 800, fontSize: 12, whiteSpace: 'nowrap', cursor: 'pointer' }}>
+            {it.label}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 

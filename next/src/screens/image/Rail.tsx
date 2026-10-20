@@ -5,24 +5,16 @@
  */
 import { Menu } from '@mantine/core';
 import { IconPhoto, IconArrowsMaximize, IconMovie, IconGitBranch, IconPlus, IconHistory, IconCube, IconTopologyStar3, IconSettings, IconCheck } from '@tabler/icons-react';
-import { useStore } from '@/lib/store';
-import { useVideoRun } from '@/features/video/videoRun';
-import { useWorkflowRun } from '@/features/studio/studioRun';
 import { useRoute, type Screen } from '~/app/routeStore';
 import { useSteps, STEP_LABEL, type Step, type StepKind } from '~/app/stepsStore';
 import { T } from '~/theme/tokens';
+import { useStepOutput } from './useStepOutput';
 
 export const KIND_ICON: Record<StepKind, typeof IconPhoto> = { image: IconPhoto, upscale: IconArrowsMaximize, video: IconMovie, workflow: IconGitBranch };
 
-/** Whether a step has produced output (the check badge). */
+/** Whether a step has produced output of its own (the check badge) — the same rule the next step chains by (`useStepOutput`). */
 export function useStepHasOutput(step: Step): boolean {
-  const images = useStore((s) => s.history.length > 0);
-  const videos = useVideoRun((s) => s.results.length > 0);
-  const runs = useWorkflowRun((s) => s.results.length > 0);
-  if (step.kind === 'image') return images;
-  if (step.kind === 'video') return videos;
-  if (step.kind === 'workflow') return runs;
-  return false;
+  return !!useStepOutput(step);
 }
 
 function RailButton({ label, icon, on, onClick, kind = 'place', done }: { label: string; icon: React.ReactNode; on: boolean; onClick?: () => void; kind?: 'step' | 'place' | 'add'; done?: boolean }) {
