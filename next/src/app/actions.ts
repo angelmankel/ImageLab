@@ -12,6 +12,7 @@ import { sendToVideo, sendToWorkflow } from '@/features/workspace/sendTo';
 import { urlToImageState } from '@/features/inputImage/imageOps';
 import { useRoute } from './routeStore';
 import { nextStepId, useSteps } from './stepsStore';
+import { useStage } from '~/screens/image/stageStore';
 
 /** Put this prompt (positive + negative) into the active step's prompt. */
 export function usePromptFrom(entry: Pick<HistoryEntry, 'positive' | 'negative'>, name = 'that image'): void {
@@ -54,6 +55,8 @@ export function sendToStep(image: { url: string; entry?: HistoryEntry }, stepId?
   const filename = image.entry?.filename ?? (image.url.split('/').pop()?.split('?')[0] || 'image.png');
   const src = { url: image.url, filename, kind: 'image' as const };
   steps.setStepInput(target, { url: image.url, name: filename });
+  // The stage shows what was sent (the Library does not select; the action does).
+  if (image.entry) { useStore.getState().selectHistoryEntry(image.entry); useStage.getState().showRun(null); } else useStage.getState().showRun(image.url);
   const go = () => { steps.setActive(target); useRoute.getState().go('step'); };
   if (step.kind === 'video') { void sendToVideo(src).then((ok) => { if (ok) go(); }); return; }
   if (step.kind === 'workflow') { void sendToWorkflow(src).then((ok) => { if (ok) go(); }); return; }
@@ -105,6 +108,7 @@ export function samplerOf(name: string, samplers: readonly string[], schedulers:
     const word = sch.replace('_', ' ');
     if (n.endsWith(` ${word}`) || n.endsWith(` ${sch}`)) { scheduler = schedulers.includes(sch) ? sch : undefined; n = n.replace(new RegExp(`\\s+(${word}|${sch})$`), ''); break; }
   }
+  n = n.replace(/\s+a$/, ' ancestral');
   const key = n.replace(/\+\+/g, 'pp').replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
   const sampler = samplers.find((s) => s === key) ?? samplers.find((s) => s.replace(/_/g, '') === key.replace(/_/g, '')) ?? samplers.find((s) => key.startsWith(s));
   return { sampler, scheduler };

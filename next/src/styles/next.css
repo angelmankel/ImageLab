@@ -52,3 +52,11 @@ a { color: var(--il-ember); } a:hover { color: var(--il-ember-hi); }
 
 /* Focus ring (keyboard only). */
 :focus-visible { outline: 2px solid var(--il-ember); outline-offset: 2px; border-radius: 6px; }
+
+/* An indeterminate progress sweep (the Generate group, the stage's progress line). */
+@keyframes il-sweep { from { transform: translateX(-100%); } to { transform: translateX(300%); } }
+.il-sweep { animation: il-sweep 1.2s linear infinite; }
+/* History tiles: the favourite button shows on hover, always when liked. */
+.il-tile-like { opacity: 0; transition: opacity .12s; }
+*:hover > .il-tile-like, .il-tile-like[aria-pressed="true"] { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .il-sweep { animation: none; width: 100% !important; opacity: .5; } }

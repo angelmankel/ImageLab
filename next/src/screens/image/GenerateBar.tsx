@@ -8,6 +8,7 @@
 import { Tooltip } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconDice5, IconSparkles, IconPlayerStop } from '@tabler/icons-react';
+import { useShallow } from 'zustand/react/shallow';
 import { useStore } from '@/lib/store';
 import { jobActivity } from '@/lib/jobActivity';
 import { useShortcut, ShortcutPriority } from '@/hooks/useShortcut';
@@ -16,6 +17,8 @@ import { startVideoRun, useVideoRun } from '@/features/video/videoRun';
 import { startWorkflowRun, useWorkflowRun } from '@/features/studio/studioRun';
 import { useObjectInfo } from '@/features/studio/useStudioRun';
 import { useModeHost } from '@/features/workspace/modeHost';
+import { useStudio } from '@/features/studio/studioStore';
+import { useStepWorkflow } from '~/screens/comfy';
 import type { Step } from '~/app/stepsStore';
 import { cancelQueueRow } from '~/app/queue';
 
@@ -24,11 +27,15 @@ export function useStepRun(step: Step): { run: (newSeed?: boolean) => void; stop
   const jobs = useStore((s) => s.jobs);
   const submitting = useStore((s) => s.isSubmitting);
   const online = useStore((s) => Object.keys(s.serverInfo).length > 0);
-  const video = useVideoRun((s) => ({ busy: s.busy, progress: s.progress, status: s.status }));
-  const workflow = useWorkflowRun((s) => ({ busy: s.busy, progress: s.progress, status: s.status }));
+  const video = useVideoRun(useShallow((s) => ({ busy: s.busy, progress: s.progress, status: s.status })));
+  const workflow = useWorkflowRun(useShallow((s) => ({ busy: s.busy, progress: s.progress, status: s.status })));
   const videoHost = useModeHost('video');
   const workflowHost = useModeHost('workflow');
-  const { info } = useObjectInfo(step.kind === 'workflow' ? workflowHost : null);
+  // A workflow step runs the saved workflow the ComfyUI screen gave it ("Use as step"), on that host.
+  const stepWf = useStepWorkflow(step.kind === 'workflow' ? step.id : null);
+  const wfHost = stepWf?.host ?? workflowHost;
+  const { info } = useObjectInfo(step.kind === 'workflow' ? wfHost : null);
+  const studioPath = useStudio((s) => s.path);
 
   if (step.kind === 'image') {
     const activity = jobActivity(jobs, submitting, online);
@@ -52,10 +59,14 @@ export function useStepRun(step: Step): { run: (newSeed?: boolean) => void; stop
   }
   if (step.kind === 'workflow') {
     return {
-      run: () => { if (workflowHost) void startWorkflowRun(workflowHost, info); },
+      run: () => {
+        if (!wfHost) return;
+        if (stepWf && studioPath !== stepWf.path) { notifications.show({ title: 'Open the workflow first', message: `Open “${stepWf.name}” on the ComfyUI screen, then Generate runs it.`, color: 'yellow', autoClose: 4000 }); return; }
+        void startWorkflowRun(wfHost, info);
+      },
       stop: () => cancelQueueRow('workflow-run'),
       busy: workflow.busy, busyLabel: workflow.status ?? 'Running', progress: workflow.progress,
-      disabled: !workflowHost ? 'No server' : !info ? 'Reading the server…' : null,
+      disabled: !wfHost ? 'No server' : !info ? 'Reading the server…' : !stepWf && !studioPath ? 'Pick a workflow on the ComfyUI screen' : null,
     };
   }
   return { run: () => notifications.show({ title: 'Coming soon', message: "This step's workflow is coming.", color: 'gray', autoClose: 2500 }), stop: () => {}, busy: false, busyLabel: '', progress: null, disabled: null };

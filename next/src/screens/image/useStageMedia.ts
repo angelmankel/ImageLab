@@ -5,6 +5,7 @@
  * stores, picked by key in `stageStore`. A run result picked in the history panel shows on any
  * step's stage until an image is picked again.
  */
+import { useShallow } from 'zustand/react/shallow';
 import { useStore } from '@/lib/store';
 import { jobActivity } from '@/lib/jobActivity';
 import type { ResultItem } from '@/lib/workspace';
@@ -46,8 +47,8 @@ export function useStageMedia(step: Step): StageMedia {
   const liveFrame = useLiveFrame();
   const runKey = useStage((s) => s.runKey);
   const showRun = useStage((s) => s.showRun);
-  const video = useVideoRun((s) => ({ busy: s.busy, progress: s.progress, preview: s.preview, status: s.status, node: s.currentNode, queue: s.queueRemaining }));
-  const workflow = useWorkflowRun((s) => ({ busy: s.busy, progress: s.progress, preview: s.preview, status: s.status, node: s.currentNode, queue: s.queueRemaining }));
+  const video = useVideoRun(useShallow((s) => ({ busy: s.busy, progress: s.progress, preview: s.preview, status: s.status, node: s.currentNode, queue: s.queueRemaining })));
+  const workflow = useWorkflowRun(useShallow((s) => ({ busy: s.busy, progress: s.progress, preview: s.preview, status: s.status, node: s.currentNode, queue: s.queueRemaining })));
 
   const runItems = videos.find((v) => v.key === runKey) ? videos : runs.find((r) => r.key === runKey) ? runs : step.kind === 'video' ? videos : step.kind === 'workflow' ? runs : NONE;
   const useRun = !!runKey || step.kind === 'video' || step.kind === 'workflow';

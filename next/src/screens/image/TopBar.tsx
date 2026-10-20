@@ -36,9 +36,11 @@ function SessionMenu() {
     <>
       <Menu position="bottom-start" shadow="lg" width={240} withinPortal zIndex={T.z.popover}>
         <Menu.Target>
-          <Pill onClick={() => {}} style={{ marginLeft: 8, color: 'var(--il-fg)', fontSize: 13 }} title="Session">
-            <IconFolder size={15} color="var(--il-muted)" />{name}<span style={{ color: 'var(--il-muted)' }}>▾</span>
-          </Pill>
+          <span style={{ display: 'inline-flex' }}>
+            <Pill onClick={() => {}} style={{ marginLeft: 8, color: 'var(--il-fg)', fontSize: 13 }} title="Session">
+              <IconFolder size={15} color="var(--il-muted)" />{name}<span style={{ color: 'var(--il-muted)' }}>▾</span>
+            </Pill>
+          </span>
         </Menu.Target>
         <Menu.Dropdown>
           <Menu.Label>Sessions</Menu.Label>
@@ -83,9 +85,11 @@ function QueuePill() {
   return (
     <Popover opened={open} onChange={setOpen} position="bottom-end" shadow="lg" width={340} withinPortal zIndex={T.z.popover}>
       <Popover.Target>
-        <Pill onClick={() => setOpen((o) => !o)} title="Queue" active={open}>
-          <IconListDetails size={16} />Queue <Count n={rows.length} tone={rows.length ? 'ember' : 'muted'} /><span style={{ color: 'var(--il-muted)' }}>·</span><IconArrowDown size={14} stroke={2.4} />{downloading}
-        </Pill>
+        <span style={{ display: 'inline-flex' }}>
+          <Pill onClick={() => setOpen((o) => !o)} title="Queue" active={open}>
+            <IconListDetails size={16} />Queue <Count n={rows.length} tone={rows.length ? 'ember' : 'muted'} /><span style={{ color: 'var(--il-muted)' }}>·</span><IconArrowDown size={14} stroke={2.4} />{downloading}
+          </Pill>
+        </span>
       </Popover.Target>
       <Popover.Dropdown style={{ background: 'var(--il-panel)', border: '1px solid var(--il-line-soft)', borderRadius: T.radius.xl, padding: T.pad.panel }}>
         <div className="il-eyebrow" style={{ margin: '2px 2px 8px' }}>Queue</div>
