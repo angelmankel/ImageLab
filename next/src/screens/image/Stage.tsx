@@ -11,6 +11,7 @@ import { useStore } from '@/lib/store';
 import { useShortcut, ShortcutPriority } from '@/hooks/useShortcut';
 import { FullscreenImage } from '@/components/FullscreenImage';
 import { FullscreenViewer } from '@/features/history/FullscreenViewer';
+import { playOrMute, videoHasAudio } from '@/lib/videoAudio';
 import type { Step } from '~/app/stepsStore';
 import { useStageMedia } from './useStageMedia';
 import { useStageZoom } from './useStageZoom';
@@ -57,7 +58,9 @@ export function StageColumn({ step, phone = false }: { step: Step; phone?: boole
         style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--il-bg-deep)', overflow: 'hidden', touchAction: shown && !isVideo ? 'none' : 'auto', cursor: zoom.state.zoom > 1 ? 'grab' : shown ? 'zoom-in' : 'default', position: 'relative', userSelect: 'none' }}>
         {shown ? (
           isVideo ? (
-            <video key={shown} src={shown} controls playsInline loop style={{ maxWidth: '100%', maxHeight: '100%', display: 'block', outline: 'none' }} />
+            // Plays at once; an H3 clip (a soundtrack of its own) unmuted, falling back to muted when the browser refuses.
+            <video key={shown} src={shown} controls playsInline loop autoPlay muted={!videoHasAudio(shown)} ref={(el) => { if (el) playOrMute(el); }}
+              style={{ maxWidth: '100%', maxHeight: '100%', display: 'block', outline: 'none' }} />
           ) : (
             <img key={shown} src={shown} alt="" draggable={false} data-viewer-origin={media.entry?.id}
               style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', display: 'block', transform: transformOf(zoom.state), transformOrigin: 'center', transition: zoom.state.zoom === 1 ? 'transform .15s' : undefined, willChange: 'transform' }} />

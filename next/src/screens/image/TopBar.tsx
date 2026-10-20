@@ -11,6 +11,7 @@ import { useStore } from '@/lib/store';
 import { servedFromHost } from '@/lib/storage';
 import { canRunImages } from '@/lib/serverRoles';
 import { useDownloadsStore } from '@/features/downloads/store';
+import { useModeHost } from '@/features/workspace/modeHost';
 import { useSteps } from '~/app/stepsStore';
 import { useQueue } from '~/app/queue';
 import { Pill, Count, Dot } from '~/ui';
@@ -72,10 +73,13 @@ function StatusPill() {
   const server = candidates.find((s) => s.host === origin) ?? candidates.find((s) => !!serverInfo[s.id]) ?? candidates[0] ?? null;
   const online = !!server && !!serverInfo[server.id];
   const gpu = useGpuName(online ? server!.host : null);
+  // The pod's second ComfyUI for video (`/video-comfy`), when it differs from the image server.
+  const videoHost = useModeHost('video');
+  const video = !!videoHost && videoHost !== server?.host;
   const label = server ? (server.host === origin ? 'This pod' : server.name) : 'No server';
   return (
-    <Pill title={server ? `${server.name} · ${server.host}${online ? '' : ' · offline'}` : 'Add a server in Settings'}>
-      <Dot color={online ? 'var(--il-ok)' : 'var(--il-err)'} />{label}{gpu ? ` · ${gpu}` : ''}
+    <Pill title={`${server ? `${server.name} · ${server.host}${online ? '' : ' · offline'}` : 'Add a server in Settings'}${video ? ` · video on ${videoHost}` : ''}`}>
+      <Dot color={online ? 'var(--il-ok)' : 'var(--il-err)'} />{label}{gpu ? ` · ${gpu}` : ''}{video ? ' · video' : ''}
     </Pill>
   );
 }

@@ -2,8 +2,9 @@
  * Rule 3 + 15: the Generate button group at the bottom of the step panel. Generate (seed as set) |
  * dice (a new random seed each press); while this step's own job runs it is Stop, with a thin
  * progress along its bottom. Several presses while one runs = queued (ComfyUI queues; so does the
- * store). Image step → the main app's `fireFromStore`; video → `startVideoRun`; workflow →
- * `startWorkflowRun`. Ctrl/⌘+Enter generates, inside a text box too.
+ * store). Image step → the main app's `fireFromStore`; video → `./video`'s `useVideoStepRun`
+ * (chains the previous step's output, then `startVideoRun`); workflow → `startWorkflowRun`.
+ * Ctrl/⌘+Enter generates, inside a text box too.
  */
 import { Tooltip } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
@@ -13,7 +14,6 @@ import { useStore } from '@/lib/store';
 import { jobActivity } from '@/lib/jobActivity';
 import { useShortcut, ShortcutPriority } from '@/hooks/useShortcut';
 import { fireFromStore, NO_PASSES } from '@/features/generate/GenerateButton';
-import { startVideoRun, useVideoRun } from '@/features/video/videoRun';
 import { startWorkflowRun, useWorkflowRun } from '@/features/studio/studioRun';
 import { useObjectInfo } from '@/features/studio/useStudioRun';
 import { useModeHost } from '@/features/workspace/modeHost';
@@ -21,15 +21,16 @@ import { useStudio } from '@/features/studio/studioStore';
 import { useStepWorkflow } from '~/screens/comfy';
 import type { Step } from '~/app/stepsStore';
 import { cancelQueueRow } from '~/app/queue';
+import { useVideoStepRun } from './video';
 
 /** What the step's Generate does and whether it is running. Pure of look; the phone dock uses it too. */
 export function useStepRun(step: Step): { run: (newSeed?: boolean) => void; stop: () => void; busy: boolean; busyLabel: string; progress: number | null; disabled: string | null } {
   const jobs = useStore((s) => s.jobs);
   const submitting = useStore((s) => s.isSubmitting);
   const online = useStore((s) => Object.keys(s.serverInfo).length > 0);
-  const video = useVideoRun(useShallow((s) => ({ busy: s.busy, progress: s.progress, status: s.status })));
+  // The Video step: chain the previous step's output, then the video run (`./video`).
+  const video = useVideoStepRun(step);
   const workflow = useWorkflowRun(useShallow((s) => ({ busy: s.busy, progress: s.progress, status: s.status })));
-  const videoHost = useModeHost('video');
   const workflowHost = useModeHost('workflow');
   // A workflow step runs the saved workflow the ComfyUI screen gave it ("Use as step"), on that host.
   const stepWf = useStepWorkflow(step.kind === 'workflow' ? step.id : null);
@@ -49,14 +50,7 @@ export function useStepRun(step: Step): { run: (newSeed?: boolean) => void; stop
       disabled: online ? null : 'No server online',
     };
   }
-  if (step.kind === 'video') {
-    return {
-      run: () => { if (videoHost) void startVideoRun(videoHost); },
-      stop: () => cancelQueueRow('video-run'),
-      busy: video.busy, busyLabel: video.status ?? 'Rendering', progress: video.progress,
-      disabled: videoHost ? null : 'No video server',
-    };
-  }
+  if (step.kind === 'video') return video;
   if (step.kind === 'workflow') {
     return {
       run: () => {
