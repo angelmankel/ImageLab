@@ -10,6 +10,9 @@ import { PREVIEW_SOURCES } from '@/lib/storage';
 import { Chip, Row } from '~/ui';
 import type { SettingDef } from './categories';
 import { ctlStyle, inputStyles } from './inputs';
+import { NsfwToggle } from '~/screens/models/nsfwCover';
+
+function NsfwCtl() { return <NsfwToggle variant="row" />; }
 
 function CivitaiKeyCtl() {
   const apiKey = useStore((s) => s.civitai.apiKey);
@@ -45,5 +48,10 @@ export const MODELS_ROWS: readonly SettingDef[] = [
     id: 'models.preview', category: 'models', label: 'Model preview starts on', wide: true,
     hint: "Which picture a model's tiles, bubbles and card show first, and the one the viewer opens on.",
     keywords: ['first', 'popular', 'random', 'history', 'slideshow', 'hover', 'thumbnail', 'tile', 'picture'], Control: PreviewCtl,
+  },
+  {
+    id: 'models.nsfw', category: 'models', label: 'Always show NSFW images',
+    hint: 'Off: NSFW pictures are covered until tapped. Max rating in Models still decides what loads.',
+    keywords: ['nsfw', 'adult', 'mature', 'blur', 'cover', 'hide', 'explicit', 'rating'], Control: NsfwCtl,
   },
 ];

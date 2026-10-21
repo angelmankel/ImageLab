@@ -10,7 +10,7 @@
  *             (a model shown big); a failure keeps the curated order. No hover needed (Donny 10-20).
  *   random  → shuffled on mount and again on every `start()` (each hover)
  *   history → this model's local generations first (the main store's history), then CivitAI's
- * Popular pictures beyond the Models screen's NSFW level are left out of the popular list (the
+ * Popular pictures that would get an NSFW cover (Max rating + the opt-in, item 27) are left out of the popular list (the
  * curated ones keep each caller's own hidden-sample rule).
  */
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
@@ -22,7 +22,7 @@ import {
 import type { HistoryEntry } from '@/lib/types';
 import type { Server } from '@/lib/storage';
 import { useModels } from '~/screens/models/modelsStore';
-import { isBeyondMask } from '~/screens/models/civitaiQuery';
+import { coversNsfw } from '~/screens/models/civitaiQuery';
 
 export type { PreviewImage };
 
@@ -66,6 +66,7 @@ export function usePreviewOrder(
 ): PreviewOrder {
   const source = useStore((s) => s.modelPreviewSource);
   const mask = useModels((s) => s.filters.nsfwMask);
+  const showNsfw = useModels((s) => s.showNsfw);
   const popular = useSyncExternalStore(subscribePopular, () => (source === 'popular' ? popularFor(versionId) : undefined));
   const history = useStore((s) => (source === 'history' ? s.history : NO_HISTORY));
   const servers = useStore((s) => s.servers);
@@ -83,9 +84,9 @@ export function usePreviewOrder(
   // Callers build `curated` fresh each render; the pictures' urls are what counts.
   const curatedKey = curated.map((i) => i.url).join('\n');
   const images = useMemo(
-    () => orderPreviewImages(curated, { source, popular, history: historyUrls, allow: (img) => !isBeyondMask(img.nsfwLevel, mask) }),
+    () => orderPreviewImages(curated, { source, popular, history: historyUrls, allow: (img) => !coversNsfw(img.nsfwLevel, mask, showNsfw) }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [curatedKey, source, popular, historyUrls, mask, shuffle],
+    [curatedKey, source, popular, historyUrls, mask, showNsfw, shuffle],
   );
 
   const active = !!opts.active;

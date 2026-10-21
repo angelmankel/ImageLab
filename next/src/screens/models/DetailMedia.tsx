@@ -11,7 +11,7 @@ import type { CivitaiImage } from '@/lib/civitai';
 import { isCivitaiVideo, previewStill } from '@/lib/civitai';
 import { Button } from '~/ui';
 import { makePayload, nameFromUrl, useImageDrag } from '~/dnd';
-import { isBeyondMask } from './civitaiQuery';
+import { useNsfwCover } from './nsfwCover';
 import { COVER_FALLBACK } from './bits';
 import { Media } from './DetailGallery';
 
@@ -39,13 +39,14 @@ function ThumbButton({ img, i, on, blurred, reveal, onSelect }: { img: CivitaiIm
   );
 }
 
-export function DetailMedia({ images, index, onSelect, onView, mask, hasMore, onMore, loading }: {
+export function DetailMedia({ images, index, onSelect, onView, hasMore, onMore, loading }: {
   images: CivitaiImage[]; index: number; onSelect: (i: number) => void; onView: (img: CivitaiImage) => void; mask: number;
   hasMore: boolean; onMore: () => void; loading: boolean;
 }) {
   const [revealed, setRevealed] = useState<Set<string>>(new Set());
   const reveal = (url: string) => setRevealed((s) => new Set(s).add(url));
-  const isBlurred = (img: CivitaiImage) => isBeyondMask(img.nsfwLevel, mask) && !revealed.has(img.url);
+  const covered = useNsfwCover();
+  const isBlurred = (img: CivitaiImage) => covered(img.nsfwLevel) && !revealed.has(img.url);
   const current = images[Math.min(index, Math.max(0, images.length - 1))];
   const [page, setPage] = useState(pageOf(index));
   // The page follows the selected picture (a click in the viewer, a version change).

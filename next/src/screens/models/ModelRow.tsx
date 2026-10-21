@@ -8,18 +8,18 @@ import { IconCheck, IconEyeOff } from '@tabler/icons-react';
 import type { CivitaiModel } from '@/lib/civitai';
 import { civitaiThumbUrl, previewStill } from '@/lib/civitai';
 import { primaryFile } from '@/features/model-metadata/civitai';
-import { baseModelShort, fmtSizeKB, isBeyondMask, typeLabel, type InstalledState } from './civitaiQuery';
+import { baseModelShort, fmtSizeKB, typeLabel, type InstalledState } from './civitaiQuery';
 import { COVER_FALLBACK, RoundAction, Stats, Tag, EmberBtn } from './bits';
 import { DownloadButton } from './DownloadButton';
 import { useModelCover } from './ModelTile';
 import { openModelViewer } from './viewerBridge';
 import { isLocalModel } from './localModels';
 
-export function ModelRow({ model, selected, installed, mask, revealed, picking, onOpen, onReveal, onUse }: {
+export function ModelRow({ model, selected, installed, revealed, picking, onOpen, onReveal, onUse }: {
   model: CivitaiModel; selected: boolean; installed: InstalledState; mask: number; revealed: boolean; picking?: boolean; onOpen: () => void; onReveal: () => void; onUse: () => void;
 }) {
-  const { version, image, start, observe, viewerStart } = useModelCover(model, mask);
-  const hidden = !!image && isBeyondMask(image.nsfwLevel, mask) && !revealed;
+  const { covered, version, image, start, observe, viewerStart } = useModelCover(model);
+  const hidden = !!image && covered(image.nsfwLevel) && !revealed;
   const url = image ? civitaiThumbUrl(previewStill(image, 160), 160) : '';
   const file = version ? primaryFile(version) : null;
   const all = installed.total > 0 && installed.installed === installed.total;

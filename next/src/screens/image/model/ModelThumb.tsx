@@ -8,6 +8,7 @@
 import { useMemo } from 'react';
 import { previewStill } from '@/lib/civitai';
 import { usePreviewOrder, viewerStart, type PreviewImage } from '~/app/usePreviewOrder';
+import { useNsfwCover } from '~/screens/models/nsfwCover';
 import { Thumb } from './Thumb';
 import type { ModelMeta } from './useModelMeta';
 
@@ -19,7 +20,10 @@ export function useModelPreview(meta: MetaPart, opts: { active?: boolean } = {})
     [meta.samples, meta.images],
   );
   const files = useMemo(() => (meta.file ? [meta.file] : []), [meta.file]);
-  const { images, start, observe } = usePreviewOrder(meta.versionId, curated, { files, active: opts.active });
+  const { images: ordered, start, observe } = usePreviewOrder(meta.versionId, curated, { files, active: opts.active });
+  // No NSFW picture on a card or thumb unless the user opted in (item 27); local generations stay.
+  const covered = useNsfwCover();
+  const images = useMemo(() => ordered.filter((i) => i.local || !covered(i.nsfwLevel)), [ordered, covered]);
   const stills = useMemo(() => images.map((i) => (i.local ? i.url : previewStill(i))).filter(Boolean), [images]);
   // Each still with the viewer start that opens on it (the card's art, item 16).
   const pictures = useMemo(() => images.map((i) => ({ url: i.local ? i.url : previewStill(i), start: viewerStart([i], meta.versionId) })).filter((p) => !!p.url), [images, meta.versionId]);

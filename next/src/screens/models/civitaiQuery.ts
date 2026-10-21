@@ -120,6 +120,22 @@ export function isBeyondMask(nsfwLevel: number | string | undefined | null, mask
   return lvl !== 0 && (lvl & ~mask) !== 0 && (lvl & mask) === 0;
 }
 
+/** The levels that count as NSFW for the cover (R / Mature and up; PG-13 "Soft" is not). */
+export const NSFW_BITS = LEVEL_BITS.R | LEVEL_BITS.X | LEVEL_BITS.XXX;
+/** Is this picture NSFW (R / X / XXX)? Unrated = no. */
+export function isNsfwLevel(nsfwLevel: number | string | undefined | null): boolean {
+  return (levelBits(nsfwLevel) & NSFW_BITS) !== 0;
+}
+/**
+ * Does a picture get the "NSFW · tap to show" cover (fix list 2 item 27)? By default every NSFW
+ * picture does; once the user opted in ("Always show NSFW images", `showNsfw`) none does — except
+ * one beyond the Max rating filter, which the user asked not to see at all (the filter decides
+ * what is fetched; a stray one the API sends anyway stays covered).
+ */
+export function coversNsfw(nsfwLevel: number | string | undefined | null, mask: number, showNsfw: boolean): boolean {
+  return isBeyondMask(nsfwLevel, mask) || (!showNsfw && isNsfwLevel(nsfwLevel));
+}
+
 export const COMMERCIAL_USE = ['Image', 'RentCivit', 'Rent', 'Sell'] as const;
 export const COMMERCIAL_LABEL: Record<string, string> = { None: 'None', Image: 'Images', RentCivit: 'Rent on Civit', Rent: 'Rent', Sell: 'Sell', SellMerge: 'Sell merges' };
 export const FILE_FORMATS = ['SafeTensor', 'PickleTensor', 'GGUF', 'Diffusers', 'Core ML', 'ONNX', 'Other'] as const;

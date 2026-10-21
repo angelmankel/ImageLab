@@ -17,8 +17,7 @@ import type { CivitaiImage } from '@/lib/civitai';
 import { isCivitaiVideo } from '@/lib/civitai';
 import { useIsPhone } from '~/app/useIsPhone';
 import { BackPill } from '~/ui';
-import { useModels } from '~/screens/models/modelsStore';
-import { isBeyondMask } from '~/screens/models/civitaiQuery';
+import { useNsfwCover } from '~/screens/models/nsfwCover';
 import { useKeepScroll } from '~/screens/models/useKeepScroll';
 import { useModelViewer } from './viewerStore';
 import { useViewerModel } from './useViewerModel';
@@ -39,7 +38,6 @@ export function ModelViewer() {
   const close = useModelViewer((s) => s.close);
   const setVersion = useModelViewer((s) => s.setVersion);
   const setImage = useModelViewer((s) => s.setImage);
-  const mask = useModels((s) => s.filters.nsfwMask);
   const data = useViewerModel(target);
   const { model, version, gallery, index, local, loading } = data;
   const images = gallery.items;
@@ -49,7 +47,8 @@ export function ModelViewer() {
   const stripKey = data.modelId != null && version ? `viewerStrip:${data.modelId}:${version.id}` : null;
 
   const [revealed, setRevealed] = useState<Set<string>>(() => new Set());
-  const isHidden = useCallback((img: CivitaiImage) => isBeyondMask(img.nsfwLevel, mask) && !revealed.has(img.url), [mask, revealed]);
+  const covered = useNsfwCover();
+  const isHidden = useCallback((img: CivitaiImage) => covered(img.nsfwLevel) && !revealed.has(img.url), [covered, revealed]);
   const reveal = () => { if (image) setRevealed((s) => new Set(s).add(image.url)); };
 
   const canPrev = index > 0;

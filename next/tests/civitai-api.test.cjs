@@ -118,6 +118,13 @@ test('NSFW mask ↔ picker level', () => {
   assert.equal(Q.isBeyondMask(16, 7), true);
   assert.equal(Q.isBeyondMask(1, 7), false);
   assert.equal(Q.isBeyondMask(0, 1), false);
+  // item 27: NSFW covered by default, never once opted in, unless beyond the Max rating
+  assert.equal(Q.coversNsfw('X', 63, false), true);
+  assert.equal(Q.coversNsfw('Mature', 63, false), true);
+  assert.equal(Q.coversNsfw('Soft', 63, false), false);
+  assert.equal(Q.coversNsfw(0, 63, false), false);
+  assert.equal(Q.coversNsfw('X', 63, true), false);
+  assert.equal(Q.coversNsfw(16, 7, true), true);
 });
 
 test('sanitizeFilters drops unknown sorts/types and bad masks', () => {

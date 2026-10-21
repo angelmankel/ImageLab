@@ -1,6 +1,6 @@
 /**
  * The viewer's top row (52px, its own row — rule 1): ✕ Close at the left, the model name with
- * its type · base badges in the centre, ★ favourite, Open on CivitAI ↗ and the "3 / 24" counter
+ * its type · base badges in the centre, the NSFW eye (item 27: always show / cover), ★ favourite, Open on CivitAI ↗ and the "3 / 24" counter
  * at the right. On the phone the badges and the CivitAI link fold away; the counter stays.
  */
 import { IconExternalLink, IconHeart, IconHeartFilled, IconX } from '@tabler/icons-react';
@@ -11,6 +11,7 @@ import { GhostBtn, Tag } from '~/screens/models/bits';
 import { baseModelShort, typeLabel } from '~/screens/models/civitaiQuery';
 import { civitaiModelLink } from '~/screens/models/civitaiApi';
 import { useModels } from '~/screens/models/modelsStore';
+import { NsfwToggle } from '~/screens/models/nsfwCover';
 
 export function TopRow({ model, version, title, count, index, hasMore, phone, onClose }: {
   model: CivitaiModel | null; version: CivitaiModelVersion | undefined; title: string;
@@ -29,6 +30,7 @@ export function TopRow({ model, version, title, count, index, hasMore, phone, on
         {!phone && model && <Tag>{typeLabel(model.type)}</Tag>}
         {!phone && version?.baseModel && <Tag tone="ember">{baseModelShort(version.baseModel)}</Tag>}
       </div>
+      <NsfwToggle variant="icon" />
       {model && (
         <IconBtn icon={fav ? <IconHeartFilled size={17} /> : <IconHeart size={17} stroke={2.2} />} label={fav ? 'Remove from favourites' : 'Add to favourites'} on={fav} onClick={() => toggleFavourite(model.id)} tooltip={false} />
       )}

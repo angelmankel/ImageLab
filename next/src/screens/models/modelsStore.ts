@@ -57,6 +57,10 @@ interface ModelsState {
   favourites: number[];
   followed: string[];
   revealed: number[];
+  /** "Always show NSFW images" (fix list 2 item 27): off = NSFW pictures are covered until tapped. */
+  showNsfw: boolean;
+  /** The user confirmed the opt-in once: turning it back on later asks no more. */
+  nsfwConfirmed: boolean;
 
   panelOpen: boolean;
   panelWidth: number;
@@ -78,6 +82,8 @@ interface ModelsState {
   open: (id: number, versionId?: number | null) => void;
   close: () => void;
   selectVersion: (id: number | null) => void;
+  /** Turns the NSFW opt-in on / off; `confirmed` records that the first-time confirm was answered. */
+  setShowNsfw: (on: boolean) => void;
   selectImage: (i: number) => void;
   toggleFavourite: (id: number) => void;
   toggleFollow: (username: string) => void;
@@ -141,6 +147,8 @@ export const useModels = create<ModelsState>()(
       favourites: EMPTY_IDS,
       followed: EMPTY_STR,
       revealed: [],
+      showNsfw: false,
+      nsfwConfirmed: false,
       panelOpen: true,
       panelWidth: PANEL_W,
       moreOpen: false,
@@ -232,6 +240,7 @@ export const useModels = create<ModelsState>()(
       toggleFavourite: (id) => { askPersist(); set((s) => ({ favourites: s.favourites.includes(id) ? s.favourites.filter((x) => x !== id) : [...s.favourites, id] })); },
       toggleFollow: (u) => { askPersist(); set((s) => ({ followed: s.followed.includes(u) ? s.followed.filter((x) => x !== u) : [...s.followed, u] })); },
       reveal: (id) => set((s) => (s.revealed.includes(id) ? s : { revealed: [...s.revealed, id] })),
+      setShowNsfw: (on) => set((s) => ({ showNsfw: on, nsfwConfirmed: s.nsfwConfirmed || on })),
       setPanelOpen: (panelOpen) => set({ panelOpen }),
       setPanelWidth: (panelWidth) => set({ panelWidth }),
       setMoreOpen: (moreOpen) => set({ moreOpen }),
@@ -240,7 +249,7 @@ export const useModels = create<ModelsState>()(
     }),
     {
       name: 'imagelab.next.models.v1',
-      partialize: (s) => ({ v: 3, filters: s.filters, source: s.source, view: s.view, favourites: s.favourites, followed: s.followed, panelOpen: s.panelOpen, panelWidth: s.panelWidth, hasDownloadedOnce: s.hasDownloadedOnce }),
+      partialize: (s) => ({ v: 3, filters: s.filters, source: s.source, view: s.view, favourites: s.favourites, followed: s.followed, panelOpen: s.panelOpen, panelWidth: s.panelWidth, hasDownloadedOnce: s.hasDownloadedOnce, showNsfw: s.showNsfw, nsfwConfirmed: s.nsfwConfirmed }),
       merge: (saved, current) => {
         const p = (saved ?? {}) as Partial<ModelsState> & { v?: number };
         const hasDownloadedOnce = !!p.hasDownloadedOnce;
@@ -253,6 +262,8 @@ export const useModels = create<ModelsState>()(
           ...current, ...p,
           filters,
           hasDownloadedOnce,
+          showNsfw: p.showNsfw === true,
+          nsfwConfirmed: p.nsfwConfirmed === true,
           // Downloaded on a new install; after that whatever was picked last.
           source: p.source === 'civitai' || p.source === 'installed' ? p.source : 'installed',
           favourites: Array.isArray(p.favourites) ? p.favourites.filter((n) => Number.isInteger(n)) : EMPTY_IDS,

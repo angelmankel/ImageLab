@@ -8,7 +8,7 @@ import { useEffect, useRef, useState } from 'react';
 import { IconEyeOff } from '@tabler/icons-react';
 import type { CivitaiImage } from '@/lib/civitai';
 import { civitaiThumbUrl, civitaiVideoUrl, isCivitaiVideo, previewStill } from '@/lib/civitai';
-import { isBeyondMask } from './civitaiQuery';
+import { useNsfwCover } from './nsfwCover';
 import { COVER_FALLBACK, GhostBtn, type Size } from './bits';
 
 export function Media({ img, width, reveal, blurred, style, cover = true, still }: { img: CivitaiImage; width: number; reveal: () => void; blurred: boolean; style?: React.CSSProperties; cover?: boolean; still?: boolean }) {
@@ -29,12 +29,13 @@ export function Media({ img, width, reveal, blurred, style, cover = true, still 
   );
 }
 
-export function DetailGallery({ images, index, onSelect, mask, size, hasMore, onMore, loading }: {
+export function DetailGallery({ images, index, onSelect, size, hasMore, onMore, loading }: {
   images: CivitaiImage[]; index: number; onSelect: (i: number) => void; mask: number; size: Size; hasMore: boolean; onMore: () => void; loading: boolean;
 }) {
   const [revealed, setRevealed] = useState<Set<string>>(new Set());
   const reveal = (url: string) => setRevealed((s) => new Set(s).add(url));
-  const isBlurred = (img: CivitaiImage) => isBeyondMask(img.nsfwLevel, mask) && !revealed.has(img.url);
+  const covered = useNsfwCover();
+  const isBlurred = (img: CivitaiImage) => covered(img.nsfwLevel) && !revealed.has(img.url);
   const strip = useRef<HTMLDivElement>(null);
   const current = images[Math.min(index, Math.max(0, images.length - 1))];
 

@@ -21,7 +21,8 @@ import type { CivitaiModel, CivitaiModelVersion } from '@/lib/civitai';
 import { civitaiThumbUrl, civitaiVideoUrl, isCivitaiVideo, previewStill } from '@/lib/civitai';
 import { Button } from '~/ui';
 import { makePayload, nameFromUrl, useImageDrag } from '~/dnd';
-import { baseModelShort, isBeyondMask, typeLabel, type InstalledState } from './civitaiQuery';
+import { baseModelShort, typeLabel, type InstalledState } from './civitaiQuery';
+import { useNsfwCover } from './nsfwCover';
 import { Avatar, CoverBadge, COVER_FALLBACK, Stats, type Size } from './bits';
 import { DownloadButton } from './DownloadButton';
 import { VersionPicker } from './VersionPicker';
@@ -38,9 +39,9 @@ export const TILE_THUMB = 560;
 
 const NO_IMAGES: PreviewImage[] = [];
 
-/** The sample to show on a cover: the first one inside the NSFW level, else the first. */
-export function pickCover<T extends PreviewImage>(imgs: readonly T[], mask: number): T | undefined {
-  const idx = imgs.findIndex((i) => !isBeyondMask(i.nsfwLevel, mask));
+/** The sample to show on a cover: the first one that needs no NSFW cover (item 27), else the first. */
+export function pickCover<T extends PreviewImage>(imgs: readonly T[], covered: (lvl: T['nsfwLevel']) => boolean): T | undefined {
+  const idx = imgs.findIndex((i) => !covered(i.nsfwLevel));
   return imgs[idx >= 0 ? idx : 0];
 }
 
@@ -49,22 +50,23 @@ export function pickCover<T extends PreviewImage>(imgs: readonly T[], mask: numb
  * among them. `observe` goes on the cover ("Most popular" loads once it is on screen), `start` on
  * its hover (reshuffles "Random").
  */
-export function useModelCover(model: CivitaiModel, mask: number) {
+export function useModelCover(model: CivitaiModel) {
+  const covered = useNsfwCover();
   const version = model.modelVersions[0];
   const files = useMemo(() => version?.files.map((f) => f.name) ?? [], [version]);
   const { images, start, observe } = usePreviewOrder(version?.id, version?.images ?? NO_IMAGES, { files });
-  const image = pickCover(images, mask);
-  return { version, images, image, start, observe, viewerStart: image ? viewerStart([image], version?.id) : undefined };
+  const image = pickCover(images, covered);
+  return { covered, version, images, image, start, observe, viewerStart: image ? viewerStart([image], version?.id) : undefined };
 }
 
-export function ModelTile({ model, selected, installed, mask, revealed, favourite, picking, size = 'desktop', onOpen, onReveal, onUse }: {
+export function ModelTile({ model, selected, installed, revealed, favourite, picking, size = 'desktop', onOpen, onReveal, onUse }: {
   model: CivitaiModel; selected: boolean; installed: InstalledState; mask: number; revealed: boolean; favourite?: boolean; picking?: boolean; size?: Size;
   onOpen: () => void; onReveal: () => void;
   /** Use the version picked on the tile (in the step, or as the picker's pick). */
   onUse: (version?: CivitaiModelVersion) => void;
 }) {
   const phone = size === 'phone';
-  const { version: first, images, image, start, observe, viewerStart: startOn } = useModelCover(model, mask);
+  const { covered, version: first, images, image, start, observe, viewerStart: startOn } = useModelCover(model);
   const inst = useInstalled();
   // The version this tile downloads / uses: the one a server has, else the newest; the picker changes it.
   const [versionId, setVersionId] = useState<number | null>(null);
@@ -73,12 +75,12 @@ export function ModelTile({ model, selected, installed, mask, revealed, favourit
 
   const [hover, setHover] = useState(false);
   const clip = (() => {
-    const c = image && isCivitaiVideo(image) ? image : images.find((i) => isCivitaiVideo(i) && !isBeyondMask(i.nsfwLevel, mask));
+    const c = image && isCivitaiVideo(image) ? image : images.find((i) => isCivitaiVideo(i) && !covered(i.nsfwLevel));
     return c?.url ? civitaiVideoUrl(c.url, TILE_THUMB) : null;
   })();
   const [broken, setBroken] = useState(false);
   useEffect(() => setBroken(false), [image?.url]);
-  const hidden = !!image && isBeyondMask(image.nsfwLevel, mask) && !revealed;
+  const hidden = !!image && covered(image.nsfwLevel) && !revealed;
   const url = image ? civitaiThumbUrl(previewStill(image, TILE_THUMB), TILE_THUMB) : '';
   const local = isLocalModel(model);
   const toggleFavourite = useModels((s) => s.toggleFavourite);
