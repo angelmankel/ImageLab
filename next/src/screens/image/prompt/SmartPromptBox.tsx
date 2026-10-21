@@ -56,7 +56,7 @@ function Highlight({ text, hits }: { text: string; hits: number[] }) {
   return <>{Array.from(text).map((ch, i) => (set.has(i) ? <mark key={i}>{ch}</mark> : ch))}</>;
 }
 
-function Backdrop({ text, parts, active, byId, drag }: { text: string; parts: Part[]; active: Part | null; byId: Map<string, TileSnippet>; drag: PartDrag | null }) {
+function Backdrop({ text, parts, active, byId, drag, hover }: { text: string; parts: Part[]; active: Part | null; byId: Map<string, TileSnippet>; drag: PartDrag | null; hover: number }) {
   const out: ReactNode[] = [];
   let at = 0;
   parts.forEach((p, i) => {
@@ -67,6 +67,7 @@ function Backdrop({ text, parts, active, byId, drag }: { text: string; parts: Pa
     if (p.weight > 1.001) cls.push('il-sp-up'); else if (p.weight < 0.999) cls.push('il-sp-dn');
     if (active && active.start === p.start && active.end === p.end && !drag) cls.push('il-sp-on');
     if (drag && drag.from === i) cls.push('il-sp-lift');
+    else if (!drag && hover === i && !cls.includes('il-sp-on')) cls.push('il-sp-hov');
     if (drag && drag.mode === 'swap' && drag.to === i) cls.push('il-sp-drop');
     const style = snip ? ({ '--h': tileHue(snip) } as React.CSSProperties) : undefined;
     const post = text.slice(p.innerEnd, p.end);
@@ -96,6 +97,7 @@ export function SmartPromptBox({ value, onChange, onBlur, kind, snippets, catego
   const back = useRef<HTMLDivElement>(null);
   const wrap = useRef<HTMLDivElement>(null);
   const [drag, setDrag] = useState<PartDrag | null>(null);
+  const [hoverPart, setHoverPart] = useState(-1);
   const valueRef = useRef(value);
   valueRef.current = value;
   // Item 40: the selection is stored WITH the text it was read from; a selection read from another
@@ -239,7 +241,7 @@ export function SmartPromptBox({ value, onChange, onBlur, kind, snippets, catego
   return (
     <div className={`il-sp${kind === 'negative' ? ' is-neg' : ''}${large ? ' is-large' : ''}`}>
       <div ref={wrap} className="il-sp-wrap">
-        <div ref={back} className="il-sp-back" aria-hidden><Backdrop text={value} parts={parts} active={active} byId={byId} drag={drag} /></div>
+        <div ref={back} className="il-sp-back" aria-hidden><Backdrop text={value} parts={parts} active={active} byId={byId} drag={drag} hover={hoverPart} /></div>
         <textarea
           ref={ta}
           className="il-sp-ta"
@@ -262,7 +264,7 @@ export function SmartPromptBox({ value, onChange, onBlur, kind, snippets, catego
         <PartHandles wrap={wrap} back={back} ta={ta} parts={parts} value={value} off={pickOpen}
           caretPart={focused && active ? parts.indexOf(active) : -1}
           isSnippet={(p) => !!p.snippetId && byId.has(p.snippetId)}
-          drag={drag} setDrag={setDrag}
+          drag={drag} setDrag={setDrag} onHover={setHoverPart}
           onMove={movePartTo}
           onRemove={(p) => applyUndoable(removeRange(value, p.start, p.end), 'Take out snippet')}
           onPick={(p) => { const el = ta.current; if (!el) return; el.focus({ preventScroll: true }); el.setSelectionRange(p.innerStart, p.innerEnd); setFocused(true); setSel([p.innerStart, p.innerEnd], el.value); }} />

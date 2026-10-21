@@ -19,7 +19,7 @@ import { T } from '~/theme/tokens';
 import { dvh, vh } from '~/theme/uiScale';
 import { categoryHue, isModelSpecific, tileBackground, tileHue } from '../prompt/promptSearch';
 import { useTileEdit } from '../prompt/tileStore';
-import { CATEGORY_EMOJI, CATEGORY_HUES, countByCategory, UNCATEGORIZED } from './snippetModel';
+import { CATEGORY_EMOJI, CATEGORY_HUES, categoryKind, countByCategory, targetOptions, UNCATEGORIZED, type CatKind } from './snippetModel';
 import { addCategory, deleteCategory, deleteSnippets, duplicateSnippets, mergeCategory, moveSnippets, reorderCategory, updateCategory } from './snippetOps';
 import { previewText, searchSnippets } from './snippetLogic';
 import { generateSnippetsFor } from './generateBridge';
@@ -55,7 +55,23 @@ function ManageModal({ opened, start, onClose }: { opened: boolean; start: strin
     if (query.trim()) return searchSnippets(snippets, query);
     return cat ? snippets.filter((s) => (known.has(s.categoryId) ? s.categoryId : UNCATEGORIZED) === cat.id) : EMPTY;
   }, [query, snippets, cat, known]);
-  const catOptions = cats.map((c) => ({ value: c.id, label: `${c.icon ? `${c.icon} ` : ''}${cleanName(c)}` }));
+  const catLabel = (c: SnippetCategory) => `${c.icon ? `${c.icon} ` : ''}${cleanName(c)}`;
+  const [pendingMerge, setPendingMerge] = useState<string | null>(null);
+  useEffect(() => { setPendingMerge(null); }, [catId]);
+  const catKind: CatKind = cat ? categoryKind(cat, snippets) : 'any';
+  // Merge targets: never itself; this kind first, the other kind as its own group (asks first).
+  const mergeOptions = useMemo(() => (cat ? targetOptions(cats, snippets, catKind, cat.id, true, catLabel) : []), [cats, snippets, catKind, cat]); // eslint-disable-line react-hooks/exhaustive-deps
+  const pickedKind: CatKind = useMemo(() => {
+    const ks = new Set(snippets.filter((s) => picked.has(s.id)).map((s) => s.kind));
+    return ks.size === 1 ? (ks.has('negative') ? 'negative' : 'positive') : 'any';
+  }, [snippets, picked]);
+  const moveOptions = useMemo(() => targetOptions(cats, snippets, pickedKind, query ? null : (cat?.id ?? null), true, catLabel), [cats, snippets, pickedKind, query, cat]); // eslint-disable-line react-hooks/exhaustive-deps
+  const tryMerge = (into: string) => {
+    const k = categoryKind(cats.find((c) => c.id === into) ?? { id: into }, snippets);
+    if (catKind !== 'any' && k !== 'any' && k !== catKind) { setPendingMerge(into); return; }
+    doMerge(into);
+  };
+  const doMerge = (into: string) => { if (!cat) return; setPendingMerge(null); mergeCategory(cat.id, into); setCatId(into); };
   const isUncat = cat?.id === UNCATEGORIZED;
   const gen = cat ? generateSnippetsFor(cat.id) : null;
   const sz = phone ? 'lg' : 'sm';
@@ -125,8 +141,8 @@ function ManageModal({ opened, start, onClose }: { opened: boolean; start: strin
         {gen && <Button tone="card" size={sz} icon={<IconSparkles size={13} />} style={{ color: 'var(--il-ember-hi)' }} onClick={gen}>Generate snippets</Button>}
         {!isUncat && (
           <div style={{ width: phone ? 170 : 150 }}>
-            <SearchSelect label="Merge into" value={null} placeholder="Merge into…" size={sz} options={catOptions.filter((o) => o.value !== cat.id)}
-              onChange={(into) => { mergeCategory(cat.id, into); setCatId(into); }} />
+            <SearchSelect label="Merge into" value={null} placeholder="Merge into…" size={sz} options={mergeOptions} searchable={false}
+              dropdownWidth={260} maxDropdownHeight={380} onChange={tryMerge} />
           </div>
         )}
         {!isUncat && <Button tone="ghost" size={sz} icon={<IconTrash size={13} />} style={{ color: 'var(--il-err)' }} tooltip="Delete category"
@@ -137,12 +153,24 @@ function ManageModal({ opened, start, onClose }: { opened: boolean; start: strin
     </div>
   );
 
+  const into = pendingMerge ? cats.find((c) => c.id === pendingMerge) : undefined;
+  const mergeAsk = cat && into && (
+    <div role="alertdialog" aria-label="Merge across kinds" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', padding: '8px 10px', borderRadius: 10, background: 'color-mix(in srgb, var(--il-warn, var(--il-ember)) 12%, transparent)' }}>
+      <span style={{ flex: 1, minWidth: 180, fontSize: 12, fontWeight: 700, color: 'var(--il-fg2)' }}>
+        {catLabel(cat)} is a {catKind === 'negative' ? 'negative' : 'prompt'} category, {catLabel(into)} is {catKind === 'negative' ? 'a prompt' : 'a negative'} one. Merge anyway?
+      </span>
+      <Button tone="card" size={sz} onClick={() => setPendingMerge(null)}>Cancel</Button>
+      <Button tone="primary" size={sz} onClick={() => doMerge(into.id)}>Merge</Button>
+    </div>
+  );
+
   const bulk = picked.size > 0 && (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', minHeight: phone ? 48 : 38, padding: '4px 6px 4px 10px', borderRadius: 10, background: 'color-mix(in srgb, var(--il-ember) 13%, transparent)' }}>
       <b style={{ fontSize: 12, fontWeight: 800, color: 'var(--il-ember-hi)' }}>{picked.size} selected</b>
       <div style={{ flex: 1 }} />
       <div style={{ width: phone ? 150 : 140 }}>
-        <SearchSelect label="Move to" value={null} placeholder="Move to…" size={sz} options={catOptions} onChange={(to) => { moveSnippets(picked, to); setPicked(new Set()); }} />
+        <SearchSelect label="Move to" value={null} placeholder="Move to…" size={sz} options={moveOptions} searchable={false} dropdownWidth={260} maxDropdownHeight={380}
+          position="bottom-end" onChange={(to) => { moveSnippets(picked, to); setPicked(new Set()); }} />
       </div>
       <Button tone="card" size={sz} icon={<IconCopy size={13} />} onClick={() => { duplicateSnippets(picked); setPicked(new Set()); }}>Duplicate</Button>
       <Button tone="ghost" size={sz} icon={<IconTrash size={13} />} style={{ color: 'var(--il-err)' }} onClick={() => { deleteSnippets(picked); setPicked(new Set()); }}>Delete</Button>
@@ -184,6 +212,7 @@ function ManageModal({ opened, start, onClose }: { opened: boolean; start: strin
           {(!phone || pane === 'snips') && (
             <div style={{ flex: 1, minWidth: 0, padding: 12, display: 'flex', flexDirection: 'column', gap: 8, minHeight: 0 }}>
               {query ? <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--il-muted)' }}>{rows.length} found</div> : header}
+              {!query && mergeAsk}
               {bulk}
               {list}
             </div>

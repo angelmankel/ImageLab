@@ -96,3 +96,33 @@ export function countByCategory(snippets: readonly S[], cats: readonly C[]): Map
   }
   return m;
 }
+
+export type CatKind = 'positive' | 'negative' | 'any';
+
+/** A category's kind: the built-in negative ones (`neg-…`), Uncategorized = any, else by its snippets (all negative → negative). */
+export function categoryKind(cat: { id: string }, snippets: ReadonlyArray<{ categoryId: string; kind: string }>): CatKind {
+  if (cat.id === UNCATEGORIZED) return 'any';
+  if (cat.id.startsWith('neg-')) return 'negative';
+  const mine = snippets.filter((s) => s.categoryId === cat.id);
+  return mine.length > 0 && mine.every((s) => s.kind === 'negative') ? 'negative' : 'positive';
+}
+
+/**
+ * Where a category (or a selection of kind `kind`) can go: never itself; the same kind first as
+ * "Prompt" / "Negative" groups, Uncategorized last. The other kind is left out unless `withOther`.
+ */
+export function targetOptions<K extends C>(cats: readonly K[], snippets: ReadonlyArray<{ categoryId: string; kind: string }>, kind: CatKind, exclude: string | null, withOther: boolean, label: (c: K) => string): Array<{ value: string; label: string; group: string }> {
+  const kinds = new Map(cats.map((c) => [c.id, categoryKind(c, snippets)]));
+  const name = (k: CatKind) => (k === 'negative' ? 'Negative' : 'Prompt');
+  const same = kind === 'any' ? null : kind;
+  const pick = (c: K) => c.id !== exclude && c.id !== UNCATEGORIZED;
+  const out: Array<{ value: string; label: string; group: string }> = [];
+  const order: CatKind[] = same === 'negative' ? ['negative', 'positive'] : ['positive', 'negative'];
+  for (const k of order) {
+    if (same && k !== same && !withOther) continue;
+    for (const c of cats) if (pick(c) && kinds.get(c.id) === k) out.push({ value: c.id, label: label(c), group: name(k) });
+  }
+  const u = cats.find((c) => c.id === UNCATEGORIZED);
+  if (u && exclude !== UNCATEGORIZED) out.push({ value: u.id, label: label(u), group: 'Other' });
+  return out;
+}

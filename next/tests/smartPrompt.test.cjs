@@ -167,3 +167,31 @@ test('item 44: movePart swaps / moves part texts, separators stay put', () => {
   const e = P.movePart(t, parts, 0, 1, 'swap');
   assert.equal(run(e).slice(0, e.selStart).endsWith('a cat'), true, 'caret at the end of the moved part');
 });
+
+test('item 44 fix: drop target — swap in the middle, move at the edges / gaps, wrapped parts, no-ops', () => {
+  const D = load('src/screens/image/prompt/partDrag.ts');
+  const box = (left, right, row) => ({ left, right, top: row * 20, bottom: row * 20 + 18 });
+  // Line 0: part0 [0,60] part1 [70,200…wraps]; line 1: part1 cont. [0,40] part2 [50,120]
+  const parts = [
+    { i: 0, boxes: [box(0, 60, 0)] },
+    { i: 1, boxes: [box(70, 200, 0), box(0, 40, 1)] },
+    { i: 2, boxes: [box(50, 120, 1)] },
+  ];
+  assert.deepEqual(D.dropTarget(parts, 0, 85 + 50, 9), { mode: 'swap', to: 1, line: null }, 'middle of part 1 = swap');
+  assert.equal(D.dropTarget(parts, 0, 25, 25 + 0).mode, 'swap', 'continuation line of a wrapped part is that part');
+  assert.equal(D.dropTarget(parts, 0, 25, 25).to, 1);
+  const before2 = D.dropTarget(parts, 0, 52, 29);
+  assert.deepEqual([before2.mode, before2.to], ['move', 2], 'leading edge of part 2 = move before it');
+  const after2 = D.dropTarget(parts, 0, 118, 29);
+  assert.deepEqual([after2.mode, after2.to], ['move', 3], 'trailing edge of the last part = move to the end');
+  assert.equal(after2.line.x, 122);
+  const leadWrapped = D.dropTarget(parts, 2, 72, 9);
+  assert.deepEqual([leadWrapped.mode, leadWrapped.to], ['move', 1], 'leading edge of a wrapped part (its first line)');
+  // Its continuation line has no leading zone: that is swap.
+  assert.equal(D.dropTarget(parts, 2, 2, 29).mode, 'swap');
+  assert.deepEqual(D.dropTarget(parts, 1, 120, 9), { mode: 'swap', to: -1, line: null }, 'on itself = nothing');
+  assert.equal(D.dropTarget(parts, 1, 62, 9).to, -1, 'right next to itself = nothing');
+  const gap = D.dropTarget(parts, 0, 300, 60);
+  assert.deepEqual([gap.mode, gap.to], ['move', 3], 'below / past the end: nearest box → after it');
+  assert.equal(D.dropTarget(parts, 2, -20, 9).to, 0, 'left of the first part = to the front');
+});

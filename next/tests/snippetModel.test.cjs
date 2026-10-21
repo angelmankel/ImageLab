@@ -46,3 +46,16 @@ test('move / duplicate / count', () => {
   assert.equal(c.get('uncategorized'), 1);
   assert.equal(c.get('a'), 1);
 });
+
+test('merge / move targets: never itself, same kind only unless asked, grouped, Uncategorized last', () => {
+  const cats = [{ id: 'quality', name: 'Quality' }, { id: 'style', name: 'Style' }, { id: 'neg-quality', name: 'Bad' }, { id: 'mine', name: 'Mine' }, { id: 'uncategorized', name: 'U' }];
+  const sn = [{ categoryId: 'mine', kind: 'negative' }, { categoryId: 'quality', kind: 'positive' }];
+  assert.equal(M.categoryKind(cats[3], sn), 'negative', 'a category of only negative snippets is negative');
+  assert.equal(M.categoryKind(cats[4], sn), 'any');
+  const t = M.targetOptions(cats, sn, 'positive', 'quality', false, (c) => c.name);
+  assert.deepEqual(t.map((o) => o.value), ['style', 'uncategorized']);
+  const all = M.targetOptions(cats, sn, 'positive', 'quality', true, (c) => c.name);
+  assert.deepEqual(all.map((o) => `${o.group}:${o.value}`), ['Prompt:style', 'Negative:neg-quality', 'Negative:mine', 'Other:uncategorized']);
+  const fromU = M.targetOptions(cats, sn, 'any', 'uncategorized', false, (c) => c.name);
+  assert.equal(fromU.some((o) => o.value === 'uncategorized'), false);
+});

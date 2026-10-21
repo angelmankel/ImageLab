@@ -39,11 +39,19 @@
   text-decoration: underline dotted hsl(var(--h) 60% 62% / 0.75); text-decoration-thickness: 1.5px; text-underline-offset: 3px; }
 .il-sp-up { background: color-mix(in srgb, var(--sp-accent) 14%, transparent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--sp-accent) 14%, transparent); }
 .il-sp-dn { background: color-mix(in srgb, var(--il-info) 13%, transparent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--il-info) 13%, transparent); }
-/* Item 38: the part under the caret — a soft tinted background whose spread (box-shadow, never
-   padding) gives the same few px on every side, plus a very faint ring; no strong outline. */
+/* Items 38 + fix: the part under the caret — a soft tinted background, widened 6 px left and right
+   by two offset box-shadows (drawn outside the text box only, so they never overlap the tint and
+   never touch layout); each wrapped line gets its own (box-decoration-break: clone). */
 .il-sp-on {
-  background: color-mix(in srgb, var(--sp-accent) 15%, transparent) !important;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--sp-accent) 15%, transparent), 0 0 0 4px color-mix(in srgb, var(--sp-accent) 22%, transparent) !important;
+  --sp-on: color-mix(in srgb, var(--sp-accent) 17%, transparent);
+  background: var(--sp-on) !important;
+  box-shadow: -6px 0 0 0 var(--sp-on), 6px 0 0 0 var(--sp-on) !important;
+}
+/* The hovered part (the grip's part), fainter. */
+.il-sp-hov {
+  --sp-hov: color-mix(in srgb, var(--il-fg) 7%, transparent);
+  background: var(--sp-hov);
+  box-shadow: -6px 0 0 0 var(--sp-hov), 6px 0 0 0 var(--sp-hov);
 }
 .il-sp-syn { color: var(--il-dim); }
 .il-sp-num { color: var(--sp-accent-hi); }
@@ -73,19 +81,19 @@
 .il-tile-w { position: absolute; top: 6px; left: 6px; z-index: 1; font-size: 10px; font-weight: 800; padding: 1px 6px; border-radius: 999px;
   background: rgba(0, 0, 0, .55); color: var(--il-ember-hi); font-variant-numeric: tabular-nums; }
 
-/* Item 44: the floating part handles + drag feedback. Overlays only: never part of the text's layout. */
-.il-sp-handles { position: absolute; z-index: 25; display: flex; gap: 2px; padding: 2px; border-radius: 8px; transform: translate(-70%, -78%);
-  background: var(--il-elev); border: 1px solid var(--il-line-strong); box-shadow: 0 6px 16px rgba(0, 0, 0, .45); }
-.il-sp-hbtn { display: grid; place-items: center; border: 0; border-radius: 6px; background: transparent; color: var(--il-fg2); padding: 0; cursor: pointer; }
-.il-sp-hbtn:hover { background: var(--il-card-on); color: var(--il-fg); }
-.il-sp-hbtn.is-grip { cursor: grab; }
-.il-sp-hbtn.is-x:hover { color: var(--il-err); }
+/* Item 44: the part grip (in the gap before the part), the snippet ×, and the drag feedback.
+   Overlays only: never part of the text's layout. */
+.il-sp-grip { position: absolute; z-index: 25; display: flex; align-items: center; justify-content: flex-end; padding-right: 2px; cursor: grab; }
+.il-sp-grip-bar { width: 4px; border-radius: 3px; background: radial-gradient(circle, var(--il-fg2) 1px, transparent 1.5px) center / 4px 4px repeat-y;
+  opacity: .75; transition: opacity .12s ease; }
+.il-sp-grip:hover .il-sp-grip-bar, .il-sp-grip.is-dragging .il-sp-grip-bar { opacity: 1; background-color: color-mix(in srgb, var(--sp-accent) 35%, transparent); }
+.il-sp-x { position: absolute; z-index: 25; display: grid; place-items: center; padding: 0; border: 0; border-radius: 50%; cursor: pointer;
+  background: var(--il-elev); color: var(--il-fg2); box-shadow: 0 0 0 1px var(--il-line-strong); }
+.il-sp-x:hover { color: var(--il-err); }
 .il-sp-lift { opacity: .35; }
-.il-sp-drop { background: color-mix(in srgb, var(--sp-accent) 22%, transparent) !important; box-shadow: 0 0 0 3px color-mix(in srgb, var(--sp-accent) 22%, transparent), 0 0 0 4px var(--sp-accent) !important; }
+.il-sp-drop { --sp-drop: color-mix(in srgb, var(--sp-accent) 26%, transparent);
+  background: var(--sp-drop) !important; box-shadow: -6px 0 0 0 var(--sp-drop), 6px 0 0 0 var(--sp-drop), 0 0 0 1px var(--sp-accent) !important; }
 .il-sp-dropline { position: absolute; z-index: 24; width: 2px; border-radius: 2px; background: var(--sp-accent); pointer-events: none; box-shadow: 0 0 6px var(--sp-accent); }
-.il-sp-ghost { position: absolute; z-index: 26; pointer-events: none; transform: translate(8px, -120%); max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+.il-sp-ghost { position: absolute; z-index: 26; pointer-events: none; transform: translate(10px, -130%); max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 800; background: var(--il-elev); color: var(--il-fg);
   border: 1px solid var(--sp-accent); box-shadow: 0 10px 22px rgba(0, 0, 0, .5); }
-/* The row's category (item 39): a small chip with the whole name, never cut to "Detail…". */
-.il-sp-cat { flex: none; max-width: 45%; font-size: 10px; font-weight: 700; color: var(--il-muted); background: var(--il-card); border: 1px solid var(--il-line-soft);
-  border-radius: 999px; padding: 2px 7px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
