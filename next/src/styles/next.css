@@ -248,6 +248,17 @@ button[style*="border-radius: 999px"]:not(:disabled):not([style*="transform"]):a
 .il-switch .mantine-Switch-thumb { border: 0; background: var(--il-fg2); transition: left calc(.15s * var(--il-motion) * var(--il-dur, 1)) cubic-bezier(.3, 1.3, .5, 1), background-color .15s; }
 .il-switch input:checked + .mantine-Switch-track .mantine-Switch-thumb { background: var(--il-bg); }
 
+/* ---- Loading states (FIXLIST-2 item 5, ui/Loading.tsx). A skeleton = a card-grey block with a soft
+   light sweeping across; the spinner = a ring (its class has "spin", so Motion "Off" keeps it turning). */
+.il-skel { position: relative; overflow: hidden; background: var(--il-card); }
+.il-skel::after { content: ""; position: absolute; inset: 0; transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--il-fg) 7%, transparent), transparent);
+  animation: il-skel 1.3s ease-in-out infinite; }
+@keyframes il-skel { to { transform: translateX(100%); } }
+@media (prefers-reduced-motion: reduce) { .il-skel::after { animation: none; opacity: 0; } }
+.il-spin { animation: il-spin .8s linear infinite; }
+@keyframes il-spin { to { transform: rotate(360deg); } }
+
 /* An indeterminate progress sweep (the Generate group, the stage's progress line). */
 @keyframes il-sweep { from { transform: translateX(-100%); } to { transform: translateX(300%); } }
 .il-sweep { animation: il-sweep 1.2s linear infinite; }
