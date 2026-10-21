@@ -14,8 +14,10 @@ import { AddToCollectionMenu } from './AddToCollectionMenu';
 import { SendToStepMenu } from './SendToStepMenu';
 import { makePayload, nameFromUrl, useImageDrag } from '~/dnd';
 
-export function ItemDetail({ item, phone, onOpen, onDeleted, pager }: {
+export function ItemDetail({ item, phone, onOpen, onDeleted, pager, hidePicture }: {
   item: LibItem; phone?: boolean; onOpen: () => void; onDeleted?: () => void; pager?: string;
+  /** The desktop History page shows the picture in its center column (list-2 item 18). */
+  hidePicture?: boolean;
 }) {
   const servers = useStore((s) => s.servers);
   const [more, setMore] = useState(false);
@@ -31,7 +33,7 @@ export function ItemDetail({ item, phone, onOpen, onDeleted, pager }: {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <div
+      {!hidePicture && <div
         onClick={onOpen}
         role="button"
         aria-label="Open fullscreen"
@@ -40,7 +42,7 @@ export function ItemDetail({ item, phone, onOpen, onDeleted, pager }: {
         {item.kind === 'video'
           ? <video key={item.key} src={item.url} autoPlay muted loop playsInline style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
           : <img key={item.key} src={item.url} alt="" {...drag} style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />}
-      </div>
+      </div>}
 
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 11, fontWeight: 700, color: 'var(--il-muted)', padding: '0 2px' }}>
         <span>{whenLabel(item.createdAt)}</span>

@@ -1,16 +1,21 @@
 /**
- * Library — History & Collections, desktop (rule 12). No left panel, no title, no date dividers.
+ * Library — History & Collections, desktop (rule 12; list-2 item 18: three columns, mockup
+ * agent-handoffs/fixlist2-mockups/18-history-3col.html). No title, no date dividers.
  *
- *   ┌ search · All items ▾ │ All Images Videos ★ ······ Newest ▾ │ ▪▪▪ │ Select ┐┌ item (380) ┐
- *   ├ (Select mode) 3 selected · All · None ····· Add to collection ▾ ★ ↓ 🗑 Done ┤│ picture     │
- *   │ 5-column grid (3 when narrow) · click = select · double-click/⤢ = fullscreen ││ prompt …    │
- *   └────────────────────────────────────────────────────────────────────────────┘└ actions ─────┘
+ *   ┌ grid (420, resizable) ─┐┌ preview ───────────────────────┐┌ item (380) ──┐
+ *   │ search ……………………………… ││ 2 / 48 ············ Fit  ⤢     ││ when · kind   │
+ *   │ All items ▾ All Img Vid ★ ││                                ││ prompt …      │
+ *   │ Newest ▾ ▪▪▪ Select      ││   the selected output, fit;    ││ settings grid │
+ *   │ (Select: bulk bar)       ││   zoom / pan; ‹ › at the edges ││ Recall / Use  │
+ *   │ ▢ ▢ ▢ click = select     ││                                ││ ★ ↓ 🗑         │
+ *   └──────────────────────────┘└────────────────────────────────┘└───────────────┘
+ * ←/→ move the selection (the grid's order), Enter / ⤢ / double-click = the full-screen viewer.
  */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { IconSquareCheck } from '@tabler/icons-react';
-import { Panel, Sep } from '~/ui';
+import { Panel } from '~/ui';
 import { T } from '~/theme/tokens';
-import { useLibrary } from './libraryStore';
+import { GRID_W, useLibrary } from './libraryStore';
 import { useAllItems, useVisibleItems } from './useLibraryItems';
 import type { LibItem } from './libraryLogic';
 import { confirmDelete } from './libraryActions';
@@ -24,6 +29,7 @@ import { BulkBar } from './BulkBar';
 import { LibraryGrid } from './LibraryGrid';
 import { ItemDetail } from './ItemDetail';
 import { LibraryViewer } from './LibraryViewer';
+import { LibraryStage } from './LibraryStage';
 import { EmptyState } from './EmptyState';
 import './library.css';
 
@@ -41,23 +47,18 @@ export function LibraryScreen() {
   const setPanelOpen = useLibrary((s) => s.setPanelOpen);
   const panelWidth = useLibrary((s) => s.panelWidth);
   const setPanelWidth = useLibrary((s) => s.setPanelWidth);
+  const gridOpen = useLibrary((s) => s.gridOpen);
+  const setGridOpen = useLibrary((s) => s.setGridOpen);
+  const gridWidth = useLibrary((s) => s.gridWidth);
+  const setGridWidth = useLibrary((s) => s.setGridWidth);
   const [viewer, setViewer] = useState<number | null>(null);
 
   // The panel shows the picked item, else the first one, so it is never blank while items exist.
   const current = visible.find((i) => i.key === selectedKey) ?? visible[0] ?? null;
   const currentIndex = current ? visible.indexOf(current) : -1;
 
-  // Narrow main column: the sort pill and Select drop their words.
-  const mainRef = useRef<HTMLElement>(null);
-  const [mainW, setMainW] = useState(1200);
-  useEffect(() => {
-    const el = mainRef.current;
-    if (!el) return;
-    const ro = new ResizeObserver(([e]) => setMainW(e.contentRect.width));
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-  const narrow = mainW < 900;
+  // A narrow grid column: the sort pill and Select drop their words.
+  const narrow = gridWidth < 480;
 
   const onClick = useCallback((it: LibItem) => {
     if (useLibrary.getState().selecting) togglePick(it.key);
@@ -69,6 +70,13 @@ export function LibraryScreen() {
     select(it.key);
     setViewer(i);
   }, [visible, select]);
+
+  // The selected tile stays in view as ←/→ or the preview's arrows move it (no scroll animation).
+  const currentKey = current?.key;
+  useEffect(() => {
+    if (!currentKey) return;
+    document.querySelector(`[data-lib-key="${CSS.escape(currentKey)}"]`)?.scrollIntoView({ block: 'nearest', behavior: 'instant' as ScrollBehavior });
+  }, [currentKey]);
 
   // Keys (grid only, never while typing or with the viewer or a dialog open): ← → move, Enter opens,
   // Delete deletes, Esc leaves Select mode.
@@ -95,17 +103,14 @@ export function LibraryScreen() {
 
   return (
     <div style={{ flex: 1, minWidth: 0, display: 'flex' }}>
-      <main ref={mainRef} style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-        <div style={{ height: T.size.toolbar, flex: 'none', display: 'flex', alignItems: 'center', gap: 6, padding: '0 10px' }}>
-          <SearchBox style={{ flex: '0 1 220px', minWidth: 120 }} />
+      <Panel side="left" width={gridWidth} min={300} max={900} defaultWidth={GRID_W} open={gridOpen} onToggle={() => setGridOpen(!gridOpen)} onResize={setGridWidth} tabLabel="Grid">
+        <div style={{ flex: 'none', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6, padding: 10 }}>
+          <SearchBox style={{ flex: '1 1 100%', minWidth: 0 }} />
           <CollectionPicker all={all} />
-          <Sep />
           <div style={{ flex: 'none' }}><KindTabs /></div>
           <div style={{ flex: 1 }} />
           <SortMenu iconOnly={narrow} />
-          <Sep />
           <TileSizeSwitch />
-          <Sep />
           <MenuPill outline on={selecting} onClick={() => setSelecting(!selecting)} aria-pressed={selecting} title="Select several" style={{ gap: 6, padding: narrow ? '0 11px' : undefined }}>
             <IconSquareCheck size={15} stroke={2.2} />{!narrow && 'Select'}
           </MenuPill>
@@ -113,17 +118,19 @@ export function LibraryScreen() {
         {selecting && (
           <div style={{ flex: 'none', padding: '0 10px 8px' }}><BulkBar visible={visible} /></div>
         )}
-        <div className="il-scroll" style={{ flex: 1, minHeight: 0, padding: '4px 10px 10px', touchAction: 'pan-y' }}>
+        <div className="il-scroll" style={{ flex: 1, minHeight: 0, padding: '0 10px 10px', touchAction: 'pan-y' }}>
           {visible.length
             ? <LibraryGrid items={visible} size={tileSize} selectedKey={current?.key ?? null} selecting={selecting} picked={picked} paused={viewer !== null} onClick={onClick} onOpen={onOpen} />
             : <EmptyState total={all.length} />}
         </div>
-      </main>
+      </Panel>
+
+      <LibraryStage items={visible} index={Math.max(0, currentIndex)} onPick={(i) => { const it = visible[i]; if (it) select(it.key); }} onOpen={() => { if (currentIndex >= 0) setViewer(currentIndex); }} />
 
       <Panel side="right" width={panelWidth} min={320} max={560} open={panelOpen} onToggle={() => setPanelOpen(!panelOpen)} onResize={setPanelWidth} tabLabel="Item">
         <div className="il-scroll" style={{ flex: 1, minHeight: 0, padding: T.pad.panel, touchAction: 'pan-y' }}>
           {current
-            ? <ItemDetail item={current} onOpen={() => setViewer(currentIndex)} pager={`${currentIndex + 1} / ${visible.length}`} />
+            ? <ItemDetail item={current} hidePicture onOpen={() => setViewer(currentIndex)} pager={`${currentIndex + 1} / ${visible.length}`} />
             : <div style={{ padding: '48px 8px', textAlign: 'center', color: 'var(--il-muted)', fontSize: 12, fontWeight: 600 }}>Pick something in the grid.</div>}
         </div>
       </Panel>

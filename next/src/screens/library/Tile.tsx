@@ -27,6 +27,7 @@ export const Tile = memo(function Tile({ item, selected, selecting, picked, radi
     <button
       type="button"
       className="lib-tile"
+      data-lib-key={item.key}
       aria-label={item.kind === 'video' ? 'Video' : 'Image'}
       aria-pressed={selecting ? picked : selected}
       onClick={() => onClick(item)}

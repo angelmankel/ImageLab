@@ -23,6 +23,9 @@ interface LibraryState {
   picked: readonly string[];
   panelOpen: boolean;
   panelWidth: number;
+  /** The desktop page's left column (filter bar + grid, list-2 item 18). */
+  gridOpen: boolean;
+  gridWidth: number;
   /** Starred video urls. */
   likedVideos: readonly string[];
   /** Video urls removed from the library (the file stays on the server). */
@@ -39,11 +42,15 @@ interface LibraryState {
   setPicked: (keys: readonly string[]) => void;
   setPanelOpen: (on: boolean) => void;
   setPanelWidth: (w: number) => void;
+  setGridOpen: (on: boolean) => void;
+  setGridWidth: (w: number) => void;
   toggleVideoLiked: (url: string) => void;
   hideVideos: (urls: readonly string[]) => void;
 }
 
 const NONE: readonly string[] = Object.freeze([]);
+/** The left grid column's default width (3 medium tiles). */
+export const GRID_W = 420;
 
 export const useLibrary = create<LibraryState>()(
   persist(
@@ -58,6 +65,8 @@ export const useLibrary = create<LibraryState>()(
       picked: NONE,
       panelOpen: true,
       panelWidth: T.size.libraryPanel,
+      gridOpen: true,
+      gridWidth: GRID_W,
       likedVideos: NONE,
       hiddenVideos: NONE,
 
@@ -72,13 +81,15 @@ export const useLibrary = create<LibraryState>()(
       setPicked: (picked) => set({ picked: picked.length ? picked : NONE }),
       setPanelOpen: (panelOpen) => set({ panelOpen }),
       setPanelWidth: (panelWidth) => set({ panelWidth }),
+      setGridOpen: (gridOpen) => set({ gridOpen }),
+      setGridWidth: (gridWidth) => set({ gridWidth }),
       toggleVideoLiked: (url) => set((s) => ({ likedVideos: toggleKey(s.likedVideos, url) })),
       hideVideos: (urls) => set((s) => ({ hiddenVideos: [...s.hiddenVideos, ...urls.filter((u) => !s.hiddenVideos.includes(u))] })),
     }),
     {
       name: 'imagelab.next.library.v1',
       partialize: (s) => ({
-        bucket: s.bucket, kind: s.kind, sort: s.sort, tileSize: s.tileSize, panelOpen: s.panelOpen, panelWidth: s.panelWidth,
+        bucket: s.bucket, kind: s.kind, sort: s.sort, tileSize: s.tileSize, panelOpen: s.panelOpen, panelWidth: s.panelWidth, gridOpen: s.gridOpen, gridWidth: s.gridWidth,
         likedVideos: s.likedVideos, hiddenVideos: s.hiddenVideos,
       }),
     },
