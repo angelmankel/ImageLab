@@ -19,7 +19,7 @@ import { create, type StoreApi, type UseBoundStore } from 'zustand';
 import { subscribeComfy, type ComfyEvent } from './comfyBus';
 import { comfyHttpFor, deleteQueuedPrompt, queueGraph, viewUrl } from './comfy';
 import { playCompleteSound, playSubmitSound } from './sounds';
-import { isImageJob } from './promptOwners';
+import { isAppToolFile, isImageJob } from './promptOwners';
 import type { ApiGraph } from './workflowGraph';
 import { hideUrl, insertResult, parseHidden, unhideUrl, withoutHidden } from './hiddenResults';
 
@@ -129,12 +129,17 @@ async function loadServerHistory(host: string, keep: KeepResult): Promise<RunRes
   for (const [id, r] of runs) {
     for (const node of Object.values(r.outputs ?? {})) {
       for (const img of node.images ?? []) {
-        if (!keep(img)) continue;
+        if (!keep(img) || isAppToolFile(img)) continue;
         out.push({ url: viewUrl(img, host), filename: img.filename, promptId: id, createdAt: recordTime(r) });
       }
     }
   }
   return out.slice(0, MAX_RESULTS);
+}
+
+/** Not an app tool's output (Edit mode / Remove BG, `isAppToolFile`): those live in the image history. Also drops ones adopted before. */
+function notToolResult(r: RunResult): boolean {
+  try { return !isAppToolFile({ filename: r.filename, subfolder: new URL(r.url, 'http://x/').searchParams.get('subfolder') ?? '' }); } catch { return true; }
 }
 
 function merge(prev: RunResult[], fresh: RunResult[], onTop: boolean): RunResult[] {
@@ -184,7 +189,7 @@ export function createRunStore(keep: KeepResult = keepAll, hideKey?: string): Ru
     if (hideKey) { try { localStorage.setItem(hideKey, JSON.stringify(next)); } catch { /* quota / private mode */ } }
   };
   /** Every merge goes through here, so a deleted result never comes back from a reload or the watchdog. */
-  const mergeShown = (prev: RunResult[], fresh: RunResult[], onTop: boolean) => merge(prev, withoutHidden(fresh, hidden), onTop);
+  const mergeShown = (prev: RunResult[], fresh: RunResult[], onTop: boolean) => merge(prev.filter(notToolResult), withoutHidden(fresh, hidden).filter(notToolResult), onTop);
 
   const store = create<RunState>()((set, get) => {
     const clearPreview = () => {
@@ -272,7 +277,8 @@ export function createRunStore(keep: KeepResult = keepAll, hideKey?: string): Ru
           if (!host) return;
           const p = pending.get(ev.promptId);
           if (!p && isImageJob(ev.promptId)) return; // the image history has it
-          const saved = ev.images.filter(keep);
+          // The app's own tool outputs (Edit mode, Remove BG) are image history already.
+          const saved = ev.images.filter((img) => keep(img) && (p || !isAppToolFile(img)));
           if (!saved.length) return;
           const made = saved.map(img => ({ url: viewUrl(img, host), filename: img.filename, promptId: ev.promptId, createdAt: Date.now(), ...(p ? { durationMs: Date.now() - p.queuedAt } : {}) }));
           const results = mergeShown(get().results, made, true);

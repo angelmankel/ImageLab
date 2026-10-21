@@ -13,3 +13,16 @@ export function setImageJobCheck(fn: (promptId: string) => boolean): void { chec
 export function isImageJob(promptId: string | null | undefined): boolean {
   return !!promptId && check(promptId);
 }
+
+/**
+ * The app's own picture tools save into output/imagelab/ as `edit_*` (next/ Edit mode: its ComfyUI
+ * tools and Save) and `removebg_*` (Remove BG). Those results go into the image history by the code
+ * that ran them; a run store that also adopted them showed every saved edit twice (one copy could
+ * not be favourited — next fix list 2, "Edit mode save creates duplicates"). Checked by file, not
+ * prompt id: the `executed` event can arrive before the queue call returns the id.
+ */
+export function isAppToolFile(img: { filename?: string; subfolder?: string } | null | undefined): boolean {
+  if (!img?.filename) return false;
+  const sub = (img.subfolder ?? '').replace(/\\/g, '/').replace(/\/+$/, '');
+  return sub === 'imagelab' && /^(edit|removebg)_\d/.test(img.filename);
+}

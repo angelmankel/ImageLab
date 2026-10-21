@@ -123,3 +123,17 @@ test('gesture: the canvas leaves its own controls alone', () => {
   assert.equal(GS.ignoredTarget(el(() => false)), false, 'the canvas itself');
   assert.equal(GS.ignoredTarget(null), false);
 });
+
+const PO = require('./_load.cjs')('../src/lib/promptOwners.ts');
+
+test('one save = one history entry: run stores skip the app tool outputs (edit_ / removebg_ in output/imagelab)', () => {
+  assert.equal(PO.isAppToolFile({ filename: 'edit_00001_.png', subfolder: 'imagelab' }), true);
+  assert.equal(PO.isAppToolFile({ filename: 'removebg_00012_.png', subfolder: 'imagelab' }), true);
+  assert.equal(PO.isAppToolFile({ filename: 'edit_00001_.png', subfolder: 'imagelab/' }), true);
+  assert.equal(PO.isAppToolFile({ filename: 'ComfyUI_00001_.png', subfolder: '' }), false, 'a workflow result stays');
+  assert.equal(PO.isAppToolFile({ filename: 'edit_00001_.png', subfolder: '' }), false, 'only our folder');
+  assert.equal(PO.isAppToolFile({ filename: 'edited_portrait_00001_.png', subfolder: 'imagelab' }), false);
+  assert.equal(PO.isAppToolFile(null), false);
+  // The tool graphs really save there.
+  assert.equal(G.saveAsOutputGraph('r')[G.OUT].inputs.filename_prefix, 'imagelab/edit');
+});
