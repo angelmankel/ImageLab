@@ -11,7 +11,8 @@
  *   └──────────────────────────┘└────────────────────────────────┘└───────────────┘
  * ←/→ move the selection (the grid's order), Enter / ⤢ / double-click = the full-screen viewer.
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useScrollIntoView } from '~/ui/scrollIntoNearest';
 import { IconSquareCheck } from '@tabler/icons-react';
 import { Panel } from '~/ui';
 import { T } from '~/theme/tokens';
@@ -56,6 +57,9 @@ export function LibraryScreen() {
   // The panel shows the picked item, else the first one, so it is never blank while items exist.
   const current = visible.find((i) => i.key === selectedKey) ?? visible[0] ?? null;
   const currentIndex = current ? visible.indexOf(current) : -1;
+  // ← / → move the selection: keep its tile in view, scrolling the grid only (item 39).
+  const gridRef = useRef<HTMLDivElement>(null);
+  useScrollIntoView(gridRef, current?.key, { selector: '[data-lib-key][aria-pressed="true"]', axis: 'y' });
 
   // A narrow grid column: the sort pill and Select drop their words.
   const narrow = gridWidth < 480;
@@ -118,7 +122,7 @@ export function LibraryScreen() {
         {selecting && (
           <div style={{ flex: 'none', padding: '0 10px 8px' }}><BulkBar visible={visible} /></div>
         )}
-        <div className="il-scroll" style={{ flex: 1, minHeight: 0, padding: '0 10px 10px', touchAction: 'pan-y' }}>
+        <div ref={gridRef} className="il-scroll" style={{ flex: 1, minHeight: 0, padding: '0 10px 10px', touchAction: 'pan-y' }}>
           {visible.length
             ? <LibraryGrid items={visible} size={tileSize} selectedKey={current?.key ?? null} selecting={selecting} picked={picked} paused={viewer !== null} onClick={onClick} onOpen={onOpen} />
             : <EmptyState total={all.length} />}

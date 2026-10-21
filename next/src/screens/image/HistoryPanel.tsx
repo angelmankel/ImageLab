@@ -9,7 +9,8 @@
  * collection fills the grid with its pictures (any picture: results, imports, model pictures), and
  * a picture dropped on a tile (or on the grid while a collection is shown) moves there.
  */
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
+import { useScrollIntoView } from '~/ui';
 import { IconArrowLeft, IconHeart, IconHeartFilled, IconTrash } from '@tabler/icons-react';
 import { FullscreenImage } from '@/components/FullscreenImage';
 import { useStore } from '@/lib/store';
@@ -113,6 +114,9 @@ export function HistoryPanel({ columns = 2, phone = false }: { columns?: number;
     if (from) undoNote('Taken out of the collection', () => moveItem(from, key));
   };
   const currentKey = runKey ?? (selected ?? newest)?.id ?? null;
+  // ← / → on the stage move the selection: keep its tile in view, scrolling this grid only (item 39).
+  const gridRef = useRef<HTMLDivElement>(null);
+  useScrollIntoView(gridRef, currentKey, { selector: 'button[aria-pressed="true"][data-viewer-origin]', axis: 'y' });
 
   return (
     <aside aria-label="History" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', background: 'var(--il-panel)' }}>
@@ -142,7 +146,7 @@ export function HistoryPanel({ columns = 2, phone = false }: { columns?: number;
         </div>
       )}
       {coll.name && clip.note && <div style={{ padding: '0 12px 8px', flex: 'none' }}><PasteNote note={clip.note} /></div>}
-      <div className="il-scroll" {...gridDrop.props} {...clip.zone} style={{ flex: 1, minHeight: 0, padding: '0 12px 12px', touchAction: 'pan-y', outline: gridDrop.over ? '2px solid var(--il-ember)' : undefined, outlineOffset: -2, borderRadius: 14 }}>
+      <div ref={gridRef} className="il-scroll" {...gridDrop.props} {...clip.zone} style={{ flex: 1, minHeight: 0, padding: '0 12px 12px', touchAction: 'pan-y', outline: gridDrop.over ? '2px solid var(--il-ember)' : undefined, outlineOffset: -2, borderRadius: 14 }}>
         {tiles.length === 0 && <div style={{ padding: '28px 8px', textAlign: 'center', fontSize: 12, fontWeight: 600, color: 'var(--il-muted)' }}>{coll.tiles ? 'Drag or paste pictures here to keep them in this collection.' : filter === 'liked' ? 'No favourites yet.' : scope === 'step' ? 'This step has made nothing yet.' : 'Nothing here yet.'}</div>}
         <div style={{ display: 'grid', gridTemplateColumns: `repeat(${phone ? 3 : columns}, minmax(0, 1fr))`, gap: 6 }}>
           {tiles.map((t, i) => coll.isImported(t.key) ? (

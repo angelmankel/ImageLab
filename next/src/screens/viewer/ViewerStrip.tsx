@@ -7,12 +7,13 @@ import { memo, useEffect, useRef } from 'react';
 import { IconPlayerPlayFilled } from '@tabler/icons-react';
 import { CHECKER, mayHaveAlpha } from '~/screens/image/checker';
 import type { ViewerItem } from './types';
+import { scrollIntoNearest } from '~/ui/scrollIntoNearest';
 
 export const ViewerStrip = memo(function ViewerStrip({ items, index, onPick }: { items: readonly ViewerItem[]; index: number; onPick: (i: number) => void }) {
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = box.current?.querySelector<HTMLElement>(`[data-i="${index}"]`);
-    el?.scrollIntoView({ block: 'nearest', behavior: 'instant' as ScrollBehavior });
+    scrollIntoNearest(el, { container: box.current, axis: 'y' }); // the strip only, never the page (item 39)
   }, [index]);
   return (
     <div ref={box} className="il-scroll" style={{ width: 92, flex: 'none', overflowY: 'auto', overflowX: 'hidden', padding: 10, display: 'flex', flexDirection: 'column', gap: 8, borderRight: '1px solid var(--il-line)', background: 'var(--il-bg-deep)', touchAction: 'pan-y' }}>

@@ -26,6 +26,7 @@ import { Tip } from '~/ui/Tip';
 import { useSessionOutputs, type SessionOutput } from '~/screens/home/useSessionOutputs';
 import { SessionThumb } from '~/screens/home/SessionThumb';
 import { jobsBySession, type TabJob } from './tabJobs';
+import { scrollIntoNearest } from '~/ui/scrollIntoNearest';
 
 const TAB_MIME = 'application/x-imagelab-tab';
 
@@ -80,7 +81,7 @@ function Tab({ s, index, current, only, out, job, dragId, setDragId, dropAt, set
   const open = () => { useSessions.getState().switchTo(s.id); if (useRoute.getState().screen !== 'step') useRoute.getState().go('step'); };
   const close = () => closeTabWithUndo(s.id);
 
-  useEffect(() => { if (current) ref.current?.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }, [current]);
+  useEffect(() => { if (current) scrollIntoNearest(ref.current, { axis: 'x' }); }, [current]); // the tab strip only (item 39)
 
   const over = (e: DragEvent) => {
     if (!dragId || !e.dataTransfer.types.includes(TAB_MIME)) return;

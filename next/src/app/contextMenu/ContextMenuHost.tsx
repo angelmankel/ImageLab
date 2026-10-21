@@ -14,6 +14,7 @@ import { createPortal } from 'react-dom';
 import { IconCheck, IconChevronRight } from '@tabler/icons-react';
 import { T } from '~/theme/tokens';
 import { toCssPx, vh } from '~/theme/uiScale';
+import { useScrollIntoView } from '~/ui/scrollIntoNearest';
 import { useIsPhone } from '~/app/useIsPhone';
 import {
   firstIndex, isTextField, lastIndex, letterIndex, placeAtPoint, placeBeside, stepIndex, type MenuRow,
@@ -138,6 +139,8 @@ function Panel({ level, depth, phone, onHover, onActivate }: {
     const a = level.anchor;
     setPos('x' in a ? placeAtPoint(a.x, a.y, w, h, vw, vh) : placeBeside(a, w, h, vw, vh));
   }, [level.anchor, level.rows]);
+  // ↑ / ↓ keep the active row visible in a long menu (item 39).
+  useScrollIntoView(ref, level.active, { selector: '[data-active="true"]', axis: 'y' });
 
   const style: CSSProperties = {
     // pos is in window px (rects / clientX); the menu sits in the zoomed body, so convert (item 4).
@@ -168,7 +171,7 @@ function Item({ row, active, phone, depth, index, onHover, onActivate }: {
     <div
       role={row.checked ? 'menuitemcheckbox' : 'menuitem'} aria-checked={row.checked || undefined}
       aria-disabled={row.disabled || undefined} aria-haspopup={row.children ? 'menu' : undefined}
-      data-depth={depth} data-idx={index} title={row.reason}
+      data-depth={depth} data-idx={index} data-active={active || undefined} title={row.reason}
       onPointerEnter={(e) => { if (e.pointerType === 'mouse') onHover(e.currentTarget); }}
       onClick={(e) => { e.stopPropagation(); if (!row.disabled) onActivate(e.currentTarget); }}
       style={{
