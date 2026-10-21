@@ -10,6 +10,7 @@
  * While the picture can page it is `data-no-swipe`, so its sideways swipes never change the step.
  */
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { HeroResult } from '@/components/blocks/HeroResult';
 import { VideoFullscreen } from '@/components/VideoFullscreen';
 import { useMediaAspect } from '@/hooks/useMediaAspect';
@@ -106,7 +107,8 @@ export function OutputPicture({ items, currentKey, onPick, onOpen, live, busy, s
           style={fill ? { flex: 1, minHeight: 0 } : { flex: 'none' }}
         />
         {full && (
-          <VideoFullscreen url={full.url} startTime={full.time} onClose={(t) => { setFull(null); setResume((r) => ({ time: t, nonce: (r?.nonce ?? 0) + 1 })); }} />
+          // A portal: the phone frame holds `position: fixed` inside its card.
+          createPortal(<VideoFullscreen url={full.url} startTime={full.time} onClose={(t) => { setFull(null); setResume((r) => ({ time: t, nonce: (r?.nonce ?? 0) + 1 })); }} />, document.body)
         )}
       </div>
     );

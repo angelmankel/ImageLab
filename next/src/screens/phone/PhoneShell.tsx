@@ -8,6 +8,7 @@ import { AppEffects } from './imageBridge';
 import { PhoneEffects } from '~/phone/PhoneEffects';
 import { NavHost } from '~/phone/nav/NavHost';
 import '~/phone/nav/shellPages';
+import './tree/createPages';
 
 export function PhoneShell() {
   return (

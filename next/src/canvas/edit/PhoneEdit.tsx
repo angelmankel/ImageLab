@@ -9,6 +9,7 @@
  * Opened from the Output page's Edit button. No pull-to-close: a pull would throw edits away.
  */
 import { lazy, Suspense } from 'react';
+import { createPortal } from 'react-dom';
 import { T } from '~/theme/tokens';
 import { usePhoneLandscape } from '~/app/useFormFactor';
 import { useEdit } from './editStore';
@@ -37,8 +38,9 @@ export function PhoneEdit() {
       <GpuStage editing phone bar={!land} view={NO_VIEW} />
     </Suspense>
   );
+  // A portal: the phone frame holds `position: fixed` inside its card, and Edit is a full-screen page.
   if (land) {
-    return (
+    return createPortal(
       <div role="dialog" aria-label="Edit" data-no-swipe
         style={{ position: 'fixed', inset: 0, zIndex: T.z.sheet, display: 'flex', background: 'var(--il-bg)', paddingLeft: 'env(safe-area-inset-left, 0px)', paddingRight: 'env(safe-area-inset-right, 0px)' }}>
         <div style={{ flex: 1, minWidth: 0, display: 'flex' }}>{canvas}</div>
@@ -46,13 +48,15 @@ export function PhoneEdit() {
           <Title side />
           <EditBar phone side />
         </div>
-      </div>
+      </div>,
+      document.body,
     );
   }
-  return (
+  return createPortal(
     <div role="dialog" aria-label="Edit" data-no-swipe style={{ position: 'fixed', inset: 0, zIndex: T.z.sheet, display: 'flex', flexDirection: 'column', background: 'var(--il-bg)' }}>
       <Title side={false} />
       {canvas}
-    </div>
+    </div>,
+    document.body,
   );
 }
