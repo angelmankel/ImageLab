@@ -16,6 +16,7 @@ import { PhoneShell } from '~/screens/phone/PhoneShell';
 import { ModelViewerHost } from '~/screens/modelViewer';
 import { ExternalViewerHost } from '~/screens/viewer/ExternalViewerHost';
 import { useCreditOutputs } from './outputs';
+import './sessionPick'; // per-session current picture + a finished job's picture becomes current (always mounted)
 import { ContextMenuHost } from './contextMenu';
 import { SnippetsFromImageHost } from '~/screens/image/writeIt/SnippetsFromImage';
 import { DragLayer, SendToSheet } from '~/dnd';

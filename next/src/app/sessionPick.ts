@@ -4,14 +4,21 @@
  *  - a picture another session's job selects when it lands (the main store frames a finished
  *    job) is filed under THAT session and the open session's pick is put back, so a job of A never
  *    changes B's canvas;
- *  - switching sessions brings back that session's own pick (or none: its newest output).
- * Side-effect module (imported by `useStageMedia`); memory only.
+ *  - switching sessions brings back that session's own pick (or none: its newest output);
+ *  - a job that ENDS makes its first picture its session's current one — always, the open session
+ *    or not, whatever was picked during the run, Auto-frame setting or not (fix list 2, ADDED after
+ *    close). Its output may land just before or just after the job leaves the queue, so the job
+ *    waits here (`awaiting`, up to a minute) until it is there (`landedPick`, tested).
+ * Side-effect module, imported by App (always mounted, never only with a canvas); memory only.
  */
 import { useStore } from '@/lib/store';
 import type { HistoryEntry } from '@/lib/types';
+import { useVideoRun } from '@/features/video/videoRun';
+import { useWorkflowRun } from '@/features/studio/studioRun';
 import { useSessions } from './sessionsStore';
 import { jobOwner, sessionOfOutput } from './outputs';
 import { useStage } from '~/screens/image/stageStore';
+import { endedJobs, landedPick, type LandedPick } from './sessionPickLogic';
 
 interface Pick { entryId: string | null; runKey: string | null }
 const picks: Record<string, Pick> = {};
@@ -56,3 +63,53 @@ useSessions.subscribe((st, prev) => {
     useStage.setState({ runKey: p.runKey });
   } finally { reverting = false; }
 });
+
+// ---------------------------------------------------------------------------------------------
+// A finished job's first picture becomes its session's current picture.
+
+const AWAIT_MS = 60_000;
+const awaiting = new Map<string, { sessionId: string; at: number }>();
+
+function applyPick(sessionId: string, p: LandedPick): void {
+  const pk = pickOf(sessionId);
+  if (p.kind === 'entry') { pk.entryId = p.key; pk.runKey = null; } else pk.runKey = p.key;
+  if (sessionId !== useSessions.getState().currentId) return;
+  reverting = true;
+  try {
+    if (p.kind === 'entry') {
+      const e = useStore.getState().history.find((h) => h.id === p.key);
+      if (e) useStore.setState({ selectedEntry: e });
+      useStage.setState({ runKey: null });
+    } else useStage.setState({ runKey: p.key });
+  } finally { reverting = false; }
+}
+
+function settle(): void {
+  if (!awaiting.size) return;
+  const now = Date.now();
+  const history = useStore.getState().history;
+  const runs = [useWorkflowRun.getState().results, useVideoRun.getState().results];
+  for (const [id, w] of [...awaiting]) {
+    const p = landedPick(id, history, runs);
+    if (p) { awaiting.delete(id); applyPick(w.sessionId, p); }
+    else if (now - w.at > AWAIT_MS) awaiting.delete(id);
+  }
+}
+
+function noteEnded(ids: readonly string[]): void {
+  if (!ids.length) return;
+  const cur = useSessions.getState().currentId;
+  for (const id of ids) awaiting.set(id, { sessionId: jobOwner(id)?.sessionId ?? cur, at: Date.now() });
+  settle();
+}
+
+useStore.subscribe((st, prev) => {
+  if (st.jobs !== prev.jobs) noteEnded(endedJobs(prev.jobs.map((j) => j.id), st.jobs.map((j) => j.id)));
+  if (st.history !== prev.history) settle();
+});
+for (const run of [useWorkflowRun, useVideoRun]) {
+  run.subscribe((st, prev) => {
+    if (st.jobs !== prev.jobs) noteEnded(endedJobs(prev.jobs.map((j) => j.promptId), st.jobs.map((j) => j.promptId)));
+    if (st.results !== prev.results) settle();
+  });
+}
