@@ -1,0 +1,2 @@
+/* Item 37: the prompt studio's idea box placeholder colour. */
+.il-wi-idea::placeholder { color: var(--il-dim); }

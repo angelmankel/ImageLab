@@ -16,6 +16,7 @@ import { Button, Chip, CollapseHeader, useSectionOpen } from '~/ui';
 import { useIsPhone } from '~/app/useIsPhone';
 import { usePromptText } from './usePromptText';
 import { WriteItModal } from './WriteItModal';
+import { GenerateSnippetsHost } from './writeIt/GenerateSnippets';
 import { StartersModal } from './starters/StartersModal';
 import { PromptCard } from './prompt/PromptCard';
 import { TileGrid } from './prompt/TileGrid';
@@ -107,6 +108,7 @@ export function PromptTab({ large = false }: { large?: boolean }) {
         ? <NegativePills tiles={tiles} on={negOn} onToggle={toggle} />
         : <TileGrid tiles={tiles} on={posOn} typed={typed} onToggle={toggle} flow onlyOn={onOnly} />)}
       <WriteItModal opened={writing} onClose={() => setWriting(false)} />
+      <GenerateSnippetsHost />
       <StartersModal opened={starters} onClose={() => setStarters(false)} />
       <SnippetHost />
     </>
