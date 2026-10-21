@@ -118,7 +118,7 @@ export function ModelViewer() {
             <Picture image={image} hidden={!!image && isHidden(image)} onReveal={reveal} loading={gallery.loading} empty={empty} onOpen={() => openFull(index)} edges={false} canPrev={canPrev} canNext={canNext} onPrev={prev} onNext={next} />
           </div>
           {strip}
-          <MetaColumn data={data} onVersion={setVersion} phone onClose={close} style={{ overflow: 'visible' }} />
+          <MetaColumn data={data} onVersion={setVersion} phone onClose={close} onOpen={() => openFull(index)} style={{ overflow: 'visible' }} />
         </div>
         <BackPill onClick={close} />
       </div>
@@ -132,7 +132,7 @@ export function ModelViewer() {
         <Picture image={image} hidden={!!image && isHidden(image)} onReveal={reveal} loading={gallery.loading} empty={empty} onOpen={() => openFull(index)} edges canPrev={canPrev} canNext={canNext} onPrev={prev} onNext={next} />
         {strip}
       </div>
-      <MetaColumn data={data} onVersion={setVersion} phone={false} onClose={close} scrollRef={keepMeta} style={{ minHeight: 0, overflowY: 'auto', borderLeft: '1px solid var(--il-line)' }} />
+      <MetaColumn data={data} onVersion={setVersion} phone={false} onClose={close} onOpen={() => openFull(index)} scrollRef={keepMeta} style={{ minHeight: 0, overflowY: 'auto', borderLeft: '1px solid var(--il-line)' }} />
     </div>
   );
 }
