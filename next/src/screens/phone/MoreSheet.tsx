@@ -1,6 +1,6 @@
 /**
  * The dock's "More" (rule 11): a bottom sheet with the places that do not generate — Models ·
- * ComfyUI · Settings — and the session: its name (tap to rename in place) and All sessions → Home. Each place opens full screen with its own Back pill.
+ * ComfyUI · Settings — and the session: its name (tap to rename in place), Undo / Redo (list 2 #12) and All sessions → Home. Each place opens full screen with its own Back pill.
  */
 import type { ReactNode } from 'react';
 import { Drawer } from '@mantine/core';
@@ -9,6 +9,7 @@ import { useRoute, type Screen } from '~/app/routeStore';
 import { T } from '~/theme/tokens';
 import { usePhone } from './phoneStore';
 import { SessionTitle } from '~/screens/image/SessionTitle';
+import { UndoButtons } from '~/screens/image/topbar/UndoButtons';
 
 const PLACES: Array<{ key: Screen; label: string; hint: string; icon: ReactNode }> = [
   { key: 'models', label: 'Models', hint: 'Browse and download from CivitAI', icon: <IconCube size={20} stroke={2.1} /> },
@@ -55,6 +56,7 @@ export function MoreSheet() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, minHeight: 48, padding: '0 6px 0 12px', borderRadius: T.radius.lg, background: 'var(--il-elev)', marginBottom: 14 }}>
         <IconFolder size={16} color="var(--il-muted)" style={{ flex: 'none' }} />
         <span style={{ flex: 1, minWidth: 0 }}><SessionTitle size={14} /></span>
+        <UndoButtons size={40} />
         <button type="button" onClick={() => to('home')}
           style={{ height: 40, padding: '0 10px', border: 0, background: 'transparent', color: 'var(--il-ember)', fontSize: 12, fontWeight: 800, cursor: 'pointer', flex: 'none', whiteSpace: 'nowrap' }}>
           All sessions ›

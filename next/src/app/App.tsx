@@ -22,12 +22,14 @@ import { UiEffects } from '~/ui/UiEffects';
 import './sessionMenus'; // boots the sessions store (fix list 20 / 36) + its right-click entries
 import { useFullscreenHotkey } from './fullscreen';
 import { useLogoFavicon } from './logo';
+import { useUndoHotkeys } from './undo';
 
 export function App() {
   const phone = useIsPhone();
   useCreditNewResults();
   useFullscreenHotkey();
   useLogoFavicon();
+  useUndoHotkeys();
   return (
     <ErrorBoundary label="ImageLab">
       {phone ? <PhoneShell /> : <DesktopShell />}

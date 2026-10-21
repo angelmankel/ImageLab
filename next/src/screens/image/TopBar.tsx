@@ -1,5 +1,5 @@
 /**
- * The top nav (fix list 36 / 19): ← Home · logo + wordmark (also → Home) · | · the session tab
+ * The top nav (fix list 36 / 19): ← Home · logo + wordmark (also → Home) · Undo / Redo (list 2 #12) · | · the session tab
  * strip (fills the width) · | · server chip ("This pod · B200") · "Jobs 2" · "↓ 1 · 37%" · mute ·
  * fullscreen far right. The clock and the keyboard shortcuts live in the footer (`Footer.tsx`). The
  * queue is split in two (item 14, `queue/QueueButtons`): the job queue and the download queue. No session component here: the session's name is the left
@@ -16,6 +16,7 @@ import { MuteToggle } from '~/ui/MuteToggle';
 import './topbar/shell.css';
 import { SessionTabs } from './topbar/SessionTabs';
 import { LogoMark, LogoWordmark } from '~/app/logo';
+import { UndoButtons } from './topbar/UndoButtons';
 
 /** The tall hairline that frames the tab strip (fix list 36: after the logo, before the right-side items). */
 function Divider() {
@@ -43,6 +44,7 @@ export function TopBar() {
         <Logo size={30} />
         <Wordmark />
       </button>
+      <UndoButtons />
       <Divider />
       <SessionTabs />
       <Divider />
