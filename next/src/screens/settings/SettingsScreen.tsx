@@ -9,7 +9,7 @@
  *   │ …                  │ searching: hits under category names │
  *   └────────────────────┴──────────────────────────────────────┘
  *
- * The pane scrolls on its own (max 760 wide, centred). The open category is remembered
+ * The pane scrolls on its own (max 760 wide, centred; Themes and Sounds 1100 for the theme grid and the mixer). The open category is remembered
  * (settingsStore); Esc clears the search, Ctrl/⌘+F or "/" focuses it (useSettingsKeys). An AI
  * provider's page (`#/settings/ai/<id>`, ai/useOpenProvider) replaces the AI helper pane.
  */
@@ -46,7 +46,7 @@ export function SettingsScreen() {
         <CategoryList />
       </aside>
       <div className="il-scroll" style={{ flex: 1, minWidth: 0, minHeight: 0, overflowY: 'auto', touchAction: 'pan-y' }}>
-        <div style={{ maxWidth: !searching && category === 'themes' ? 1100 : 760, margin: '0 auto', padding: '18px 24px 48px', boxSizing: 'border-box' }}>
+        <div style={{ maxWidth: !searching && (category === 'themes' || category === 'sounds') ? 1100 : 760, margin: '0 auto', padding: '18px 24px 48px', boxSizing: 'border-box' }}>
           {searching
             ? <SearchResults onOpen={(c) => { setCategory(c); setQuery(''); }} />
             : category === 'ai' && provider

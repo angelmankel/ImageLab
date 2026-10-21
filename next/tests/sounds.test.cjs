@@ -36,14 +36,18 @@ test('manifest: every file it names is on disk (both formats)', () => {
   }
 });
 
-test('defaults: every action once, every default sound in the pack, volumes in range', () => {
+test('defaults: every action once, theme sound by default, every pack sample in the pack, volumes in range', () => {
   const ids = new Set(pack.sounds.map((s) => s.id));
   assert.equal(new Set(S.ACTION_IDS).size, S.SOUND_ACTIONS.length);
   for (const a of S.SOUND_ACTIONS) {
-    if (a.sound !== null) assert.ok(ids.has(a.sound), `${a.id} → ${a.sound}`);
+    if (a.pack !== null) assert.ok(ids.has(a.pack), `${a.id} → ${a.pack}`);
+    assert.ok(a.sound === S.THEME_SOUND || a.sound === null, a.id);
     assert.ok(a.volume > 0 && a.volume <= 1, a.id);
-    assert.ok(a.label && a.hint, a.id);
+    assert.ok(a.packVolume > 0 && a.packVolume <= 1, a.id);
+    assert.ok(a.label && a.hint && a.short && a.short.length <= 8, a.id);
   }
+  assert.equal(S.DEFAULT_THEME, 'soft', 'a synth theme is the default');
+  assert.equal(S.actionDef('click').sound, S.THEME_SOUND);
   assert.equal(S.actionDef('hover').sound, null, 'hover is off by default');
   const d = S.defaultPicks();
   for (const a of S.SOUND_ACTIONS) assert.deepEqual(d[a.id], { sound: a.sound, volume: a.volume });
@@ -130,4 +134,58 @@ test('groupSounds: folders in order, every word must match', () => {
   const sci = S.groupSounds(pack.sounds, pack.folders, 'sci-fi click');
   assert.ok(sci.length >= 1 && sci.every((g) => g.sounds.every((s) => s.id.includes('sci_fi') && s.id.includes('click'))));
   assert.deepEqual(S.groupSounds(pack.sounds, pack.folders, 'zzzz'), []);
+});
+
+test('themes and resolveSound: theme sound, synth ids, pack ids, none', () => {
+  assert.deepEqual(S.SOUND_THEMES.map((t) => t.id), ['soft', 'glass', 'pop', 'pack']);
+  assert.ok(S.isThemeId('glass') && !S.isThemeId('nope'));
+  assert.deepEqual(S.resolveSound('click', S.THEME_SOUND, 'glass'), { kind: 'synth', theme: 'glass', action: 'click' });
+  assert.deepEqual(S.resolveSound('click', S.THEME_SOUND, 'pack'), { kind: 'pack', id: S.actionDef('click').pack });
+  assert.equal(S.resolveSound('hover', S.THEME_SOUND, 'pack'), null, 'the pack has no hover');
+  assert.deepEqual(S.resolveSound('click', S.synthId('pop', 'done'), 'soft'), { kind: 'synth', theme: 'pop', action: 'done' });
+  assert.deepEqual(S.resolveSound('click', 'basic/checkbox_tick_01', 'soft'), { kind: 'pack', id: 'basic/checkbox_tick_01' });
+  assert.equal(S.resolveSound('click', null, 'soft'), null);
+  assert.equal(S.resolveSound('click', 'synth:nope/click', 'soft'), null);
+  assert.equal(S.parseSynthId('synth:glass/allDone').action, 'allDone');
+  assert.equal(S.parseSynthId('synth:glass/bogus'), null);
+  assert.equal(S.parseSynthId('basic/x'), null);
+});
+
+test('mergePicks keeps theme / synth picks, drops bad ones', () => {
+  const m = S.mergePicks({ click: { sound: S.synthId('glass', 'tab'), volume: 0.4 }, tab: { sound: 'synth:zzz/tab' }, copy: { sound: '@weird' }, done: { sound: S.THEME_SOUND } });
+  assert.equal(m.click.sound, 'synth:glass/tab');
+  assert.equal(m.tab.sound, S.actionDef('tab').sound);
+  assert.equal(m.copy.sound, S.actionDef('copy').sound);
+  assert.equal(m.done.sound, S.THEME_SOUND);
+});
+
+test('migratePicksV1: pack defaults follow the theme, hand picks stay', () => {
+  const click = S.actionDef('click');
+  const old = {
+    click: { sound: click.pack, volume: click.packVolume },
+    done: { sound: S.actionDef('done').pack, volume: 0.33 },
+    tab: { sound: 'basic/button_click_03', volume: 0.6 },
+    hover: { sound: null, volume: 0.3 },
+    error: { sound: null, volume: 0.75 },
+  };
+  const m = S.mergePicks(S.migratePicksV1(old));
+  assert.deepEqual(m.click, { sound: S.THEME_SOUND, volume: click.volume }, 'default sample + default volume → new defaults');
+  assert.deepEqual(m.done, { sound: S.THEME_SOUND, volume: 0.33 }, 'a volume set by hand stays');
+  assert.deepEqual(m.tab, { sound: 'basic/button_click_03', volume: 0.6 }, 'a sample picked by hand stays');
+  assert.equal(m.hover.sound, null);
+  assert.equal(m.hover.volume, S.actionDef('hover').volume, 'hover null was its default');
+  assert.equal(m.error.sound, null, 'silenced by hand stays silent');
+  assert.equal(S.migratePicksV1(null), null);
+});
+
+test('labels for theme / synth ids, percent box parsing', () => {
+  assert.equal(S.labelOfId(S.THEME_SOUND), 'Theme');
+  assert.equal(S.labelOfId(S.synthId('glass', 'done')), 'Glass · Job done');
+  assert.equal(S.parsePercent('70'), 0.7);
+  assert.equal(S.parsePercent(' 35 % '), 0.35);
+  assert.equal(S.parsePercent('150'), 1);
+  assert.equal(S.parsePercent('-4'), 0);
+  assert.equal(S.parsePercent('12.6'), 0.13);
+  assert.equal(S.parsePercent('abc'), null);
+  assert.equal(S.parsePercent('  '), null, 'an emptied box changes nothing');
 });

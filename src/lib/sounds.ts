@@ -1,9 +1,9 @@
 /**
  * App sounds: the shared switchboard (mute, master volume, `playSound`).
  *
- * The next UI registers a sample player (`setSoundPlayer`, next/src/app/sounds: Donny's UI sound
- * pack, one sound + volume per action, FIXLIST-2 "New UI sounds"); while one is registered every
- * `playSound` goes to it. Without one (the classic app) the old synthesised tones below play.
+ * The next UI registers its player (`setSoundPlayer`, next/src/app/sounds: sounds synthesised live
+ * in a theme — Soft / Glass / Pop — or Donny's sample pack, one sound + volume per action); while
+ * one is registered every `playSound` goes to it. Without one (the classic app) the old synthesised tones below play.
  *
  * Carried over from v1: a short rising blip when a job is queued (`playSubmitSound`) and a soft
  * two-note chime when its image lands (`playCompleteSound`). The next UI (item 44) adds small UI

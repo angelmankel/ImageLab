@@ -5,7 +5,8 @@
  *     onto a new control, a press (`pressAction`: delete / copy / favourite by the control's name,
  *     toggle on / off for switches, checkboxes and pressed-state buttons, tab, else click).
  *     `data-sound="<action>|none"` picks one; `data-no-sound` on an element (or an ancestor) opts
- *     it out. The sounds themselves are Donny's pack (`~/app/sounds`, installed here);
+ *     it out. The sounds themselves are synthesised live in the chosen theme, or Donny's pack
+ *     (`~/app/sounds`, installed here);
  *   - a toast sounds by its colour: red = error, yellow / orange = warning, green / teal = success;
  *   - the sounds nobody calls (all done, download done, window open / close, drops): `soundWatchers`;
  *   - native `title` tooltips are drawn as ours, never two at once (TitleTips, FIXLIST-2 item 20).

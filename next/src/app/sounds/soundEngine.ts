@@ -1,18 +1,26 @@
 /**
- * The sample player behind every UI sound in the next UI (FIXLIST-2 "New UI sounds"). Web Audio
- * for low latency: one AudioContext (made on the first play, after a user gesture), each sound
- * fetched + decoded once on first use (or prefetched when the page is idle) and kept as an
- * AudioBuffer. Nothing here ever blocks the UI or throws: a sound that is not ready within a
- * moment is skipped, a file that fails is remembered as silent.
+ * The player behind every UI sound in the next UI (FIXLIST-2 "New UI sounds" + "synth sounds").
+ * An action's pick resolves (`resolveSound`) to a SYNTH sound — built live by synthEngine.ts —
+ * or a PACK sample (Web Audio buffer, fetched + decoded once, or prefetched on idle). Both go
+ * through synthEngine's one context and master chain. Nothing here ever blocks the UI or
+ * throws: a sample that is not ready within a moment is skipped, a file that fails is silent.
  *
- * Format: Ogg Opus when the browser says it can play it, else MP3 (older Safari / iOS have no Ogg
- * Opus); a decode failure of an .ogg switches the page to MP3 and retries once.
+ * When it plays: mute, master and action volume, the motion rule (`playGain`); while the page is
+ * hidden, never on a phone / tablet, and on a desktop only the report sounds (job done…).
+ * Sample format: Ogg Opus when the browser can play it, else MP3.
  */
-import { setSoundPlayer, useSoundStore, type SoundKind } from '@/lib/sounds';
+import { setSoundPlayer, soundGestured, useSoundStore, type SoundKind } from '@/lib/sounds';
 import { useTheme } from '~/theme/themeStore';
 import { SOUND_BASE } from './soundConfig';
-import { actionOfKind, MAX_GAIN, playGain, soundUrl, type SoundAction } from './soundActions';
+import {
+  actionDef, actionOfKind, MAX_GAIN, playGain, resolveSound, soundUrl, THEME_SOUND,
+  type ResolvedSound, type SoundAction, type SoundThemeId, type SynthThemeId,
+} from './soundActions';
 import { useSoundPicks } from './soundStore';
+import { audio, calibrateTheme, isTouchDevice, output, playSynth, voiceEnded, voiceStarted, warmAudio } from './synthEngine';
+import { buildPatch } from './synthThemes';
+import { patchLength } from './synthPatch';
+import { loadSoundPack } from './soundPack';
 
 type Ext = 'ogg' | 'mp3';
 let ext: Ext | null = null;
@@ -25,23 +33,9 @@ function format(): Ext {
   return ext;
 }
 
-let ctx: AudioContext | null = null;
-function context(): AudioContext | null {
-  try {
-    if (!ctx) {
-      const AC = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-      if (!AC) return null;
-      ctx = new AC({ latencyHint: 'interactive' });
-    }
-    if (ctx.state === 'suspended') void ctx.resume().catch(() => {});
-    return ctx;
-  } catch { return null; }
-}
-
 /** A decoder that needs no user gesture (prefetch before the first click). */
 let offline: OfflineAudioContext | null = null;
 function decoder(): BaseAudioContext | null {
-  if (ctx) return ctx;
   try {
     if (!offline) offline = new OfflineAudioContext(1, 1, 48000);
     return offline;
@@ -64,7 +58,7 @@ async function fetchDecode(id: string, e: Ext): Promise<AudioBuffer> {
   });
 }
 
-/** The decoded sound (cached), or null when it cannot load. */
+/** The decoded sample (cached), or null when it cannot load. */
 export function loadSound(id: string): Promise<AudioBuffer | null> {
   let p = buffers.get(id);
   if (!p) {
@@ -82,45 +76,54 @@ export function loadSound(id: string): Promise<AudioBuffer | null> {
   return p;
 }
 
-let voices = 0;
-const MAX_VOICES = 8;
-const lastStart = new Map<SoundAction, { at: number; src: AudioBufferSourceNode; gain: GainNode }>();
+/** The last play of each action, so a bigger sound can fade it ("all done" replaces "done"). */
+const lastStart = new Map<SoundAction, { at: number; stop: (t: number) => void }>();
 
-function start(buf: AudioBuffer, gain: number, action?: SoundAction) {
-  const c = context();
-  if (!c || voices >= MAX_VOICES) return;
+function startSample(buf: AudioBuffer, gain: number, action?: SoundAction) {
+  const c = audio();
+  const out = output();
+  if (!c || !out || !voiceStarted()) return;
   const src = c.createBufferSource();
   src.buffer = buf;
   const g = c.createGain();
   g.gain.value = Math.min(MAX_GAIN, gain);
   src.connect(g);
-  g.connect(c.destination);
-  voices++;
-  src.onended = () => { voices--; try { src.disconnect(); g.disconnect(); } catch { /* gone */ } };
+  g.connect(out);
+  src.onended = () => { voiceEnded(); try { src.disconnect(); g.disconnect(); } catch { /* gone */ } };
   src.start();
-  if (action) lastStart.set(action, { at: performance.now(), src, gain: g });
+  if (action) {
+    lastStart.set(action, {
+      at: performance.now(),
+      stop: (t) => { try { g.gain.setTargetAtTime(0, t, 0.02); src.stop(t + 0.12); } catch { /* stopped */ } },
+    });
+  }
 }
 
-/** Play a sound id at a gain now; if it is still loading, play it only if it arrives within `waitMs`. */
+/** Play a sample id at a gain now; if it is still loading, play it only if it arrives within `waitMs`. */
 export function playId(id: string, gain: number, action?: SoundAction, waitMs = 250) {
   if (gain <= 0) return;
-  context();
+  audio();
   const buf = ready.get(id);
-  if (buf) { start(buf, gain, action); return; }
+  if (buf) { startSample(buf, gain, action); return; }
   if (buf === null) return;
   const asked = performance.now();
-  void loadSound(id).then((b) => { if (b && performance.now() - asked <= waitMs) start(b, gain, action); });
+  void loadSound(id).then((b) => { if (b && performance.now() - asked <= waitMs) startSample(b, gain, action); });
+}
+
+/** Play whatever a pick resolved to. */
+export function playResolved(r: ResolvedSound, gain: number, action?: SoundAction, waitMs?: number) {
+  if (!r || gain <= 0) return;
+  if (r.kind === 'pack') { playId(r.id, gain, action, waitMs); return; }
+  const v = playSynth(r.theme, r.action, gain);
+  if (v && action) lastStart.set(action, { at: performance.now(), stop: (t) => v.stop(t) });
 }
 
 /** Fade out an action's sound if it started within `ms` (a later, bigger sound replaces it). */
 export function cutRecent(action: SoundAction, ms: number) {
   const v = lastStart.get(action);
-  const c = ctx;
+  const c = audio();
   if (!v || !c || performance.now() - v.at > ms) return;
-  try {
-    v.gain.gain.setTargetAtTime(0, c.currentTime, 0.02);
-    v.src.stop(c.currentTime + 0.12);
-  } catch { /* already stopped */ }
+  v.stop(c.currentTime);
 }
 
 function reducedMotion(): boolean {
@@ -138,13 +141,21 @@ export function actionGain(action: SoundAction): number {
   });
 }
 
+/** Hidden page: nothing on a phone / tablet; on a desktop only the report sounds (a job landed…). */
+function hiddenBlocks(action: SoundAction): boolean {
+  try {
+    if (document.visibilityState !== 'hidden') return false;
+  } catch { return false; }
+  return isTouchDevice() || actionDef(action)?.ui !== false;
+}
+
 /** Per action: when it last played (hover / click / tab are rate-limited to one per 35 ms). */
 const lastPlay = new Map<SoundAction, number>();
 /** "All done" is armed by the jobs watcher for a moment; the next "done" becomes it. */
 let allDoneArmed = 0;
 export function armAllDone() { allDoneArmed = performance.now(); }
 
-/** Play an action with its picked sound and volume. */
+/** Play an action with its pick (theme sound, synth sound or sample) and volume. */
 export function playAction(action: SoundAction) {
   const now = performance.now();
   if (action === 'hover' || action === 'click' || action === 'tab') {
@@ -156,24 +167,51 @@ export function playAction(action: SoundAction) {
     action = 'allDone';
   }
   if (action === 'allDone') { allDoneArmed = 0; cutRecent('done', 600); }
-  const sound = useSoundPicks.getState().picks[action]?.sound;
-  if (!sound) return;
-  playId(sound, actionGain(action), action);
+  if (hiddenBlocks(action)) return;
+  const { theme, picks } = useSoundPicks.getState();
+  const r = resolveSound(action, picks[action]?.sound, theme);
+  if (!r) return;
+  playResolved(r, actionGain(action), action);
 }
 
-/** Settings ▶: one sound at an action's volume (or the action's own pick), obeying mute only. */
-export function previewSound(id: string, volume: number) {
+/** Settings ▶: a pick (theme / synth / sample) at a volume, obeying mute and master only. */
+export function previewPick(action: SoundAction, sound: string | null, volume: number, theme = useSoundPicks.getState().theme) {
+  const r = resolveSound(action, sound, theme);
+  if (!r) return;
   const { muted, volume: master } = useSoundStore.getState();
-  const gain = playGain({ master, volume, muted, sound: id });
-  context();
+  const gain = playGain({ master, volume, muted, sound: sound ?? null });
+  warmAudio();
   // A preview may wait for the download: the user asked for it.
-  playId(id, gain, undefined, 4000);
+  playResolved(r, gain, undefined, 4000);
 }
 
-/** Decode the picked sounds when the page is idle, so the first click is instant. */
+/** Settings ▶ on a pack sample by id. */
+export function previewSound(id: string, volume: number) {
+  previewPick('click', id, volume);
+}
+
+/** How long a resolved sound lasts, ms (pack: the manifest's duration when loaded). */
+export function soundLengthMs(r: ResolvedSound): number {
+  if (!r) return 0;
+  if (r.kind === 'synth') return patchLength(buildPatch(r.theme, r.action));
+  const s = packDurations.get(r.id);
+  return s ? s * 1000 : 800;
+}
+const packDurations = new Map<string, number>();
+
+/** The theme's sound for an action (Play all, the mixer's ▶). */
+export function themeSound(action: SoundAction, theme: SoundThemeId): ResolvedSound {
+  return resolveSound(action, THEME_SOUND, theme);
+}
+
+/** Decode the picked samples when the page is idle, so the first use is instant. */
 export function prefetchPicked() {
+  const { theme, picks } = useSoundPicks.getState();
   const ids = new Set<string>();
-  for (const p of Object.values(useSoundPicks.getState().picks)) if (p.sound) ids.add(p.sound);
+  for (const [a, p] of Object.entries(picks)) {
+    const r = resolveSound(a as SoundAction, p.sound, theme);
+    if (r?.kind === 'pack') ids.add(r.id);
+  }
   const list = [...ids];
   const step = () => {
     const id = list.shift();
@@ -183,13 +221,20 @@ export function prefetchPicked() {
   idle(step);
 }
 
+/** The pack's durations for Play all (manifest chunk, loaded on demand). */
+export function loadPackDurations() {
+  void loadSoundPack().then((p) => { if (p) for (const s of p.sounds) packDurations.set(s.id, s.duration); });
+}
+
 function idle(fn: () => void) {
   const ric = (window as unknown as { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }).requestIdleCallback;
   if (ric) ric(fn, { timeout: 3000 }); else window.setTimeout(fn, 200);
 }
 
+const synthThemeOf = (t: SoundThemeId): SynthThemeId | undefined => (t === 'pack' ? undefined : t);
+
 let installed = false;
-/** Route every `playSound` (shared code, classic callers) to the sample player. Once, in App. */
+/** Route every `playSound` (shared code, classic callers) here. Once, in App (UiEffects). */
 export function installSoundEngine() {
   if (installed || typeof window === 'undefined') return;
   installed = true;
@@ -197,10 +242,18 @@ export function installSoundEngine() {
     const action = actionOfKind(kind, opts.on);
     if (action) playAction(action);
   });
+  // Make + resume the context inside the first gesture, so the first sound starts at once.
+  const warm = () => warmAudio(synthThemeOf(useSoundPicks.getState().theme));
+  if (soundGestured()) warm();
+  else {
+    window.addEventListener('pointerdown', warm, { capture: true, once: true });
+    window.addEventListener('keydown', warm, { capture: true, once: true });
+  }
   window.setTimeout(prefetchPicked, 1500);
-  // A newly picked sound: fetch it now, so its first use is instant.
+  // A new theme or pick: measure / fetch it now, so its first use is instant.
   useSoundPicks.subscribe((s, prev) => {
-    if (s.picks === prev.picks) return;
-    for (const p of Object.values(s.picks)) if (p.sound) void loadSound(p.sound);
+    if (s.theme !== prev.theme) { const t = synthThemeOf(s.theme); if (t) calibrateTheme(t); }
+    if (s.picks === prev.picks && s.theme === prev.theme) return;
+    prefetchPicked();
   });
 }
