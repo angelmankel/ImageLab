@@ -26,6 +26,7 @@ import { useShortcut, ShortcutPriority } from '@/hooks/useShortcut';
 import { HistoryViewer } from '~/screens/viewer/HistoryViewer';
 import { ImageViewer } from '~/screens/viewer/ImageViewer';
 import type { Step } from '~/app/stepsStore';
+import type { ZoomControls } from '~/canvas/gpu/zoomControls';
 import { useStageMedia } from './useStageMedia';
 import { useStageZoom } from './useStageZoom';
 import { transformOf } from './stageZoom';
@@ -45,8 +46,8 @@ import { canvasTarget } from './canvasMenu';
 import { FrameImage } from './frame/FrameImage';
 import { useStageEdit } from '~/canvas/edit/useStageEdit';
 
-/** Item 13: the GPU edit canvas (PixiJS) loads on first use. */
-const EditCanvas = lazy(() => import('~/canvas/edit/EditCanvas').then((m) => ({ default: m.EditCanvas })));
+/** Item 13: the GPU canvas (PixiJS) is its own chunk; the DOM picture shows until it is in. */
+const GpuStage = lazy(() => import('~/canvas/GpuStage').then((m) => ({ default: m.GpuStage })));
 
 export function StageColumn({ step, phone = false }: { step: Step; phone?: boolean }) {
   const media = useStageMedia(step);
@@ -80,6 +81,9 @@ export function StageColumn({ step, phone = false }: { step: Step; phone?: boole
   /** Item 13: Edit mode (E / the toolbar's Edit) swaps the picture for the GPU edit canvas. */
   const edit = useStageEdit(media, () => !phone && noOverlay());
   const editing = edit.editing && !player;
+  /** The GPU canvas's zoom controls while it shows (else the DOM stage's). */
+  const [gpuZoom, setGpuZoom] = useState<ZoomControls | null>(null);
+  const zoomNow: ZoomControls = gpuZoom ?? zoom;
   const pageKeys = () => noOverlay() && !isVideo;
   // Fix list 2, item 1: the same direction as the history grid and the viewer — ← newer, → older (the list is newest first).
   useShortcut('ArrowLeft', () => media.pick(media.index - 1), { priority: ShortcutPriority.Panel + 10, when: pageKeys });
@@ -94,12 +98,30 @@ export function StageColumn({ step, phone = false }: { step: Step; phone?: boole
 
   useShortcut('Escape', () => useStage.getState().setCompare(false), { priority: ShortcutPriority.Panel + 10, when: () => comparing && noOverlay() });
 
+  const emptyText = (
+    <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', textAlign: 'center', color: 'var(--il-muted)', fontSize: 13, fontWeight: 600, padding: 24, pointerEvents: 'none' }}>
+      {media.busy ? (media.statusLine ?? 'Working…') : 'No image yet — press Generate.'}
+    </div>
+  );
+  /** The DOM picture: while the GPU chunk loads, and where WebGL cannot show a picture. */
+  const domPicture = shown ? (
+    <FrameImage src={shown} fade={!!media.live} imgProps={{ ...(media.live ? { draggable: false } : drag), 'data-viewer-origin': media.entry?.id }}
+      layerStyle={(u) => (!media.live && u === media.item?.url && mayHaveAlpha(media.item?.filename) ? CHECKER : undefined)}
+      imgStyle={{ transform: transformOf(zoom.state), transformOrigin: 'center', transition: zoom.state.zoom === 1 ? 'transform .15s' : undefined, willChange: 'transform' }} />
+  ) : null;
+  const domStage = (
+    <div ref={ref} {...zoom.handlers} {...(media.item && !media.live ? menuProps('canvas-image', canvasTarget(media, zoom, open)) : {})} aria-label="Stage"
+      style={{ flex: 1, alignSelf: 'stretch', minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--il-bg-deep)', overflow: 'hidden', touchAction: shown ? 'none' : 'auto', cursor: zoom.state.zoom > 1 ? 'grab' : shown ? 'zoom-in' : 'default', position: 'relative', userSelect: 'none' }}>
+      {liveFrames.length ? <LiveGrid frames={liveFrames} /> : domPicture ?? emptyText}
+    </div>
+  );
+
   const pct = media.progress != null ? Math.max(2, Math.round(media.progress * 100)) : null;
 
   return (
     <main style={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
       <div style={{ position: 'relative', flex: 'none' }}>
-        <Toolbar step={step} media={media} zoom={edit.gpuZoom ?? zoom} onFullscreen={open} canFullscreen={canOpen} phone={phone} />
+        <Toolbar step={step} media={media} zoom={zoomNow} onFullscreen={open} canFullscreen={canOpen} phone={phone} />
         {media.busy && (
           <div aria-hidden style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 2, background: 'var(--il-line)', overflow: 'hidden' }}>
             {pct != null ? <div style={{ height: '100%', width: `${pct}%`, background: 'var(--il-ember)', transition: 'width .2s' }} /> : <div className="il-sweep" style={{ height: '100%', width: '33%', background: 'linear-gradient(90deg, transparent, var(--il-ember), transparent)' }} />}
@@ -107,9 +129,7 @@ export function StageColumn({ step, phone = false }: { step: Step; phone?: boole
         )}
       </div>
       <JobRow />
-      {editing ? (
-        <Suspense fallback={<div style={{ flex: 1, background: 'var(--il-bg-deep)' }} />}><EditCanvas onZoom={edit.setGpuZoom} /></Suspense>
-      ) : player ? (
+      {player && !editing ? (
         <StagePlayer
           src={isVideo ? media.item!.url : null}
           name={isVideo ? media.item!.filename : null}
@@ -123,26 +143,20 @@ export function StageColumn({ step, phone = false }: { step: Step; phone?: boole
           keysWhen={noOverlay}
           phone={phone}
         />
-      ) : comparing ? (
+      ) : comparing && !editing ? (
         <CompareView items={media.items} shown={media.index} other={other} />
       ) : (
-      <div ref={ref} {...zoom.handlers} {...(media.item && !media.live ? menuProps('canvas-image', canvasTarget(media, zoom, open)) : {})} aria-label="Stage"
-        style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--il-bg-deep)', overflow: 'hidden', touchAction: shown ? 'none' : 'auto', cursor: zoom.state.zoom > 1 ? 'grab' : shown ? 'zoom-in' : 'default', position: 'relative', userSelect: 'none' }}>
-        {liveFrames.length ? (
-          <LiveGrid frames={liveFrames} />
-        ) : shown ? (
-          <FrameImage src={shown} fade={!!media.live} imgProps={{ ...(media.live ? { draggable: false } : drag), 'data-viewer-origin': media.entry?.id }}
-            layerStyle={(u) => (!media.live && u === media.item?.url && mayHaveAlpha(media.item?.filename) ? CHECKER : undefined)}
-            imgStyle={{ transform: transformOf(zoom.state), transformOrigin: 'center', transition: zoom.state.zoom === 1 ? 'transform .15s' : undefined, willChange: 'transform' }} />
-        ) : (
-          <div style={{ textAlign: 'center', color: 'var(--il-muted)', fontSize: 13, fontWeight: 600, padding: 24 }}>
-            {media.busy ? (media.statusLine ?? 'Working…') : 'No image yet — press Generate.'}
-          </div>
-        )}
-        {media.busy && shown && media.statusLine && (
-          <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 0 }} aria-live="polite" aria-label={media.statusLine} />
-        )}
-      </div>
+        <Suspense fallback={domStage}>
+          <GpuStage editing={editing} onZoom={setGpuZoom} fallback={domStage}
+            view={{ src: liveFrames.length ? null : shown, fade: !!media.live, itemKey: media.live ? null : media.item?.key ?? null,
+              checker: !media.live && mayHaveAlpha(media.item?.filename), onTap: open, dragProps: drag, originId: media.entry?.id,
+              menu: media.item && !media.live ? menuProps('canvas-image', canvasTarget(media, zoomNow, open)) : undefined }}>
+            {liveFrames.length ? <LiveGrid frames={liveFrames} /> : !shown && emptyText}
+            {media.busy && shown && media.statusLine && (
+              <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 0 }} aria-live="polite" aria-label={media.statusLine} />
+            )}
+          </GpuStage>
+        </Suspense>
       )}
       {viewerOpen && media.source === 'image' && (history.length > 0 || !!media.live) && (
         <HistoryViewer onClose={closeViewer} showLive={openedLive} />

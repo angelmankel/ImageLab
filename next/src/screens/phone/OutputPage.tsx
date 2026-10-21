@@ -10,7 +10,9 @@
  * desktop stage uses, item 30: `HistoryViewer`); video / workflow steps read their run store and open `ImageViewer`.
  */
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { IconChevronRight, IconDownload, IconMaximize, IconStar, IconStarFilled, IconTrash } from '@tabler/icons-react';
+import { IconChevronRight, IconDownload, IconMaximize, IconPencil, IconStar, IconStarFilled, IconTrash } from '@tabler/icons-react';
+import { enterEdit } from '~/canvas/edit/editStore';
+import { PhoneEdit } from '~/canvas/edit/PhoneEdit';
 import { HistoryViewer } from '~/screens/viewer/HistoryViewer';
 import { ImageViewer } from '~/screens/viewer/ImageViewer';
 import { useLiveFrame } from '@/features/history/FullscreenViewer';
@@ -91,6 +93,7 @@ function ImageOutput({ step, index }: { step: Step; index: number }) {
       liked={!!current?.liked}
       onLike={current ? () => toggleLiked(current.id) : undefined}
       onDelete={current ? () => deleteImage(current) : undefined}
+      onEdit={item && item.kind === 'image' && !live ? () => enterEdit({ url: item.url, filename: item.filename, entry: current }, false) : undefined}
       viewer={viewerOpen && (history.length > 0 || !!liveFrame) ? (
         <HistoryViewer onClose={closeViewer} showLive={!!live && !item} />
       ) : null}
@@ -159,7 +162,7 @@ function RunOutput({ mode, step, index }: { mode: 'video' | 'workflow'; step: St
 
 // ── Layout ──────────────────────────────────────────────────────────────────
 
-function OutputLayout({ step, index, items, currentKey, onPick, onOpen, live, busy, progress, status, fallbackAspect, caption, current, liked, onLike, onDelete, viewer }: {
+function OutputLayout({ step, index, items, currentKey, onPick, onOpen, live, busy, progress, status, fallbackAspect, caption, current, liked, onLike, onDelete, onEdit, viewer }: {
   step: Step;
   index: number;
   items: readonly ResultItem[];
@@ -176,6 +179,8 @@ function OutputLayout({ step, index, items, currentKey, onPick, onOpen, live, bu
   liked?: boolean;
   onLike?: () => void;
   onDelete?: () => void;
+  /** Item 13: open the picture in Edit mode (`~/canvas/edit/PhoneEdit`). */
+  onEdit?: () => void;
   viewer: ReactNode;
 }) {
   const go = useRoute((s) => s.go);
@@ -213,10 +218,11 @@ function OutputLayout({ step, index, items, currentKey, onPick, onOpen, live, bu
         {caption && (
           <p style={{ margin: `0 ${T.pad.panel}px`, fontSize: 13, color: 'var(--il-fg2)', lineHeight: 1.45, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{caption}</p>
         )}
-        {current && <Actions step={step} current={current} liked={liked} onLike={onLike} onDelete={onDelete} />}
+        {current && <Actions step={step} current={current} liked={liked} onLike={onLike} onDelete={onDelete} onEdit={onEdit} />}
         <div style={{ padding: `0 ${T.pad.panel}px` }}><QueueCard ref={queueRef} /></div>
       </div>
       {viewer}
+      <PhoneEdit />
     </div>
   );
 }
@@ -235,7 +241,7 @@ function ProgressLine({ status, progress }: { status: string | null; progress: n
   );
 }
 
-function Actions({ step, current, liked, onLike, onDelete }: { step: Step; current: ResultItem & { entry?: unknown }; liked?: boolean; onLike?: () => void; onDelete?: () => void }) {
+function Actions({ step, current, liked, onLike, onDelete, onEdit }: { step: Step; current: ResultItem & { entry?: unknown }; liked?: boolean; onLike?: () => void; onDelete?: () => void; onEdit?: () => void }) {
   const steps = useSteps((s) => s.steps);
   const at = steps.findIndex((s) => s.id === step.id);
   const next = at >= 0 ? steps[at + 1] : undefined;
@@ -249,6 +255,11 @@ function Actions({ step, current, liked, onLike, onDelete }: { step: Step; curre
         </button>
       )}
       {!next && <div style={{ flex: 1 }} />}
+      {onEdit && (
+        <button type="button" aria-label="Edit" onClick={onEdit} style={{ ...btn, width: 44 }}>
+          <IconPencil size={18} />
+        </button>
+      )}
       {onLike && (
         <button type="button" aria-label={liked ? 'Unfavourite' : 'Favourite'} aria-pressed={liked} onClick={onLike} style={{ ...btn, width: 44, color: liked ? 'var(--il-ember-hi)' : 'var(--il-fg)' }}>
           {liked ? <IconStarFilled size={18} /> : <IconStar size={18} />}

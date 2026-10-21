@@ -1,13 +1,12 @@
 /**
  * Item 13: the stage's side of Edit mode. E toggles it on the shown picture (images only, not a
  * live frame); while it is on, a new pick in the history moves the session along when nothing is
- * edited yet (`followSource`). Gives the stage the GPU canvas's zoom controls for the toolbar.
+ * edited yet (`followSource`).
  * Leaving the stage (another screen) keeps a session with unsaved edits; a clean one just ends.
  */
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useShortcut, ShortcutPriority } from '@/hooks/useShortcut';
 import type { StageMedia } from '~/screens/image/useStageMedia';
-import type { ZoomControls } from '../gpu/zoomControls';
 import { exitEdit, followSource, isDirty, toggleEdit, useEdit, type EditSource } from './editStore';
 
 export function editSourceOf(media: StageMedia): EditSource | null {
@@ -18,12 +17,11 @@ export function editSourceOf(media: StageMedia): EditSource | null {
 
 export function useStageEdit(media: StageMedia, enabled: () => boolean) {
   const on = useEdit((s) => s.on);
-  const [gpuZoom, setGpuZoom] = useState<ZoomControls | null>(null);
   const url = media.item?.kind === 'image' ? media.item.url : null;
 
   useShortcut('e', () => { toggleEdit(editSourceOf(media)); }, { priority: ShortcutPriority.Panel + 10, when: () => enabled() && (useEdit.getState().on || !!editSourceOf(media)) });
   useEffect(() => { if (on) followSource(editSourceOf(media)); }, [on, url]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => { if (!isDirty()) exitEdit(true); }, []);
 
-  return { editing: on, gpuZoom: on ? gpuZoom : null, setGpuZoom };
+  return { editing: on };
 }

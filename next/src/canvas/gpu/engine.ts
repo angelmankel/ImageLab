@@ -39,6 +39,10 @@ export interface GpuCanvas {
   setChecker(on: boolean): void;
   setInsets(ins: Insets): void;
   setZoomMode(m: ZoomMode): void;
+  /** Padding (px) around the picture at fit. */
+  setPad(px: number): void;
+  /** The picture's rect on screen (CSS px in the host), or null without a picture. */
+  pictureRect(): { x: number; y: number; w: number; h: number } | null;
   setPanEnabled(on: boolean): void;
   fit(): void;
   zoomBy(factor: number): void;
@@ -111,7 +115,7 @@ export function createGpuCanvas(host: HTMLElement, opts: GpuCanvasOptions = {}):
   let insets: Insets = NO_INSETS;
   let mode: ZoomMode = 'view';
   let panEnabled = true;
-  const pad = opts.pad ?? 0;
+  let pad = opts.pad ?? 0;
 
   const bg = new Graphics();
   const world = new Container();
@@ -131,6 +135,9 @@ export function createGpuCanvas(host: HTMLElement, opts: GpuCanvasOptions = {}):
   let picW = 0;
   let picH = 0;
   let loadSeq = 0;
+  /** The seq of the picture on screen: a load that finishes after a newer one showed is dropped,
+   *  but one overtaken while decoding still shows (frames faster than decode never starve). */
+  let shownSeq = 0;
   let fadeRaf = 0;
 
   const fitNow = () => fitView(picW, picH, vw, vh, insets, pad);
@@ -255,7 +262,10 @@ export function createGpuCanvas(host: HTMLElement, opts: GpuCanvasOptions = {}):
   const onDown = (e: PointerEvent) => {
     if (e.pointerType === 'mouse' && e.button !== 0 && e.button !== 1) return;
     stopThrow?.(); stopThrow = null;
-    try { host.setPointerCapture(e.pointerId); } catch { /* gone */ }
+    // A mouse press on a draggable element (the picture's drag source, `~/dnd`) may become a native
+    // drag: capturing the pointer would swallow it. Its dragstart ends the gesture (no tap).
+    const nativeDrag = e.pointerType === 'mouse' && (e.target as HTMLElement | null)?.draggable === true;
+    if (!nativeDrag) { try { host.setPointerCapture(e.pointerId); } catch { /* gone */ } }
     const p = local(e);
     pointers.set(e.pointerId, p);
     if (pointers.size === 1) {
@@ -313,6 +323,8 @@ export function createGpuCanvas(host: HTMLElement, opts: GpuCanvasOptions = {}):
       stopThrow = runInertia(v, (dx, dy) => { view = panBy(view, dx, dy); changed(); });
     }
   };
+  const onDragStart = () => { pointers.clear(); drag = null; pinch = null; pinched = false; };
+  host.addEventListener('dragstart', onDragStart);
   host.addEventListener('wheel', onWheel, { passive: false });
   host.addEventListener('pointerdown', onDown);
   host.addEventListener('pointermove', onMove);
@@ -331,16 +343,20 @@ export function createGpuCanvas(host: HTMLElement, opts: GpuCanvasOptions = {}):
   const setPicture = async (url: string | null, o: { fade?: boolean; refit?: boolean } = {}): Promise<boolean> => {
     const seq = ++loadSeq;
     if (!url) {
+      shownSeq = seq;
       cancelAnimationFrame(fadeRaf);
       for (const s of sprites) { pic.removeChild(s.sprite); s.sprite.destroy({ texture: true, textureSource: true }); }
       sprites.length = 0; picW = picH = 0;
       layoutSprites(); changed();
       return true;
     }
-    if (sprites.length && sprites[sprites.length - 1].url === url) return true;
+    // Already on screen: it is the newest wish, so a slower older load must not replace it.
+    if (sprites.length && sprites[sprites.length - 1].url === url) { shownSeq = seq; return true; }
     let img: HTMLImageElement;
     try { img = await decoded(url); } catch { return false; }
-    if (!(await ready) || disposed || seq !== loadSeq) return false;
+    if (!(await ready) || disposed) return false;
+    if (seq < shownSeq) return true;
+    shownSeq = seq;
     const tex = Texture.from(img);
     const sprite = new Sprite(tex);
     const w = img.naturalWidth, h = img.naturalHeight;
@@ -419,6 +435,17 @@ export function createGpuCanvas(host: HTMLElement, opts: GpuCanvasOptions = {}):
       changed();
     },
     setPanEnabled(on) { panEnabled = on; },
+    setPad(px) {
+      const wasFitted = picW > 0 && isFitted(view, fitNow());
+      pad = px;
+      if (wasFitted) view = fitNow();
+      changed();
+    },
+    pictureRect() {
+      if (!picW) return null;
+      const a = toScreen(view, vw, vh, { x: 0, y: 0 });
+      return { x: a.x, y: a.y, w: picW * view.z, h: picH * view.z };
+    },
     fit() { stopThrow?.(); stopThrow = null; if (picW) { view = fitNow(); changed(); } },
     zoomBy(f) {
       if (!picW) return;
@@ -441,6 +468,7 @@ export function createGpuCanvas(host: HTMLElement, opts: GpuCanvasOptions = {}):
       stopThrow?.();
       ro.disconnect();
       host.removeEventListener('wheel', onWheel);
+      host.removeEventListener('dragstart', onDragStart);
       host.removeEventListener('pointerdown', onDown);
       host.removeEventListener('pointermove', onMove);
       host.removeEventListener('pointerup', onUp);

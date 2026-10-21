@@ -74,12 +74,13 @@ async function load(source: EditSource) {
   }
 }
 
-export function enterEdit(source: EditSource) {
+/** `fold` = fold the desktop step panel while editing (the phone has none). */
+export function enterEdit(source: EditSource, fold = true) {
   const st = useEdit.getState();
   if (st.on && st.source?.url === source.url) return;
   const layout = useLayout.getState();
-  const panelWasOpen = st.on ? st.panelWasOpen : layout.stepOpen;
-  if (!st.on && layout.stepOpen) layout.toggleStep();
+  const panelWasOpen = st.on ? st.panelWasOpen : fold ? layout.stepOpen : null;
+  if (!st.on && fold && layout.stepOpen) layout.toggleStep();
   useEdit.setState({ on: true, panelWasOpen });
   void load(source);
 }
