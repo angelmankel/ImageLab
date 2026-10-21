@@ -138,9 +138,9 @@ export function isCivitaiVideo(img: { url?: string; type?: string }): boolean {
  * frame (`anim=false,transcode=true`), because an <img> cannot play a video and would never load.
  *
  * When the URL doesn't match the expected pattern we return it untouched
- * (covers external host overrides, signed URLs).
+ * (covers external host overrides, signed URLs). `optimized` (stills only) asks for the CDN's WebP.
  */
-export function civitaiThumbUrl(url: string, width: number, opts: { video?: boolean } = {}): string {
+export function civitaiThumbUrl(url: string, width: number, opts: { video?: boolean; optimized?: boolean } = {}): string {
   if (!url) return url;
   const w = Math.max(64, Math.round(width));
   const m = url.match(/^(https?:\/\/[^/]+\/[^/]+\/[^/]+)\/(?:([^/?#]*=[^/?#]*)\/)?([^/?#]+)(\?.*)?$/);
@@ -152,7 +152,8 @@ export function civitaiThumbUrl(url: string, width: number, opts: { video?: bool
   if (opts.video || isCivitaiVideo({ url }) || /(^|,)transcode=true(,|$)/.test(options)) {
     return `${prefix}/anim=false,transcode=true,width=${w}/${file.replace(/\.[^.]+$/, '')}.jpeg${query}`;
   }
-  return `${prefix}/width=${w}/${file}${query}`;
+  // `optimized=true`: the CDN answers with a WebP of the same size, about a third of the bytes.
+  return `${prefix}/width=${w}${opts.optimized ? ',optimized=true' : ''}/${file}${query}`;
 }
 
 /**

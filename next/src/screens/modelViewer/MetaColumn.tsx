@@ -13,16 +13,30 @@
  * A loading line while the full payload is on its way; never a blank page. A file CivitAI does
  * not know shows its local facts open. `scrollRef` keeps the scroll per model (`useKeepScroll`).
  */
-import { useMemo, type CSSProperties } from 'react';
+import { memo, useMemo, type CSSProperties } from 'react';
 import { GhostBtn } from '~/screens/models/bits';
 import { recommendFrom, hasRecommended } from '~/screens/image/model/cardFacts';
-import { RecommendedRow } from '~/screens/image/model/RecommendedRow';
+import { RecommendedRow as RecommendedRowRaw } from '~/screens/image/model/RecommendedRow';
 import type { ViewerData } from './useViewerModel';
-import { PanelHead } from './PanelHead';
-import { SectionDescription, SectionWords } from './SectionWords';
+import { PanelHead as PanelHeadRaw } from './PanelHead';
+import { SectionDescription as SectionDescriptionRaw, SectionWords as SectionWordsRaw } from './SectionWords';
 import { SectionSample } from './SectionSample';
-import { FoldCreator, FoldDetails, FoldFiles, FoldLocal, FoldTags } from './PanelFolds';
+import {
+  FoldCreator as FoldCreatorRaw, FoldDetails as FoldDetailsRaw, FoldFiles as FoldFilesRaw, FoldLocal as FoldLocalRaw, FoldTags as FoldTagsRaw,
+} from './PanelFolds';
 import { Line, Section } from './metaBits';
+
+// Perf pass: paging the pictures changes only "this picture" (SectionSample); everything else in
+// the column depends on the model / version alone, so it is memoised and skips those renders.
+const PanelHead = memo(PanelHeadRaw);
+const SectionWords = memo(SectionWordsRaw);
+const SectionDescription = memo(SectionDescriptionRaw);
+const RecommendedRow = memo(RecommendedRowRaw);
+const FoldDetails = memo(FoldDetailsRaw);
+const FoldFiles = memo(FoldFilesRaw);
+const FoldLocal = memo(FoldLocalRaw);
+const FoldCreator = memo(FoldCreatorRaw);
+const FoldTags = memo(FoldTagsRaw);
 
 export function MetaColumn({ data, onVersion, phone, onClose, onOpen, style, scrollRef }: {
   data: ViewerData; onVersion: (id: number) => void; phone: boolean; onClose: () => void;

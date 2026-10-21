@@ -15,6 +15,7 @@ import { T } from '~/theme/tokens';
 import { viewerLayerRef } from '~/theme/scrollShards';
 import { useIsPhone } from '~/app/useIsPhone';
 import { useModelViewer } from './viewerStore';
+import { useExternalViewer } from '~/screens/viewer/externalViewer';
 import { ModelViewer } from './ModelViewer';
 
 /**
@@ -40,6 +41,9 @@ export function ModelViewerHost(): JSX.Element | null {
   const opened = useModelViewer((s) => s.opened);
   const close = useModelViewer((s) => s.close);
   const phone = useIsPhone();
+  // Under the full-screen viewer (opaque, item 31) the backdrop blur is never seen: drop it, so the
+  // compositor does not re-blur the whole page on every picture (perf pass).
+  const covered = useExternalViewer((s) => s.open);
   const root = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!opened) return;
@@ -62,7 +66,7 @@ export function ModelViewerHost(): JSX.Element | null {
       <div ref={root} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Model" data-no-swipe data-pad-layer {...{ [STOP]: 'true' }}
         onFocusCapture={(e) => (e.target as HTMLElement).setAttribute?.(STOP, 'true')}
         onPointerDown={(e) => { if (e.target === e.currentTarget) close(); }}
-        style={{ ...layer, background: 'rgba(8, 8, 10, .62)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: WINDOW_PAD, boxSizing: 'border-box' }}>
+        style={{ ...layer, background: 'rgba(8, 8, 10, .62)', backdropFilter: covered ? 'none' : 'blur(6px)', WebkitBackdropFilter: covered ? 'none' : 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: WINDOW_PAD, boxSizing: 'border-box' }}>
         <div style={{ position: 'relative', width: '100%', height: '100%', maxWidth: WINDOW_MAX_W, maxHeight: WINDOW_MAX_H, minWidth: 0, minHeight: 0, boxSizing: 'border-box', borderRadius: T.radius.xl, border: '1px solid var(--il-line-soft)', background: 'var(--il-bg)', overflow: 'hidden', boxShadow: '0 24px 80px rgba(0,0,0,.55)' }}>
           <ErrorBoundary label="Model viewer"><ModelViewer /></ErrorBoundary>
         </div>

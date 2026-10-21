@@ -67,7 +67,8 @@ export function ImageViewer({ items, index, onIndexChange, onClose, liveUrl = nu
   const speedMs = useViewerStore((s) => s.speedMs);
   const playing = useStore((s) => s.slideshowPlaying);
   const setPlaying = useStore((s) => s.setSlideshowPlaying);
-  const [natural, setNatural] = useState<{ w: number; h: number } | null>(null);
+  /** The shown picture's real size, tagged with its key (a stale one reads as null: no reset render per picture). */
+  const [nat, setNat] = useState<{ key: string; w: number; h: number } | null>(null);
   /** External NSFW pictures shown after a tap (item 31 / 27), for as long as the viewer is open. */
   const [revealed, setRevealed] = useState<ReadonlySet<string>>(() => new Set());
   /** The nav is held awake: a popover of it is open or the pointer is on it. */
@@ -85,8 +86,13 @@ export function ImageViewer({ items, index, onIndexChange, onClose, liveUrl = nu
   const canPlay = len > 1 && !live;
   const showing = playing && canPlay;
 
-  useEffect(() => { setNatural(null); }, [item?.key]);
-  const onNatural = useCallback((w: number, h: number) => setNatural((n) => (n && n.w === w && n.h === h ? n : { w, h })), []);
+  const shownKey = useRef<string | undefined>(item?.key);
+  shownKey.current = item?.key;
+  const natural = nat && nat.key === item?.key ? nat : null;
+  const onNatural = useCallback((w: number, h: number) => {
+    const key = shownKey.current ?? '';
+    setNat((n) => (n && n.key === key && n.w === w && n.h === h ? n : { key, w, h }));
+  }, []);
 
   const go = useCallback((dir: 1 | -1) => { if (canPage) onIndexChange((i + dir + len) % len); }, [canPage, i, len, onIndexChange]);
   const close = useCallback(() => { setPlaying(false); onClose(); }, [onClose, setPlaying]);
@@ -122,7 +128,8 @@ export function ImageViewer({ items, index, onIndexChange, onClose, liveUrl = nu
       style={{ flex: 1, minWidth: 0, minHeight: 0, position: 'relative', overflow: 'hidden' }}>
       {covered ? (
         <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center' }}>
-          <img src={item!.url} alt="" draggable={false} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', filter: 'blur(48px) brightness(.6)' }} />
+          {/* A clip cannot be an <img> (it fetched the whole MP4 for a broken picture): only stills get the blurred veil. */}
+          {item!.kind !== 'video' && <img src={item!.url} alt="" draggable={false} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', filter: 'blur(48px) brightness(.6)' }} />}
           <button type="button" className="il-btn" onClick={() => setRevealed((r) => new Set(r).add(item!.key))}
             style={{ position: 'relative', height: 44, padding: '0 18px', borderRadius: 999, border: 0, background: 'var(--il-elev)', color: 'var(--il-fg)', fontWeight: 800, fontSize: 13, cursor: 'pointer' }}>
             NSFW · tap to show

@@ -18,7 +18,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { IconArrowsMaximize, IconCheck, IconChevronRight, IconEyeOff, IconHeart, IconHeartFilled, IconPlus } from '@tabler/icons-react';
 import type { CivitaiModel, CivitaiModelVersion } from '@/lib/civitai';
-import { civitaiThumbUrl, civitaiVideoUrl, isCivitaiVideo, previewStill } from '@/lib/civitai';
+import { civitaiVideoUrl, isCivitaiVideo, previewStill } from '@/lib/civitai';
+import { civitaiSmallUrl } from '~/lib/civitaiSize';
 import { Button } from '~/ui';
 import { makePayload, nameFromUrl, useImageDrag } from '~/dnd';
 import { baseModelShort, typeLabel, type InstalledState } from './civitaiQuery';
@@ -81,7 +82,7 @@ export function ModelTile({ model, selected, installed, revealed, favourite, pic
   const [broken, setBroken] = useState(false);
   useEffect(() => setBroken(false), [image?.url]);
   const hidden = !!image && covered(image.nsfwLevel) && !revealed;
-  const url = image ? civitaiThumbUrl(previewStill(image, TILE_THUMB), TILE_THUMB) : '';
+  const url = image ? civitaiSmallUrl(image, TILE_THUMB) : '';
   const local = isLocalModel(model);
   const toggleFavourite = useModels((s) => s.toggleFavourite);
 

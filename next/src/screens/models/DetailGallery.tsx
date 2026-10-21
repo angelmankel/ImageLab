@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from 'react';
 import { IconEyeOff } from '@tabler/icons-react';
 import type { CivitaiImage } from '@/lib/civitai';
 import { civitaiThumbUrl, civitaiVideoUrl, isCivitaiVideo, previewStill } from '@/lib/civitai';
+import { civitaiSmallUrl } from '~/lib/civitaiSize';
 import { useNsfwCover } from './nsfwCover';
 import { Spinner } from '~/ui';
 import { COVER_FALLBACK, GhostBtn, type Size } from './bits';
@@ -15,12 +16,14 @@ import { COVER_FALLBACK, GhostBtn, type Size } from './bits';
 export function Media({ img, width, reveal, blurred, style, cover = true, still }: { img: CivitaiImage; width: number; reveal: () => void; blurred: boolean; style?: React.CSSProperties; cover?: boolean; still?: boolean }) {
   // Thumbnails are stills even for clips: a grid of autoplaying videos is a lot of decoding for nothing.
   const video = !still && isCivitaiVideo(img);
+  // Thumbnails take the CDN's WebP (same pixels, about a third of the bytes); the hero stays JPEG.
+  const stillUrl = width <= 450 ? civitaiSmallUrl(img, width) : civitaiThumbUrl(previewStill(img, width), width);
   const base: React.CSSProperties = { width: '100%', height: '100%', objectFit: cover ? 'cover' : 'contain', display: 'block', filter: blurred ? 'blur(18px)' : undefined, transform: blurred ? 'scale(1.1)' : undefined, ...style };
   return (
     <>
       {video && !blurred
-        ? <video src={civitaiVideoUrl(img.url, width)} poster={civitaiThumbUrl(previewStill(img, width), width)} muted loop autoPlay playsInline style={base} />
-        : <img src={civitaiThumbUrl(previewStill(img, width), width)} alt="" loading="lazy" decoding="async" style={base} />}
+        ? <video src={civitaiVideoUrl(img.url, width)} poster={stillUrl} muted loop autoPlay playsInline style={base} />
+        : <img src={stillUrl} alt="" loading="lazy" decoding="async" style={base} />}
       {blurred && (
         <button type="button" onClick={(e) => { e.stopPropagation(); reveal(); }} style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', border: 0, background: 'color-mix(in srgb, var(--il-bg) 35%, transparent)', color: 'var(--il-fg)', cursor: 'pointer' }}>
           <span style={{ height: 26, padding: '0 10px', borderRadius: 999, background: 'color-mix(in srgb, var(--il-bg) 80%, transparent)', fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6 }}><IconEyeOff size={12} />NSFW · tap to show</span>

@@ -14,7 +14,8 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CivitaiImage } from '@/lib/civitai';
-import { civitaiThumbUrl, civitaiVideoUrl, isCivitaiVideo, previewStill } from '@/lib/civitai';
+import { civitaiVideoUrl, isCivitaiVideo } from '@/lib/civitai';
+import { civitaiFullUrl } from '~/lib/civitaiSize';
 import { openExternalViewer, updateExternalViewer, useExternalViewer, type ExternalImage } from '~/screens/viewer/externalViewer';
 import { useIsPhone } from '~/app/useIsPhone';
 import { BackPill } from '~/ui';
@@ -33,8 +34,8 @@ import { MetaColumn } from './MetaColumn';
 import { vh } from '~/theme/uiScale';
 
 const META_W = 420;
-/** The full-screen viewer's picture width (item 31). */
-const FULL_W = 2048;
+/** The full-screen viewer's widest picture (item 31): the smallest CivitAI rendition that holds the original, at most this. */
+const FULL_W = 2200;
 
 export function ModelViewer() {
   const phone = useIsPhone();
@@ -73,7 +74,7 @@ export function ModelViewer() {
     const video = isCivitaiVideo(img);
     const id = (img as { id?: number }).id;
     return {
-      url: video ? civitaiVideoUrl(img.url, FULL_W) : civitaiThumbUrl(previewStill(img, FULL_W), FULL_W),
+      url: video ? civitaiVideoUrl(img.url, 2048) : civitaiFullUrl(img, FULL_W),
       key: img.url, kind: video ? 'video' : 'image', width: img.width || undefined, height: img.height || undefined,
       meta: img.meta, nsfw: covered(img.nsfwLevel), link: id ? `https://civitai.com/images/${id}` : undefined,
     };
@@ -84,7 +85,10 @@ export function ModelViewer() {
     if (!img || isHidden(img)) return;
     openExternalViewer({
       images: toExternal(images), index: i, source: model?.name ?? local?.meta.label,
-      onIndexChange: setImage, onClose: setImage, hasMore, loadMore: hasMore ? () => loadMore() : undefined,
+      // Perf pass: the modal under the full-screen viewer is hidden, so it follows only on close
+      // (Esc lands on the same picture) — syncing it per picture re-rendered and re-decoded it on
+      // every ← / →.
+      onClose: setImage, hasMore, loadMore: hasMore ? () => loadMore() : undefined,
     });
   }, [images, isHidden, toExternal, model, local, setImage, hasMore, loadMore]);
   // A longer list (another page) or a changed opt-in reaches the open viewer.

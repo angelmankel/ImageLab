@@ -6,7 +6,7 @@
  */
 import { IconCheck, IconEyeOff } from '@tabler/icons-react';
 import type { CivitaiModel } from '@/lib/civitai';
-import { civitaiThumbUrl, previewStill } from '@/lib/civitai';
+import { civitaiSmallUrl } from '~/lib/civitaiSize';
 import { primaryFile } from '@/features/model-metadata/civitai';
 import { baseModelShort, fmtSizeKB, typeLabel, type InstalledState } from './civitaiQuery';
 import { COVER_FALLBACK, RoundAction, Stats, Tag, EmberBtn } from './bits';
@@ -20,7 +20,7 @@ export function ModelRow({ model, selected, installed, revealed, picking, onOpen
 }) {
   const { covered, version, image, start, observe, viewerStart } = useModelCover(model);
   const hidden = !!image && covered(image.nsfwLevel) && !revealed;
-  const url = image ? civitaiThumbUrl(previewStill(image, 160), 160) : '';
+  const url = image ? civitaiSmallUrl(image, 160) : '';
   const file = version ? primaryFile(version) : null;
   const all = installed.total > 0 && installed.installed === installed.total;
   const some = installed.installed > 0 && !all;

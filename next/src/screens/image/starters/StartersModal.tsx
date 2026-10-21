@@ -15,7 +15,7 @@
  * pictures are veiled (a blurred tiny rendition + "tap to show") unless the user opted in (item
  * 27); the NSFW view is an explicit choice and shows them plainly.
  */
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { Modal } from '@mantine/core';
 import { IconSparkles, IconChevronLeft, IconCopy, IconExternalLink, IconEyeOff, IconFilter, IconPhotoUp, IconRefresh, IconSearch, IconTextCaption, IconTrash, IconX } from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
@@ -31,6 +31,7 @@ import { T } from '~/theme/tokens';
 import { Button, LoadingImage, SearchSelect, SkeletonTiles, useEdgeFade } from '~/ui';
 import { PERIODS, type Period } from '~/screens/models/civitaiQuery';
 import { useNsfwCover } from '~/screens/models/nsfwCover';
+import { civitaiSmallUrl } from '~/lib/civitaiSize';
 import { ModelAutocomplete } from './ModelAutocomplete';
 import { tileBackground } from '../prompt/promptSearch';
 import { applyStarter, setAsInput, type StarterUse } from './applyStarter';
@@ -104,7 +105,12 @@ function hue(s: string) { let h = 0; for (let i = 0; i < s.length; i++) h = (h *
 /** The masonry tile's picture width: 2× a ~220px column, a small CivitAI rendition (item 5). */
 const TILE_W = 440;
 
-function Tile({ it, onUse }: { it: StarterItem; onUse: () => void }) {
+/**
+ * One masonry tile. Memoised (perf pass): a new gallery page rebuilds the item objects, so it
+ * compares what it shows, and `onUse` takes the item — one stable callback for every tile.
+ */
+const Tile = memo(function Tile({ it, onUse: pick }: { it: StarterItem; onUse: (it: StarterItem) => void }) {
+  const onUse = () => pick(it);
   const [hover, setHover] = useState(false);
   const [shown, setShown] = useState(false);
   // A Starter's picture drags like any picture in the app (the one small preview card).
@@ -123,14 +129,14 @@ function Tile({ it, onUse }: { it: StarterItem; onUse: () => void }) {
       return (
         <button type="button" onClick={() => setShown(true)} aria-label="NSFW picture · tap to show" style={{ ...box, background: 'var(--il-elev)', aspectRatio: String(aspect), display: 'grid', placeItems: 'center' }}>
           {/* The picture is there, just veiled: a tiny rendition, heavily blurred (never an empty card). */}
-          <img src={civitaiThumbUrl(it.img.url, 32)} alt="" aria-hidden loading="lazy" decoding="async" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', filter: 'blur(18px) saturate(.8)', transform: 'scale(1.15)', opacity: 0.7 }} />
+          <img src={civitaiSmallUrl(it.img.url, 32)} alt="" aria-hidden loading="lazy" decoding="async" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', filter: 'blur(18px) saturate(.8)', transform: 'scale(1.15)', opacity: 0.7 }} />
           <span style={{ position: 'relative', height: 30, padding: '0 12px', borderRadius: 999, background: 'color-mix(in srgb, var(--il-bg) 80%, transparent)', color: 'var(--il-fg)', fontSize: 11, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6 }}><IconEyeOff size={13} stroke={2.2} />NSFW · tap to show</span>
         </button>
       );
     }
     return (
       <button type="button" onClick={onUse} onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)} aria-label={`Use: ${it.prompt.slice(0, 80)}`} style={{ ...box, background: 'var(--il-bg-deep)' }} {...menuProps('starter', it)} {...drag}>
-        <LoadingImage src={civitaiThumbUrl(it.img.url, TILE_W)} thumb={civitaiThumbUrl(it.img.url, 32)} aspect={aspect} />
+        <LoadingImage src={civitaiSmallUrl(it.img.url, TILE_W)} thumb={civitaiSmallUrl(it.img.url, 32)} aspect={aspect} />
         {overlay}
       </button>
     );
@@ -143,7 +149,8 @@ function Tile({ it, onUse }: { it: StarterItem; onUse: () => void }) {
       {overlay}
     </button>
   );
-}
+}, (a, b) => a.onUse === b.onUse && a.it.key === b.it.key && a.it.prompt === b.it.prompt && a.it.name === b.it.name
+  && a.it.img?.url === b.it.img?.url && a.it.img?.nsfw === b.it.img?.nsfw);
 
 function Body({ onClose }: { onClose: () => void }) {
   const phone = useIsPhone();
@@ -261,7 +268,7 @@ function Body({ onClose }: { onClose: () => void }) {
       </div>
       <div className="il-scroll" style={{ flex: 1, minHeight: 0, padding: phone ? 8 : '12px 16px', touchAction: 'pan-y' }}>
         <div style={{ columns: phone ? 2 : '5 220px', columnGap: phone ? 8 : 10 }}>
-          {shown.map((it) => <Tile key={it.key} it={it} onUse={() => use(it)} />)}
+          {shown.map((it) => <Tile key={it.key} it={it} onUse={use} />)}
         </div>
         {shown.length === 0 && empty && <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--il-muted)', textAlign: 'center', padding: '40px 12px' }}>{empty}</div>}
         {civitai && gallery.loading && (

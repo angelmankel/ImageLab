@@ -83,6 +83,19 @@ type DownloadsState = {
   aggregateProgress: () => number | null;
 };
 
+/** True when two polls returned the same rows (same order, same fields). */
+export function sameRows(a: readonly DownloadRow[], b: readonly DownloadRow[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    const x = a[i] as unknown as Record<string, unknown>;
+    const y = b[i] as unknown as Record<string, unknown>;
+    const kx = Object.keys(x);
+    if (kx.length !== Object.keys(y).length) return false;
+    for (const k of kx) if (x[k] !== y[k]) return false;
+  }
+  return true;
+}
+
 export const useDownloadsStore = create<DownloadsState>((set, get) => ({
   rows: [],
   refreshing: false,
@@ -139,7 +152,9 @@ export const useDownloadsStore = create<DownloadsState>((set, get) => ({
         if (!aliveActive.has(key)) _samples.delete(key);
       }
 
-      set({ rows });
+      // Same rows as last poll (the usual case when nothing downloads): keep the old array, so
+      // every `s.rows` subscriber (each download button, the Models grid) skips the re-render.
+      if (!sameRows(prev, rows)) set({ rows });
 
       // Funnel the capability refresh through the store action so this path
       // dedupes against the WS `onOpen` refresh instead of racing it.

@@ -13,7 +13,8 @@
 import { IconEyeOff } from '@tabler/icons-react';
 import { useEffect, useState, type CSSProperties } from 'react';
 import type { CivitaiImage } from '@/lib/civitai';
-import { civitaiThumbUrl, civitaiVideoUrl, isCivitaiVideo, previewStill } from '@/lib/civitai';
+import { civitaiVideoUrl, isCivitaiVideo } from '@/lib/civitai';
+import { civitaiFullUrl } from '~/lib/civitaiSize';
 import { NavArrows } from '~/ui';
 import { whenReady } from './preload';
 import { makePayload, nameFromUrl, useImageDrag } from '~/dnd';
@@ -22,9 +23,13 @@ export const PICTURE_WIDTH = 1600;
 /** How long a page swap waits for the new picture to decode before showing it anyway. */
 const SWAP_CAP_MS = 150;
 
-/** The URL `Picture` shows for a sample (the preload hook warms exactly this one). */
+/**
+ * The URL `Picture` shows for a sample (the preload hook warms exactly this one): the smallest
+ * CivitAI rendition that holds the original, at most 1600 px — for most samples the very URL the
+ * full-screen viewer shows, so opening it costs no second download or decode.
+ */
 export function pictureUrl(img: CivitaiImage): string {
-  return civitaiThumbUrl(previewStill(img, PICTURE_WIDTH), PICTURE_WIDTH);
+  return civitaiFullUrl(img, PICTURE_WIDTH);
 }
 
 /**
