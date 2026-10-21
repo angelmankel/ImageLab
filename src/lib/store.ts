@@ -25,7 +25,7 @@ import {
   loadSlideshowPlaying, loadCollectionsTileSize,
   loadThemeState, loadCollections, loadImportedImages,
   getServers, loadRouting, ROUND_ROBIN,
-  FALLBACKS, HISTORY_MAX, uid, DEFAULT_COMFY_HOST, DEFAULT_CATEGORY_ID,
+  FALLBACKS, HISTORY_MAX, HISTORY_KEY, uid, DEFAULT_COMFY_HOST, DEFAULT_CATEGORY_ID,
 } from './storage';
 import type { Server, AiSettings, AiProviderEntry, AiProviderId, CivitaiSettings, ModelPreviewSource } from './storage';
 import { addProvider, removeProvider, setActiveProvider, updateProvider } from './aiProviders';
@@ -1536,4 +1536,18 @@ useCanvasStore.subscribe(runScopeSync);
 // The run stores skip prompts this store owns (promptOwners.ts): they are already image history.
 setImageJobCheck((id) => { const s = useStore.getState(); return s.jobs.some(j => j.id === id) || s.history.some(h => h.promptId === id); });
 
-
+// Another tab of the app (classic or next) saved the history: take its list. Without this, a tab
+// that still held a deleted image wrote it back with its next result — deletes "came back"
+// (next fix list 2, item 2). Same string back = no storage event, so the tabs do not ping-pong.
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (e) => {
+    if (e.key !== HISTORY_KEY || e.newValue == null) return;
+    try {
+      const list = JSON.parse(e.newValue) as HistoryEntry[];
+      if (!Array.isArray(list)) return;
+      const s = useStore.getState();
+      const keep = s.selectedEntry && list.some(h => h.id === s.selectedEntry!.id);
+      useStore.setState({ history: list, selectedEntry: keep ? s.selectedEntry : null });
+    } catch { /* a half-written value: the next save fixes it */ }
+  });
+}

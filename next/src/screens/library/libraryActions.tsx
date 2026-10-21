@@ -12,7 +12,7 @@ import { usePromptFrom, reuseSettingsFrom, recallFrom, sendToStep } from '~/app/
 import { useRoute } from '~/app/routeStore';
 import { T } from '~/theme/tokens';
 import { useLibrary } from './libraryStore';
-import { runStoreOf } from '~/app/deleteResult';
+import { forgetImage, runStoreOf } from '~/app/deleteResult';
 import type { LibItem } from './libraryLogic';
 
 const toStep = () => useRoute.getState().go('step');
@@ -102,7 +102,7 @@ export function confirmDelete(items: readonly LibItem[], onDone?: () => void) {
       const s = useStore.getState();
       const videos: string[] = [];
       for (const it of items) {
-        if (it.entry) s.removeHistoryEntry(it.entry.id);
+        if (it.entry) forgetImage(it.entry); // its file stays hidden from the run stores too (fix list 2, item 2)
         else videos.push(it.key);
         s.removeItemFromAllCollections(it.key);
       }

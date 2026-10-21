@@ -89,6 +89,11 @@ export interface RunState {
   removeResult: (url: string) => void;
   /** Undo of `removeResult`: un-hide `result` and put it back at `index`. */
   restoreResult: (result: RunResult, index: number) => void;
+  /** Keep these files out of the list for good (and drop them now): an image deleted from the image
+   *  history must not come back as a run result from the next `/history` reload. */
+  hideUrls: (urls: readonly string[]) => void;
+  /** Undo of `hideUrls` (nothing is put back in the list: a reload or the image history has it). */
+  unhideUrls: (urls: readonly string[]) => void;
 }
 
 export type RunStore = UseBoundStore<StoreApi<RunState>>;
@@ -155,9 +160,25 @@ export function createRunStore(keep: KeepResult = keepAll, hideKey?: string): Ru
   let building = 0;
   let previewUrl: string | null = null;
   let historyFor: string | null = null;
-  // Deleted urls: read once, written on every change. No key (or no storage) = this session only.
+  // Deleted urls: persisted. No key (or no storage) = this session only. Another tab of the app
+  // edits the same list, so a change starts from what is saved now (`fresh`), and that tab's
+  // changes arrive by the storage event — a stale copy here must never write a delete away.
   let hidden: string[] = [];
-  if (hideKey) { try { hidden = parseHidden(localStorage.getItem(hideKey)); } catch { /* private mode */ } }
+  const readHidden = (): string[] => {
+    if (!hideKey) return hidden;
+    try { return parseHidden(localStorage.getItem(hideKey)); } catch { return hidden; }
+  };
+  hidden = readHidden();
+  const fresh = () => (hidden = readHidden());
+  if (hideKey && typeof window !== 'undefined') {
+    window.addEventListener('storage', (e) => {
+      if (e.key !== hideKey) return;
+      hidden = parseHidden(e.newValue);
+      const now = store.getState().results;
+      const results = withoutHidden(now, hidden);
+      if (results !== now) store.setState({ results, latest: results[0] ?? null });
+    });
+  }
   const saveHidden = (next: string[]) => {
     hidden = next;
     if (hideKey) { try { localStorage.setItem(hideKey, JSON.stringify(next)); } catch { /* quota / private mode */ } }
@@ -382,13 +403,29 @@ export function createRunStore(keep: KeepResult = keepAll, hideKey?: string): Ru
       clearError: () => set({ error: null }),
 
       removeResult: (url) => {
-        saveHidden(hideUrl(hidden, url));
-        const results = get().results.filter(r => r.url !== url);
+        saveHidden(hideUrl(fresh(), url));
+        const results = withoutHidden(get().results, [url]);
         if (results.length !== get().results.length) set({ results, latest: results[0] ?? null });
       },
 
+      hideUrls: (urls) => {
+        if (!urls.length) return;
+        let next = fresh();
+        for (const u of urls) next = hideUrl(next, u);
+        saveHidden(next);
+        const results = withoutHidden(get().results, urls);
+        if (results.length !== get().results.length) set({ results, latest: results[0] ?? null });
+      },
+
+      unhideUrls: (urls) => {
+        const before = fresh();
+        let next = before;
+        for (const u of urls) next = unhideUrl(next, u);
+        if (next.length !== before.length) saveHidden(next);
+      },
+
       restoreResult: (result, index) => {
-        saveHidden(unhideUrl(hidden, result.url));
+        saveHidden(unhideUrl(fresh(), result.url));
         const results = insertResult(get().results, index, result);
         set({ results, latest: results[0] ?? null });
       },

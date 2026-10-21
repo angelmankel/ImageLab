@@ -49,3 +49,15 @@ test('a saved list reads back as strings only, capped; junk is empty', () => {
   assert.deepEqual([...h.parseHidden('{oops')], []);
   assert.deepEqual([...h.parseHidden('{"a":1}')], []);
 });
+
+test('a view url hides by its file, whatever host or path built it', () => {
+  const a = 'https://pod.example/comfy/view?filename=ImageLab_00012_.png&subfolder=&type=output';
+  const b = 'http://192.168.0.83:8188/view?filename=ImageLab_00012_.png&subfolder=&type=output';
+  assert.equal(h.resultFileKey(a), h.resultFileKey(b));
+  assert.equal(h.resultFileKey(a), 'file:ImageLab_00012_.png||output');
+  assert.equal(h.resultFileKey('http://x/view?filename=a+b.png&subfolder=video&type=temp'), 'file:a b.png|video|temp');
+  assert.equal(h.resultFileKey('blob:abc'), 'blob:abc');
+  assert.deepEqual(urls(h.withoutHidden([{ url: b }, r('c')], [a])), ['c']);
+  assert.deepEqual([...h.unhideUrl([a], b)], []);
+  assert.deepEqual([...h.hideUrl([a], b)], [b]);
+});
