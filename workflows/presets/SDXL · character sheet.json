@@ -1,9 +1,9 @@
 {
- "last_node_id": 11,
- "last_link_id": 13,
+ "last_node_id": 14,
+ "last_link_id": 21,
  "nodes": [
   {
-   "id": 11,
+   "id": 14,
    "type": "Note",
    "pos": [
     20,
@@ -11,7 +11,7 @@
    ],
    "size": [
     400,
-    420
+    438
    ],
    "flags": {},
    "order": 0,
@@ -21,7 +21,7 @@
    "title": "About this workflow",
    "properties": {},
    "widgets_values": [
-    "One character, several poses on one wide sheet (front, side, back, action).\nThe input picture is your character (any pose); IP-Adapter Plus copies their look (Character weight 0.6: higher = closer copy, but the poses get stiffer).\nDescribe the character in the prompt too (hair, clothes, colours): the sheet layout words are in the prompt already.\nSmall faces on a sheet are soft: run the result through \"Fix faces and hands\" for sharp faces.\nFor anime characters switch the checkpoint to an Illustrious model.\n\nModel: SDXL checkpoints; Illustrious and Pony models work too (use their prompt style). Default: Juggernaut XL.\nDefaults: 30 steps, CFG 5.0, dpmpp_2m_sde / karras."
+    "One character, several poses on one wide sheet (front, side, back, action).\nThe input picture is your character (any pose); IP-Adapter Plus copies their look (Character weight 0.6: higher = closer copy, but the poses get stiffer).\nDescribe the character in the prompt too (hair, clothes, colours): the sheet layout words are in the prompt already.\nSmall faces on a sheet are soft, so every face is redrawn sharp at the end (Fix faces, denoise 0.4).\nFor anime characters switch the checkpoint to an Illustrious model.\n\nModel: SDXL checkpoints; Illustrious and Pony models work too (use their prompt style). Default: Juggernaut XL.\nDefaults: 30 steps, CFG 5.0, dpmpp_2m_sde / karras."
    ],
    "color": "#432",
    "bgcolor": "#653"
@@ -112,7 +112,8 @@
      "type": "CLIP",
      "links": [
       5,
-      6
+      6,
+      15
      ],
      "slot_index": 1
     },
@@ -120,7 +121,8 @@
      "name": "VAE",
      "type": "VAE",
      "links": [
-      12
+      12,
+      16
      ],
      "slot_index": 2
     }
@@ -292,7 +294,8 @@
      "name": "MODEL",
      "type": "MODEL",
      "links": [
-      7
+      7,
+      14
      ],
      "slot_index": 0
     }
@@ -344,7 +347,8 @@
      "name": "CONDITIONING",
      "type": "CONDITIONING",
      "links": [
-      8
+      8,
+      17
      ],
      "slot_index": 0
     }
@@ -391,7 +395,8 @@
      "name": "CONDITIONING",
      "type": "CONDITIONING",
      "links": [
-      9
+      9,
+      18
      ],
      "slot_index": 0
     }
@@ -616,6 +621,476 @@
   },
   {
    "id": 10,
+   "type": "UltralyticsDetectorProvider",
+   "pos": [
+    3420,
+    110
+   ],
+   "size": [
+    340,
+    106
+   ],
+   "flags": {},
+   "order": 10,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "model_name",
+     "type": "COMBO",
+     "link": null,
+     "widget": {
+      "name": "model_name"
+     }
+    }
+   ],
+   "outputs": [
+    {
+     "name": "BBOX_DETECTOR",
+     "type": "BBOX_DETECTOR",
+     "links": [
+      19
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "SEGM_DETECTOR",
+     "type": "SEGM_DETECTOR",
+     "links": [],
+     "slot_index": 1
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "UltralyticsDetectorProvider"
+   },
+   "widgets_values": [
+    "bbox/face_yolov8m.pt"
+   ],
+   "title": "Face detector"
+  },
+  {
+   "id": 11,
+   "type": "SAMLoader",
+   "pos": [
+    3420,
+    256
+   ],
+   "size": [
+    340,
+    110
+   ],
+   "flags": {},
+   "order": 11,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "model_name",
+     "type": "COMBO",
+     "link": null,
+     "widget": {
+      "name": "model_name"
+     }
+    },
+    {
+     "name": "device_mode",
+     "type": "COMBO",
+     "link": null,
+     "widget": {
+      "name": "device_mode"
+     }
+    }
+   ],
+   "outputs": [
+    {
+     "name": "SAM_MODEL",
+     "type": "SAM_MODEL",
+     "links": [
+      20
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "SAMLoader"
+   },
+   "widgets_values": [
+    "sam_vit_b_01ec64.pth",
+    "AUTO"
+   ],
+   "title": "SAM"
+  },
+  {
+   "id": 12,
+   "type": "FaceDetailer",
+   "pos": [
+    3420,
+    406
+   ],
+   "size": [
+    340,
+    1116
+   ],
+   "flags": {},
+   "order": 12,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "image",
+     "type": "IMAGE",
+     "link": 13
+    },
+    {
+     "name": "model",
+     "type": "MODEL",
+     "link": 14
+    },
+    {
+     "name": "clip",
+     "type": "CLIP",
+     "link": 15
+    },
+    {
+     "name": "vae",
+     "type": "VAE",
+     "link": 16
+    },
+    {
+     "name": "guide_size",
+     "type": "FLOAT",
+     "link": null,
+     "widget": {
+      "name": "guide_size"
+     }
+    },
+    {
+     "name": "guide_size_for",
+     "type": "BOOLEAN",
+     "link": null,
+     "widget": {
+      "name": "guide_size_for"
+     }
+    },
+    {
+     "name": "max_size",
+     "type": "FLOAT",
+     "link": null,
+     "widget": {
+      "name": "max_size"
+     }
+    },
+    {
+     "name": "seed",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "seed"
+     }
+    },
+    {
+     "name": "steps",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "steps"
+     }
+    },
+    {
+     "name": "cfg",
+     "type": "FLOAT",
+     "link": null,
+     "widget": {
+      "name": "cfg"
+     }
+    },
+    {
+     "name": "sampler_name",
+     "type": "COMBO",
+     "link": null,
+     "widget": {
+      "name": "sampler_name"
+     }
+    },
+    {
+     "name": "scheduler",
+     "type": "COMBO",
+     "link": null,
+     "widget": {
+      "name": "scheduler"
+     }
+    },
+    {
+     "name": "positive",
+     "type": "CONDITIONING",
+     "link": 17
+    },
+    {
+     "name": "negative",
+     "type": "CONDITIONING",
+     "link": 18
+    },
+    {
+     "name": "denoise",
+     "type": "FLOAT",
+     "link": null,
+     "widget": {
+      "name": "denoise"
+     }
+    },
+    {
+     "name": "feather",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "feather"
+     }
+    },
+    {
+     "name": "noise_mask",
+     "type": "BOOLEAN",
+     "link": null,
+     "widget": {
+      "name": "noise_mask"
+     }
+    },
+    {
+     "name": "force_inpaint",
+     "type": "BOOLEAN",
+     "link": null,
+     "widget": {
+      "name": "force_inpaint"
+     }
+    },
+    {
+     "name": "bbox_threshold",
+     "type": "FLOAT",
+     "link": null,
+     "widget": {
+      "name": "bbox_threshold"
+     }
+    },
+    {
+     "name": "bbox_dilation",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "bbox_dilation"
+     }
+    },
+    {
+     "name": "bbox_crop_factor",
+     "type": "FLOAT",
+     "link": null,
+     "widget": {
+      "name": "bbox_crop_factor"
+     }
+    },
+    {
+     "name": "sam_detection_hint",
+     "type": "COMBO",
+     "link": null,
+     "widget": {
+      "name": "sam_detection_hint"
+     }
+    },
+    {
+     "name": "sam_dilation",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "sam_dilation"
+     }
+    },
+    {
+     "name": "sam_threshold",
+     "type": "FLOAT",
+     "link": null,
+     "widget": {
+      "name": "sam_threshold"
+     }
+    },
+    {
+     "name": "sam_bbox_expansion",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "sam_bbox_expansion"
+     }
+    },
+    {
+     "name": "sam_mask_hint_threshold",
+     "type": "FLOAT",
+     "link": null,
+     "widget": {
+      "name": "sam_mask_hint_threshold"
+     }
+    },
+    {
+     "name": "sam_mask_hint_use_negative",
+     "type": "COMBO",
+     "link": null,
+     "widget": {
+      "name": "sam_mask_hint_use_negative"
+     }
+    },
+    {
+     "name": "drop_size",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "drop_size"
+     }
+    },
+    {
+     "name": "bbox_detector",
+     "type": "BBOX_DETECTOR",
+     "link": 19
+    },
+    {
+     "name": "wildcard",
+     "type": "STRING",
+     "link": null,
+     "widget": {
+      "name": "wildcard"
+     }
+    },
+    {
+     "name": "cycle",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "cycle"
+     }
+    },
+    {
+     "name": "sam_model_opt",
+     "type": "SAM_MODEL",
+     "link": 20
+    },
+    {
+     "name": "segm_detector_opt",
+     "type": "SEGM_DETECTOR",
+     "link": null
+    },
+    {
+     "name": "detailer_hook",
+     "type": "DETAILER_HOOK",
+     "link": null
+    },
+    {
+     "name": "inpaint_model",
+     "type": "BOOLEAN",
+     "link": null,
+     "widget": {
+      "name": "inpaint_model"
+     }
+    },
+    {
+     "name": "noise_mask_feather",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "noise_mask_feather"
+     }
+    },
+    {
+     "name": "scheduler_func_opt",
+     "type": "SCHEDULER_FUNC",
+     "link": null
+    },
+    {
+     "name": "tiled_encode",
+     "type": "BOOLEAN",
+     "link": null,
+     "widget": {
+      "name": "tiled_encode"
+     }
+    },
+    {
+     "name": "tiled_decode",
+     "type": "BOOLEAN",
+     "link": null,
+     "widget": {
+      "name": "tiled_decode"
+     }
+    }
+   ],
+   "outputs": [
+    {
+     "name": "image",
+     "type": "IMAGE",
+     "links": [
+      21
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "cropped_refined",
+     "type": "IMAGE",
+     "links": [],
+     "slot_index": 1
+    },
+    {
+     "name": "cropped_enhanced_alpha",
+     "type": "IMAGE",
+     "links": [],
+     "slot_index": 2
+    },
+    {
+     "name": "mask",
+     "type": "MASK",
+     "links": [],
+     "slot_index": 3
+    },
+    {
+     "name": "detailer_pipe",
+     "type": "DETAILER_PIPE",
+     "links": [],
+     "slot_index": 4
+    },
+    {
+     "name": "cnet_images",
+     "type": "IMAGE",
+     "links": [],
+     "slot_index": 5
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "FaceDetailer"
+   },
+   "widgets_values": [
+    1024,
+    true,
+    1024,
+    0,
+    "randomize",
+    20,
+    5.0,
+    "dpmpp_2m_sde",
+    "karras",
+    0.4,
+    5,
+    true,
+    true,
+    0.5,
+    10,
+    3.0,
+    "center-1",
+    0,
+    0.93,
+    0,
+    0.7,
+    "False",
+    10,
+    "",
+    1,
+    false,
+    20,
+    false,
+    false
+   ],
+   "title": "Fix faces"
+  },
+  {
+   "id": 13,
    "type": "SaveImage",
    "pos": [
     3000,
@@ -626,13 +1101,13 @@
     84
    ],
    "flags": {},
-   "order": 10,
+   "order": 13,
    "mode": 0,
    "inputs": [
     {
      "name": "images",
      "type": "IMAGE",
-     "link": 13
+     "link": 21
     },
     {
      "name": "filename_prefix",
@@ -761,7 +1236,71 @@
    13,
    9,
    0,
+   12,
+   0,
+   "IMAGE"
+  ],
+  [
+   14,
+   4,
+   0,
+   12,
+   1,
+   "MODEL"
+  ],
+  [
+   15,
+   2,
+   1,
+   12,
+   2,
+   "CLIP"
+  ],
+  [
+   16,
+   2,
+   2,
+   12,
+   3,
+   "VAE"
+  ],
+  [
+   17,
+   5,
+   0,
+   12,
+   12,
+   "CONDITIONING"
+  ],
+  [
+   18,
+   6,
+   0,
+   12,
+   13,
+   "CONDITIONING"
+  ],
+  [
+   19,
    10,
+   0,
+   12,
+   28,
+   "BBOX_DETECTOR"
+  ],
+  [
+   20,
+   11,
+   0,
+   12,
+   31,
+   "SAM_MODEL"
+  ],
+  [
+   21,
+   12,
+   0,
+   13,
    0,
    "IMAGE"
   ]
@@ -848,6 +1387,18 @@
     284
    ],
    "color": "#335",
+   "font_size": 22,
+   "flags": {}
+  },
+  {
+   "title": "Face fix",
+   "bounding": [
+    3400,
+    60,
+    380,
+    1492
+   ],
+   "color": "#444",
    "font_size": 22,
    "flags": {}
   }

@@ -284,6 +284,29 @@ def soft_mask(wf, mask, group, grow=8, blur=8):
     return wf.add('ImageToMask', 'Image to mask', group, {'channel': 'red'}, image=b)[0]
 
 
+def detailer(wf, fam, img, m, clip, vae, pos, neg, part='face', denoise=0.4, group='Face fix', title=None, sam=None):
+    """Impact Pack FaceDetailer: finds faces (or hands) with a YOLO detector + SAM, redraws each crop, pastes it back."""
+    det = wf.add('UltralyticsDetectorProvider', 'Face detector' if part == 'face' else 'Hand detector', group,
+                 {'model_name': 'bbox/face_yolov8m.pt' if part == 'face' else 'bbox/hand_yolov8s.pt'})
+    sam = sam or wf.add('SAMLoader', 'SAM', group, {'model_name': 'sam_vit_b_01ec64.pth', 'device_mode': 'AUTO'})[0]
+    xl = fam['key'] != 'SD 1.5'
+    return wf.add('FaceDetailer', title or ('Fix faces' if part == 'face' else 'Fix hands'), group, {
+        'guide_size': 1024 if xl else 512, 'guide_size_for': True, 'max_size': 1024 if xl else 768, 'seed': 0,
+        'steps': 20, 'cfg': fam['cfg'], 'sampler_name': fam['sampler'], 'scheduler': fam['sched'], 'denoise': denoise,
+        'feather': 5, 'noise_mask': True, 'force_inpaint': True, 'bbox_threshold': 0.5, 'bbox_dilation': 10,
+        'bbox_crop_factor': 3.0 if part == 'face' else 2.0, 'sam_detection_hint': 'center-1', 'sam_dilation': 0,
+        'sam_threshold': 0.93, 'sam_bbox_expansion': 0, 'sam_mask_hint_threshold': 0.7, 'sam_mask_hint_use_negative': 'False',
+        'drop_size': 10, 'wildcard': '', 'cycle': 1, 'inpaint_model': False, 'noise_mask_feather': 20,
+        'tiled_encode': False, 'tiled_decode': False,
+    }, image=img, model=m, clip=clip, vae=vae, positive=pos, negative=neg, bbox_detector=det[0], sam_model_opt=sam)[0]
+
+
+def decode_fix_save(wf, fam, latent, m, clip, vae, pos, neg, slug, denoise=0.4):
+    img = wf.add('VAEDecode', 'Decode', 'Output', samples=latent, vae=vae)[0]
+    fixed = detailer(wf, fam, img, m, clip, vae, pos, neg, denoise=denoise)
+    save(wf, fixed, slug)
+
+
 def common_note(fam, body):
     return body.strip() + f"\n\nModel: {fam['what']}\nDefaults: {fam['steps']} steps, CFG {fam['cfg']}, {fam['sampler']} / {fam['sched']}."
 
@@ -545,7 +568,8 @@ def face_instantid():
 Puts the face from a photo into a new picture (InstantID). The input picture is a clear photo of ONE face (front or 3/4 view).
 The prompt describes everything else: clothes, place, style ("comic art", "oil painting", "photo").
 Face weight: 0.8 default; lower (0.6) = more freedom for style, higher = closer likeness.
-InstantID wants a low CFG (4–5). Avoid exactly 1024×1024 (adds a watermark-like pattern): default 896×1152."""))
+InstantID wants a low CFG (4–5). Avoid exactly 1024×1024 (adds a watermark-like pattern): default 896×1152.
+Face fix: the faces are found and redrawn sharper at the end (Impact Pack FaceDetailer; Fix faces denoise 0.3: lower keeps the face closer, 0 / bypass to skip)."""))
     face = load(wf, 'Face photo')
     m, clip, vae = model(wf, fam)
     pos, neg = prompts(wf, fam, clip, pos='portrait photo of a person in a leather jacket on a rainy city street at night, neon reflections, cinematic')
@@ -556,7 +580,7 @@ InstantID wants a low CFG (4–5). Avoid exactly 1024×1024 (adds a watermark-li
                instantid=iid, insightface=fa, control_net=cn, image=face[0], model=m, positive=pos, negative=neg)
     lat = empty(wf, fam, w=896, h=1152)
     out = sample(wf, fam, a[0], a[1], a[2], lat, cfg=4.5, sampler='ddpm', sched='karras')
-    decode_save(wf, out, vae, 'sdxl-face-instantid')
+    decode_fix_save(wf, fam, out, m, clip, vae, pos, neg, 'sdxl-face-instantid', denoise=0.3)
     return wf
 
 
@@ -566,7 +590,8 @@ def face_pulid():
     wf = WF('SDXL · face from photo (PuLID)', common_note(dict(fam, cfg=6.0, sampler='dpmpp_2m', sched='sgm_uniform'), """
 Puts the face from a photo into a new picture (PuLID). Lighter touch than InstantID: the pose and style follow the prompt freely.
 The input picture is a clear photo of ONE face. Method: fidelity = closest likeness, style = more stylised, neutral = in between.
-Weight 0.8–1.0. Works with most SDXL checkpoints; lightning / turbo ones need fewer steps."""))
+Weight 0.8–1.0. Works with most SDXL checkpoints; lightning / turbo ones need fewer steps.
+Face fix: the faces are found and redrawn sharper at the end (Impact Pack FaceDetailer; Fix faces denoise 0.35: lower keeps the face closer, 0 / bypass to skip)."""))
     face = load(wf, 'Face photo')
     m, clip, vae = model(wf, fam)
     pos, neg = prompts(wf, fam, clip, pos='closeup portrait of a person as a cyberpunk hacker, purple hair, hoodie, neon light, highly detailed')
@@ -577,7 +602,7 @@ Weight 0.8–1.0. Works with most SDXL checkpoints; lightning / turbo ones need 
                model=m, pulid=pm, eva_clip=ev, face_analysis=fa, image=face[0])[0]
     lat = empty(wf, fam, w=896, h=1152)
     out = sample(wf, fam, a, pos, neg, lat, cfg=6.0, sampler='dpmpp_2m', sched='sgm_uniform')
-    decode_save(wf, out, vae, 'sdxl-face-pulid')
+    decode_fix_save(wf, fam, out, a, clip, vae, pos, neg, 'sdxl-face-pulid', denoise=0.35)
     return wf
 
 
@@ -587,7 +612,8 @@ def face_faceid15():
     wf = WF('SD 1.5 · face from photo (FaceID)', common_note(dict(fam, cfg=6.5, sampler='ddpm', sched='karras', steps=30), """
 Puts the face from a photo into a new picture with IP-Adapter FaceID Plus v2 (SD 1.5).
 The input picture is a clear photo of ONE face. Weight = overall face strength; FaceID v2 weight = likeness (1–2).
-LoRA strength (0.6) is the FaceID LoRA the loader adds automatically."""))
+LoRA strength (0.6) is the FaceID LoRA the loader adds automatically.
+Face fix: the faces are found and redrawn sharper at the end (Impact Pack FaceDetailer; Fix faces denoise 0.35: lower keeps the face closer, 0 / bypass to skip)."""))
     face = load(wf, 'Face photo')
     m, clip, vae = model(wf, fam)
     pos, neg = prompts(wf, fam, clip, pos='closeup photo of a person wearing a black dress on the seaside, sunset, diffuse light, high quality, detailed')
@@ -597,7 +623,7 @@ LoRA strength (0.6) is the FaceID LoRA the loader adds automatically."""))
                model=ul[0], ipadapter=ul[1], image=face[0])[0]
     lat = empty(wf, fam)
     out = sample(wf, fam, a, pos, neg, lat, cfg=6.5, sampler='ddpm', sched='karras', steps=30)
-    decode_save(wf, out, vae, 'sd15-face-faceid')
+    decode_fix_save(wf, fam, out, a, clip, vae, pos, neg, 'sd15-face-faceid', denoise=0.35)
     return wf
 
 
@@ -608,7 +634,7 @@ def character_sheet():
 One character, several poses on one wide sheet (front, side, back, action).
 The input picture is your character (any pose); IP-Adapter Plus copies their look (Character weight 0.6: higher = closer copy, but the poses get stiffer).
 Describe the character in the prompt too (hair, clothes, colours): the sheet layout words are in the prompt already.
-Small faces on a sheet are soft: run the result through "Fix faces and hands" for sharp faces.
+Small faces on a sheet are soft, so every face is redrawn sharp at the end (Fix faces, denoise 0.4).
 For anime characters switch the checkpoint to an Illustrious model."""))
     ref = load(wf, 'Character picture')
     m, clip, vae = model(wf, fam)
@@ -619,7 +645,7 @@ For anime characters switch the checkpoint to an Illustrious model."""))
     pos, neg = prompts(wf, fam, clip, pos='character sheet, character turnaround, the same character shown in several poses: front view, side view, back view, and an action pose, full body, consistent outfit, plain white background, concept art, highly detailed')
     lat = empty(wf, fam, w=1536, h=1024)
     out = sample(wf, fam, a, pos, neg, lat)
-    decode_save(wf, out, vae, 'sdxl-character-sheet')
+    decode_fix_save(wf, fam, out, a, clip, vae, pos, neg, 'sdxl-character-sheet', denoise=0.4)
     return wf
 
 
@@ -852,6 +878,28 @@ Change the four CFGs (or steps / sampler of each column) in the Sampling setting
                      image1=row, image2=im)[0]
     save(wf, row, 'sdxl-settings-grid')
     return wf
+
+
+def fix_faces_hands(fam):
+    wf = WF(f"{fam['key']} · fix faces and hands", common_note(dict(fam, steps=20), """
+Finds every face and hand in the input picture and redraws each one sharper and cleaner (Impact Pack FaceDetailer:
+YOLO face / hand detectors + SAM masks), then pastes them back. The rest of the picture is untouched.
+Prompt: describe the person ("young woman with freckles, smiling"); it applies to each face / hand.
+Fix faces denoise 0.4 (0.25 = subtle, 0.5 = new face). Fix hands denoise 0.45; hands are hard, try a few seeds.
+Detection: Bbox threshold 0.5 (lower finds smaller / partial faces); Bbox crop factor = how much around the face is redrawn.
+Use the same checkpoint family as the picture (this one: """ + fam['key'] + """). Leave Wildcard empty."""))
+    img = load(wf, 'Input image')
+    m, clip, vae = model(wf, fam)
+    pos, neg = prompts(wf, fam, clip, pos='detailed face, sharp eyes, natural skin texture, detailed hands, correct fingers')
+    sam = wf.add('SAMLoader', 'SAM', 'Fix faces', {'model_name': 'sam_vit_b_01ec64.pth', 'device_mode': 'AUTO'})[0]
+    face = detailer(wf, fam, img[0], m, clip, vae, pos, neg, part='face', denoise=0.4, group='Fix faces', sam=sam)
+    hand = detailer(wf, fam, face, m, clip, vae, pos, neg, part='hand', denoise=0.45, group='Fix hands', sam=sam)
+    save(wf, hand, f"{fam['slug']}-fix-faces-hands")
+    return wf
+
+
+register('SDXL · fix faces and hands')(lambda: fix_faces_hands(SDXL))
+register('SD 1.5 · fix faces and hands')(lambda: fix_faces_hands(SD15))
 
 
 def main():
