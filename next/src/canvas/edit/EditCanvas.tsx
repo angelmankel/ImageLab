@@ -5,7 +5,7 @@
  * the bar (insets), so at fit nothing covers it. It exposes the zoom controls the toolbar uses.
  */
 import { useEffect, useRef, useState } from 'react';
-import { Loader } from '@mantine/core';
+import { Spinner } from '~/ui';
 import { createGpuCanvas, type GpuCanvas } from '../gpu/engine';
 import { useEdit, setEditEngine } from './editStore';
 import { CropOverlay } from './CropOverlay';
@@ -60,7 +60,7 @@ export function EditCanvas({ onZoom, phone = false }: { onZoom?: (z: ZoomControl
         {(loading || failed || error || busy) && (
           <div role={error || failed ? 'alert' : 'status'} style={{ position: 'absolute', left: '50%', bottom: 14, transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', gap: 8, padding: '8px 14px', borderRadius: 999,
             background: 'var(--il-elev)', boxShadow: 'inset 0 0 0 1px var(--il-line-strong)', color: error || failed ? 'var(--il-err)' : 'var(--il-fg2)', fontSize: 12, fontWeight: 700, maxWidth: 'calc(100% - 32px)' }}>
-            {(loading || (busy && !error)) && <Loader size={14} color="var(--il-ember)" />}
+            {(loading || (busy && !error)) && <Spinner size={14} />}
             {failed ? 'This browser could not start the GPU canvas (WebGL).' : error ?? (busy ? `${busy}…` : 'Loading the picture…')}
             {error && <button type="button" className="il-btn" onClick={() => useEdit.setState({ error: null })} style={{ border: 0, background: 'transparent', color: 'var(--il-muted)', fontWeight: 800, cursor: 'pointer' }}>Dismiss</button>}
           </div>

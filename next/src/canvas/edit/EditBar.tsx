@@ -10,12 +10,11 @@
  *   Undo · Redo · Reset to original · Use as input · Save (a new result in the history)
  */
 import { useRef, useState, type ReactNode } from 'react';
-import { Loader } from '@mantine/core';
 import {
   IconAdjustments, IconArrowBackUp, IconArrowForwardUp, IconBackground, IconCheck, IconContrast2, IconCrop, IconDots, IconFlipHorizontal,
   IconFlipVertical, IconPhotoUp, IconRestore, IconRotateClockwise, IconArrowsDiagonal, IconX, IconColorFilter,
 } from '@tabler/icons-react';
-import { Button, Chip, IconBtn, NumberField, Slider } from '~/ui';
+import { Button, Chip, IconBtn, NumberField, Slider, Spinner } from '~/ui';
 import { CROP_RATIOS, ratioRect, isNeutralLook, NEUTRAL_LOOK, type Look } from './editLogic';
 import { cropRatioValue } from './cropRatio';
 import { exitEdit, isDirty, redoEdit, resetEdit, setLook, setTool, undoEdit, useEdit, type EditToolId } from './editStore';
@@ -37,12 +36,12 @@ function Tool({ icon, label, onClick, on, disabled, busy, phone, primary }: { ic
         style={{ flex: 'none', width: 56, height: 56, borderRadius: 12, border: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, padding: 0,
           background: primary ? 'var(--il-ember)' : on ? 'var(--il-ember-soft)' : 'var(--il-elev)', color: primary ? 'var(--il-on-accent, #0F0F11)' : on ? 'var(--il-ember-hi)' : 'var(--il-fg2)',
           boxShadow: on ? 'inset 0 0 0 1px var(--il-ember-line)' : undefined, opacity: disabled ? 0.4 : 1, fontSize: 10, fontWeight: 700 }}>
-        {busy ? <Loader size={16} color="var(--il-ember)" /> : icon}
+        {busy ? <Spinner size={16} /> : icon}
         <span style={{ maxWidth: 52, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label.split(' · ')[0]}</span>
       </button>
     );
   }
-  return <IconBtn icon={busy ? <Loader size={14} color="var(--il-ember)" /> : icon} label={label} onClick={onClick} on={on} disabled={disabled} size={BTN} tipPos="right" tone={primary ? 'primary' : 'ghost'} />;
+  return <IconBtn icon={busy ? <Spinner size={14} /> : icon} label={label} onClick={onClick} on={on} disabled={disabled} size={BTN} tipPos="right" tone={primary ? 'primary' : 'ghost'} />;
 }
 
 const Hr = ({ phone }: { phone: boolean }) => <span aria-hidden style={phone ? { width: 1, alignSelf: 'stretch', margin: '6px 2px', background: 'var(--il-line-strong)', flex: 'none' } : { width: 26, height: 1, background: 'var(--il-line-strong)', margin: '4px 0', flex: 'none' }} />;
