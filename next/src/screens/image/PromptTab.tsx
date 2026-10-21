@@ -23,6 +23,7 @@ import { NegativePills } from './prompt/NegativePills';
 import { useTiles } from './prompt/useTiles';
 import { useTileEdit, useTileUi } from './prompt/tileStore';
 import { SectionToggle } from './prompt/SectionToggle';
+import { SnippetHost } from './snippets/SnippetHost';
 import { foldLayers } from './prompt/promptSections';
 import { usePromptTiles } from './prompt/usePromptTiles';
 
@@ -67,8 +68,11 @@ export function PromptTab({ large = false }: { large?: boolean }) {
   return (
     <>
       <div data-no-swipe style={{
-        position: 'sticky', top: phone ? 'env(safe-area-inset-top, 0px)' : 0, zIndex: 6, margin: '-10px -10px 0', padding: '6px 10px 8px',
-        background: 'var(--il-panel)', boxShadow: '0 12px 14px -14px rgba(0,0,0,.7)', display: 'flex', flexDirection: 'column', gap: 4,
+        // Sticky insets count from the scroll container's padding edge: the desktop panel body has 10px
+        // of top padding, so -10 puts this block flush under the tabs (no see-through gap). The phone
+        // page (CreatePage) has none.
+        position: 'sticky', top: phone ? 'env(safe-area-inset-top, 0px)' : -10, zIndex: 6, margin: '-10px -10px 0', padding: '6px 10px 8px',
+        background: 'var(--il-panel)', boxShadow: '0 1px 0 var(--il-line-soft), 0 12px 14px -14px rgba(0,0,0,.7)', display: 'flex', flexDirection: 'column', gap: 4,
       }}>
         <SectionToggle open={!promptFolded} onToggle={() => setFolded('prompt', !promptFolded)}
           label={negative ? 'Negative' : 'Prompt'} tone={negative ? 'color-mix(in srgb, var(--il-err) 75%, white)' : undefined}
@@ -104,6 +108,7 @@ export function PromptTab({ large = false }: { large?: boolean }) {
         : <TileGrid tiles={tiles} on={posOn} typed={typed} onToggle={toggle} flow onlyOn={onOnly} />)}
       <WriteItModal opened={writing} onClose={() => setWriting(false)} />
       <StartersModal opened={starters} onClose={() => setStarters(false)} />
+      <SnippetHost />
     </>
   );
 }

@@ -23,6 +23,8 @@ export type Snippet = {
   categoryId: string;
   /** A complete preset; older snippets remain usable as single-part presets. */
   layers?: Array<Omit<Layer, 'id' | 'originSnippetId'>>;
+  /** A small preview picture (data URL, ~192 px) shown on the tile instead of its colour. */
+  image?: string;
 };
 
 /** Snippet library category — organizational only; users can add/rename/delete. */
@@ -31,6 +33,8 @@ export type SnippetCategory = {
   name: string;
   /** Emoji or short text shown next to the name. Optional flair, no semantics. */
   icon?: string;
+  /** The category's colour as a hue (0–360); unset = the built-in colour. */
+  hue?: number;
 };
 
 export type HistoryEntry = {

@@ -17,6 +17,7 @@ import { useIsPhone } from '~/app/useIsPhone';
 import { Button, Chip } from '~/ui';
 import { PromptCard } from '../prompt/PromptCard';
 import { TileGrid } from '../prompt/TileGrid';
+import { SnippetHost } from '../snippets/SnippetHost';
 import { NegativePills } from '../prompt/NegativePills';
 import { usePromptTiles } from '../prompt/usePromptTiles';
 import { useTileEdit } from '../prompt/tileStore';
@@ -109,6 +110,7 @@ export function WorkflowPromptTab({ step }: { step: Step }) {
           ))}
         </div>
       )}
+      <SnippetHost />
     </>
   );
 }

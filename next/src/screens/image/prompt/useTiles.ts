@@ -6,7 +6,7 @@
 import { useMemo } from 'react';
 import { useStore } from '@/lib/store';
 import type { Snippet, SnippetCategory } from '@/lib/types';
-import { isModelSpecific } from './promptSearch';
+import { isModelSpecific, setCategoryHues } from './promptSearch';
 import { snippetTextFor } from './promptSections';
 
 export interface Tiles {
@@ -23,6 +23,7 @@ export function useTiles(): Tiles {
   const snippets = useStore((s) => s.snippets);
   const cats = useStore((s) => s.snippetCategories);
   return useMemo(() => {
+    setCategoryHues(cats);
     const ok = snippets.filter((s) => !isModelSpecific(s));
     const categories = cats.filter((c) => !isModelSpecific({ id: '', categoryId: c.id }));
     categories.sort((a, b) => (FIRST.includes(b.id) ? 1 : 0) - (FIRST.includes(a.id) ? 1 : 0));

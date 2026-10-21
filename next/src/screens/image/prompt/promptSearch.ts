@@ -36,9 +36,21 @@ function hash(s: string): number {
   return h >>> 0;
 }
 
+/** Item 42: colours picked for categories (Manage → swatches). Kept in step by `useTiles`. */
+const CUSTOM_HUE = new Map<string, number>();
+export function setCategoryHues(cats: ReadonlyArray<{ id: string; hue?: number }>): void {
+  CUSTOM_HUE.clear();
+  for (const c of cats) if (typeof c.hue === 'number') CUSTOM_HUE.set(c.id, c.hue);
+}
+
+/** A category's own hue (its picked colour, else the built-in one). */
+export function categoryHue(categoryId: string): number {
+  return CUSTOM_HUE.get(categoryId) ?? CAT_HUE[categoryId] ?? hash(categoryId) % 360;
+}
+
 /** The tile's hue: its category's, shifted a little per tile so neighbours differ. */
 export function tileHue(s: { id: string; categoryId: string }): number {
-  const base = CAT_HUE[s.categoryId] ?? hash(s.categoryId) % 360;
+  const base = categoryHue(s.categoryId);
   return (base + (hash(s.id) % 31) - 15 + 360) % 360;
 }
 

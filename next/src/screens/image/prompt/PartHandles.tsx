@@ -8,6 +8,7 @@
  */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { IconGripVertical, IconX } from '@tabler/icons-react';
+import { toCssPx } from '~/theme/uiScale';
 import type { Part } from './promptSections';
 
 export interface PartDrag {
@@ -121,7 +122,7 @@ export function PartHandles({ wrap, back, ta, parts, value, caretPart, isSnippet
     const wr = w.getBoundingClientRect();
     const tr = t.getBoundingClientRect();
     if (r.bottom < tr.top + 2 || r.top > tr.bottom - 2) { setPos(null); return; }
-    setPos({ x: r.right - wr.left, y: Math.max(r.top, tr.top) - wr.top });
+    setPos({ x: toCssPx(r.right - wr.left), y: toCssPx(Math.max(r.top, tr.top) - wr.top) });
   }, [shown, value, tick, wrap, back, ta]);
 
   // Escape cancels a drag.
@@ -150,12 +151,12 @@ export function PartHandles({ wrap, back, ta, parts, value, caretPart, isSnippet
       if (cy < tr.top + 12) t.scrollTop -= 12; else if (cy > tr.bottom - 12) t.scrollTop += 12;
       const hit = hitPart(b, cx, cy, from);
       let next: PartDrag;
-      if (hit >= 0) next = { from, to: hit, mode: 'swap', x: cx - wr.left, y: cy - wr.top, line: null };
+      if (hit >= 0) next = { from, to: hit, mode: 'swap', x: toCssPx(cx - wr.left), y: toCssPx(cy - wr.top), line: null };
       else {
         const s = slotAt(b, cx, cy);
         const useful = s && s.slot !== from && s.slot !== from + 1;
-        next = { from, to: useful ? s!.slot : -1, mode: 'move', x: cx - wr.left, y: cy - wr.top,
-          line: useful ? { x: (s!.after ? s!.r.right + 2 : s!.r.left - 3) - wr.left, y: s!.r.top - wr.top, h: s!.r.height } : null };
+        next = { from, to: useful ? s!.slot : -1, mode: 'move', x: toCssPx(cx - wr.left), y: toCssPx(cy - wr.top),
+          line: useful ? { x: toCssPx((s!.after ? s!.r.right + 2 : s!.r.left - 3) - wr.left), y: toCssPx(s!.r.top - wr.top), h: toCssPx(s!.r.height) } : null };
       }
       cur = next;
       setDrag(next);

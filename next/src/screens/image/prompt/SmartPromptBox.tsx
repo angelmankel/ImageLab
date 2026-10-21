@@ -13,6 +13,7 @@ import { IconMinus, IconPlus, IconStar, IconX } from '@tabler/icons-react';
 import { useIsPhone } from '~/app/useIsPhone';
 import { Tip, useScrollIntoView } from '~/ui';
 import { pushUndo } from '~/app/undo';
+import { toCssPx } from '~/theme/uiScale';
 import { PartHandles, type PartDrag } from './PartHandles';
 import {
   applyEdit, formatWeight, movePart, nudgeWeight, partAt, promptParts, replaceSlash, setPartWeight, removeRange, slashQuery, snippetTextFor,
@@ -25,7 +26,7 @@ import './smartPrompt.css';
 const MAX_H = 320;
 const MAX_SHARE = 0.24;
 const MIN_CAP = 110;
-const capFor = (large: boolean) => Math.round(Math.max(MIN_CAP, Math.min(large ? 260 : MAX_H, window.innerHeight * MAX_SHARE)));
+const capFor = (large: boolean) => Math.round(Math.max(MIN_CAP, Math.min(large ? 260 : MAX_H, toCssPx(window.innerHeight) * MAX_SHARE)));
 const PICK_MAX = 40;
 
 export interface SmartPromptBoxProps {

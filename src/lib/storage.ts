@@ -416,6 +416,7 @@ function normalizeCategory(c: Partial<SnippetCategory>): SnippetCategory {
     id: String(c.id || uid()),
     name: String(c.name || 'Untitled'),
     icon: typeof c.icon === 'string' ? c.icon : undefined,
+    ...(typeof c.hue === 'number' && Number.isFinite(c.hue) ? { hue: c.hue } : {}),
   };
 }
 
@@ -651,6 +652,7 @@ function normalizeSnippet(s: Partial<Snippet>): Snippet {
     weight: Number.isFinite(s.weight) ? (s.weight as number) : 1.0,
     kind: s.kind === 'negative' ? 'negative' : 'positive',
     categoryId: typeof s.categoryId === 'string' && s.categoryId ? s.categoryId : DEFAULT_CATEGORY_ID,
+    ...(typeof s.image === 'string' && s.image ? { image: s.image } : {}),
   };
 }
 

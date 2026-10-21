@@ -1056,6 +1056,7 @@ export const useStore = create<Store>((set, get) => {
         ...c,
         ...(patch.name !== undefined ? { name: patch.name.trim() || c.name } : {}),
         ...(patch.icon !== undefined ? { icon: patch.icon } : {}),
+        ...(patch.hue !== undefined ? { hue: patch.hue } : {}),
       } : c);
       set({ snippetCategories: next });
     },

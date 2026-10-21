@@ -3,34 +3,28 @@
  * Manual: search, tap a tile to put it in / take it out of the prompt (the text itself — a tile is
  * on when its text is in the prompt). Auto: the words typed in the prompt pick the related tiles.
  * The name sits inside the tile (capped to fit); the picture is the tile's colour until it has
- * art. Right-click / long-press a tile: Edit · Delete (Undo) · Copy text ('style-tile' menu).
+ * art (or its own picture, item 42). Right-click / long-press a tile: the 'style-tile' menu; a
+ * category title: the 'snippet-category' menu (`snippets/snippetMenus`). "+" opens the quick
+ * snippet modal, ⚙ the Manage window (item 42).
  */
 import { Fragment, useMemo, useState } from 'react';
-import { IconCheck, IconCopy, IconPencil, IconPlus, IconSearch, IconTrash, IconX } from '@tabler/icons-react';
-import { useStore } from '@/lib/store';
+import { IconCheck, IconPlus, IconSearch, IconSettings, IconX } from '@tabler/icons-react';
 import type { Snippet } from '@/lib/types';
-import { registerMenu, menuProps } from '~/app/contextMenu';
+import { menuProps } from '~/app/contextMenu';
 import { useIsPhone } from '~/app/useIsPhone';
 import { Button } from '~/ui';
-import { SnippetForm } from '../snippets/SnippetForm';
-import { deleteWithUndo } from '../snippets/snippetActions';
+import '../snippets/snippetMenus';
 import { formatWeight, type Part } from './promptSections';
 import { relatedTiles, searchTiles, tileBackground, tileHue, tileName } from './promptSearch';
 import { useTileEdit, useTileUi, type GridMode } from './tileStore';
 import type { Tiles } from './useTiles';
-
-registerMenu<Snippet>('style-tile', [
-  { id: 'edit', label: 'Edit', icon: IconPencil, action: (s) => useTileEdit.getState().edit(s.id) },
-  { id: 'copy', label: 'Copy text', icon: IconCopy, action: (s) => { void navigator.clipboard?.writeText(s.layers ? s.layers.map((l) => l.text).join(', ') : s.text); } },
-  { id: 'delete', label: 'Delete', icon: IconTrash, danger: true, group: 'danger', action: (s) => deleteWithUndo(s) },
-]);
 
 function Tile({ s, part, onToggle }: { s: Snippet; part: Part | undefined; onToggle: () => void }) {
   const on = !!part;
   const text = s.layers ? s.layers.map((l) => l.text).join(' · ') : s.text;
   return (
     <button type="button" className={`il-tile${on ? ' is-on' : ''}`} aria-pressed={on} onClick={onToggle} title={`${s.name}\n${text}`}
-      style={{ background: tileBackground(tileHue(s)) }} {...menuProps('style-tile', s)}>
+      style={{ background: s.image ? `center / cover no-repeat url("${s.image}")` : tileBackground(tileHue(s)) }} {...menuProps('style-tile', s)}>
       {on && <span className="il-tile-check" aria-hidden><IconCheck size={12} stroke={3.2} /></span>}
       {part && Math.abs(part.weight - 1) > 0.001 && <span className="il-tile-w">{formatWeight(part.weight)}</span>}
       <span className="il-tile-name">{tileName(s.name)}</span>
@@ -50,9 +44,8 @@ export function TileGrid({ tiles, on, typed, onToggle, flow = false, onlyOn = fa
   const phone = useIsPhone();
   const mode = useTileUi((s) => s.gridMode);
   const setMode = useTileUi((s) => s.setGridMode);
-  const editing = useTileEdit((s) => s.editing);
-  const draftText = useTileEdit((s) => s.draftText);
   const edit = useTileEdit((s) => s.edit);
+  const openManage = useTileEdit((s) => s.openManage);
   const [query, setQuery] = useState('');
   const all = tiles.positive;
   const list = useMemo(() => (onlyOn ? all.filter((s) => on.has(s.id)) : all), [onlyOn, all, on]);
@@ -67,9 +60,6 @@ export function TileGrid({ tiles, on, typed, onToggle, flow = false, onlyOn = fa
       .filter((g) => g.items.length);
   }, [found, auto, list, tiles.categories]);
 
-  const editSnip = editing && editing !== 'new' ? all.find((s) => s.id === editing) : undefined;
-  const formOpen = editing === 'new' || !!editSnip;
-  const posCats = tiles.categories.filter((c) => !c.id.startsWith('neg-'));
   const h = phone ? 40 : 34;
 
   const seg = (m: GridMode, text: string) => (
@@ -92,27 +82,9 @@ export function TileGrid({ tiles, on, typed, onToggle, flow = false, onlyOn = fa
         <div role="tablist" aria-label="Grid mode" style={{ display: 'inline-flex', height: h, padding: 3, borderRadius: 10, background: 'var(--il-bg-deep)', flex: 'none' }}>
           {seg('manual', 'Manual')}{seg('auto', 'Auto')}
         </div>
-        <Button tone="card" h={h} icon={<IconPlus size={15} stroke={2.6} />} tooltip="New tile" on={editing === 'new'} onClick={() => edit(editing === 'new' ? null : 'new')} />
+        <Button tone="card" h={h} icon={<IconSettings size={15} stroke={2.2} />} tooltip="Manage snippets" onClick={() => openManage('')} />
+        <Button tone="card" h={h} icon={<IconPlus size={15} stroke={2.6} />} tooltip="New snippet" onClick={() => edit('new')} />
       </div>
-
-      {formOpen && (
-        <div style={{ marginBottom: 8 }}>
-          <SnippetForm
-            key={editing ?? ''}
-            initial={editSnip ?? (draftText ? { name: '', text: draftText, categoryId: posCats[0]?.id ?? 'uncategorized' } : undefined)}
-            categories={posCats}
-            defaultCategory={posCats[0]?.id ?? 'uncategorized'}
-            saveLabel={editSnip ? 'Save' : 'Save tile'}
-            onCancel={() => edit(null)}
-            onSave={(v) => {
-              const st = useStore.getState();
-              if (editSnip) st.updateSnippet(editSnip.id, editSnip.layers ? { name: v.name, categoryId: v.categoryId } : { name: v.name, text: v.text, categoryId: v.categoryId });
-              else st.addSnippet({ name: v.name, text: v.text, kind: 'positive', categoryId: v.categoryId, tag: '', weight: 1 });
-              edit(null);
-            }}
-          />
-        </div>
-      )}
 
       {auto && !typed.trim() && !onlyOn && (
         <div style={{ margin: '-2px 0 8px', fontSize: 11, fontWeight: 700, color: 'var(--il-muted)' }}>Type in the prompt — tiles that go with your words show here.</div>
@@ -122,7 +94,7 @@ export function TileGrid({ tiles, on, typed, onToggle, flow = false, onlyOn = fa
         style={{ display: 'grid', gridTemplateColumns: phone ? 'repeat(4, minmax(0, 1fr))' : 'repeat(auto-fill, minmax(82px, 1fr))', gap: 8, ...(flow ? {} : { maxHeight: phone ? 330 : 360, overflowY: 'auto' as const, touchAction: 'pan-y', paddingRight: 2 }), alignContent: 'start' }}>
         {groups && groups.map((g) => (
           <Fragment key={g.c.id}>
-            <div style={label}>{g.c.name}</div>
+            <div style={label} {...menuProps('snippet-category', g.c)}>{g.c.icon ? `${g.c.icon} ` : ''}{g.c.name}</div>
             {g.items.map((s) => <Tile key={s.id} s={s} part={on.get(s.id)} onToggle={() => onToggle(s)} />)}
           </Fragment>
         ))}
