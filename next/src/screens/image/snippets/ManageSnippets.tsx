@@ -15,7 +15,7 @@ import { IconArrowLeft, IconCheck, IconCopy, IconDots, IconGripVertical, IconMin
 import { useStore } from '@/lib/store';
 import type { Snippet, SnippetCategory } from '@/lib/types';
 import { menuProps, openMenu } from '~/app/contextMenu';
-import { useIsPhone } from '~/app/useIsPhone';
+import { useIsPhone, usePhoneLandscape } from '~/app/useIsPhone';
 import { Button, SearchSelect } from '~/ui';
 import { T } from '~/theme/tokens';
 import { dvh, vh } from '~/theme/uiScale';
@@ -39,6 +39,9 @@ export function ManageSnippets() {
 
 function ManageModal({ opened, start, onClose }: { opened: boolean; start: string; onClose: () => void }) {
   const phone = useIsPhone();
+  // Phone landscape (mobile pass): both panes side by side, as on desktop; portrait: one at a time.
+  const land = usePhoneLandscape();
+  const split = !phone || land;
   const allSnippets = useStore((s) => s.snippets);
   const allCats = useStore((s) => s.snippetCategories);
   const cats = useMemo(() => allCats.filter((c) => !isModelSpecific({ id: '', categoryId: c.id })), [allCats]);
@@ -260,18 +263,19 @@ function ManageModal({ opened, start, onClose }: { opened: boolean; start: strin
     <Modal opened={opened} onClose={onClose} withCloseButton={false} centered size={940} fullScreen={phone} zIndex={T.z.modal} radius={phone ? 0 : T.radius.xl} padding={0}
       overlayProps={{ backgroundOpacity: 0.55, blur: 6 }} transitionProps={{ transition: 'pop', duration: 140 }}
       styles={{ content: { background: 'var(--il-panel)', border: phone ? 0 : '1px solid var(--il-line-soft)', overflow: 'hidden' } }}>
-      <div data-no-swipe style={{ display: 'flex', flexDirection: 'column', height: phone ? dvh(100) : `min(640px, ${vh(88)})`, boxSizing: 'border-box' }}>
+      <div data-no-swipe style={{ display: 'flex', flexDirection: 'column', height: phone ? dvh(100) : `min(640px, ${vh(88)})`, boxSizing: 'border-box',
+        ...(phone && split ? { paddingLeft: 'env(safe-area-inset-left, 0px)', paddingRight: 'env(safe-area-inset-right, 0px)' } : null) }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: phone ? '10px 12px' : '14px 16px 10px', borderBottom: '1px solid var(--il-line-soft)', flex: 'none' }}>
-          {phone && pane === 'snips' && <Button tone="ghost" size="lg" icon={<IconArrowLeft size={16} />} aria-label="Categories" onClick={() => { setPane('cats'); setQuery(''); }} />}
+          {!split && pane === 'snips' && <Button tone="ghost" size="lg" icon={<IconArrowLeft size={16} />} aria-label="Categories" onClick={() => { setPane('cats'); setQuery(''); }} />}
           <div style={{ fontSize: 16, fontWeight: 800, flex: 'none' }}>Snippets</div>
-          <div style={{ flex: 1, minWidth: 0 }}>{(!phone || pane === 'cats' || query) && search}</div>
+          <div style={{ flex: 1, minWidth: 0 }}>{(split || pane === 'cats' || query) && search}</div>
           <Button tone="ghost" size={sz} icon={<IconX size={15} />} aria-label="Close" onClick={onClose} />
         </div>
         <div style={{ flex: 1, minHeight: 0, display: 'flex' }}>
-          {(!phone || pane === 'cats') && (
-            <div style={{ width: phone ? '100%' : 260, flex: 'none', borderRight: phone ? 0 : '1px solid var(--il-line-soft)', padding: 12, display: 'flex', flexDirection: 'column', minHeight: 0 }}>{catList}</div>
+          {(split || pane === 'cats') && (
+            <div style={{ width: split ? (phone ? 280 : 260) : '100%', flex: 'none', borderRight: split ? '1px solid var(--il-line-soft)' : 0, padding: 12, display: 'flex', flexDirection: 'column', minHeight: 0 }}>{catList}</div>
           )}
-          {(!phone || pane === 'snips') && (
+          {(split || pane === 'snips') && (
             <div style={{ flex: 1, minWidth: 0, padding: 12, display: 'flex', flexDirection: 'column', gap: 8, minHeight: 0 }}>
               {query ? <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--il-muted)' }}>{rows.length} found</div> : header}
               {!query && mergeAsk}

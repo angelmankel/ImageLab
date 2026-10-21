@@ -19,7 +19,8 @@ import { activeEntry } from '@/lib/aiProviders';
 import { paramBody } from '@/lib/aiParams';
 import { AiModelPicker } from '@/features/ai/AiModelPicker';
 import type { Snippet } from '@/lib/types';
-import { useIsPhone } from '~/app/useIsPhone';
+import { useIsPhone, usePhoneLandscape } from '~/app/useIsPhone';
+import { useKeyboardOpen } from '~/phone';
 import { pushUndo } from '~/app/undo';
 import { formatWhen } from '~/lib/time';
 import { Button, Chip, Spinner, Tabs } from '~/ui';
@@ -51,6 +52,10 @@ function slashAt(text: string, caret: number): { start: number; query: string } 
 
 export function WriteItModal({ opened, onClose }: { opened: boolean; onClose: () => void }) {
   const phone = useIsPhone();
+  // Phone landscape (mobile pass): the desktop's two columns (compose · results), each scrolling;
+  // the Write bar hides while the keyboard is up (there is no room for both at 390 px tall).
+  const land = usePhoneLandscape();
+  const kb = useKeyboardOpen();
   const ai = useStore((s) => s.ai);
   const current = useStore((s) => compileLayers(s.layers, 'positive'));
   const tiles = useTiles();
@@ -313,7 +318,7 @@ export function WriteItModal({ opened, onClose }: { opened: boolean; onClose: ()
   );
 
   const header = (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: phone ? '10px 14px' : '14px 18px', borderBottom: '1px solid var(--il-line-soft)', flex: 'none' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: land ? '4px 10px 4px 14px' : phone ? '10px 14px' : '14px 18px', borderBottom: '1px solid var(--il-line-soft)', flex: 'none' }}>
       <span aria-hidden style={{ width: 32, height: 32, borderRadius: 10, display: 'grid', placeItems: 'center', background: 'var(--il-ember-soft)', color: 'var(--il-ember-hi)', flex: 'none' }}><IconSparkles size={17} stroke={2.2} /></span>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 16, fontWeight: 800 }}>Prompt studio</div>
@@ -332,7 +337,7 @@ export function WriteItModal({ opened, onClose }: { opened: boolean; onClose: ()
         body: { flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', padding: 0 },
       }}>
       {header}
-      {phone ? (
+      {phone && !land ? (
         <>
           <div className="il-scroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto', touchAction: 'pan-y', padding: pad, display: 'flex', flexDirection: 'column', gap: 14 }}>
             {ideaBox}{ingredientsBlock}{picks}{notes}
@@ -341,17 +346,20 @@ export function WriteItModal({ opened, onClose }: { opened: boolean; onClose: ()
           <div style={{ flex: 'none', padding: '10px 14px calc(12px + var(--il-safe-bottom, 0px))', borderTop: '1px solid var(--il-line-soft)', background: 'var(--il-panel)' }}>{writeBar}</div>
         </>
       ) : (
-        <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'minmax(360px, 440px) minmax(0, 1fr)' }}>
+        <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: land ? 'minmax(0, 1fr) minmax(0, 1fr)' : 'minmax(360px, 440px) minmax(0, 1fr)',
+          ...(land ? { paddingLeft: 'env(safe-area-inset-left, 0px)', paddingRight: 'env(safe-area-inset-right, 0px)' } : null) }}>
           <div style={{ display: 'flex', flexDirection: 'column', minHeight: 0, borderRight: '1px solid var(--il-line-soft)' }}>
-            <div className="il-scroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: pad, display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div className="il-scroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto', touchAction: 'pan-y', padding: pad, display: 'flex', flexDirection: 'column', gap: 16 }}>
               {ideaBox}{ingredientsBlock}{picks}{notes}
             </div>
-            <div style={{ flex: 'none', padding: '12px 18px 16px', borderTop: '1px solid var(--il-line-soft)', display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {writeBar}
-              <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--il-dim)', textAlign: 'right' }}>Ctrl+Enter writes</span>
-            </div>
+            {!(land && kb) && (
+              <div style={{ flex: 'none', padding: land ? '8px 14px calc(8px + var(--il-safe-bottom, 0px))' : '12px 18px 16px', borderTop: '1px solid var(--il-line-soft)', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {writeBar}
+                {!phone && <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--il-dim)', textAlign: 'right' }}>Ctrl+Enter writes</span>}
+              </div>
+            )}
           </div>
-          <div className="il-scroll" style={{ minHeight: 0, overflowY: 'auto', padding: pad, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div className="il-scroll" style={{ minHeight: 0, overflowY: 'auto', touchAction: 'pan-y', padding: pad, display: 'flex', flexDirection: 'column', gap: 12 }}>
             {right}
           </div>
         </div>

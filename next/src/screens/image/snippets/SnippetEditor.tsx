@@ -12,9 +12,10 @@ import { Modal } from '@mantine/core';
 import { IconTrash } from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
 import type { SnippetCategory } from '@/lib/types';
-import { useIsPhone } from '~/app/useIsPhone';
+import { useIsPhone, usePhoneLandscape } from '~/app/useIsPhone';
 import { Button, SearchSelect } from '~/ui';
 import { T } from '~/theme/tokens';
+import { dvh } from '~/theme/uiScale';
 import { isModelSpecific } from '../prompt/promptSearch';
 import { useTileEdit } from '../prompt/tileStore';
 import { autoName, UNCATEGORIZED } from './snippetModel';
@@ -66,6 +67,9 @@ function EditorModal({ opened, onClose, snip, negative, draftText, draftCat, cat
   draftText: string; draftCat: string; cats: SnippetCategory[];
 }) {
   const phone = useIsPhone();
+  // Phone landscape (mobile pass): the desktop's row (picture left, fields right), the page scrolls.
+  const land = usePhoneLandscape();
+  const stacked = phone && !land;
   const preset = !!snip?.layers;
   const [text, setText] = useState(snip ? snip.text : draftText);
   const [name, setName] = useState(snip?.name ?? '');
@@ -94,7 +98,7 @@ function EditorModal({ opened, onClose, snip, negative, draftText, draftCat, cat
   };
 
   const pic = (
-    <SnippetPicture size={phone ? 'min(100%, 220px)' : 176} url={image ?? null}
+    <SnippetPicture size={stacked ? 'min(100%, 220px)' : land ? 140 : 176} url={image ?? null}
       onBlob={async (blob) => { setImage(await snippetPicture(blob)); }} onClear={() => setImage(undefined)} />
   );
   const btn = phone ? 'lg' : 'md';
@@ -103,7 +107,8 @@ function EditorModal({ opened, onClose, snip, negative, draftText, draftCat, cat
     <Modal opened={opened} onClose={onClose} withCloseButton={false} centered size={640} fullScreen={phone} zIndex={T.z.modal} radius={phone ? 0 : T.radius.xl} padding={0}
       overlayProps={{ backgroundOpacity: 0.55, blur: 6 }} transitionProps={{ transition: 'pop', duration: 140 }}
       styles={{ content: { background: 'var(--il-panel)', border: phone ? 0 : '1px solid var(--il-line-soft)' } }}>
-      <div data-no-swipe style={{ display: 'flex', flexDirection: 'column', gap: 18, padding: phone ? '16px 16px 20px' : '20px 22px 20px' }}>
+      <div data-no-swipe className={phone ? 'il-scroll' : undefined} style={{ display: 'flex', flexDirection: 'column', gap: land ? 12 : 18, padding: land ? '10px calc(16px + env(safe-area-inset-right, 0px)) 14px calc(16px + env(safe-area-inset-left, 0px))' : phone ? '16px 16px 20px' : '20px 22px 20px',
+        ...(phone ? { maxHeight: dvh(100), overflowY: 'auto', touchAction: 'pan-y', boxSizing: 'border-box' } : null) }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, minHeight: 32 }}>
           <div style={{ fontSize: 17, fontWeight: 800, flex: 1, minWidth: 0 }}>{snip ? 'Edit snippet' : negative ? 'New negative snippet' : 'New snippet'}</div>
           {/* ✦ From image (writeit's window: snippets made from a picture by the vision model). It opens
@@ -117,8 +122,8 @@ function EditorModal({ opened, onClose, snip, negative, draftText, draftCat, cat
           )}
         </div>
 
-        <div style={{ display: 'flex', flexDirection: phone ? 'column' : 'row', gap: phone ? 16 : 20, alignItems: phone ? 'stretch' : 'flex-start' }}>
-          {!phone && pic}
+        <div style={{ display: 'flex', flexDirection: stacked ? 'column' : 'row', gap: stacked ? 16 : 20, alignItems: stacked ? 'stretch' : 'flex-start' }}>
+          {!stacked && pic}
           <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 14 }}>
             <label style={{ display: 'flex', flexDirection: 'column' }}>
               <span style={lbl}>{negative ? 'What it keeps out' : 'What it puts in the prompt'}</span>
@@ -128,12 +133,12 @@ function EditorModal({ opened, onClose, snip, negative, draftText, draftCat, cat
                   <div style={{ fontSize: 11, color: 'var(--il-dim)', marginTop: 4 }}>A preset (prompt + negative): its text is kept as is.</div>
                 </div>
               ) : (
-                <textarea ref={box} rows={phone ? 4 : 4} value={text} onChange={(e) => setText(e.target.value)} onKeyDown={onKey}
+                <textarea ref={box} rows={land ? 3 : 4} value={text} onChange={(e) => setText(e.target.value)} onKeyDown={onKey}
                   placeholder={negative ? 'blurry, lowres, extra fingers' : 'golden hour, warm rim light'}
-                  spellCheck={false} style={{ ...field, fontSize: 15, lineHeight: 1.5, padding: '10px 12px', resize: 'vertical', minHeight: 104 }} />
+                  spellCheck={false} style={{ ...field, fontSize: 15, lineHeight: 1.5, padding: '10px 12px', resize: 'vertical', minHeight: land ? 80 : 104 }} />
               )}
             </label>
-            <div style={{ display: 'grid', gridTemplateColumns: phone ? '1fr' : '1fr 1fr', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: stacked ? '1fr' : '1fr 1fr', gap: 12 }}>
               <label style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
                 <span style={lbl}>Name</span>
                 <input value={name} onChange={(e) => setName(e.target.value)} onKeyDown={onKey}
@@ -146,7 +151,7 @@ function EditorModal({ opened, onClose, snip, negative, draftText, draftCat, cat
               </div>
             </div>
           </div>
-          {phone && <div><span style={{ ...lbl, display: 'block' }}>Picture</span>{pic}</div>}
+          {stacked && <div><span style={{ ...lbl, display: 'block' }}>Picture</span>{pic}</div>}
         </div>
 
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', borderTop: '1px solid var(--il-line-soft)', paddingTop: 14 }}>
