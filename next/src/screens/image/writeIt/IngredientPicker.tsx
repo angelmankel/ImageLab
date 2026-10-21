@@ -36,7 +36,7 @@ export function IngredientPicker({ opened, onClose, target, tiles, picked, onTog
     <Popover opened={opened} onChange={(o) => { if (!o) onClose(); }} position="bottom-start" shadow="lg" withinPortal zIndex={T.z.popover}
       trapFocus={ownSearch} returnFocus={ownSearch} closeOnEscape classNames={{ dropdown: 'il-dd il-pop-in' }} middlewares={{ flip: true, shift: true }}>
       <Popover.Target>{target}</Popover.Target>
-      <Popover.Dropdown style={{ width: phone ? `calc(${vw(100)} - 24px)` : 380, padding: 10 }} onMouseDown={(e) => { if (!ownSearch) e.preventDefault(); }}>
+      <Popover.Dropdown style={{ width: phone ? `calc(${vw(100)} - 24px)` : 420, padding: 10 }} onMouseDown={(e) => { if (!ownSearch) e.preventDefault(); }}>
         {ownSearch ? (
           <label style={{ height: phone ? 40 : 34, borderRadius: 10, background: 'var(--il-bg-deep)', display: 'flex', alignItems: 'center', gap: 6, padding: '0 10px', marginBottom: 8 }}>
             <IconSearch size={14} stroke={2.4} style={{ color: 'var(--il-dim)', flex: 'none' }} />
@@ -49,15 +49,15 @@ export function IngredientPicker({ opened, onClose, target, tiles, picked, onTog
             {query ? <>Matching “{query}” · ↑↓ Enter</> : 'Type to search · ↑↓ Enter · Esc'}
           </div>
         )}
-        <div className="il-scroll" data-no-swipe style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 8, maxHeight: phone ? dvh(50) : 320, overflowY: 'auto', touchAction: 'pan-y', alignContent: 'start' }}>
+        <div className="il-scroll" data-no-swipe style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8, maxHeight: phone ? dvh(50) : 320, overflowY: 'auto', touchAction: 'pan-y', alignContent: 'start' }}>
           {list.map((s, i) => {
             const on = picked.has(s.id);
             return (
               <button key={s.id} type="button" className={`il-tile${on ? ' is-on' : ''}`} aria-pressed={on} onClick={() => onToggle(s)}
                 title={`${s.name} · ${categoryNames[s.categoryId] ?? ''}\n${s.layers ? s.layers.map((l) => l.text).join(' · ') : s.text}`}
-                style={{ background: tileBackground(tileHue(s)), outline: !ownSearch && i === highlight ? '2px solid var(--il-fg)' : undefined, outlineOffset: 2 }}>
+                style={{ aspectRatio: '3 / 2', background: tileBackground(tileHue(s)), outline: !ownSearch && i === highlight ? '2px solid var(--il-fg)' : undefined, outlineOffset: 2 }}>
                 {on && <span className="il-tile-check" aria-hidden><IconCheck size={12} stroke={3.2} /></span>}
-                <span className="il-tile-name">{tileName(s.name)}</span>
+                <span className="il-tile-name" style={{ wordBreak: 'normal', overflowWrap: 'normal', hyphens: 'none' }}>{tileName(s.name, 32)}</span>
               </button>
             );
           })}

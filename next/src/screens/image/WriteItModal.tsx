@@ -229,7 +229,13 @@ export function WriteItModal({ opened, onClose }: { opened: boolean; onClose: ()
         <span style={eyebrow}>Ingredients</span>
         <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--il-dim)' }}>snippets the AI blends in</span>
       </div>
+      {/* "+ Add" comes first so the picker's anchor never moves while chips are added. */}
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+        <IngredientPicker
+          opened={picker === 'add'} onClose={() => { setPicker(null); setPickQuery(''); }} ownSearch highlight={-1}
+          tiles={tiles.positive} picked={picked} onToggle={toggleIngredient} query={picker === 'add' ? pickQuery : ''} onQuery={setPickQuery} categoryNames={tiles.categoryNames}
+          target={<Chip tall={phone} dashed icon={<IconPlus size={12} stroke={2.6} />} onClick={() => { setPickQuery(''); setPicker(picker === 'add' ? null : 'add'); }} disabled={ingredients.length >= MAX_INGREDIENTS}>Add</Chip>}
+        />
         {ingredients.map((s) => (
           <span key={s.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: phone ? 40 : 32, padding: '0 2px 0 4px', borderRadius: 10, background: 'var(--il-card)', border: '1px solid var(--il-line-soft)', fontSize: 12, fontWeight: 700, color: 'var(--il-fg)', maxWidth: '100%' }}
             title={s.layers ? s.layers.map((l) => l.text).join(' · ') : s.text}>
@@ -239,11 +245,6 @@ export function WriteItModal({ opened, onClose }: { opened: boolean; onClose: ()
               style={{ width: phone ? 36 : 26, height: phone ? 36 : 26, border: 0, borderRadius: 8, background: 'transparent', color: 'var(--il-muted)', display: 'grid', placeItems: 'center', cursor: 'pointer', flex: 'none' }}><IconX size={12} stroke={2.6} /></button>
           </span>
         ))}
-        <IngredientPicker
-          opened={picker === 'add'} onClose={() => { setPicker(null); setPickQuery(''); }} ownSearch highlight={-1}
-          tiles={tiles.positive} picked={picked} onToggle={toggleIngredient} query={picker === 'add' ? pickQuery : ''} onQuery={setPickQuery} categoryNames={tiles.categoryNames}
-          target={<Chip tall={phone} dashed icon={<IconPlus size={12} stroke={2.6} />} onClick={() => { setPickQuery(''); setPicker(picker === 'add' ? null : 'add'); }} disabled={ingredients.length >= MAX_INGREDIENTS}>Add</Chip>}
-        />
       </div>
     </div>
   );
