@@ -1,0 +1,1163 @@
+{
+ "last_node_id": 16,
+ "last_link_id": 23,
+ "nodes": [
+  {
+   "id": 16,
+   "type": "Note",
+   "pos": [
+    20,
+    80
+   ],
+   "size": [
+    400,
+    366
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [],
+   "title": "About this workflow",
+   "properties": {},
+   "widgets_values": [
+    "Puts a product (or any subject) on a new generated background. BiRefNet cuts the subject out, SDXL paints a new background around it,\nand the original subject is pasted back pixel-exact.\nPrompt = the new scene: \"on a white marble countertop, soft morning light, shallow depth of field, product photography\".\nEdge: Shrink edge protects the subject's border (2 px). The input is resized to about 1 megapixel.\n\nModel: SDXL checkpoints; Illustrious and Pony models work too (use their prompt style). Default: Juggernaut XL.\nDefaults: 30 steps, CFG 5.0, dpmpp_2m_sde / karras."
+   ],
+   "color": "#432",
+   "bgcolor": "#653"
+  },
+  {
+   "id": 1,
+   "type": "LoadImage",
+   "pos": [
+    480,
+    110
+   ],
+   "size": [
+    340,
+    106
+   ],
+   "flags": {},
+   "order": 1,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "image",
+     "type": "COMBO",
+     "link": null,
+     "widget": {
+      "name": "image"
+     }
+    }
+   ],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      1
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "MASK",
+     "type": "MASK",
+     "links": [],
+     "slot_index": 1
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "LoadImage"
+   },
+   "widgets_values": [
+    "example.png"
+   ],
+   "title": "Product photo"
+  },
+  {
+   "id": 2,
+   "type": "ImageScaleToTotalPixels",
+   "pos": [
+    480,
+    256
+   ],
+   "size": [
+    340,
+    136
+   ],
+   "flags": {},
+   "order": 2,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "image",
+     "type": "IMAGE",
+     "link": 1
+    },
+    {
+     "name": "upscale_method",
+     "type": "COMBO",
+     "link": null,
+     "widget": {
+      "name": "upscale_method"
+     }
+    },
+    {
+     "name": "megapixels",
+     "type": "FLOAT",
+     "link": null,
+     "widget": {
+      "name": "megapixels"
+     }
+    },
+    {
+     "name": "resolution_steps",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "resolution_steps"
+     }
+    }
+   ],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      3,
+      12,
+      21
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "ImageScaleToTotalPixels"
+   },
+   "widgets_values": [
+    "lanczos",
+    1.0,
+    64
+   ],
+   "title": "Working size"
+  },
+  {
+   "id": 3,
+   "type": "LoadBackgroundRemovalModel",
+   "pos": [
+    900,
+    110
+   ],
+   "size": [
+    340,
+    84
+   ],
+   "flags": {},
+   "order": 3,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "bg_removal_name",
+     "type": "COMBO",
+     "link": null,
+     "widget": {
+      "name": "bg_removal_name"
+     }
+    }
+   ],
+   "outputs": [
+    {
+     "name": "bg_model",
+     "type": "BACKGROUND_REMOVAL",
+     "links": [
+      2
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "LoadBackgroundRemovalModel"
+   },
+   "widgets_values": [
+    "birefnet.safetensors"
+   ],
+   "title": "Background remover"
+  },
+  {
+   "id": 4,
+   "type": "RemoveBackground",
+   "pos": [
+    900,
+    234
+   ],
+   "size": [
+    340,
+    80
+   ],
+   "flags": {},
+   "order": 4,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "bg_removal_model",
+     "type": "BACKGROUND_REMOVAL",
+     "link": 2
+    },
+    {
+     "name": "image",
+     "type": "IMAGE",
+     "link": 3
+    }
+   ],
+   "outputs": [
+    {
+     "name": "mask",
+     "type": "MASK",
+     "links": [
+      4
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "RemoveBackground"
+   },
+   "widgets_values": [],
+   "title": "Find product"
+  },
+  {
+   "id": 5,
+   "type": "GrowMask",
+   "pos": [
+    900,
+    354
+   ],
+   "size": [
+    340,
+    110
+   ],
+   "flags": {},
+   "order": 5,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "mask",
+     "type": "MASK",
+     "link": 4
+    },
+    {
+     "name": "expand",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "expand"
+     }
+    },
+    {
+     "name": "tapered_corners",
+     "type": "BOOLEAN",
+     "link": null,
+     "widget": {
+      "name": "tapered_corners"
+     }
+    }
+   ],
+   "outputs": [
+    {
+     "name": "MASK",
+     "type": "MASK",
+     "links": [
+      5,
+      22
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "GrowMask"
+   },
+   "widgets_values": [
+    -2,
+    true
+   ],
+   "title": "Shrink edge"
+  },
+  {
+   "id": 6,
+   "type": "InvertMask",
+   "pos": [
+    900,
+    504
+   ],
+   "size": [
+    340,
+    58
+   ],
+   "flags": {},
+   "order": 6,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "mask",
+     "type": "MASK",
+     "link": 5
+    }
+   ],
+   "outputs": [
+    {
+     "name": "MASK",
+     "type": "MASK",
+     "links": [
+      13
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "InvertMask"
+   },
+   "widgets_values": [],
+   "title": "Background area"
+  },
+  {
+   "id": 7,
+   "type": "CheckpointLoaderSimple",
+   "pos": [
+    1320,
+    110
+   ],
+   "size": [
+    340,
+    128
+   ],
+   "flags": {},
+   "order": 7,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "ckpt_name",
+     "type": "COMBO",
+     "link": null,
+     "widget": {
+      "name": "ckpt_name"
+     }
+    }
+   ],
+   "outputs": [
+    {
+     "name": "MODEL",
+     "type": "MODEL",
+     "links": [
+      6
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "CLIP",
+     "type": "CLIP",
+     "links": [
+      7,
+      8
+     ],
+     "slot_index": 1
+    },
+    {
+     "name": "VAE",
+     "type": "VAE",
+     "links": [
+      11,
+      19
+     ],
+     "slot_index": 2
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "CheckpointLoaderSimple"
+   },
+   "widgets_values": [
+    "juggernautXL_ragnarokBy.safetensors"
+   ],
+   "title": "Checkpoint"
+  },
+  {
+   "id": 8,
+   "type": "DifferentialDiffusion",
+   "pos": [
+    1320,
+    278
+   ],
+   "size": [
+    340,
+    84
+   ],
+   "flags": {},
+   "order": 8,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "model",
+     "type": "MODEL",
+     "link": 6
+    },
+    {
+     "name": "strength",
+     "type": "FLOAT",
+     "link": null,
+     "widget": {
+      "name": "strength"
+     }
+    }
+   ],
+   "outputs": [
+    {
+     "name": "MODEL",
+     "type": "MODEL",
+     "links": [
+      14
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "DifferentialDiffusion"
+   },
+   "widgets_values": [
+    1.0
+   ],
+   "title": "Soft blending"
+  },
+  {
+   "id": 9,
+   "type": "CLIPTextEncode",
+   "pos": [
+    1740,
+    110
+   ],
+   "size": [
+    340,
+    194
+   ],
+   "flags": {},
+   "order": 9,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "text",
+     "type": "STRING",
+     "link": null,
+     "widget": {
+      "name": "text"
+     }
+    },
+    {
+     "name": "clip",
+     "type": "CLIP",
+     "link": 7
+    }
+   ],
+   "outputs": [
+    {
+     "name": "CONDITIONING",
+     "type": "CONDITIONING",
+     "links": [
+      9
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "CLIPTextEncode"
+   },
+   "widgets_values": [
+    "on a white marble countertop, soft morning light from a window, shallow depth of field, professional product photography"
+   ],
+   "title": "Positive prompt"
+  },
+  {
+   "id": 10,
+   "type": "CLIPTextEncode",
+   "pos": [
+    1740,
+    344
+   ],
+   "size": [
+    340,
+    194
+   ],
+   "flags": {},
+   "order": 10,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "text",
+     "type": "STRING",
+     "link": null,
+     "widget": {
+      "name": "text"
+     }
+    },
+    {
+     "name": "clip",
+     "type": "CLIP",
+     "link": 8
+    }
+   ],
+   "outputs": [
+    {
+     "name": "CONDITIONING",
+     "type": "CONDITIONING",
+     "links": [
+      10
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "CLIPTextEncode"
+   },
+   "widgets_values": [
+    "lowres, blurry, bad anatomy, bad hands, extra fingers, deformed, watermark, text, signature, worst quality, low quality, jpeg artifacts"
+   ],
+   "title": "Negative prompt"
+  },
+  {
+   "id": 11,
+   "type": "InpaintModelConditioning",
+   "pos": [
+    2160,
+    110
+   ],
+   "size": [
+    340,
+    172
+   ],
+   "flags": {},
+   "order": 11,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "positive",
+     "type": "CONDITIONING",
+     "link": 9
+    },
+    {
+     "name": "negative",
+     "type": "CONDITIONING",
+     "link": 10
+    },
+    {
+     "name": "vae",
+     "type": "VAE",
+     "link": 11
+    },
+    {
+     "name": "pixels",
+     "type": "IMAGE",
+     "link": 12
+    },
+    {
+     "name": "mask",
+     "type": "MASK",
+     "link": 13
+    },
+    {
+     "name": "noise_mask",
+     "type": "BOOLEAN",
+     "link": null,
+     "widget": {
+      "name": "noise_mask"
+     }
+    }
+   ],
+   "outputs": [
+    {
+     "name": "positive",
+     "type": "CONDITIONING",
+     "links": [
+      15
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "negative",
+     "type": "CONDITIONING",
+     "links": [
+      16
+     ],
+     "slot_index": 1
+    },
+    {
+     "name": "latent",
+     "type": "LATENT",
+     "links": [
+      17
+     ],
+     "slot_index": 2
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "InpaintModelConditioning"
+   },
+   "widgets_values": [
+    true
+   ],
+   "title": "Paint background"
+  },
+  {
+   "id": 12,
+   "type": "KSampler",
+   "pos": [
+    2580,
+    110
+   ],
+   "size": [
+    340,
+    280
+   ],
+   "flags": {},
+   "order": 12,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "model",
+     "type": "MODEL",
+     "link": 14
+    },
+    {
+     "name": "seed",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "seed"
+     }
+    },
+    {
+     "name": "steps",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "steps"
+     }
+    },
+    {
+     "name": "cfg",
+     "type": "FLOAT",
+     "link": null,
+     "widget": {
+      "name": "cfg"
+     }
+    },
+    {
+     "name": "sampler_name",
+     "type": "COMBO",
+     "link": null,
+     "widget": {
+      "name": "sampler_name"
+     }
+    },
+    {
+     "name": "scheduler",
+     "type": "COMBO",
+     "link": null,
+     "widget": {
+      "name": "scheduler"
+     }
+    },
+    {
+     "name": "positive",
+     "type": "CONDITIONING",
+     "link": 15
+    },
+    {
+     "name": "negative",
+     "type": "CONDITIONING",
+     "link": 16
+    },
+    {
+     "name": "latent_image",
+     "type": "LATENT",
+     "link": 17
+    },
+    {
+     "name": "denoise",
+     "type": "FLOAT",
+     "link": null,
+     "widget": {
+      "name": "denoise"
+     }
+    }
+   ],
+   "outputs": [
+    {
+     "name": "LATENT",
+     "type": "LATENT",
+     "links": [
+      18
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "KSampler"
+   },
+   "widgets_values": [
+    0,
+    "randomize",
+    30,
+    5.0,
+    "dpmpp_2m_sde",
+    "karras",
+    1.0
+   ],
+   "title": "Sampler"
+  },
+  {
+   "id": 13,
+   "type": "VAEDecode",
+   "pos": [
+    3000,
+    110
+   ],
+   "size": [
+    340,
+    80
+   ],
+   "flags": {},
+   "order": 13,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "samples",
+     "type": "LATENT",
+     "link": 18
+    },
+    {
+     "name": "vae",
+     "type": "VAE",
+     "link": 19
+    }
+   ],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      20
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "VAEDecode"
+   },
+   "widgets_values": [],
+   "title": "Decode"
+  },
+  {
+   "id": 14,
+   "type": "ImageCompositeMasked",
+   "pos": [
+    3000,
+    230
+   ],
+   "size": [
+    340,
+    180
+   ],
+   "flags": {},
+   "order": 14,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "destination",
+     "type": "IMAGE",
+     "link": 20
+    },
+    {
+     "name": "source",
+     "type": "IMAGE",
+     "link": 21
+    },
+    {
+     "name": "x",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "x"
+     }
+    },
+    {
+     "name": "y",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "y"
+     }
+    },
+    {
+     "name": "resize_source",
+     "type": "BOOLEAN",
+     "link": null,
+     "widget": {
+      "name": "resize_source"
+     }
+    },
+    {
+     "name": "mask",
+     "type": "MASK",
+     "link": 22
+    }
+   ],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      23
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "ImageCompositeMasked"
+   },
+   "widgets_values": [
+    0,
+    0,
+    false
+   ],
+   "title": "Paste product back"
+  },
+  {
+   "id": 15,
+   "type": "SaveImage",
+   "pos": [
+    3000,
+    450
+   ],
+   "size": [
+    340,
+    84
+   ],
+   "flags": {},
+   "order": 15,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "link": 23
+    },
+    {
+     "name": "filename_prefix",
+     "type": "STRING",
+     "link": null,
+     "widget": {
+      "name": "filename_prefix"
+     }
+    }
+   ],
+   "outputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "links": [],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "SaveImage"
+   },
+   "widgets_values": [
+    "presets/sdxl-product-shot"
+   ],
+   "title": "Save"
+  }
+ ],
+ "links": [
+  [
+   1,
+   1,
+   0,
+   2,
+   0,
+   "IMAGE"
+  ],
+  [
+   2,
+   3,
+   0,
+   4,
+   0,
+   "BACKGROUND_REMOVAL"
+  ],
+  [
+   3,
+   2,
+   0,
+   4,
+   1,
+   "IMAGE"
+  ],
+  [
+   4,
+   4,
+   0,
+   5,
+   0,
+   "MASK"
+  ],
+  [
+   5,
+   5,
+   0,
+   6,
+   0,
+   "MASK"
+  ],
+  [
+   6,
+   7,
+   0,
+   8,
+   0,
+   "MODEL"
+  ],
+  [
+   7,
+   7,
+   1,
+   9,
+   1,
+   "CLIP"
+  ],
+  [
+   8,
+   7,
+   1,
+   10,
+   1,
+   "CLIP"
+  ],
+  [
+   9,
+   9,
+   0,
+   11,
+   0,
+   "CONDITIONING"
+  ],
+  [
+   10,
+   10,
+   0,
+   11,
+   1,
+   "CONDITIONING"
+  ],
+  [
+   11,
+   7,
+   2,
+   11,
+   2,
+   "VAE"
+  ],
+  [
+   12,
+   2,
+   0,
+   11,
+   3,
+   "IMAGE"
+  ],
+  [
+   13,
+   6,
+   0,
+   11,
+   4,
+   "MASK"
+  ],
+  [
+   14,
+   8,
+   0,
+   12,
+   0,
+   "MODEL"
+  ],
+  [
+   15,
+   11,
+   0,
+   12,
+   6,
+   "CONDITIONING"
+  ],
+  [
+   16,
+   11,
+   1,
+   12,
+   7,
+   "CONDITIONING"
+  ],
+  [
+   17,
+   11,
+   2,
+   12,
+   8,
+   "LATENT"
+  ],
+  [
+   18,
+   12,
+   0,
+   13,
+   0,
+   "LATENT"
+  ],
+  [
+   19,
+   7,
+   2,
+   13,
+   1,
+   "VAE"
+  ],
+  [
+   20,
+   13,
+   0,
+   14,
+   0,
+   "IMAGE"
+  ],
+  [
+   21,
+   2,
+   0,
+   14,
+   1,
+   "IMAGE"
+  ],
+  [
+   22,
+   5,
+   0,
+   14,
+   5,
+   "MASK"
+  ],
+  [
+   23,
+   14,
+   0,
+   15,
+   0,
+   "IMAGE"
+  ]
+ ],
+ "groups": [
+  {
+   "title": "Input",
+   "bounding": [
+    460,
+    60,
+    380,
+    362
+   ],
+   "color": "#3f789e",
+   "font_size": 22,
+   "flags": {}
+  },
+  {
+   "title": "Cut out",
+   "bounding": [
+    880,
+    60,
+    380,
+    532
+   ],
+   "color": "#8A8",
+   "font_size": 22,
+   "flags": {}
+  },
+  {
+   "title": "Model",
+   "bounding": [
+    1300,
+    60,
+    380,
+    332
+   ],
+   "color": "#b06634",
+   "font_size": 22,
+   "flags": {}
+  },
+  {
+   "title": "Prompt",
+   "bounding": [
+    1720,
+    60,
+    380,
+    508
+   ],
+   "color": "#a1309b",
+   "font_size": 22,
+   "flags": {}
+  },
+  {
+   "title": "New background",
+   "bounding": [
+    2140,
+    60,
+    380,
+    252
+   ],
+   "color": "#88A",
+   "font_size": 22,
+   "flags": {}
+  },
+  {
+   "title": "Sampling",
+   "bounding": [
+    2560,
+    60,
+    380,
+    360
+   ],
+   "color": "#b58b2a",
+   "font_size": 22,
+   "flags": {}
+  },
+  {
+   "title": "Output",
+   "bounding": [
+    2980,
+    60,
+    380,
+    504
+   ],
+   "color": "#335",
+   "font_size": 22,
+   "flags": {}
+  }
+ ],
+ "config": {},
+ "extra": {
+  "ds": {
+   "scale": 0.7,
+   "offset": [
+    0,
+    0
+   ]
+  },
+  "imagelab": {
+   "preset": true
+  }
+ },
+ "version": 0.4
+}

@@ -1,0 +1,578 @@
+{
+ "last_node_id": 8,
+ "last_link_id": 9,
+ "nodes": [
+  {
+   "id": 8,
+   "type": "Note",
+   "pos": [
+    20,
+    80
+   ],
+   "size": [
+    400,
+    260
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [],
+   "title": "About this workflow",
+   "properties": {},
+   "widgets_values": [
+    "Text to image. Write the prompt, pick the size, Generate.\nSize: 1024×1024 is the model's native size; keep about the same pixel count for other shapes.\n\nModel: Flux.1 schnell all-in-one checkpoints (flux1-schnell-fp8, DreamPhoto). 4 steps, CFG 1, no negative prompt.\nDefaults: 4 steps, CFG 1.0, euler / simple."
+   ],
+   "color": "#432",
+   "bgcolor": "#653"
+  },
+  {
+   "id": 1,
+   "type": "CheckpointLoaderSimple",
+   "pos": [
+    480,
+    110
+   ],
+   "size": [
+    340,
+    128
+   ],
+   "flags": {},
+   "order": 1,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "ckpt_name",
+     "type": "COMBO",
+     "link": null,
+     "widget": {
+      "name": "ckpt_name"
+     }
+    }
+   ],
+   "outputs": [
+    {
+     "name": "MODEL",
+     "type": "MODEL",
+     "links": [
+      3
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "CLIP",
+     "type": "CLIP",
+     "links": [
+      1
+     ],
+     "slot_index": 1
+    },
+    {
+     "name": "VAE",
+     "type": "VAE",
+     "links": [
+      8
+     ],
+     "slot_index": 2
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "CheckpointLoaderSimple"
+   },
+   "widgets_values": [
+    "flux1-schnell-fp8.safetensors"
+   ],
+   "title": "Checkpoint"
+  },
+  {
+   "id": 2,
+   "type": "CLIPTextEncode",
+   "pos": [
+    900,
+    110
+   ],
+   "size": [
+    340,
+    194
+   ],
+   "flags": {},
+   "order": 2,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "text",
+     "type": "STRING",
+     "link": null,
+     "widget": {
+      "name": "text"
+     }
+    },
+    {
+     "name": "clip",
+     "type": "CLIP",
+     "link": 1
+    }
+   ],
+   "outputs": [
+    {
+     "name": "CONDITIONING",
+     "type": "CONDITIONING",
+     "links": [
+      2,
+      4
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "CLIPTextEncode"
+   },
+   "widgets_values": [
+    "a cozy wooden cabin in a snowy forest at dusk, warm light in the windows, soft falling snow, highly detailed"
+   ],
+   "title": "Positive prompt"
+  },
+  {
+   "id": 3,
+   "type": "ConditioningZeroOut",
+   "pos": [
+    900,
+    344
+   ],
+   "size": [
+    340,
+    58
+   ],
+   "flags": {},
+   "order": 3,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "conditioning",
+     "type": "CONDITIONING",
+     "link": 2
+    }
+   ],
+   "outputs": [
+    {
+     "name": "CONDITIONING",
+     "type": "CONDITIONING",
+     "links": [
+      5
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "ConditioningZeroOut"
+   },
+   "widgets_values": [],
+   "title": "No negative (Flux)"
+  },
+  {
+   "id": 4,
+   "type": "EmptySD3LatentImage",
+   "pos": [
+    1320,
+    110
+   ],
+   "size": [
+    340,
+    136
+   ],
+   "flags": {},
+   "order": 4,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "width",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "width"
+     }
+    },
+    {
+     "name": "height",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "height"
+     }
+    },
+    {
+     "name": "batch_size",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "batch_size"
+     }
+    }
+   ],
+   "outputs": [
+    {
+     "name": "LATENT",
+     "type": "LATENT",
+     "links": [
+      6
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "EmptySD3LatentImage"
+   },
+   "widgets_values": [
+    1024,
+    1024,
+    1
+   ],
+   "title": "Size"
+  },
+  {
+   "id": 5,
+   "type": "KSampler",
+   "pos": [
+    1740,
+    110
+   ],
+   "size": [
+    340,
+    280
+   ],
+   "flags": {},
+   "order": 5,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "model",
+     "type": "MODEL",
+     "link": 3
+    },
+    {
+     "name": "seed",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "seed"
+     }
+    },
+    {
+     "name": "steps",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "steps"
+     }
+    },
+    {
+     "name": "cfg",
+     "type": "FLOAT",
+     "link": null,
+     "widget": {
+      "name": "cfg"
+     }
+    },
+    {
+     "name": "sampler_name",
+     "type": "COMBO",
+     "link": null,
+     "widget": {
+      "name": "sampler_name"
+     }
+    },
+    {
+     "name": "scheduler",
+     "type": "COMBO",
+     "link": null,
+     "widget": {
+      "name": "scheduler"
+     }
+    },
+    {
+     "name": "positive",
+     "type": "CONDITIONING",
+     "link": 4
+    },
+    {
+     "name": "negative",
+     "type": "CONDITIONING",
+     "link": 5
+    },
+    {
+     "name": "latent_image",
+     "type": "LATENT",
+     "link": 6
+    },
+    {
+     "name": "denoise",
+     "type": "FLOAT",
+     "link": null,
+     "widget": {
+      "name": "denoise"
+     }
+    }
+   ],
+   "outputs": [
+    {
+     "name": "LATENT",
+     "type": "LATENT",
+     "links": [
+      7
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "KSampler"
+   },
+   "widgets_values": [
+    0,
+    "randomize",
+    4,
+    1.0,
+    "euler",
+    "simple",
+    1.0
+   ],
+   "title": "Sampler"
+  },
+  {
+   "id": 6,
+   "type": "VAEDecode",
+   "pos": [
+    2160,
+    110
+   ],
+   "size": [
+    340,
+    80
+   ],
+   "flags": {},
+   "order": 6,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "samples",
+     "type": "LATENT",
+     "link": 7
+    },
+    {
+     "name": "vae",
+     "type": "VAE",
+     "link": 8
+    }
+   ],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      9
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "VAEDecode"
+   },
+   "widgets_values": [],
+   "title": "Decode"
+  },
+  {
+   "id": 7,
+   "type": "SaveImage",
+   "pos": [
+    2160,
+    230
+   ],
+   "size": [
+    340,
+    84
+   ],
+   "flags": {},
+   "order": 7,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "link": 9
+    },
+    {
+     "name": "filename_prefix",
+     "type": "STRING",
+     "link": null,
+     "widget": {
+      "name": "filename_prefix"
+     }
+    }
+   ],
+   "outputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "links": [],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "SaveImage"
+   },
+   "widgets_values": [
+    "presets/flux-txt2img"
+   ],
+   "title": "Save"
+  }
+ ],
+ "links": [
+  [
+   1,
+   1,
+   1,
+   2,
+   1,
+   "CLIP"
+  ],
+  [
+   2,
+   2,
+   0,
+   3,
+   0,
+   "CONDITIONING"
+  ],
+  [
+   3,
+   1,
+   0,
+   5,
+   0,
+   "MODEL"
+  ],
+  [
+   4,
+   2,
+   0,
+   5,
+   6,
+   "CONDITIONING"
+  ],
+  [
+   5,
+   3,
+   0,
+   5,
+   7,
+   "CONDITIONING"
+  ],
+  [
+   6,
+   4,
+   0,
+   5,
+   8,
+   "LATENT"
+  ],
+  [
+   7,
+   5,
+   0,
+   6,
+   0,
+   "LATENT"
+  ],
+  [
+   8,
+   1,
+   2,
+   6,
+   1,
+   "VAE"
+  ],
+  [
+   9,
+   6,
+   0,
+   7,
+   0,
+   "IMAGE"
+  ]
+ ],
+ "groups": [
+  {
+   "title": "Model",
+   "bounding": [
+    460,
+    60,
+    380,
+    208
+   ],
+   "color": "#3f789e",
+   "font_size": 22,
+   "flags": {}
+  },
+  {
+   "title": "Prompt",
+   "bounding": [
+    880,
+    60,
+    380,
+    372
+   ],
+   "color": "#8A8",
+   "font_size": 22,
+   "flags": {}
+  },
+  {
+   "title": "Size",
+   "bounding": [
+    1300,
+    60,
+    380,
+    216
+   ],
+   "color": "#b06634",
+   "font_size": 22,
+   "flags": {}
+  },
+  {
+   "title": "Sampling",
+   "bounding": [
+    1720,
+    60,
+    380,
+    360
+   ],
+   "color": "#a1309b",
+   "font_size": 22,
+   "flags": {}
+  },
+  {
+   "title": "Output",
+   "bounding": [
+    2140,
+    60,
+    380,
+    284
+   ],
+   "color": "#88A",
+   "font_size": 22,
+   "flags": {}
+  }
+ ],
+ "config": {},
+ "extra": {
+  "ds": {
+   "scale": 0.7,
+   "offset": [
+    0,
+    0
+   ]
+  },
+  "imagelab": {
+   "preset": true
+  }
+ },
+ "version": 0.4
+}

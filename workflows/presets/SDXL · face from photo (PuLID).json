@@ -1,0 +1,914 @@
+{
+ "last_node_id": 13,
+ "last_link_id": 14,
+ "nodes": [
+  {
+   "id": 13,
+   "type": "Note",
+   "pos": [
+    20,
+    80
+   ],
+   "size": [
+    400,
+    330
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [],
+   "title": "About this workflow",
+   "properties": {},
+   "widgets_values": [
+    "Puts the face from a photo into a new picture (PuLID). Lighter touch than InstantID: the pose and style follow the prompt freely.\nThe input picture is a clear photo of ONE face. Method: fidelity = closest likeness, style = more stylised, neutral = in between.\nWeight 0.8–1.0. Works with most SDXL checkpoints; lightning / turbo ones need fewer steps.\n\nModel: SDXL checkpoints; Illustrious and Pony models work too (use their prompt style). Default: Juggernaut XL.\nDefaults: 30 steps, CFG 6.0, dpmpp_2m / sgm_uniform."
+   ],
+   "color": "#432",
+   "bgcolor": "#653"
+  },
+  {
+   "id": 1,
+   "type": "LoadImage",
+   "pos": [
+    480,
+    110
+   ],
+   "size": [
+    340,
+    106
+   ],
+   "flags": {},
+   "order": 1,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "image",
+     "type": "COMBO",
+     "link": null,
+     "widget": {
+      "name": "image"
+     }
+    }
+   ],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      7
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "MASK",
+     "type": "MASK",
+     "links": [],
+     "slot_index": 1
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "LoadImage"
+   },
+   "widgets_values": [
+    "example.png"
+   ],
+   "title": "Face photo"
+  },
+  {
+   "id": 2,
+   "type": "CheckpointLoaderSimple",
+   "pos": [
+    900,
+    110
+   ],
+   "size": [
+    340,
+    128
+   ],
+   "flags": {},
+   "order": 2,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "ckpt_name",
+     "type": "COMBO",
+     "link": null,
+     "widget": {
+      "name": "ckpt_name"
+     }
+    }
+   ],
+   "outputs": [
+    {
+     "name": "MODEL",
+     "type": "MODEL",
+     "links": [
+      3
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "CLIP",
+     "type": "CLIP",
+     "links": [
+      1,
+      2
+     ],
+     "slot_index": 1
+    },
+    {
+     "name": "VAE",
+     "type": "VAE",
+     "links": [
+      13
+     ],
+     "slot_index": 2
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "CheckpointLoaderSimple"
+   },
+   "widgets_values": [
+    "juggernautXL_ragnarokBy.safetensors"
+   ],
+   "title": "Checkpoint"
+  },
+  {
+   "id": 3,
+   "type": "CLIPTextEncode",
+   "pos": [
+    1320,
+    110
+   ],
+   "size": [
+    340,
+    194
+   ],
+   "flags": {},
+   "order": 3,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "text",
+     "type": "STRING",
+     "link": null,
+     "widget": {
+      "name": "text"
+     }
+    },
+    {
+     "name": "clip",
+     "type": "CLIP",
+     "link": 1
+    }
+   ],
+   "outputs": [
+    {
+     "name": "CONDITIONING",
+     "type": "CONDITIONING",
+     "links": [
+      9
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "CLIPTextEncode"
+   },
+   "widgets_values": [
+    "closeup portrait of a person as a cyberpunk hacker, purple hair, hoodie, neon light, highly detailed"
+   ],
+   "title": "Positive prompt"
+  },
+  {
+   "id": 4,
+   "type": "CLIPTextEncode",
+   "pos": [
+    1320,
+    344
+   ],
+   "size": [
+    340,
+    194
+   ],
+   "flags": {},
+   "order": 4,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "text",
+     "type": "STRING",
+     "link": null,
+     "widget": {
+      "name": "text"
+     }
+    },
+    {
+     "name": "clip",
+     "type": "CLIP",
+     "link": 2
+    }
+   ],
+   "outputs": [
+    {
+     "name": "CONDITIONING",
+     "type": "CONDITIONING",
+     "links": [
+      10
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "CLIPTextEncode"
+   },
+   "widgets_values": [
+    "lowres, blurry, bad anatomy, bad hands, extra fingers, deformed, watermark, text, signature, worst quality, low quality, jpeg artifacts"
+   ],
+   "title": "Negative prompt"
+  },
+  {
+   "id": 5,
+   "type": "PulidModelLoader",
+   "pos": [
+    1740,
+    110
+   ],
+   "size": [
+    340,
+    84
+   ],
+   "flags": {},
+   "order": 5,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "pulid_file",
+     "type": "COMBO",
+     "link": null,
+     "widget": {
+      "name": "pulid_file"
+     }
+    }
+   ],
+   "outputs": [
+    {
+     "name": "PULID",
+     "type": "PULID",
+     "links": [
+      4
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "PulidModelLoader"
+   },
+   "widgets_values": [
+    "ip-adapter_pulid_sdxl_fp16.safetensors"
+   ],
+   "title": "PuLID model"
+  },
+  {
+   "id": 6,
+   "type": "PulidEvaClipLoader",
+   "pos": [
+    1740,
+    234
+   ],
+   "size": [
+    340,
+    58
+   ],
+   "flags": {},
+   "order": 6,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "EVA_CLIP",
+     "type": "EVA_CLIP",
+     "links": [
+      5
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "PulidEvaClipLoader"
+   },
+   "widgets_values": [],
+   "title": "EVA CLIP"
+  },
+  {
+   "id": 7,
+   "type": "PulidInsightFaceLoader",
+   "pos": [
+    1740,
+    332
+   ],
+   "size": [
+    340,
+    84
+   ],
+   "flags": {},
+   "order": 7,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "provider",
+     "type": "COMBO",
+     "link": null,
+     "widget": {
+      "name": "provider"
+     }
+    }
+   ],
+   "outputs": [
+    {
+     "name": "FACEANALYSIS",
+     "type": "FACEANALYSIS",
+     "links": [
+      6
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "PulidInsightFaceLoader"
+   },
+   "widgets_values": [
+    "CUDA"
+   ],
+   "title": "Face finder"
+  },
+  {
+   "id": 8,
+   "type": "ApplyPulid",
+   "pos": [
+    1740,
+    456
+   ],
+   "size": [
+    340,
+    272
+   ],
+   "flags": {},
+   "order": 8,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "model",
+     "type": "MODEL",
+     "link": 3
+    },
+    {
+     "name": "pulid",
+     "type": "PULID",
+     "link": 4
+    },
+    {
+     "name": "eva_clip",
+     "type": "EVA_CLIP",
+     "link": 5
+    },
+    {
+     "name": "face_analysis",
+     "type": "FACEANALYSIS",
+     "link": 6
+    },
+    {
+     "name": "image",
+     "type": "IMAGE",
+     "link": 7
+    },
+    {
+     "name": "method",
+     "type": "COMBO",
+     "link": null,
+     "widget": {
+      "name": "method"
+     }
+    },
+    {
+     "name": "weight",
+     "type": "FLOAT",
+     "link": null,
+     "widget": {
+      "name": "weight"
+     }
+    },
+    {
+     "name": "start_at",
+     "type": "FLOAT",
+     "link": null,
+     "widget": {
+      "name": "start_at"
+     }
+    },
+    {
+     "name": "end_at",
+     "type": "FLOAT",
+     "link": null,
+     "widget": {
+      "name": "end_at"
+     }
+    },
+    {
+     "name": "attn_mask",
+     "type": "MASK",
+     "link": null
+    }
+   ],
+   "outputs": [
+    {
+     "name": "MODEL",
+     "type": "MODEL",
+     "links": [
+      8
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "ApplyPulid"
+   },
+   "widgets_values": [
+    "fidelity",
+    0.9,
+    0.0,
+    1.0
+   ],
+   "title": "Face"
+  },
+  {
+   "id": 9,
+   "type": "EmptyLatentImage",
+   "pos": [
+    2160,
+    110
+   ],
+   "size": [
+    340,
+    136
+   ],
+   "flags": {},
+   "order": 9,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "width",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "width"
+     }
+    },
+    {
+     "name": "height",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "height"
+     }
+    },
+    {
+     "name": "batch_size",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "batch_size"
+     }
+    }
+   ],
+   "outputs": [
+    {
+     "name": "LATENT",
+     "type": "LATENT",
+     "links": [
+      11
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "EmptyLatentImage"
+   },
+   "widgets_values": [
+    896,
+    1152,
+    1
+   ],
+   "title": "Size"
+  },
+  {
+   "id": 10,
+   "type": "KSampler",
+   "pos": [
+    2580,
+    110
+   ],
+   "size": [
+    340,
+    280
+   ],
+   "flags": {},
+   "order": 10,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "model",
+     "type": "MODEL",
+     "link": 8
+    },
+    {
+     "name": "seed",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "seed"
+     }
+    },
+    {
+     "name": "steps",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "steps"
+     }
+    },
+    {
+     "name": "cfg",
+     "type": "FLOAT",
+     "link": null,
+     "widget": {
+      "name": "cfg"
+     }
+    },
+    {
+     "name": "sampler_name",
+     "type": "COMBO",
+     "link": null,
+     "widget": {
+      "name": "sampler_name"
+     }
+    },
+    {
+     "name": "scheduler",
+     "type": "COMBO",
+     "link": null,
+     "widget": {
+      "name": "scheduler"
+     }
+    },
+    {
+     "name": "positive",
+     "type": "CONDITIONING",
+     "link": 9
+    },
+    {
+     "name": "negative",
+     "type": "CONDITIONING",
+     "link": 10
+    },
+    {
+     "name": "latent_image",
+     "type": "LATENT",
+     "link": 11
+    },
+    {
+     "name": "denoise",
+     "type": "FLOAT",
+     "link": null,
+     "widget": {
+      "name": "denoise"
+     }
+    }
+   ],
+   "outputs": [
+    {
+     "name": "LATENT",
+     "type": "LATENT",
+     "links": [
+      12
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "KSampler"
+   },
+   "widgets_values": [
+    0,
+    "randomize",
+    30,
+    6.0,
+    "dpmpp_2m",
+    "sgm_uniform",
+    1.0
+   ],
+   "title": "Sampler"
+  },
+  {
+   "id": 11,
+   "type": "VAEDecode",
+   "pos": [
+    3000,
+    110
+   ],
+   "size": [
+    340,
+    80
+   ],
+   "flags": {},
+   "order": 11,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "samples",
+     "type": "LATENT",
+     "link": 12
+    },
+    {
+     "name": "vae",
+     "type": "VAE",
+     "link": 13
+    }
+   ],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      14
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "VAEDecode"
+   },
+   "widgets_values": [],
+   "title": "Decode"
+  },
+  {
+   "id": 12,
+   "type": "SaveImage",
+   "pos": [
+    3000,
+    230
+   ],
+   "size": [
+    340,
+    84
+   ],
+   "flags": {},
+   "order": 12,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "link": 14
+    },
+    {
+     "name": "filename_prefix",
+     "type": "STRING",
+     "link": null,
+     "widget": {
+      "name": "filename_prefix"
+     }
+    }
+   ],
+   "outputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "links": [],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "SaveImage"
+   },
+   "widgets_values": [
+    "presets/sdxl-face-pulid"
+   ],
+   "title": "Save"
+  }
+ ],
+ "links": [
+  [
+   1,
+   2,
+   1,
+   3,
+   1,
+   "CLIP"
+  ],
+  [
+   2,
+   2,
+   1,
+   4,
+   1,
+   "CLIP"
+  ],
+  [
+   3,
+   2,
+   0,
+   8,
+   0,
+   "MODEL"
+  ],
+  [
+   4,
+   5,
+   0,
+   8,
+   1,
+   "PULID"
+  ],
+  [
+   5,
+   6,
+   0,
+   8,
+   2,
+   "EVA_CLIP"
+  ],
+  [
+   6,
+   7,
+   0,
+   8,
+   3,
+   "FACEANALYSIS"
+  ],
+  [
+   7,
+   1,
+   0,
+   8,
+   4,
+   "IMAGE"
+  ],
+  [
+   8,
+   8,
+   0,
+   10,
+   0,
+   "MODEL"
+  ],
+  [
+   9,
+   3,
+   0,
+   10,
+   6,
+   "CONDITIONING"
+  ],
+  [
+   10,
+   4,
+   0,
+   10,
+   7,
+   "CONDITIONING"
+  ],
+  [
+   11,
+   9,
+   0,
+   10,
+   8,
+   "LATENT"
+  ],
+  [
+   12,
+   10,
+   0,
+   11,
+   0,
+   "LATENT"
+  ],
+  [
+   13,
+   2,
+   2,
+   11,
+   1,
+   "VAE"
+  ],
+  [
+   14,
+   11,
+   0,
+   12,
+   0,
+   "IMAGE"
+  ]
+ ],
+ "groups": [
+  {
+   "title": "Input",
+   "bounding": [
+    460,
+    60,
+    380,
+    186
+   ],
+   "color": "#3f789e",
+   "font_size": 22,
+   "flags": {}
+  },
+  {
+   "title": "Model",
+   "bounding": [
+    880,
+    60,
+    380,
+    208
+   ],
+   "color": "#8A8",
+   "font_size": 22,
+   "flags": {}
+  },
+  {
+   "title": "Prompt",
+   "bounding": [
+    1300,
+    60,
+    380,
+    508
+   ],
+   "color": "#b06634",
+   "font_size": 22,
+   "flags": {}
+  },
+  {
+   "title": "Face",
+   "bounding": [
+    1720,
+    60,
+    380,
+    698
+   ],
+   "color": "#a1309b",
+   "font_size": 22,
+   "flags": {}
+  },
+  {
+   "title": "Size",
+   "bounding": [
+    2140,
+    60,
+    380,
+    216
+   ],
+   "color": "#88A",
+   "font_size": 22,
+   "flags": {}
+  },
+  {
+   "title": "Sampling",
+   "bounding": [
+    2560,
+    60,
+    380,
+    360
+   ],
+   "color": "#b58b2a",
+   "font_size": 22,
+   "flags": {}
+  },
+  {
+   "title": "Output",
+   "bounding": [
+    2980,
+    60,
+    380,
+    284
+   ],
+   "color": "#335",
+   "font_size": 22,
+   "flags": {}
+  }
+ ],
+ "config": {},
+ "extra": {
+  "ds": {
+   "scale": 0.7,
+   "offset": [
+    0,
+    0
+   ]
+  },
+  "imagelab": {
+   "preset": true
+  }
+ },
+ "version": 0.4
+}

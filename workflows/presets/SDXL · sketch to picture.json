@@ -1,0 +1,1030 @@
+{
+ "last_node_id": 14,
+ "last_link_id": 19,
+ "nodes": [
+  {
+   "id": 14,
+   "type": "Note",
+   "pos": [
+    20,
+    80
+   ],
+   "size": [
+    400,
+    438
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [],
+   "title": "About this workflow",
+   "properties": {},
+   "widgets_values": [
+    "Turns a line drawing into a finished picture. Dark lines on a light background work best (pencil, pen, or a drawing app).\nThe sketch is inverted into an edge map for the canny adapter.\nStrength: 0.5 = loose interpretation, 0.9 = follows every line.\nThe output takes the input's shape at about 1.0 megapixels (Output size).\nControlNet strength 0.75; End = when it lets go (0.8 leaves the last steps free for detail).\nModel file: t2i-adapter-canny-sdxl-1.0.safetensors.\n\nModel: SDXL checkpoints; Illustrious and Pony models work too (use their prompt style). Default: Juggernaut XL.\nDefaults: 30 steps, CFG 5.0, dpmpp_2m_sde / karras."
+   ],
+   "color": "#432",
+   "bgcolor": "#653"
+  },
+  {
+   "id": 1,
+   "type": "LoadImage",
+   "pos": [
+    480,
+    110
+   ],
+   "size": [
+    340,
+    106
+   ],
+   "flags": {},
+   "order": 1,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "image",
+     "type": "COMBO",
+     "link": null,
+     "widget": {
+      "name": "image"
+     }
+    }
+   ],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      1
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "MASK",
+     "type": "MASK",
+     "links": [],
+     "slot_index": 1
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "LoadImage"
+   },
+   "widgets_values": [
+    "example.png"
+   ],
+   "title": "Sketch"
+  },
+  {
+   "id": 2,
+   "type": "ImageScaleToTotalPixels",
+   "pos": [
+    480,
+    256
+   ],
+   "size": [
+    340,
+    136
+   ],
+   "flags": {},
+   "order": 2,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "image",
+     "type": "IMAGE",
+     "link": 1
+    },
+    {
+     "name": "upscale_method",
+     "type": "COMBO",
+     "link": null,
+     "widget": {
+      "name": "upscale_method"
+     }
+    },
+    {
+     "name": "megapixels",
+     "type": "FLOAT",
+     "link": null,
+     "widget": {
+      "name": "megapixels"
+     }
+    },
+    {
+     "name": "resolution_steps",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "resolution_steps"
+     }
+    }
+   ],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      2,
+      3
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "ImageScaleToTotalPixels"
+   },
+   "widgets_values": [
+    "lanczos",
+    1.0,
+    64
+   ],
+   "title": "Output size"
+  },
+  {
+   "id": 3,
+   "type": "ImageInvert",
+   "pos": [
+    900,
+    110
+   ],
+   "size": [
+    340,
+    58
+   ],
+   "flags": {},
+   "order": 3,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "image",
+     "type": "IMAGE",
+     "link": 2
+    }
+   ],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      9
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "ImageInvert"
+   },
+   "widgets_values": [],
+   "title": "Sketch to edge map"
+  },
+  {
+   "id": 4,
+   "type": "GetImageSize",
+   "pos": [
+    900,
+    208
+   ],
+   "size": [
+    340,
+    102
+   ],
+   "flags": {},
+   "order": 4,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "image",
+     "type": "IMAGE",
+     "link": 3
+    }
+   ],
+   "outputs": [
+    {
+     "name": "width",
+     "type": "INT",
+     "links": [
+      11
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "height",
+     "type": "INT",
+     "links": [
+      12
+     ],
+     "slot_index": 1
+    },
+    {
+     "name": "batch_size",
+     "type": "INT",
+     "links": [],
+     "slot_index": 2
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "GetImageSize"
+   },
+   "widgets_values": [],
+   "title": "Read size"
+  },
+  {
+   "id": 5,
+   "type": "CheckpointLoaderSimple",
+   "pos": [
+    1320,
+    110
+   ],
+   "size": [
+    340,
+    128
+   ],
+   "flags": {},
+   "order": 5,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "ckpt_name",
+     "type": "COMBO",
+     "link": null,
+     "widget": {
+      "name": "ckpt_name"
+     }
+    }
+   ],
+   "outputs": [
+    {
+     "name": "MODEL",
+     "type": "MODEL",
+     "links": [
+      13
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "CLIP",
+     "type": "CLIP",
+     "links": [
+      4,
+      5
+     ],
+     "slot_index": 1
+    },
+    {
+     "name": "VAE",
+     "type": "VAE",
+     "links": [
+      10,
+      18
+     ],
+     "slot_index": 2
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "CheckpointLoaderSimple"
+   },
+   "widgets_values": [
+    "juggernautXL_ragnarokBy.safetensors"
+   ],
+   "title": "Checkpoint"
+  },
+  {
+   "id": 6,
+   "type": "CLIPTextEncode",
+   "pos": [
+    1740,
+    110
+   ],
+   "size": [
+    340,
+    194
+   ],
+   "flags": {},
+   "order": 6,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "text",
+     "type": "STRING",
+     "link": null,
+     "widget": {
+      "name": "text"
+     }
+    },
+    {
+     "name": "clip",
+     "type": "CLIP",
+     "link": 4
+    }
+   ],
+   "outputs": [
+    {
+     "name": "CONDITIONING",
+     "type": "CONDITIONING",
+     "links": [
+      6
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "CLIPTextEncode"
+   },
+   "widgets_values": [
+    "a cozy wooden cabin in a snowy forest at dusk, warm light in the windows, soft falling snow, highly detailed"
+   ],
+   "title": "Positive prompt"
+  },
+  {
+   "id": 7,
+   "type": "CLIPTextEncode",
+   "pos": [
+    1740,
+    344
+   ],
+   "size": [
+    340,
+    194
+   ],
+   "flags": {},
+   "order": 7,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "text",
+     "type": "STRING",
+     "link": null,
+     "widget": {
+      "name": "text"
+     }
+    },
+    {
+     "name": "clip",
+     "type": "CLIP",
+     "link": 5
+    }
+   ],
+   "outputs": [
+    {
+     "name": "CONDITIONING",
+     "type": "CONDITIONING",
+     "links": [
+      7
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "CLIPTextEncode"
+   },
+   "widgets_values": [
+    "lowres, blurry, bad anatomy, bad hands, extra fingers, deformed, watermark, text, signature, worst quality, low quality, jpeg artifacts"
+   ],
+   "title": "Negative prompt"
+  },
+  {
+   "id": 8,
+   "type": "ControlNetLoader",
+   "pos": [
+    900,
+    350
+   ],
+   "size": [
+    340,
+    84
+   ],
+   "flags": {},
+   "order": 8,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "control_net_name",
+     "type": "COMBO",
+     "link": null,
+     "widget": {
+      "name": "control_net_name"
+     }
+    }
+   ],
+   "outputs": [
+    {
+     "name": "CONTROL_NET",
+     "type": "CONTROL_NET",
+     "links": [
+      8
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "ControlNetLoader"
+   },
+   "widgets_values": [
+    "t2i-adapter-canny-sdxl-1.0.safetensors"
+   ],
+   "title": "ControlNet model"
+  },
+  {
+   "id": 9,
+   "type": "ControlNetApplyAdvanced",
+   "pos": [
+    900,
+    474
+   ],
+   "size": [
+    340,
+    224
+   ],
+   "flags": {},
+   "order": 9,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "positive",
+     "type": "CONDITIONING",
+     "link": 6
+    },
+    {
+     "name": "negative",
+     "type": "CONDITIONING",
+     "link": 7
+    },
+    {
+     "name": "control_net",
+     "type": "CONTROL_NET",
+     "link": 8
+    },
+    {
+     "name": "image",
+     "type": "IMAGE",
+     "link": 9
+    },
+    {
+     "name": "strength",
+     "type": "FLOAT",
+     "link": null,
+     "widget": {
+      "name": "strength"
+     }
+    },
+    {
+     "name": "start_percent",
+     "type": "FLOAT",
+     "link": null,
+     "widget": {
+      "name": "start_percent"
+     }
+    },
+    {
+     "name": "end_percent",
+     "type": "FLOAT",
+     "link": null,
+     "widget": {
+      "name": "end_percent"
+     }
+    },
+    {
+     "name": "vae",
+     "type": "VAE",
+     "link": 10
+    }
+   ],
+   "outputs": [
+    {
+     "name": "positive",
+     "type": "CONDITIONING",
+     "links": [
+      14
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "negative",
+     "type": "CONDITIONING",
+     "links": [
+      15
+     ],
+     "slot_index": 1
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "ControlNetApplyAdvanced"
+   },
+   "widgets_values": [
+    0.75,
+    0.0,
+    0.8
+   ],
+   "title": "Apply ControlNet"
+  },
+  {
+   "id": 10,
+   "type": "EmptyLatentImage",
+   "pos": [
+    2160,
+    110
+   ],
+   "size": [
+    340,
+    136
+   ],
+   "flags": {},
+   "order": 10,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "width",
+     "type": "INT",
+     "link": 11,
+     "widget": {
+      "name": "width"
+     }
+    },
+    {
+     "name": "height",
+     "type": "INT",
+     "link": 12,
+     "widget": {
+      "name": "height"
+     }
+    },
+    {
+     "name": "batch_size",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "batch_size"
+     }
+    }
+   ],
+   "outputs": [
+    {
+     "name": "LATENT",
+     "type": "LATENT",
+     "links": [
+      16
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "EmptyLatentImage"
+   },
+   "widgets_values": [
+    1024,
+    1024,
+    1
+   ],
+   "title": "Size"
+  },
+  {
+   "id": 11,
+   "type": "KSampler",
+   "pos": [
+    2580,
+    110
+   ],
+   "size": [
+    340,
+    280
+   ],
+   "flags": {},
+   "order": 11,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "model",
+     "type": "MODEL",
+     "link": 13
+    },
+    {
+     "name": "seed",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "seed"
+     }
+    },
+    {
+     "name": "steps",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "steps"
+     }
+    },
+    {
+     "name": "cfg",
+     "type": "FLOAT",
+     "link": null,
+     "widget": {
+      "name": "cfg"
+     }
+    },
+    {
+     "name": "sampler_name",
+     "type": "COMBO",
+     "link": null,
+     "widget": {
+      "name": "sampler_name"
+     }
+    },
+    {
+     "name": "scheduler",
+     "type": "COMBO",
+     "link": null,
+     "widget": {
+      "name": "scheduler"
+     }
+    },
+    {
+     "name": "positive",
+     "type": "CONDITIONING",
+     "link": 14
+    },
+    {
+     "name": "negative",
+     "type": "CONDITIONING",
+     "link": 15
+    },
+    {
+     "name": "latent_image",
+     "type": "LATENT",
+     "link": 16
+    },
+    {
+     "name": "denoise",
+     "type": "FLOAT",
+     "link": null,
+     "widget": {
+      "name": "denoise"
+     }
+    }
+   ],
+   "outputs": [
+    {
+     "name": "LATENT",
+     "type": "LATENT",
+     "links": [
+      17
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "KSampler"
+   },
+   "widgets_values": [
+    0,
+    "randomize",
+    30,
+    5.0,
+    "dpmpp_2m_sde",
+    "karras",
+    1.0
+   ],
+   "title": "Sampler"
+  },
+  {
+   "id": 12,
+   "type": "VAEDecode",
+   "pos": [
+    3000,
+    110
+   ],
+   "size": [
+    340,
+    80
+   ],
+   "flags": {},
+   "order": 12,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "samples",
+     "type": "LATENT",
+     "link": 17
+    },
+    {
+     "name": "vae",
+     "type": "VAE",
+     "link": 18
+    }
+   ],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      19
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "VAEDecode"
+   },
+   "widgets_values": [],
+   "title": "Decode"
+  },
+  {
+   "id": 13,
+   "type": "SaveImage",
+   "pos": [
+    3000,
+    230
+   ],
+   "size": [
+    340,
+    84
+   ],
+   "flags": {},
+   "order": 13,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "link": 19
+    },
+    {
+     "name": "filename_prefix",
+     "type": "STRING",
+     "link": null,
+     "widget": {
+      "name": "filename_prefix"
+     }
+    }
+   ],
+   "outputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "links": [],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "SaveImage"
+   },
+   "widgets_values": [
+    "presets/sdxl-sketch"
+   ],
+   "title": "Save"
+  }
+ ],
+ "links": [
+  [
+   1,
+   1,
+   0,
+   2,
+   0,
+   "IMAGE"
+  ],
+  [
+   2,
+   2,
+   0,
+   3,
+   0,
+   "IMAGE"
+  ],
+  [
+   3,
+   2,
+   0,
+   4,
+   0,
+   "IMAGE"
+  ],
+  [
+   4,
+   5,
+   1,
+   6,
+   1,
+   "CLIP"
+  ],
+  [
+   5,
+   5,
+   1,
+   7,
+   1,
+   "CLIP"
+  ],
+  [
+   6,
+   6,
+   0,
+   9,
+   0,
+   "CONDITIONING"
+  ],
+  [
+   7,
+   7,
+   0,
+   9,
+   1,
+   "CONDITIONING"
+  ],
+  [
+   8,
+   8,
+   0,
+   9,
+   2,
+   "CONTROL_NET"
+  ],
+  [
+   9,
+   3,
+   0,
+   9,
+   3,
+   "IMAGE"
+  ],
+  [
+   10,
+   5,
+   2,
+   9,
+   7,
+   "VAE"
+  ],
+  [
+   11,
+   4,
+   0,
+   10,
+   0,
+   "INT"
+  ],
+  [
+   12,
+   4,
+   1,
+   10,
+   1,
+   "INT"
+  ],
+  [
+   13,
+   5,
+   0,
+   11,
+   0,
+   "MODEL"
+  ],
+  [
+   14,
+   9,
+   0,
+   11,
+   6,
+   "CONDITIONING"
+  ],
+  [
+   15,
+   9,
+   1,
+   11,
+   7,
+   "CONDITIONING"
+  ],
+  [
+   16,
+   10,
+   0,
+   11,
+   8,
+   "LATENT"
+  ],
+  [
+   17,
+   11,
+   0,
+   12,
+   0,
+   "LATENT"
+  ],
+  [
+   18,
+   5,
+   2,
+   12,
+   1,
+   "VAE"
+  ],
+  [
+   19,
+   12,
+   0,
+   13,
+   0,
+   "IMAGE"
+  ]
+ ],
+ "groups": [
+  {
+   "title": "Input",
+   "bounding": [
+    460,
+    60,
+    380,
+    362
+   ],
+   "color": "#3f789e",
+   "font_size": 22,
+   "flags": {}
+  },
+  {
+   "title": "Control",
+   "bounding": [
+    880,
+    60,
+    380,
+    668
+   ],
+   "color": "#8A8",
+   "font_size": 22,
+   "flags": {}
+  },
+  {
+   "title": "Model",
+   "bounding": [
+    1300,
+    60,
+    380,
+    208
+   ],
+   "color": "#b06634",
+   "font_size": 22,
+   "flags": {}
+  },
+  {
+   "title": "Prompt",
+   "bounding": [
+    1720,
+    60,
+    380,
+    508
+   ],
+   "color": "#a1309b",
+   "font_size": 22,
+   "flags": {}
+  },
+  {
+   "title": "Size",
+   "bounding": [
+    2140,
+    60,
+    380,
+    216
+   ],
+   "color": "#88A",
+   "font_size": 22,
+   "flags": {}
+  },
+  {
+   "title": "Sampling",
+   "bounding": [
+    2560,
+    60,
+    380,
+    360
+   ],
+   "color": "#b58b2a",
+   "font_size": 22,
+   "flags": {}
+  },
+  {
+   "title": "Output",
+   "bounding": [
+    2980,
+    60,
+    380,
+    284
+   ],
+   "color": "#335",
+   "font_size": 22,
+   "flags": {}
+  }
+ ],
+ "config": {},
+ "extra": {
+  "ds": {
+   "scale": 0.7,
+   "offset": [
+    0,
+    0
+   ]
+  },
+  "imagelab": {
+   "preset": true
+  }
+ },
+ "version": 0.4
+}

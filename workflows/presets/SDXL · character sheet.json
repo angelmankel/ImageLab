@@ -1,0 +1,869 @@
+{
+ "last_node_id": 11,
+ "last_link_id": 13,
+ "nodes": [
+  {
+   "id": 11,
+   "type": "Note",
+   "pos": [
+    20,
+    80
+   ],
+   "size": [
+    400,
+    420
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [],
+   "title": "About this workflow",
+   "properties": {},
+   "widgets_values": [
+    "One character, several poses on one wide sheet (front, side, back, action).\nThe input picture is your character (any pose); IP-Adapter Plus copies their look (Character weight 0.6: higher = closer copy, but the poses get stiffer).\nDescribe the character in the prompt too (hair, clothes, colours): the sheet layout words are in the prompt already.\nSmall faces on a sheet are soft: run the result through \"Fix faces and hands\" for sharp faces.\nFor anime characters switch the checkpoint to an Illustrious model.\n\nModel: SDXL checkpoints; Illustrious and Pony models work too (use their prompt style). Default: Juggernaut XL.\nDefaults: 30 steps, CFG 5.0, dpmpp_2m_sde / karras."
+   ],
+   "color": "#432",
+   "bgcolor": "#653"
+  },
+  {
+   "id": 1,
+   "type": "LoadImage",
+   "pos": [
+    480,
+    110
+   ],
+   "size": [
+    340,
+    106
+   ],
+   "flags": {},
+   "order": 1,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "image",
+     "type": "COMBO",
+     "link": null,
+     "widget": {
+      "name": "image"
+     }
+    }
+   ],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      4
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "MASK",
+     "type": "MASK",
+     "links": [],
+     "slot_index": 1
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "LoadImage"
+   },
+   "widgets_values": [
+    "example.png"
+   ],
+   "title": "Character picture"
+  },
+  {
+   "id": 2,
+   "type": "CheckpointLoaderSimple",
+   "pos": [
+    900,
+    110
+   ],
+   "size": [
+    340,
+    128
+   ],
+   "flags": {},
+   "order": 2,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "ckpt_name",
+     "type": "COMBO",
+     "link": null,
+     "widget": {
+      "name": "ckpt_name"
+     }
+    }
+   ],
+   "outputs": [
+    {
+     "name": "MODEL",
+     "type": "MODEL",
+     "links": [
+      1
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "CLIP",
+     "type": "CLIP",
+     "links": [
+      5,
+      6
+     ],
+     "slot_index": 1
+    },
+    {
+     "name": "VAE",
+     "type": "VAE",
+     "links": [
+      12
+     ],
+     "slot_index": 2
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "CheckpointLoaderSimple"
+   },
+   "widgets_values": [
+    "juggernautXL_ragnarokBy.safetensors"
+   ],
+   "title": "Checkpoint"
+  },
+  {
+   "id": 3,
+   "type": "IPAdapterUnifiedLoader",
+   "pos": [
+    1320,
+    110
+   ],
+   "size": [
+    340,
+    106
+   ],
+   "flags": {},
+   "order": 3,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "model",
+     "type": "MODEL",
+     "link": 1
+    },
+    {
+     "name": "preset",
+     "type": "COMBO",
+     "link": null,
+     "widget": {
+      "name": "preset"
+     }
+    },
+    {
+     "name": "ipadapter",
+     "type": "IPADAPTER",
+     "link": null
+    }
+   ],
+   "outputs": [
+    {
+     "name": "model",
+     "type": "MODEL",
+     "links": [
+      2
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "ipadapter",
+     "type": "IPADAPTER",
+     "links": [
+      3
+     ],
+     "slot_index": 1
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "IPAdapterUnifiedLoader"
+   },
+   "widgets_values": [
+    "PLUS (high strength)"
+   ],
+   "title": "IP-Adapter loader"
+  },
+  {
+   "id": 4,
+   "type": "IPAdapterAdvanced",
+   "pos": [
+    1320,
+    256
+   ],
+   "size": [
+    340,
+    324
+   ],
+   "flags": {},
+   "order": 4,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "model",
+     "type": "MODEL",
+     "link": 2
+    },
+    {
+     "name": "ipadapter",
+     "type": "IPADAPTER",
+     "link": 3
+    },
+    {
+     "name": "image",
+     "type": "IMAGE",
+     "link": 4
+    },
+    {
+     "name": "weight",
+     "type": "FLOAT",
+     "link": null,
+     "widget": {
+      "name": "weight"
+     }
+    },
+    {
+     "name": "weight_type",
+     "type": "COMBO",
+     "link": null,
+     "widget": {
+      "name": "weight_type"
+     }
+    },
+    {
+     "name": "combine_embeds",
+     "type": "COMBO",
+     "link": null,
+     "widget": {
+      "name": "combine_embeds"
+     }
+    },
+    {
+     "name": "start_at",
+     "type": "FLOAT",
+     "link": null,
+     "widget": {
+      "name": "start_at"
+     }
+    },
+    {
+     "name": "end_at",
+     "type": "FLOAT",
+     "link": null,
+     "widget": {
+      "name": "end_at"
+     }
+    },
+    {
+     "name": "embeds_scaling",
+     "type": "COMBO",
+     "link": null,
+     "widget": {
+      "name": "embeds_scaling"
+     }
+    },
+    {
+     "name": "image_negative",
+     "type": "IMAGE",
+     "link": null
+    },
+    {
+     "name": "attn_mask",
+     "type": "MASK",
+     "link": null
+    },
+    {
+     "name": "clip_vision",
+     "type": "CLIP_VISION",
+     "link": null
+    }
+   ],
+   "outputs": [
+    {
+     "name": "MODEL",
+     "type": "MODEL",
+     "links": [
+      7
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "IPAdapterAdvanced"
+   },
+   "widgets_values": [
+    0.6,
+    "linear",
+    "concat",
+    0.0,
+    0.85,
+    "V only"
+   ],
+   "title": "Character weight"
+  },
+  {
+   "id": 5,
+   "type": "CLIPTextEncode",
+   "pos": [
+    1740,
+    110
+   ],
+   "size": [
+    340,
+    194
+   ],
+   "flags": {},
+   "order": 5,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "text",
+     "type": "STRING",
+     "link": null,
+     "widget": {
+      "name": "text"
+     }
+    },
+    {
+     "name": "clip",
+     "type": "CLIP",
+     "link": 5
+    }
+   ],
+   "outputs": [
+    {
+     "name": "CONDITIONING",
+     "type": "CONDITIONING",
+     "links": [
+      8
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "CLIPTextEncode"
+   },
+   "widgets_values": [
+    "character sheet, character turnaround, the same character shown in several poses: front view, side view, back view, and an action pose, full body, consistent outfit, plain white background, concept art, highly detailed"
+   ],
+   "title": "Positive prompt"
+  },
+  {
+   "id": 6,
+   "type": "CLIPTextEncode",
+   "pos": [
+    1740,
+    344
+   ],
+   "size": [
+    340,
+    194
+   ],
+   "flags": {},
+   "order": 6,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "text",
+     "type": "STRING",
+     "link": null,
+     "widget": {
+      "name": "text"
+     }
+    },
+    {
+     "name": "clip",
+     "type": "CLIP",
+     "link": 6
+    }
+   ],
+   "outputs": [
+    {
+     "name": "CONDITIONING",
+     "type": "CONDITIONING",
+     "links": [
+      9
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "CLIPTextEncode"
+   },
+   "widgets_values": [
+    "lowres, blurry, bad anatomy, bad hands, extra fingers, deformed, watermark, text, signature, worst quality, low quality, jpeg artifacts"
+   ],
+   "title": "Negative prompt"
+  },
+  {
+   "id": 7,
+   "type": "EmptyLatentImage",
+   "pos": [
+    2160,
+    110
+   ],
+   "size": [
+    340,
+    136
+   ],
+   "flags": {},
+   "order": 7,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "width",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "width"
+     }
+    },
+    {
+     "name": "height",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "height"
+     }
+    },
+    {
+     "name": "batch_size",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "batch_size"
+     }
+    }
+   ],
+   "outputs": [
+    {
+     "name": "LATENT",
+     "type": "LATENT",
+     "links": [
+      10
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "EmptyLatentImage"
+   },
+   "widgets_values": [
+    1536,
+    1024,
+    1
+   ],
+   "title": "Size"
+  },
+  {
+   "id": 8,
+   "type": "KSampler",
+   "pos": [
+    2580,
+    110
+   ],
+   "size": [
+    340,
+    280
+   ],
+   "flags": {},
+   "order": 8,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "model",
+     "type": "MODEL",
+     "link": 7
+    },
+    {
+     "name": "seed",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "seed"
+     }
+    },
+    {
+     "name": "steps",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "steps"
+     }
+    },
+    {
+     "name": "cfg",
+     "type": "FLOAT",
+     "link": null,
+     "widget": {
+      "name": "cfg"
+     }
+    },
+    {
+     "name": "sampler_name",
+     "type": "COMBO",
+     "link": null,
+     "widget": {
+      "name": "sampler_name"
+     }
+    },
+    {
+     "name": "scheduler",
+     "type": "COMBO",
+     "link": null,
+     "widget": {
+      "name": "scheduler"
+     }
+    },
+    {
+     "name": "positive",
+     "type": "CONDITIONING",
+     "link": 8
+    },
+    {
+     "name": "negative",
+     "type": "CONDITIONING",
+     "link": 9
+    },
+    {
+     "name": "latent_image",
+     "type": "LATENT",
+     "link": 10
+    },
+    {
+     "name": "denoise",
+     "type": "FLOAT",
+     "link": null,
+     "widget": {
+      "name": "denoise"
+     }
+    }
+   ],
+   "outputs": [
+    {
+     "name": "LATENT",
+     "type": "LATENT",
+     "links": [
+      11
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "KSampler"
+   },
+   "widgets_values": [
+    0,
+    "randomize",
+    30,
+    5.0,
+    "dpmpp_2m_sde",
+    "karras",
+    1.0
+   ],
+   "title": "Sampler"
+  },
+  {
+   "id": 9,
+   "type": "VAEDecode",
+   "pos": [
+    3000,
+    110
+   ],
+   "size": [
+    340,
+    80
+   ],
+   "flags": {},
+   "order": 9,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "samples",
+     "type": "LATENT",
+     "link": 11
+    },
+    {
+     "name": "vae",
+     "type": "VAE",
+     "link": 12
+    }
+   ],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      13
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "VAEDecode"
+   },
+   "widgets_values": [],
+   "title": "Decode"
+  },
+  {
+   "id": 10,
+   "type": "SaveImage",
+   "pos": [
+    3000,
+    230
+   ],
+   "size": [
+    340,
+    84
+   ],
+   "flags": {},
+   "order": 10,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "link": 13
+    },
+    {
+     "name": "filename_prefix",
+     "type": "STRING",
+     "link": null,
+     "widget": {
+      "name": "filename_prefix"
+     }
+    }
+   ],
+   "outputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "links": [],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "SaveImage"
+   },
+   "widgets_values": [
+    "presets/sdxl-character-sheet"
+   ],
+   "title": "Save"
+  }
+ ],
+ "links": [
+  [
+   1,
+   2,
+   0,
+   3,
+   0,
+   "MODEL"
+  ],
+  [
+   2,
+   3,
+   0,
+   4,
+   0,
+   "MODEL"
+  ],
+  [
+   3,
+   3,
+   1,
+   4,
+   1,
+   "IPADAPTER"
+  ],
+  [
+   4,
+   1,
+   0,
+   4,
+   2,
+   "IMAGE"
+  ],
+  [
+   5,
+   2,
+   1,
+   5,
+   1,
+   "CLIP"
+  ],
+  [
+   6,
+   2,
+   1,
+   6,
+   1,
+   "CLIP"
+  ],
+  [
+   7,
+   4,
+   0,
+   8,
+   0,
+   "MODEL"
+  ],
+  [
+   8,
+   5,
+   0,
+   8,
+   6,
+   "CONDITIONING"
+  ],
+  [
+   9,
+   6,
+   0,
+   8,
+   7,
+   "CONDITIONING"
+  ],
+  [
+   10,
+   7,
+   0,
+   8,
+   8,
+   "LATENT"
+  ],
+  [
+   11,
+   8,
+   0,
+   9,
+   0,
+   "LATENT"
+  ],
+  [
+   12,
+   2,
+   2,
+   9,
+   1,
+   "VAE"
+  ],
+  [
+   13,
+   9,
+   0,
+   10,
+   0,
+   "IMAGE"
+  ]
+ ],
+ "groups": [
+  {
+   "title": "Input",
+   "bounding": [
+    460,
+    60,
+    380,
+    186
+   ],
+   "color": "#3f789e",
+   "font_size": 22,
+   "flags": {}
+  },
+  {
+   "title": "Model",
+   "bounding": [
+    880,
+    60,
+    380,
+    208
+   ],
+   "color": "#8A8",
+   "font_size": 22,
+   "flags": {}
+  },
+  {
+   "title": "Character",
+   "bounding": [
+    1300,
+    60,
+    380,
+    550
+   ],
+   "color": "#b06634",
+   "font_size": 22,
+   "flags": {}
+  },
+  {
+   "title": "Prompt",
+   "bounding": [
+    1720,
+    60,
+    380,
+    508
+   ],
+   "color": "#a1309b",
+   "font_size": 22,
+   "flags": {}
+  },
+  {
+   "title": "Size",
+   "bounding": [
+    2140,
+    60,
+    380,
+    216
+   ],
+   "color": "#88A",
+   "font_size": 22,
+   "flags": {}
+  },
+  {
+   "title": "Sampling",
+   "bounding": [
+    2560,
+    60,
+    380,
+    360
+   ],
+   "color": "#b58b2a",
+   "font_size": 22,
+   "flags": {}
+  },
+  {
+   "title": "Output",
+   "bounding": [
+    2980,
+    60,
+    380,
+    284
+   ],
+   "color": "#335",
+   "font_size": 22,
+   "flags": {}
+  }
+ ],
+ "config": {},
+ "extra": {
+  "ds": {
+   "scale": 0.7,
+   "offset": [
+    0,
+    0
+   ]
+  },
+  "imagelab": {
+   "preset": true
+  }
+ },
+ "version": 0.4
+}
