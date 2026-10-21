@@ -24,7 +24,7 @@ export interface CardParts {
   /** Between the words and the weight: a kind's own input (ControlNet's guide image). */
   body?: (entry: ModelEntry) => ReactNode;
   /** The "More ▾" fold; absent = no More button. */
-  more?: (entry: ModelEntry) => ReactNode;
+  more?: (entry: ModelEntry, meta?: ModelMeta) => ReactNode;
   /** "More · CLIP strength, defaults" */
   moreHint?: (entry: ModelEntry) => string | undefined;
   /** The weight slider's label when the kind's is not right ("Strength · high"). */

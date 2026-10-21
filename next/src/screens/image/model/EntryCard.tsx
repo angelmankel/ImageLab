@@ -8,7 +8,7 @@
  *   name · a real node title as a badge (raw node names hidden) · On/Off
  *   file · version
  *   facts: base model · ★ rating · ↓ downloads · size          (only what is known)
- *   "Creator's samples use": steps · CFG · sampler · clip skip · a LoRA's usual strength
+ *   "Recommended settings": steps · CFG · sampler · clip skip · a LoRA's usual strength
  *   the kind's own parts (trigger words, a guide image), the weight slider, `after`
  *   Change ▾ · CivitAI ↗ · More ▾        (Remove is the × on the entry's circle, `CircleRow`)
  *
@@ -57,7 +57,7 @@ export function EntryCard({ entry, api, onChange, link }: { entry: ModelEntry; a
   const dim = !!pending || !!entry.missing || !entry.on;
   const showWeight = !!spec.weight && !entry.noWeight && !(api.kind === 'checkpoint' && entry.isBase);
   const title = entry.name ? (meta.name ?? meta.label) : `No ${spec.one} yet`;
-  const moreNode = card?.more?.(entry);
+  const moreNode = card?.more?.(entry, meta);
   const moreHint = card?.moreHint?.(entry);
   const headLabel = card?.headLabel?.(entry);
   const afterNode = card?.after?.(entry);
@@ -145,7 +145,7 @@ function SamplesUse({ rec, kind }: { rec: Recommended; kind: string }) {
   return (
     <div title={`The typical settings of ${rec.from} sample image${rec.from === 1 ? '' : 's'} on CivitAI`}
       style={{ background: 'var(--il-elev)', borderRadius: T.radius.md, padding: '7px 10px', display: 'flex', flexDirection: 'column', gap: 5, minWidth: 0 }}>
-      <span className="il-eyebrow">Creator's samples use</span>
+      <span className="il-eyebrow">Recommended settings</span>
       <div style={{ display: 'flex', flexWrap: 'wrap', columnGap: 14, rowGap: 4 }}>
         {items.map(([k, v]) => (
           <span key={k} style={{ minWidth: 0, maxWidth: '100%' }}>
@@ -158,7 +158,7 @@ function SamplesUse({ rec, kind }: { rec: Recommended; kind: string }) {
   );
 }
 
-/** "Creator's samples use", from the version's sample images (the images API, cached per version). */
+/** "Recommended settings", from the version's sample images (the images API, cached per version). */
 function useRecommended(versionId: number | undefined, kind: string): Recommended {
   const mask = useModels((s) => s.filters.nsfwMask);
   const { items } = useVersionImages(versionId ?? null, mask, undefined);

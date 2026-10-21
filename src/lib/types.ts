@@ -293,7 +293,10 @@ export type WorkflowEmbedding = {
   target: 'positive' | 'negative';
   strength: number;
   on: boolean;
-  /** The embedding's own trigger words (from CivitAI metadata): on/off and weight. Missing = on at 1.0. */
+  /** "Also add trigger words" (fix list 2 item 32): the embedding's CivitAI trigger words that differ
+   *  from its own name join its prompt side as text, at the same strength. Missing = off. */
+  addWords?: boolean;
+  /** @deprecated Old separate on/off + weight of the trigger words; ignored since item 32. */
   words?: { on: boolean; weight: number };
 };
 

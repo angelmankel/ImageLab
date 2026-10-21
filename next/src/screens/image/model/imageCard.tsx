@@ -7,11 +7,11 @@
 import { useRef } from 'react';
 import { IconPhotoPlus, IconX } from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
-import { embeddingWords } from '@/lib/embeddings';
+import { embeddingExtraWords } from '@/lib/embeddings';
 import { modelKeywordState } from '@/lib/modelKeywords';
 import { useModelProfile } from '@/hooks/useModelProfileSync';
 import { modelLabel } from '@/components/models/modelInfo';
-import { Chip, SearchSelect, SliderRow, Tabs } from '~/ui';
+import { Chip, SearchSelect, SliderRow, Switch, Tabs } from '~/ui';
 import { T } from '~/theme/tokens';
 import { TriggerWords, type AutoWords } from './TriggerWords';
 import { fmtWeight, type ModelKind } from './kindSpecs';
@@ -27,7 +27,7 @@ export const SELECT_STYLES = {
 const MORE_HINT: Partial<Record<ModelKind, string>> = {
   checkpoint: 'VAE, model type',
   lora: 'CLIP strength, defaults',
-  embedding: 'prompt side, trigger words',
+  embedding: 'prompt side',
   controlnet: 'notes',
 };
 
@@ -46,8 +46,7 @@ const PARTS: Partial<Record<ModelKind, CardParts>> = {
     moreHint: () => MORE_HINT.lora,
   },
   embedding: {
-    words: (e, meta) => <EmbeddingWords id={e.id} words={embeddingWords(meta.trainedWords)} />,
-    more: (e) => <EmbeddingMore id={e.id} />,
+    more: (e, meta) => <EmbeddingMore id={e.id} words={meta ? embeddingExtraWords(e.name, meta.trainedWords) : []} />,
     moreHint: () => MORE_HINT.embedding,
   },
   controlnet: {
@@ -74,15 +73,6 @@ function ModelWords({ file, words }: { file: string; words: string[] }) {
   };
   if (!words.length) return null;
   return <TriggerWords words={words} auto={auto} />;
-}
-
-/** An embedding's own trigger words; its Auto is the entry's `words.on`. */
-function EmbeddingWords({ id, words }: { id: string; words: string[] }) {
-  const entry = useStore((s) => s.workflow.embeddings?.find((e) => e.id === id));
-  if (!entry || !words.length) return null;
-  const ws = { on: true, weight: 1, ...entry.words };
-  const auto: AutoWords = { on: ws.on, set: (on) => useStore.getState().updateEmbedding(id, { words: { ...ws, on } }) };
-  return <TriggerWords words={words} auto={auto} title="Trigger words · tap to add to the prompt" />;
 }
 
 function LoraMore({ id }: { id: string }) {
@@ -123,19 +113,27 @@ function BaseCheckpointMore() {
   );
 }
 
-function EmbeddingMore({ id }: { id: string }) {
+/**
+ * An embedding's fold (item 32): which prompt it joins, and — only when CivitAI lists trigger words
+ * other than the embedding's own name — "Also add trigger words" (off by default; they join at the
+ * embedding's one strength). No second weight.
+ */
+function EmbeddingMore({ id, words }: { id: string; words: string[] }) {
   const entry = useStore((s) => s.workflow.embeddings?.find((e) => e.id === id));
   const updateEmbedding = useStore((s) => s.updateEmbedding);
   if (!entry) return null;
-  const ws = { on: true, weight: 1, ...entry.words };
   return (
     <>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--il-fg2)' }}>Joins which prompt</span>
         <Tabs compact items={[{ key: 'positive', label: 'Positive' }, { key: 'negative', label: 'Negative' }]} value={entry.target} onChange={(target) => updateEmbedding(id, { target })} />
       </div>
-      <SliderRow label="Trigger words weight" value={ws.weight} min={0} max={2} step={0.05} presets={[0.5, 0.8, 1, 1.2]} format={fmtWeight}
-        onChange={(weight) => updateEmbedding(id, { words: { ...ws, weight } })} hint="Applies when Auto is on" />
+      {words.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <Switch label="Also add trigger words" checked={!!entry.addWords} onChange={(addWords) => updateEmbedding(id, { addWords })} />
+          <span style={{ ...NOTE, wordBreak: 'break-word', opacity: entry.addWords ? 1 : 0.6 }}>{words.join(', ')}</span>
+        </div>
+      )}
     </>
   );
 }

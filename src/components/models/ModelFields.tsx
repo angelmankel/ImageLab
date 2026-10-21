@@ -22,7 +22,7 @@ import { FieldWrapper } from '@/components/fields/FieldWrapper';
 import { StrengthControl } from '@/components/fields/StrengthControl';
 import { ModelSelectorModal } from './ModelSelectorModal';
 import { modelLabel, modelTrainedWords, plainDescription, readModelInfo, useModelInfo } from './modelInfo';
-import { embeddingWords } from '@/lib/embeddings';
+import { embeddingExtraWords } from '@/lib/embeddings';
 import { FAMILY_LABELS, bucketFits, vaeFits } from '@/lib/modelProfiles';
 import { isVideoModelName } from '@/lib/wanGraph';
 
@@ -368,7 +368,7 @@ export function EmbeddingsField() {
               data={[{ value: 'positive', label: 'Positive prompt' }, { value: 'negative', label: 'Negative prompt' }]} />
             <StrengthControl label="Strength" value={e.strength} min={0} max={2} step={0.05} chips={EMBEDDING_CHIPS} color="orange"
               onChange={(strength) => updateEmbedding(e.id, { strength })} ends={['Weaker', 'Stronger']} />
-            <EmbeddingWords embedding={e} onChange={(words) => updateEmbedding(e.id, { words })} />
+            <EmbeddingWords embedding={e} onChange={(addWords) => updateEmbedding(e.id, { addWords })} />
           </ModelSettings>
         ))}
       >
@@ -408,33 +408,28 @@ export function EmbeddingsField() {
   );
 }
 /**
- * An embedding's own trigger words from its CivitAI metadata: shown read-only, with their own
- * on/off and weight. They join the same prompt side as the embedding, right after its token.
+ * An embedding's trigger words (fix list 2 item 32): only the ones that differ from its own name,
+ * behind "Also add trigger words" (off by default). They join at the embedding's one strength.
  */
 function EmbeddingWords({ embedding, onChange }: {
-  embedding: WorkflowEmbedding; onChange: (words: { on: boolean; weight: number }) => void;
+  embedding: WorkflowEmbedding; onChange: (addWords: boolean) => void;
 }) {
   // Re-read when model metadata lands.
   useStore((s) => s.modelHashes);
   useStore((s) => s.civitaiByHash);
-  const words = embeddingWords(modelTrainedWords(embedding.name));
-  const state = { on: true, weight: 1, ...embedding.words };
-  if (!words.length) return <Text size="xs" c="dimmed">No trigger words in this embedding's metadata.</Text>;
+  const words = embeddingExtraWords(embedding.name, modelTrainedWords(embedding.name));
+  if (!words.length) return null;
   return (
     <Stack gap={6}>
       <Group justify="space-between" wrap="nowrap" gap="xs">
-        <Text size="xs" c="dimmed">Trigger words</Text>
-        <Switch size="sm" color="orange" checked={state.on} aria-label={`${embedding.name} trigger words on`}
-          onChange={(ev) => onChange({ ...state, on: ev.currentTarget.checked })} />
+        <Text size="xs" c="dimmed">Also add trigger words</Text>
+        <Switch size="sm" color="orange" checked={!!embedding.addWords} aria-label={`Also add ${embedding.name} trigger words`}
+          onChange={(ev) => onChange(ev.currentTarget.checked)} />
       </Group>
       <Text size="xs" ff="monospace" px={8} py={6}
-        style={{ borderRadius: 'var(--mantine-radius-sm)', background: 'var(--mantine-color-dark-7)', opacity: state.on ? 1 : 0.5, wordBreak: 'break-word' }}>
+        style={{ borderRadius: 'var(--mantine-radius-sm)', background: 'var(--mantine-color-dark-7)', opacity: embedding.addWords ? 1 : 0.5, wordBreak: 'break-word' }}>
         {words.join(', ')}
       </Text>
-      {state.on && (
-        <StrengthControl label="Trigger word strength" value={state.weight} min={0} max={2} step={0.05} chips={EMBEDDING_CHIPS} color="orange"
-          onChange={(weight) => onChange({ ...state, weight })} ends={['Weaker', 'Stronger']} />
-      )}
     </Stack>
   );
 }

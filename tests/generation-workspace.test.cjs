@@ -220,19 +220,22 @@ test('embedding names without an extension still find their hash', () => {
   assert.equal(findModelHash(hashes, 'ILXLneg.pt'), undefined);
 });
 
-test('an embedding\'s trigger words follow its token on the same side, with their own switch and weight', () => {
-  const { withEmbeddings } = load('embeddings');
+test('an embedding has ONE strength; trigger words other than its own name join only when "Also add trigger words" is on', () => {
+  const { withEmbeddings, embeddingExtraWords } = load('embeddings');
   const { compileLayers } = load('prompt');
-  const words = { ILXLneg: ['ILXLneg, ', 'lowres'], Style: ['stylez'], Plain: null };
+  const words = { ILXLneg: ['ILXLneg, ', 'lowres'], Style: ['stylez'], Plain: null, Own: ['Own_v1.0', 'own'] };
   const wf = { embeddings: [
-    { id: 'a', name: 'ILXLneg', target: 'negative', strength: 1, on: true },
-    { id: 'b', name: 'Style', target: 'positive', strength: 1, on: true, words: { on: true, weight: 1.3 } },
-    { id: 'c', name: 'Plain', target: 'positive', strength: 1, on: true },
-    { id: 'd', name: 'Style', target: 'positive', strength: 1, on: true, words: { on: false, weight: 1 } },
+    { id: 'a', name: 'ILXLneg', target: 'negative', strength: 1, on: true, addWords: true },
+    { id: 'b', name: 'Style', target: 'positive', strength: 1.3, on: true, addWords: true },
+    { id: 'c', name: 'Plain', target: 'positive', strength: 1, on: true, addWords: true },
+    { id: 'd', name: 'Style', target: 'positive', strength: 1, on: true, words: { on: true, weight: 1 } },
+    { id: 'e', name: 'Own', target: 'positive', strength: 1, on: true, addWords: true },
   ] };
   const layers = withEmbeddings([], wf, n => words[n]);
-  assert.equal(compileLayers(layers, 'negative'), 'embedding:ILXLneg, ILXLneg, lowres');
-  assert.equal(compileLayers(layers, 'positive'), 'embedding:Style, (stylez:1.30), embedding:Plain, embedding:Style');
+  assert.equal(compileLayers(layers, 'negative'), 'embedding:ILXLneg, lowres');
+  assert.equal(compileLayers(layers, 'positive'), '(embedding:Style:1.30), (stylez:1.30), embedding:Plain, embedding:Style, embedding:Own');
+  assert.deepEqual(embeddingExtraWords('Stable_Yogis_Illustrious_Positives', ['Stable_Yogis_Illustrious_Positives']), []);
+  assert.deepEqual(embeddingExtraWords('Stable_Yogis_Illustrious_Positives', ['stable yogis illustrious positives v1', 'masterpiece']), ['masterpiece']);
 });
 
 test('refine noise injection puts InjectLatentNoise+ before the sampler; 0 adds nothing; loopback carries it', () => {

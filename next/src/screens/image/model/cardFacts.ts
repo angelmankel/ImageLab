@@ -1,5 +1,5 @@
 /**
- * The selected-model card's facts (fix list item 16), the pure part: "Creator's samples use" —
+ * The selected-model card's facts (fix list item 16), the pure part: "Recommended settings" —
  * the typical steps / CFG / sampler / clip skip (median or most common) read from the version's
  * sample images' generation data, and a LoRA's / embedding's usual strength from the samples'
  * `civitaiResources` (the entry whose `modelVersionId` is this version). Only what the samples
