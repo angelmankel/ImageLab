@@ -1,6 +1,6 @@
 /**
  * Which saved ComfyUI workflow each step runs (rule 14: "Use as step"), plus the ComfyUI screen's
- * own memory: the chosen server (Image · Video), when each workflow was last used, and node counts
+ * own memory: the chosen server (the picker, FIXLIST-2 #52), when each workflow was last used, and node counts
  * read from each file (keyed by its saved time so an edit in ComfyUI re-reads it). Persisted.
  *
  * The Image/Workflow step owner reads `useStepWorkflow(stepId)` to know what to run.

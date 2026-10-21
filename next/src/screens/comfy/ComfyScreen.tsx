@@ -1,7 +1,7 @@
 /**
  * Rule 14, desktop: the ComfyUI screen, right of the rail.
  *
- *   [ left panel 300: Image · Video, status, saved workflows (click = open in the frame) ]
+ *   [ left panel 300: server picker (FIXLIST-2 #52), saved workflows (click = open)    ]
  *   [ centre: toolbar row 52 (Generate, New / Save / Save as …) + embedded ComfyUI       ]
  *   [ right panel 320: queue (✕ per row), log — collapsed until opened, remembered       ]
  *
@@ -16,8 +16,7 @@ import { T } from '~/theme/tokens';
 import { ComfyEmbed } from './ComfyEmbed';
 import { LogBox } from './LogBox';
 import { QueueList } from './QueueList';
-import { ServerStatus } from './ServerStatus';
-import { ServerSwitch } from './ServerSwitch';
+import { ServerPicker } from './ServerPicker';
 import { useComfyHost } from './useComfyHost';
 import { useComfyServer } from './useComfyServer';
 import { useComfyWorkflows } from './useComfyWorkflows';
@@ -49,9 +48,7 @@ export function ComfyScreen() {
     <div style={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex' }}>
       <Panel side="left" width={leftW} min={260} max={460} open={leftOpen} onResize={setLeftW} onToggle={() => setLeftOpen((o) => !o)} tabLabel="Workflows">
         <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 10, padding: T.pad.panel }}>
-          <ServerSwitch pick={pick} online={live.online} up={up} />
-          <ServerStatus server={pick.server} online={live.online} stats={live.stats} queued={live.rows.length} />
-          <div style={{ height: 4, flex: 'none' }} />
+          <ServerPicker pick={pick} online={live.online} stats={live.stats} queued={live.rows.length} up={up} />
           <WorkflowList wf={wf} />
         </div>
       </Panel>

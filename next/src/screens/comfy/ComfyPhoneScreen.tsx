@@ -1,6 +1,6 @@
 /**
  * Rule 14 on the phone (rule 11: no dock here, one centred Back pill). Header: "ComfyUI" + the
- * Image · Video switch; a segmented row Servers · Workflows · Queue; one list per segment.
+ * server picker pill (FIXLIST-2 #52); a segmented row Servers · Workflows · Queue; one list per segment.
  * No iframe on a phone: "Open ComfyUI" opens the server's page in a new tab.
  */
 import { useState } from 'react';
@@ -13,7 +13,7 @@ import { comfyPageUrl } from './comfyApi';
 import { LogBox } from './LogBox';
 import { QueueList } from './QueueList';
 import { ServerStatus } from './ServerStatus';
-import { ServerSwitch } from './ServerSwitch';
+import { ServerPicker } from './ServerPicker';
 import { useComfyHost } from './useComfyHost';
 import { useComfyServer, type ComfyServerPick } from './useComfyServer';
 import { useComfyWorkflows } from './useComfyWorkflows';
@@ -70,7 +70,7 @@ export function ComfyPhoneScreen() {
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--il-bg)' }}>
       <div style={{ height: 56, flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '10px 14px 0' }}>
         <span style={{ fontWeight: 800, fontSize: 18 }}>ComfyUI</span>
-        <ServerSwitch pick={pick} online={live.online} up={up} compact />
+        <ServerPicker pick={pick} online={live.online} stats={live.stats} queued={live.rows.length} up={up} compact />
       </div>
       <div style={{ flex: 'none', padding: '8px 14px 4px' }}>
         <Tabs<Seg>
