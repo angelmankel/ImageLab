@@ -4,7 +4,6 @@
  * (checkpoint, LoRAs, embeddings) — with Use prompt / Reuse settings / Send to a step. An action
  * closes the viewer and lets the opener step aside (`leaveExternalViewer`).
  */
-import { notifications } from '@mantine/notifications';
 import { IconCopy, IconExternalLink } from '@tabler/icons-react';
 import { applyGenerationData, sendToStep } from '~/app/actions';
 import { metaForStep } from '~/screens/models/useModelActions';
@@ -14,10 +13,11 @@ import { Button } from '~/ui';
 import { Section } from './DetailsPanel';
 import { leaveExternalViewer } from './externalViewer';
 import type { ViewerItem } from './types';
+import { say } from '~/app/notify';
 
 const copy = (text: string, what: string) => {
   void navigator.clipboard?.writeText(text).then(
-    () => notifications.show({ message: `${what} copied`, color: 'teal', autoClose: 1500 }),
+    () => say(`${what} copied`),
     () => undefined,
   );
 };
