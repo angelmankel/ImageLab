@@ -6,7 +6,7 @@
  * so ComfyUI asks for names itself and writes to its own workflow store. They need the frame on
  * this site (same origin); a ComfyUI elsewhere greys them out.
  */
-import { useCallback, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { notifications } from '@mantine/notifications';
 import {
   IconDeviceFloppy, IconExternalLink, IconFilePlus, IconLayoutSidebarLeftCollapse, IconLayoutSidebarLeftExpand,
@@ -17,7 +17,7 @@ import type { Server } from '@/lib/storage';
 import { Button, Dot, Pill, Sep } from '~/ui';
 import { T } from '~/theme/tokens';
 import { comfyPageUrl } from './comfyApi';
-import { attachFrame, newInFrame, queueInFrame, saveAsInFrame, saveInFrame, setHideMenus, useComfyFrame } from './comfyFrame';
+import { attachFrame, newInFrame, queueInFrame, saveAsInFrame, saveInFrame, setFrameHost, setHideMenus, useComfyFrame } from './comfyFrame';
 
 function why(status: string): string {
   return status === 'blocked' ? 'This ComfyUI is on another site: open it in a new tab for this'
@@ -46,10 +46,12 @@ function FrameBtn({ label, icon, run, ready, status, onDone, iconOnly, primary }
   );
 }
 
-export function ComfyEmbed({ server, online, running, onWorkflowsChanged }: {
+export function ComfyEmbed({ server, online, running, onWorkflowsChanged, overlay }: {
   server: Server | null; online: boolean | null; running: boolean;
   /** A save / new changed the workflow files: refresh the left list. */
   onWorkflowsChanged?: () => void;
+  /** Drawn over the top of the frame (FIXLIST-2 #51: the progress chip when menus are hidden). */
+  overlay?: ReactNode;
 }) {
   const [nonce, setNonce] = useState(0);
   const host = server?.host ?? null;
@@ -58,6 +60,7 @@ export function ComfyEmbed({ server, online, running, onWorkflowsChanged }: {
   const hideMenus = useComfyFrame((s) => s.hideMenus);
   const ready = status === 'ready';
   const frameRef = useCallback((el: HTMLIFrameElement | null) => attachFrame(el), []);
+  useEffect(() => { setFrameHost(host); return () => setFrameHost(null); }, [host]);
   // Saves come back after ComfyUI's own name dialog; the list then picks the file up.
   const changed = () => { onWorkflowsChanged?.(); window.setTimeout(() => onWorkflowsChanged?.(), 1500); };
   const queued = () => notifications.show({ color: 'ember', message: 'Queued in ComfyUI', autoClose: 2000 });
@@ -103,7 +106,8 @@ export function ComfyEmbed({ server, online, running, onWorkflowsChanged }: {
             allow="clipboard-read; clipboard-write; fullscreen"
             style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0, background: 'var(--il-bg-deep)' }}
           />
-        ) : (
+        ) : null}
+        {url && online !== false ? overlay : (
           <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', color: 'var(--il-muted)', fontSize: 13, fontWeight: 700, textAlign: 'center', padding: 20 }}>
             {server ? `${server.name} is not answering (${server.host}).` : 'No ComfyUI server. Add one in Settings.'}
           </div>

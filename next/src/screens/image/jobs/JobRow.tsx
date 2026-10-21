@@ -11,6 +11,7 @@ import { IconX } from '@tabler/icons-react';
 import { useQueue, type QueueRow } from '~/app/queue';
 import { useSteps } from '~/app/stepsStore';
 import { displayName, useSessions } from '~/app/sessionsStore';
+import { useRoute } from '~/app/routeStore';
 import { useIsPhone } from '~/app/useIsPhone';
 import { Tip, useWheelSideways } from '~/ui';
 
@@ -79,6 +80,7 @@ export function JobRow() {
             const i = r.stepId ? list.findIndex((s) => s.id === r.stepId) : -1;
             const row = other ? { ...r, label: `${displayName(other.name)} · ${r.label}` } : r;
             const openIt = () => {
+              if (r.source === 'comfy') { useRoute.getState().go('comfy'); return; }
               if (other) { useSessions.getState().open(other.id); if (r.stepId && i >= 0) useSteps.getState().setActive(r.stepId); return; }
               if (r.stepId && i >= 0) setActive(r.stepId);
             };

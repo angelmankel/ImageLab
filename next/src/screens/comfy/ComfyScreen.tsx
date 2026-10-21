@@ -17,6 +17,7 @@ import { ComfyEmbed } from './ComfyEmbed';
 import { LogBox } from './LogBox';
 import { QueueList } from './QueueList';
 import { ServerPicker } from './ServerPicker';
+import { FrameProgress } from './FrameProgress';
 import { useComfyHost } from './useComfyHost';
 import { useComfyServer } from './useComfyServer';
 import { useComfyWorkflows } from './useComfyWorkflows';
@@ -53,7 +54,8 @@ export function ComfyScreen() {
         </div>
       </Panel>
 
-      <ComfyEmbed server={pick.server} online={live.online} running={live.rows.some((r) => r.state === 'running')} onWorkflowsChanged={wf.refresh} />
+      <ComfyEmbed server={pick.server} online={live.online} running={live.rows.some((r) => r.state === 'running')} onWorkflowsChanged={wf.refresh}
+        overlay={<FrameProgress host={host} live={live} />} />
 
       <Panel side="right" width={rightW} min={260} max={520} open={rightOpen} onResize={resizeRight} onToggle={toggleRight} tabLabel={live.rows.length ? `Queue · ${live.rows.length}` : 'Queue'}>
         <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 16, padding: T.pad.panel }}>

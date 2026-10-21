@@ -8,8 +8,8 @@ export interface QueueRow {
   stepId?: string;
   /** Which session queued it (fix list 2, item 15), when known. */
   sessionId?: string;
-  /** 'image' = a generate-store job; 'video' / 'workflow' = that run store's one run. */
-  source: 'image' | 'video' | 'workflow';
+  /** 'image' = a generate-store job; 'video' / 'workflow' = that run store's one run; 'comfy' = queued inside ComfyUI itself (FIXLIST-2 #51). */
+  source: 'image' | 'video' | 'workflow' | 'comfy';
   label: string;
   status: 'running' | 'queued';
   /** 0..1 while running. */

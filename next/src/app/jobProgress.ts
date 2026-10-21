@@ -14,6 +14,7 @@ import { useWorkflowRun } from '@/features/studio/studioRun';
 import { useDownloadsStore } from '@/features/downloads/store';
 import { useSteps } from './stepsStore';
 import { rowsOf } from './queue';
+import { useComfyJobs } from '~/screens/comfy/comfyJobs';
 import { IDLE, faviconHrefOf, jobProgressOf, sameProgress, tabTitleOf, type JobProgress } from './jobProgressLogic';
 
 export type { JobProgress, JobState } from './jobProgressLogic';
@@ -48,7 +49,7 @@ export function useJobProgressEffect() {
     const render = () => {
       const s = useStore.getState();
       const steps = useSteps.getState().steps;
-      const rows = rowsOf(s.jobs, s.servers, useVideoRun.getState(), useWorkflowRun.getState(), steps);
+      const rows = rowsOf(s.jobs, s.servers, useVideoRun.getState(), useWorkflowRun.getState(), steps, useComfyJobs.getState().rows);
       const busy = rows.length > 0 || s.isSubmitting;
       const errors = errorCount();
       if (errorsBefore >= 0 && errors > errorsBefore) flash = 'error';
@@ -81,7 +82,7 @@ export function useJobProgressEffect() {
     bootTimer = window.setTimeout(render, BOOT_GRACE_MS + 50);
     const unsubs = [
       useStore.subscribe(render), useVideoRun.subscribe(render), useWorkflowRun.subscribe(render),
-      useDownloadsStore.subscribe(render), useSteps.subscribe(render),
+      useDownloadsStore.subscribe(render), useSteps.subscribe(render), useComfyJobs.subscribe(render),
     ];
     document.addEventListener('visibilitychange', onVisible);
     return () => {

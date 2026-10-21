@@ -5,6 +5,7 @@
  * tab title, the Wan stand-ins; and the video / workflow run stores pointed at their hosts and
  * attached, so a run keeps reporting whichever step is on screen. Renders nothing.
  */
+import { useComfyJobsWatch } from '~/screens/comfy/comfyJobs';
 import { useEffect } from 'react';
 import { useComfyConnection } from '@/hooks/useComfyConnection';
 import { useModelHashes } from '@/hooks/useModelHashes';
@@ -33,6 +34,8 @@ export function AppEffects() {
   useVideoServerProbe();
   // The tab title + favicon and the footer's job progress (items 47 + 19).
   useJobProgressEffect();
+  // Prompts queued inside ComfyUI itself → the Jobs list + tab title (FIXLIST-2 #51).
+  useComfyJobsWatch();
   useInstalledWanFiles();
   // Models added before their download: flip them on when the file lands, whichever tab is open.
   usePendingReconcile();

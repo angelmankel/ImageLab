@@ -14,6 +14,7 @@
  */
 import { create } from 'zustand';
 import { plainCopy } from './frameCopy';
+import { frameEvent } from './comfyJobs';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type FrameWorkflow = { path: string; isLoaded?: boolean; isModified?: boolean; activeState?: unknown; load: () => Promise<unknown> };
@@ -32,7 +33,7 @@ interface Workspace {
     renameWorkflow?: (w: FrameWorkflow, newPath: string) => Promise<void>;
   };
 }
-interface FrameApp { loadGraphData: (...args: any[]) => Promise<unknown>; extensionManager?: Workspace }
+interface FrameApp { loadGraphData: (...args: any[]) => Promise<unknown>; extensionManager?: Workspace; api?: EventTarget }
 
 export type FrameStatus = 'none' | 'loading' | 'ready' | 'blocked';
 
@@ -74,6 +75,26 @@ let track = 0;
 function stopPoll() {
   if (poll) { window.clearInterval(poll); poll = 0; }
   if (track) { window.clearInterval(track); track = 0; }
+  unhookApi();
+}
+
+/** The host the frame shows (ComfyEmbed sets it): where its own prompts' events belong. */
+let frameHost: string | null = null;
+export function setFrameHost(host: string | null): void { frameHost = host; }
+
+/**
+ * FIXLIST-2 #51: ComfyUI sends a prompt's progress only to the client that queued it, so the
+ * frame's own prompts are followed through its `app.api` events and handed to ./comfyJobs.
+ */
+const API_EVENTS = ['execution_start', 'progress', 'executing', 'execution_success', 'execution_error', 'execution_interrupted', 'status'];
+let unhookApi: () => void = () => {};
+function hookApi(app: FrameApp) {
+  unhookApi();
+  const api = app.api;
+  if (!api || typeof api.addEventListener !== 'function') return;
+  const on = (e: Event) => { if (frameHost) { try { frameEvent(frameHost, e.type, (e as CustomEvent).detail); } catch { /* never break the frame */ } } };
+  for (const t of API_EVENTS) api.addEventListener(t, on);
+  unhookApi = () => { try { for (const t of API_EVENTS) api.removeEventListener(t, on); } catch { /* frame gone */ } unhookApi = () => {}; };
 }
 
 /** ComfyEmbed hands its iframe here (null when it goes). Polls until ComfyUI's app is up. */
@@ -90,6 +111,7 @@ export function attachFrame(el: HTMLIFrameElement | null): void {
       stopPoll();
       useComfyFrame.setState({ status: 'ready', openPath: activePathInFrame() });
       applyFocus(a.ws);
+      hookApi(a.app);
       // Follow what the frame shows (its own tabs, its own Open), for the selected row.
       track = window.setInterval(() => {
         // ComfyUI reloaded inside the frame: wait for it again (and re-apply the menus toggle).
