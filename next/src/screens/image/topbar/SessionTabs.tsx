@@ -20,6 +20,7 @@ import { colorOf } from '~/app/sessionColor';
 import { useSteps } from '~/app/stepsStore';
 import { useQueue } from '~/app/queue';
 import { menuProps } from '~/app/contextMenu';
+import { pushUndo } from '~/app/undo';
 import { useImageDrop } from '~/dnd';
 import { Tip } from '~/ui/Tip';
 import { useSessionOutputs, type SessionOutput } from '~/screens/home/useSessionOutputs';
@@ -27,6 +28,25 @@ import { SessionThumb } from '~/screens/home/SessionThumb';
 import { jobsBySession, type TabJob } from './tabJobs';
 
 const TAB_MIME = 'application/x-imagelab-tab';
+
+/** Close a tab; Ctrl+Z puts it back where it was (and makes the old current tab current again). */
+function closeTabWithUndo(id: string): void {
+  const st = useSessions.getState();
+  const at = st.openIds.indexOf(id);
+  const prev = st.currentId;
+  if (!st.closeTab(id)) return;
+  pushUndo({
+    label: 'Close tab',
+    undo: () => {
+      const g = useSessions.getState();
+      g.open(id);
+      const from = useSessions.getState().openIds.indexOf(id);
+      if (from >= 0 && at >= 0 && from !== at) useSessions.getState().moveTab(from, at);
+      if (prev !== id) useSessions.getState().switchTo(prev);
+    },
+    redo: () => { useSessions.getState().closeTab(id); },
+  });
+}
 const RING = 24;
 
 /** The thumbnail in its session-colour ring; while a job runs the ring is its progress arc. */
@@ -58,7 +78,7 @@ function Tab({ s, index, current, only, out, job, dragId, setDragId, dropAt, set
   const color = colorOf(s);
   const pct = job?.running && job.progress != null ? Math.round(job.progress * 100) : null;
   const open = () => { useSessions.getState().switchTo(s.id); if (useRoute.getState().screen !== 'step') useRoute.getState().go('step'); };
-  const close = () => { useSessions.getState().closeTab(s.id); };
+  const close = () => closeTabWithUndo(s.id);
 
   useEffect(() => { if (current) ref.current?.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }, [current]);
 
