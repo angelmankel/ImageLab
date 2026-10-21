@@ -9,6 +9,7 @@
  * of failing quietly; "Generate all" refuses a broken chain.
  */
 import type { LoopbackSettings } from '@/lib/types';
+import type { StyleRef } from '@/lib/styleRefs';
 
 export type StepKind = 'image' | 'refine' | 'upscale' | 'remove-bg' | 'video' | 'workflow';
 
@@ -63,6 +64,10 @@ export interface StepParams {
   refine?: LoopbackSettings;
   upscale?: UpscaleParams;
   removeBg?: RemoveBgParams;
+  /** Style tab on a Refine step (and Upscale's "Refine after upscale"): its own references, applied in the refine pass. */
+  styleRefs?: StyleRef[];
+  /** "Use step 1's references" too (off by default; absent = off). */
+  styleFromStep1?: boolean;
 }
 
 export const DEFAULT_UPSCALE: UpscaleParams = { model: '', factor: 2, refine: false, denoise: 0.3, steps: 12 };

@@ -63,6 +63,9 @@ export type BuildGraphResult = {
 export type GraphExtras = {
   /** Style-reference pictures uploaded to the target server: picture key → LoadImage ref. */
   styleImages?: Record<string, string>;
+  /** Refine passes: InstantID takes its face keypoints from the picture being refined (LoadImage "i0"),
+   *  so the reference's pose never fights the input's. */
+  styleKpsFromInput?: boolean;
   /** Set by `buildGraph`: the workflow's graph family. */
   family?: GraphFamily;
 };

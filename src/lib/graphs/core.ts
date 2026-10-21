@@ -92,7 +92,7 @@ export function buildSampledGraph(
   });
   // Style references (Style tab): IP-Adapter / face / Redux, after the LoRAs, before the sampler.
   // Nothing at all without an active, uploaded reference (old workflows: the same graph).
-  const style = applyStyleRefs(graph, workflow, extras.family ?? 'sdxl', modelRef, extras.styleImages);
+  const style = applyStyleRefs(graph, workflow, extras.family ?? 'sdxl', modelRef, extras.styleImages, { kpsFromInput: extras.styleKpsFromInput && !!inputImageRef });
   modelRef = style.model;
   graph["3"].inputs.model = modelRef;
   graph["6"].inputs.clip = clipRef;

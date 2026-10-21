@@ -15,7 +15,9 @@
 import { useMemo, useState } from 'react';
 import { useStore } from '@/lib/store';
 import { FACE_METHODS, faceMethodsFor, refMissing, typeFits, methodOf, type StyleRef, type StyleRefType } from '@/lib/styleRefs';
-import { setWorkflowUndoable } from '~/app/undoableWorkflow';
+import { Switch } from '~/ui';
+import type { Step } from '~/app/stepsStore';
+import { useImageStyleBinding, useStepStyleBinding, type StyleBinding } from './styleBinding';
 import { T } from '~/theme/tokens';
 import { useStyleServers } from './useStyleServers';
 import { ServerStrip } from './ServerStrip';
@@ -25,13 +27,21 @@ import { RefCard } from './RefCard';
 import { addRef, moveRef, removeRef } from './styleRefsEdit';
 import { tileStates } from './styleTabLogic';
 
-const NONE: StyleRef[] = [];
 const uid = () => `sr-${Math.random().toString(36).slice(2, 9)}`;
 
+/** The Image step's Style tab (its workflow's references). */
 export function StyleTab() {
+  return <StyleTabOn binding={useImageStyleBinding()} />;
+}
+
+/** A Refine / Upscale step's Style tab (the step's own references, used in its refine pass). */
+export function StepStyleTab({ step }: { step: Step }) {
+  return <StyleTabOn binding={useStepStyleBinding(step)} />;
+}
+
+function StyleTabOn({ binding }: { binding: StyleBinding }) {
   const { fam, typeName, rows } = useStyleServers();
-  const refs = useStore((s) => s.workflow.styleRefs) ?? NONE;
-  const cfg = useStore((s) => s.workflow.cfg);
+  const { refs, cfg, where } = binding;
   const infos = useStore((s) => s.serverInfo);
   const servers = useStore((s) => s.servers);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -50,15 +60,15 @@ export function StyleTab() {
       method = FACE_METHODS.filter((m) => faceMethodsFor(fam).includes(m))
         .find((m) => online.some((s) => !refMissing({ type, method: m }, fam, infos[s.id]?.style, { loras: infos[s.id]?.loras, controlnets: infos[s.id]?.controlnets }).length));
     }
-    const out = addRef(refs, uid(), type, fam, cfg, method);
-    setWorkflowUndoable({ styleRefs: out.refs, ...(out.cfg != null ? { cfg: out.cfg } : {}) }, `Add ${refLabel(out.refs[out.refs.length - 1])} reference`);
+    const out = addRef(refs, uid(), type, fam, cfg, method, where);
+    binding.setRefs(out.refs, `Add ${refLabel(out.refs[out.refs.length - 1])} reference`, out.cfg);
     setSelectedId(out.id);
     setAdding(false);
   };
 
   const remove = (id: string) => {
     const r = refs.find((x) => x.id === id);
-    setWorkflowUndoable({ styleRefs: removeRef(refs, id) }, `Remove ${r ? refLabel(r) : ''} reference`.replace('  ', ' '));
+    binding.setRefs(removeRef(refs, id), `Remove ${r ? refLabel(r) : ''} reference`.replace('  ', ' '));
     if (selectedId === id) setSelectedId(null);
   };
 
@@ -79,10 +89,17 @@ export function StyleTab() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       <ServerStrip rows={rows} typeName={typeName} fam={fam} />
+      {binding.note && <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--il-warn)', padding: '0 2px' }}>{binding.note}</div>}
+      {binding.step1 && (
+        <div style={{ background: 'var(--il-elev)', borderRadius: T.radius.md, padding: '6px 10px', flex: 'none' }}>
+          <Switch label="Use step 1's references" checked={binding.step1.on} onChange={binding.step1.set}
+            description={binding.step1.count ? `${binding.step1.count} in step 1, added to this refine` : 'Step 1 has none'} />
+        </div>
+      )}
       {refs.length > 0 && (
         <RefBubbles refs={refs} selectedId={selected?.id ?? null} adding={adding} unfit={unfit}
           onSelect={(id) => { setSelectedId(id); setAdding(false); }} onRemove={remove} onAdd={() => setAdding((a) => !a)}
-          onMove={(id, to) => setWorkflowUndoable({ styleRefs: moveRef(refs, id, to) }, 'Reorder references')} />
+          onMove={(id, to) => binding.setRefs(moveRef(refs, id, to), 'Reorder references')} />
       )}
       {showTiles
         ? <TypeTiles tiles={tiles} onPick={add} onClose={refs.length ? () => setAdding(false) : undefined} />
@@ -90,7 +107,7 @@ export function StyleTab() {
           ? <div style={{ border: '1px dashed var(--il-line-strong)', borderRadius: T.radius.lg, padding: '14px 12px', fontSize: 12, fontWeight: 700, color: 'var(--il-muted)', textAlign: 'center' }}>
               {refLabel(selected)} is not used with {typeName} models. It comes back when you switch to a model it fits.
             </div>
-          : <RefCard key={selected.id} r={selected} refs={refs} fam={fam} />)}
+          : <RefCard key={selected.id} r={selected} fam={fam} binding={binding} />)}
     </div>
   );
 }

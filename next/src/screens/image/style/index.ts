@@ -1,1 +1,1 @@
-export { StyleTab } from './StyleTab';
+export { StyleTab, StepStyleTab } from './StyleTab';

@@ -78,3 +78,11 @@ test('reorder: a reference moves to its new place, the rest keep theirs', () => 
   assert.deepEqual(E.moveRef(refs, 'x', 0).map((r) => r.id), ['a', 'b', 'c']);
   assert.deepEqual(E.moveRef(refs, 'b', 9).map((r) => r.id), ['a', 'c', 'b']);
 });
+
+test('add on a Refine step: the refine defaults, and InstantID still lowers a high CFG', () => {
+  const a = E.addRef([], 'a', 'face', 'sdxl', 7, undefined, 'refine');
+  assert.equal(a.refs[0].weight, 0.7);
+  const b = E.addRef([], 'b', 'face', 'sdxl', 7, 'instantid', 'refine');
+  assert.deepEqual([b.refs[0].weight, b.refs[0].cnStrength, b.cfg], [0.7, 0.4, 4.5]);
+  assert.equal(E.addRef([], 'c', 'style', 'sdxl', 7, undefined, 'refine').refs[0].weight, 0.7);
+});

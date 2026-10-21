@@ -21,7 +21,7 @@ import {
 import { ImageDropZone, Seg } from '~/compose';
 import { Collapse, SearchSelect, SliderRow, Switch } from '~/ui';
 import { notifyError } from '~/app/notify';
-import { setWorkflowUndoable } from '~/app/undoableWorkflow';
+import type { StyleBinding } from './styleBinding';
 import { useIsPhone } from '~/app/useIsPhone';
 import { T } from '~/theme/tokens';
 import { TypeIcon } from './typeIcons';
@@ -65,16 +65,16 @@ function ExtraPicture({ img, onRemove }: { img: StyleRefImage; onRemove: () => v
   );
 }
 
-export function RefCard({ r, refs, fam }: { r: StyleRef; refs: readonly StyleRef[]; fam: StyleFamily }) {
+export function RefCard({ r, fam, binding }: { r: StyleRef; fam: StyleFamily; binding: StyleBinding }) {
+  const { refs, cfg, where } = binding;
   const phone = useIsPhone();
   const servers = useStore((s) => s.servers);
   const infos = useStore((s) => s.serverInfo);
-  const cfg = useStore((s) => s.workflow.cfg);
   const [moreOpen, setMoreOpen] = useState(false);
   const stored = useRefImageStored(r.images[0]?.key);
 
-  const update = (patch: Partial<StyleRef>, label?: string, extra?: { cfg?: number }) =>
-    setWorkflowUndoable({ styleRefs: replaceRef(refs, r.id, patch), ...(extra ?? {}) }, label ?? `${refLabel(r)} reference`);
+  const update = (patch: Partial<StyleRef>, label?: string, lowerCfg?: number) =>
+    binding.setRefs(replaceRef(refs, r.id, patch), label ?? `${refLabel(r)} reference`, lowerCfg);
 
   // Per online server: can it run this reference as set?
   const online = useMemo(() => servers.filter((s) => s.enabled !== false && infos[s.id]), [servers, infos]);
@@ -113,8 +113,8 @@ export function RefCard({ r, refs, fam }: { r: StyleRef; refs: readonly StyleRef
     if (m === method) return;
     const a = samplerAdvice({ type: 'face', method: m });
     // InstantID burns at a high CFG: lower the step's CFG with the switch (one undo), and say so on the card.
-    const lower = a?.cfgMax != null && cfg > a.cfgMax ? { cfg: a.cfg! } : undefined;
-    update({ method: m, model: '', ...methodDefaults(m) }, FACE_INFO[m].title, lower);
+    const lower = a?.cfgMax != null && cfg > a.cfgMax ? a.cfg : undefined;
+    update({ method: m, model: '', ...methodDefaults(m, where) }, FACE_INFO[m].title, lower);
   };
 
   const weightTypes = r.type === 'style' || r.type === 'composition' || r.type === 'subject' ? WEIGHT_TYPES[r.type] : null;
@@ -151,7 +151,7 @@ export function RefCard({ r, refs, fam }: { r: StyleRef; refs: readonly StyleRef
       )}
 
       <SliderRow label="Strength" value={r.weight} min={0} max={feature === 'redux' ? 2 : 1.5} step={0.05} format={fmt2}
-        defaultValue={(method ? methodDefaults(method).weight : undefined) ?? newStyleRef(r.id, r.type, fam).weight}
+        defaultValue={(method ? methodDefaults(method, where).weight : undefined) ?? newStyleRef(r.id, r.type, fam, where).weight}
         hint={feature === 'redux' ? '← a hint · all of it →' : '← faint · strong →'} onChange={(weight) => update({ weight }, 'Strength')} />
       {k !== 1 && <Note tone="info">Runs at {fmt2(r.weight * k)} with the other references</Note>}
 
@@ -171,10 +171,12 @@ export function RefCard({ r, refs, fam }: { r: StyleRef; refs: readonly StyleRef
       {runs.length > 0 && runs.length < online.length && <Note tone="info">Runs on {runs.map((x) => x.name).join(', ')} only</Note>}
       {advice && r.on && (
         cfg > (advice.cfgMax ?? Infinity)
-          ? <Note tone="warn">CFG {cfg} is high for InstantID
-              <button type="button" onClick={() => setWorkflowUndoable({ cfg: advice.cfg }, `CFG ${advice.cfg}`)}
-                style={{ border: 0, borderRadius: 999, padding: '4px 10px', minHeight: phone ? 36 : 24, background: 'var(--il-ember-soft)', color: 'var(--il-ember-hi)', fontSize: 11, fontWeight: 800, cursor: 'pointer' }}>Use {advice.cfg}</button>
-            </Note>
+          ? binding.setCfg
+            ? <Note tone="warn">CFG {cfg} is high for InstantID
+                <button type="button" onClick={() => binding.setCfg!(advice.cfg!)}
+                  style={{ border: 0, borderRadius: 999, padding: '4px 10px', minHeight: phone ? 36 : 24, background: 'var(--il-ember-soft)', color: 'var(--il-ember-hi)', fontSize: 11, fontWeight: 800, cursor: 'pointer' }}>Use {advice.cfg}</button>
+              </Note>
+            : <Note tone="info">The refine pass runs at CFG {advice.cfg} for InstantID</Note>
           : <Note tone="info">CFG {cfg} for InstantID (best at 4–5)</Note>
       )}
 

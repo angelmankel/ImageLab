@@ -118,6 +118,12 @@ const sessionPart = (c: Ctx) => {
   return out;
 };
 
+/** A Refine / Upscale step's Style tab (its own references, and step 1's when it uses them). Absent = nothing, so old steps keep their fingerprint. */
+const stepStyle = (step: Step, c: Ctx): Record<string, unknown> => ({
+  ...(step.params?.styleRefs?.length ? { styleRefs: step.params.styleRefs } : {}),
+  ...(step.params?.styleFromStep1 && c.workflow.styleRefs?.length ? { step1StyleRefs: c.workflow.styleRefs } : {}),
+});
+
 function snapOf(step: Step, c: Ctx): Snap {
   let own: Record<string, unknown>;
   switch (step.kind) {
@@ -127,10 +133,10 @@ function snapOf(step: Step, c: Ctx): Snap {
       own = { ...wf, prompt: promptOf(c.layers) };
       break;
     }
-    case 'refine': own = { refine: { ...DEFAULT_REFINE, ...step.params?.refine }, ...sessionPart(c) }; break;
+    case 'refine': own = { refine: { ...DEFAULT_REFINE, ...step.params?.refine }, ...sessionPart(c), ...stepStyle(step, c) }; break;
     case 'upscale': {
       const up = { ...DEFAULT_UPSCALE, ...step.params?.upscale };
-      own = { upscale: up, ...(up.refine ? sessionPart(c) : {}) };
+      own = { upscale: up, ...(up.refine ? { ...sessionPart(c), ...stepStyle(step, c) } : {}) };
       break;
     }
     case 'remove-bg': own = { removeBg: { ...DEFAULT_REMOVE_BG, ...step.params?.removeBg } }; break;

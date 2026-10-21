@@ -20,7 +20,7 @@ import { PromptTab } from './PromptTab';
 import { InputTab } from './InputTab';
 import { ModelTab } from './model';
 import { SettingsTab } from './settings';
-import { StyleTab } from './style';
+import { StyleTab, StepStyleTab } from './style';
 import { VideoPromptTab, VideoModelTab, VideoSettingsTab, VideoInputTab } from './video';
 import { WorkflowTab } from './workflowBridge';
 import './stepMenuEntries';
@@ -76,8 +76,8 @@ const TABS_BY_KIND: Record<StepKind, TabBodies> = {
     prompt: ({ step }) => <WorkflowTab tab="prompt" step={step} />, model: ({ step }) => <WorkflowTab tab="model" step={step} />,
     settings: ({ step }) => <WorkflowTab tab="settings" step={step} />, input: ({ step }) => <WorkflowTab tab="input" step={step} />,
   },
-  refine: { prompt: RefinePromptTab, model: RefineModelTab, settings: RefineSettingsTab, input: InputTab },
-  upscale: { prompt: UpscalePromptTab, model: UpscaleModelTab, settings: UpscaleSettingsTab, input: InputTab },
+  refine: { prompt: RefinePromptTab, model: RefineModelTab, settings: RefineSettingsTab, input: InputTab, style: StepStyleTab },
+  upscale: { prompt: UpscalePromptTab, model: UpscaleModelTab, settings: UpscaleSettingsTab, input: InputTab, style: StepStyleTab },
   'remove-bg': { prompt: RemoveBgPromptTab, model: RemoveBgModelTab, settings: RemoveBgSettingsTab, input: InputTab },
 };
 

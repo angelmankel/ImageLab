@@ -124,26 +124,37 @@ export const COMBINE = ['concat', 'add', 'subtract', 'average', 'norm average'] 
  *   PuLID        fidelity, weight 0.8
  *   Redux        strength 1, multiply
  */
-export function methodDefaults(method: FaceMethod): Partial<StyleRef> {
+export function methodDefaults(method: FaceMethod, where: StyleWhere = 'image'): Partial<StyleRef> {
+  const r = where === 'refine';
   switch (method) {
-    case 'faceid': return { weight: 0.8, faceV2Weight: 2, loraStrength: 0.6, weightType: 'linear', embedsScaling: 'V only' };
-    case 'portrait': return { weight: 0.65, faceV2Weight: 1, weightType: 'linear', embedsScaling: 'V only' };
-    case 'instantid': return { weight: 0.8, cnStrength: 0.8, noise: 0.35 };
-    case 'pulid': return { weight: 0.8, pulidMethod: 'fidelity' };
+    case 'faceid': return { weight: r ? 0.7 : 0.8, faceV2Weight: r ? 1.5 : 2, loraStrength: 0.6, weightType: 'linear', embedsScaling: 'V only' };
+    case 'portrait': return { weight: r ? 0.55 : 0.65, faceV2Weight: 1, weightType: 'linear', embedsScaling: 'V only' };
+    // Refine: the pose comes from the picture being refined (`styleKpsFromInput`), so the keypoint ControlNet can stay light.
+    case 'instantid': return { weight: r ? 0.7 : 0.8, cnStrength: r ? 0.4 : 0.8, noise: 0.35 };
+    case 'pulid': return { weight: r ? 0.7 : 0.8, pulidMethod: 'fidelity' };
   }
 }
 
+/**
+ * Where a reference is used: the Image step (txt2img / img2img, full strength) or a Refine pass
+ * (Refine step, "Refine after upscale"): a low-denoise re-sample of a picture that already has its
+ * layout, so references start lower there — the packs' "lower the weight to 0.8 or less" — and
+ * Face, the main use of a refine, keeps the most.
+ */
+export type StyleWhere = 'image' | 'refine';
+
 /** A new reference of a type: its start values. */
-export function newStyleRef(id: string, type: StyleRefType, fam: StyleFamily | null): StyleRef {
+export function newStyleRef(id: string, type: StyleRefType, fam: StyleFamily | null, where: StyleWhere = 'image'): StyleRef {
   const base: StyleRef = { id, type, on: true, images: [], weight: 1, start: 0, end: 1 };
+  const r = where === 'refine';
   switch (type) {
-    case 'style': return { ...base, weight: 1, weightType: 'style transfer', embedsScaling: 'V only' };
+    case 'style': return { ...base, weight: r ? 0.7 : 1, weightType: 'style transfer', embedsScaling: 'V only' };
     case 'composition': return fam === 'sd15'
-      ? { ...base, weight: 0.6, weightType: 'linear', embedsScaling: 'V only' }
-      : { ...base, weight: 0.8, weightType: 'composition precise', embedsScaling: 'K+mean(V) w/ C penalty' };
-    case 'subject': return { ...base, weight: 0.8, weightType: 'linear', embedsScaling: 'V only' };
-    case 'face': return { ...base, method: 'faceid', ...methodDefaults('faceid') };
-    case 'redux': return { ...base, weight: 1 };
+      ? { ...base, weight: r ? 0.4 : 0.6, weightType: 'linear', embedsScaling: 'V only' }
+      : { ...base, weight: r ? 0.5 : 0.8, weightType: 'composition precise', embedsScaling: 'K+mean(V) w/ C penalty' };
+    case 'subject': return { ...base, weight: r ? 0.5 : 0.8, weightType: 'linear', embedsScaling: 'V only' };
+    case 'face': return { ...base, method: 'faceid', ...methodDefaults('faceid', where) };
+    case 'redux': return { ...base, weight: r ? 0.6 : 1 };
   }
 }
 

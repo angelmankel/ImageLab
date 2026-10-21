@@ -300,3 +300,61 @@ test('InstantID gets the basic node\'s noise (0.35) against the burn', () => {
   assert.equal(g.sr0a.inputs.ip_weight, 0.8);
   assert.equal(g.sr0a.inputs.cn_strength, 0.8);
 });
+
+// ── Refine steps (style item 2: "refine steps can have style as well") ──
+const refineCases = require('./fixtures/style-refine-baseline.json');
+
+test('old refine / upscale-refine graphs build the very same graph (baseline from the builder before the stage)', () => {
+  for (const c of refineCases) {
+    assert.equal(JSON.stringify(G.buildGraph(c.workflow, c.layers, c.ref, null).graph), JSON.stringify(c.graph), c.name);
+    // Step 1's references ride along on the session workflow; without uploaded pictures they change nothing.
+    const withStep1 = { ...c.workflow, styleRefs: [{ ...G.newStyleRef('a', 'face', 'sdxl'), images: [img('k1')] }] };
+    assert.equal(JSON.stringify(G.buildGraph(withStep1, c.layers, c.ref, null, { styleKpsFromInput: true }).graph), JSON.stringify(c.graph), c.name);
+  }
+});
+
+test('refine defaults: lower than the Image step, Face keeps the most', () => {
+  assert.equal(G.newStyleRef('a', 'style', 'sdxl', 'refine').weight, 0.7);
+  assert.equal(G.newStyleRef('a', 'subject', 'sdxl', 'refine').weight, 0.5);
+  assert.equal(G.newStyleRef('a', 'composition', 'sdxl', 'refine').weight, 0.5);
+  assert.equal(G.newStyleRef('a', 'composition', 'sd15', 'refine').weight, 0.4);
+  assert.equal(G.newStyleRef('a', 'redux', 'flux', 'refine').weight, 0.6);
+  const f = G.newStyleRef('a', 'face', 'sdxl', 'refine');
+  assert.deepEqual([f.weight, f.faceV2Weight, f.loraStrength], [0.7, 1.5, 0.6]);
+  assert.deepEqual(G.methodDefaults('instantid', 'refine'), { weight: 0.7, cnStrength: 0.4, noise: 0.35 });
+  for (const t of ['style', 'composition', 'subject', 'face']) assert.ok(G.newStyleRef('a', t, 'sdxl', 'refine').weight < G.newStyleRef('a', t, 'sdxl').weight, t);
+});
+
+test('refine: the stage patches the MODEL every refine round samples with; InstantID takes the pose from the picture being refined', () => {
+  const c = refineCases.find((x) => x.name === 'refine sdxl');
+  const refs = [
+    { ...G.newStyleRef('f', 'face', 'sdxl', 'refine'), method: 'instantid', ...G.methodDefaults('instantid', 'refine'), images: [img('k1')] },
+    { ...G.newStyleRef('s', 'style', 'sdxl', 'refine'), images: [img('k2')] },
+  ];
+  const wf = withRefs({ workflow: c.workflow }, refs, 'sdxl');
+  const g = G.buildGraph(wf, c.layers, c.ref, null, { styleImages: { k1: 'f.png', k2: 's.png' }, styleKpsFromInput: true }).graph;
+  assert.deepEqual(g.sr0a.inputs.image_kps, ['i0', 0]);
+  assert.equal(g.i0.inputs.image, c.ref);
+  assert.equal(g.sr0a.inputs.cn_strength, 0.4);
+  assert.deepEqual(g.sr1a.inputs.model, ['sr0a', 0]);
+  // Every sampler (base + the Loopback rounds) samples the styled model and InstantID's prompts.
+  const samplers = Object.entries(g).filter(([, n]) => n.class_type === 'KSampler');
+  assert.ok(samplers.length >= 3);
+  for (const [id, n] of samplers) {
+    assert.deepEqual(n.inputs.model, ['sr1a', 0], id);
+    assert.deepEqual(n.inputs.positive, ['sr0a', 1], id);
+    assert.deepEqual(n.inputs.negative, ['sr0a', 2], id);
+  }
+  // The Image step (no styleKpsFromInput) leaves image_kps out.
+  const g2 = G.buildGraph(wf, c.layers, c.ref, null, { styleImages: { k1: 'f.png', k2: 's.png' } }).graph;
+  assert.equal(g2.sr0a.inputs.image_kps, undefined);
+});
+
+test('upscale + refine: the refine pass samples the styled model', () => {
+  const c = refineCases.find((x) => x.name === 'upscale refine sdxl');
+  const refs = [{ ...G.newStyleRef('f', 'face', 'sdxl', 'refine'), images: [img('k1')] }];
+  const g = G.buildGraph(withRefs({ workflow: c.workflow }, refs, 'sdxl'), c.layers, c.ref, null, { styleImages: { k1: 'f.png' }, styleKpsFromInput: true }).graph;
+  const samplers = Object.entries(g).filter(([id, n]) => n.class_type === 'KSampler' && id !== '3');
+  assert.ok(samplers.length >= 1);
+  for (const [, n] of samplers) assert.deepEqual(n.inputs.model, ['sr0a', 0]);
+});

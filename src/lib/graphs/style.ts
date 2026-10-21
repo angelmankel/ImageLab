@@ -33,6 +33,7 @@ export function applyStyleRefs(
   family: GraphFamily,
   model: Ref,
   images: Record<string, string> | undefined,
+  opts: { kpsFromInput?: boolean } = {},
 ): StyleStage {
   const noop: StyleStage = { model, finish: () => {} };
   if (!workflow.styleRefs?.length || !images) return noop;
@@ -106,6 +107,7 @@ export function applyStyleRefs(
         add(`${p}a`, 'ApplyInstantIDAdvanced', {
           instantid: iid, insightface: face, control_net: cn, image: pictures(p, r), model, positive: pos, negative: neg,
           ip_weight: r.weight, cn_strength: r.cnStrength ?? 0.8, ...span, noise: r.noise ?? 0.35, combine_embeds: combine,
+          ...(opts.kpsFromInput ? { image_kps: ['i0', 0] } : {}),
         });
         model = [`${p}a`, 0];
         pos = [`${p}a`, 1];
