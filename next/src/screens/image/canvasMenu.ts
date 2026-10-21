@@ -27,6 +27,8 @@ export interface CanvasTarget {
   fit: () => void; zoomIn: () => void; zoomOut: () => void;
   openFull: () => void;
   canCompare: boolean;
+  /** No zoom steps here (the phone's picture: zoom is a pinch in the viewer). */
+  noZoom?: boolean;
 }
 
 export function canvasTarget(media: StageMedia, zoom: { fit: () => void; zoomIn: () => void; zoomOut: () => void }, openFull: () => void): CanvasTarget {
@@ -59,9 +61,9 @@ export const sendSubmenu = (url: string, entry: HistoryEntry | null, name: strin
 
 registerMenu<CanvasTarget>('canvas-image', [
   { id: 'full', label: 'Full screen', icon: IconMaximize, group: 'view', action: (t) => t.openFull() },
-  { id: 'fit', label: 'Fit to view', icon: IconArrowsMaximize, group: 'view', visible: isImage, action: (t) => t.fit() },
-  { id: 'zin', label: 'Zoom in', icon: IconZoomIn, group: 'view', visible: isImage, action: (t) => t.zoomIn() },
-  { id: 'zout', label: 'Zoom out', icon: IconZoomOut, group: 'view', visible: isImage, action: (t) => t.zoomOut() },
+  { id: 'fit', label: 'Fit to view', icon: IconArrowsMaximize, group: 'view', visible: (t) => isImage(t) && !t.noZoom, action: (t) => t.fit() },
+  { id: 'zin', label: 'Zoom in', icon: IconZoomIn, group: 'view', visible: (t) => isImage(t) && !t.noZoom, action: (t) => t.zoomIn() },
+  { id: 'zout', label: 'Zoom out', icon: IconZoomOut, group: 'view', visible: (t) => isImage(t) && !t.noZoom, action: (t) => t.zoomOut() },
   { id: 'compare', label: 'Compare', icon: IconColumns2, group: 'view', visible: isImage, enabled: (t) => t.canCompare || 'Needs a second result', checked: () => useStage.getState().compare, action: () => { const s = useStage.getState(); s.setCompare(!s.compare); } },
   {
     id: 'removebg', label: 'Remove background', icon: IconBackground, group: 'edit', visible: isImage,
