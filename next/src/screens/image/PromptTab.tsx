@@ -72,7 +72,7 @@ export function PromptTab({ large = false }: { large?: boolean }) {
       <div data-no-swipe style={{
         // Sticky insets count from the scroll container's padding edge: the desktop panel body has 10px
         // of top padding, so -10 puts this block flush under the tabs (no see-through gap). The phone
-        // page (CreatePage) has none.
+        // page (the phone map's card) has none.
         position: 'sticky', top: phone ? 'env(safe-area-inset-top, 0px)' : -10, zIndex: 6, margin: '-10px -10px 0', padding: '6px 10px 8px',
         background: 'var(--il-panel)', boxShadow: '0 1px 0 var(--il-line-soft), 0 12px 14px -14px rgba(0,0,0,.7)', display: 'flex', flexDirection: 'column', gap: 4,
       }}>

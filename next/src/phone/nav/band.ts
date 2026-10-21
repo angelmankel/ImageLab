@@ -52,3 +52,12 @@ export function usePhoneBand(spec: BandSpec): void {
     });
   }, [key]);
 }
+
+/**
+ * The room a band side has (set by the band): `vertical` in landscape (a 72 px wide column slot),
+ * `room` = the side's width in CSS px in portrait (≈ 138 at 360 wide, 153 at 390). A `node` on the
+ * band reads it to fit: drop its label when it does not fit, stack when vertical. Every tap target
+ * stays ≥ 44 px.
+ */
+export const BandLayoutCtx = createContext<{ vertical: boolean; room: number }>({ vertical: false, room: 150 });
+export function useBandLayout(): { vertical: boolean; room: number } { return useContext(BandLayoutCtx); }

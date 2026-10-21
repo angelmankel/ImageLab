@@ -11,7 +11,8 @@ import { IconChevronLeft } from '@tabler/icons-react';
 import { useKeyboardOpen } from '../keyboard';
 import { useLongPress } from '../useLongPress';
 import { haptic } from '../haptic';
-import { useBandStore, type BandAction } from './band';
+import { BandLayoutCtx, useBandStore, type BandAction } from './band';
+import { useFormFactor } from '~/app/useFormFactor';
 import { usePhoneNav, phoneNav } from './navStore';
 import { pageTitle } from './pages';
 import { Hud } from './Hud';
@@ -22,6 +23,9 @@ import { useSaid } from '~/app/notify';
 
 export const BAND_H = 80;
 export const BAND_W = 88;
+/** The HUD's column and the band's side padding (kept in step with nav.css). */
+const HUD_COL = 68;
+const PAD = 8;
 
 function Pill({ a, vertical }: { a: BandAction; vertical: boolean }) {
   const hold = useLongPress({ onHold: a.onHold, onTap: () => { if (!a.disabled) { haptic(); a.onClick?.(); } }, disabled: !a.onHold || a.disabled });
@@ -44,6 +48,8 @@ export function PhoneBand({ landscape }: { landscape: boolean }) {
   const top = stack[stack.length - 1];
   const spec = useBandStore((s) => s.bands[top.key]);
   const kb = useKeyboardOpen();
+  const ff = useFormFactor();
+  const layout = { vertical: landscape, room: landscape ? 72 : Math.floor((ff.short - PAD * 2 - HUD_COL) / 2) };
   const parent = stack.length > 1 ? stack[stack.length - 2] : null;
   const left: BandAction | null = spec?.left !== undefined ? spec.left : parent
     ? { label: pageTitle(parent), icon: <IconChevronLeft size={18} stroke={2.6} />, tone: 'ghost', onClick: () => phoneNav.pop() }
@@ -55,6 +61,7 @@ export function PhoneBand({ landscape }: { landscape: boolean }) {
   if (kb && !landscape) return <><Ring /><HudSheets /></>;
   return (
     <div className="il-band" data-land={landscape || undefined}>
+      <BandLayoutCtx.Provider value={layout}>
       <div className="il-band-side" data-side="left">{left && <Pill a={left} vertical={landscape} />}</div>
       <div className="il-band-hud">
         <Hud />
@@ -62,6 +69,7 @@ export function PhoneBand({ landscape }: { landscape: boolean }) {
       </div>
       {said && <div className="il-band-say" data-tone={tone} role="status" aria-live="polite">{said}</div>}
       <div className="il-band-side" data-side="right">{right && <Pill a={right} vertical={landscape} />}</div>
+      </BandLayoutCtx.Provider>
       <Ring />
       <HudSheets />
     </div>

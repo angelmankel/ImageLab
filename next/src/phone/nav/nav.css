@@ -39,8 +39,8 @@
 .il-map-sibs i[data-on] { background: var(--il-fg); width: 12px; border-radius: 3px; }
 .il-map-count { font-size: 9px; font-weight: 800; color: var(--il-fg2); font-variant-numeric: tabular-nums; }
 /* ---- the band ---- */
-.il-band { flex: none; position: relative; height: calc(80px + var(--il-safe-bottom)); padding: 0 12px var(--il-safe-bottom); box-sizing: border-box;
-  display: grid; grid-template-columns: 1fr 84px 1fr; align-items: center; background: var(--il-bg-deep); border-top: 1px solid var(--il-line); }
+.il-band { flex: none; position: relative; height: calc(80px + var(--il-safe-bottom)); padding: 0 8px var(--il-safe-bottom); box-sizing: border-box;
+  display: grid; grid-template-columns: minmax(0, 1fr) 68px minmax(0, 1fr); align-items: center; background: var(--il-bg-deep); border-top: 1px solid var(--il-line); }
 .il-band[data-land] { height: auto; width: calc(88px + env(safe-area-inset-right, 0px)); padding: calc(8px + env(safe-area-inset-top, 0px)) env(safe-area-inset-right, 0px) calc(8px + var(--il-safe-bottom)) 0;
   grid-template-columns: 1fr; grid-template-rows: 1fr 100px 1fr; justify-items: center; border-top: 0; border-left: 1px solid var(--il-line); }
 .il-band-side { display: flex; align-items: center; min-width: 0; }
@@ -86,3 +86,4 @@
 .il-band-say { position: absolute; left: 12px; right: 12px; bottom: calc(2px + var(--il-safe-bottom)); text-align: center; font-size: 11px; font-weight: 700; color: var(--il-fg2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
 .il-band-say[data-tone="warn"] { color: var(--il-warn); }
 .il-band[data-land] .il-band-say { left: 4px; right: 4px; top: calc(2px + env(safe-area-inset-top, 0px)); bottom: auto; white-space: normal; font-size: 10px; max-height: 40px; }
+.il-band-side > * { flex-shrink: 0; }

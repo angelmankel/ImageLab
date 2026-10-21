@@ -1,10 +1,10 @@
 /**
  * The pages m-shell owns in the phone map (mobile pass): Home (the origin) and Settings, plus
- * stand-ins (`fallback: true`) for kinds other owners register — the create flow ('step') and the
- * places ('library', 'models', 'comfy') — so the phone keeps working until theirs land. A real
- * registration always replaces a stand-in.
+ * stand-ins (`fallback: true`) for the places ('library', 'models', 'comfy') until m-browse's land.
+ * A real registration always replaces a stand-in. The create flow (session / step / section) is
+ * m-create's (`screens/phone/tree/createPages.tsx`).
  */
-import { IconBoltFilled, IconDice5Filled, IconPhoto, IconPlus, IconSparkles } from '@tabler/icons-react';
+import { IconPlus, IconSparkles } from '@tabler/icons-react';
 import { useRoute } from '~/app/routeStore';
 import { useSessions, displayName } from '~/app/sessionsStore';
 import { HomeScreen } from '~/screens/home/HomeScreen';
@@ -14,16 +14,8 @@ import { FullscreenBtn } from '~/screens/image/topbar/FullscreenBtn';
 import { LibraryPhoneScreen } from '~/screens/library';
 import { ModelsPhoneScreen } from '~/screens/models';
 import { ComfyPhoneScreen } from '~/screens/comfy';
-import { PhoneStepScreen } from '~/screens/phone/PhoneStepScreen';
-import { StepsStrip } from '~/screens/phone/StepsStrip';
-import { useGenerate } from '~/screens/phone/imageBridge';
-import { usePhone } from '~/screens/phone/phoneStore';
-import { toggleSeedMode } from '~/screens/phone/phoneLogic';
-import { useSteps } from '~/app/stepsStore';
-import { usePhoneLandscape } from '~/app/useFormFactor';
 import { usePhoneBand } from './band';
-import { registerPhonePage, setScreenPath } from './pages';
-import { haptic } from '../haptic';
+import { registerPhonePage } from './pages';
 
 /* ---------- Home: depth 0, the origin ---------- */
 
@@ -61,37 +53,3 @@ const wrap = (C: () => JSX.Element | null) => () => <div style={{ position: 'abs
 registerPhonePage('library', { Component: wrap(LibraryPhoneScreen), title: () => 'History', screen: 'library', header: false, fallback: true });
 registerPhonePage('models', { Component: wrap(ModelsPhoneScreen), title: () => 'Models', screen: 'models', header: false, fallback: true });
 registerPhonePage('comfy', { Component: wrap(ComfyPhoneScreen), title: () => 'ComfyUI', screen: 'comfy', header: false, fallback: true });
-
-/* ---------- stand-in for the create flow (m-create registers session / step / section) ---------- */
-
-function LegacyStep() {
-  const { generate, generateRandom } = useGenerate();
-  const seedMode = usePhone((s) => s.seedMode);
-  const page = usePhone((s) => s.page);
-  const setPage = usePhone((s) => s.setPage);
-  const setActive = useSteps((s) => s.setActive);
-  const land = usePhoneLandscape(); // landscape: the step screen draws its own steps strip
-  usePhoneBand({
-    left: page === 'create'
-      ? { label: 'Output', icon: <IconPhoto size={18} stroke={2.2} />, onClick: () => setPage('output') }
-      : { label: 'Create', icon: <IconSparkles size={18} stroke={2.2} />, onClick: () => setPage('create') },
-    right: {
-      label: 'Generate', tone: 'primary', icon: seedMode === 'random' ? <IconDice5Filled size={18} /> : <IconBoltFilled size={18} />,
-      onClick: () => (seedMode === 'random' ? generateRandom() : generate()),
-      onHold: () => { haptic('hold'); usePhone.getState().setSeedMode(toggleSeedMode(usePhone.getState().seedMode)); },
-    },
-  });
-  return (
-    <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column' }}>
-      {!land && (
-        <div style={{ flex: 'none', padding: 'calc(6px + env(safe-area-inset-top, 0px)) 8px 6px', background: 'var(--il-bg-deep)' }}>
-          <StepsStrip onJump={(id) => setActive(id)} />
-        </div>
-      )}
-      <div style={{ position: 'relative', flex: 1, minHeight: 0 }}><PhoneStepScreen framed /></div>
-    </div>
-  );
-}
-
-registerPhonePage('step', { Component: LegacyStep, title: () => 'Create', screen: 'step', header: false, pair: false, fallback: true });
-setScreenPath('step', () => [{ kind: 'home' }, { kind: 'step' }], { fallback: true });

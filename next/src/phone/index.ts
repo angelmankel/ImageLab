@@ -22,7 +22,7 @@ export { useKeepScroll } from '~/screens/models/useKeepScroll';
 export { phoneNav, usePhoneNav } from './nav/navStore';
 export { registerPhonePage, setScreenPath, phonePageDef, siblingsOf, pageTitle } from './nav/pages';
 export type { PhonePageDef, PhonePageProps, PageRef, SiblingSet } from './nav/pages';
-export { usePhoneBand, usePhonePage } from './nav/band';
+export { usePhoneBand, usePhonePage, useBandLayout } from './nav/band';
 export type { BandAction, BandSpec } from './nav/band';
 export type { NavPage } from './nav/navLogic';
 export { flashMap } from './nav/MapDots';

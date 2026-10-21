@@ -7,7 +7,7 @@
  *   │      │ (the picture / the grid)  │ side (scrolls)   │ (opt)│      │
  *   └──────┴───────────────────────────┴──────────────────┴──────┴──────┘
  *
- *   <PhoneTwoPane main={<Picture/>} side={<Panel/>} sideHeader={<StepsStrip/>} rail={<PhoneRail/>} />
+ *   <PhoneTwoPane main={<Picture/>} side={<Panel/>} sideHeader={<Title/>} />
  *
  * - `main` takes what is left; `side` is `sideWidth` wide (default clamp(300px, 42%, 440px)).
  * - `mainSide="right"` puts the main pane on the right (e.g. a list on the left, detail right).
