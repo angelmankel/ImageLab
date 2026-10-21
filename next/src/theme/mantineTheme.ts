@@ -1,6 +1,6 @@
 import { createTheme, mergeThemeOverrides, type MantineColorsTuple, type MantineThemeOverride } from '@mantine/core';
 import { T } from './tokens';
-import { viewerLayerRef } from './scrollShards';
+import { floatingLayerRef, viewerLayerRef } from './scrollShards';
 
 /**
  * Mantine wears the Ember palette. The `dark` scale is laid out so the MAIN app's Tailwind tokens
@@ -65,9 +65,10 @@ export const emberTheme = createTheme({
     // Every Mantine text box: the ember focus ring of the .il-field shape.
     Input: { classNames: { input: 'il-minput' } },
     Menu: { classNames: { dropdown: 'il-dd' }, defaultProps: { transitionProps: { transition: 'pop', duration: 120 } } },
-    // The model viewer sits above these, outside their DOM: let it scroll (see scrollShards.ts).
-    Modal: { defaultProps: { removeScrollProps: { shards: [viewerLayerRef] } } },
-    Drawer: { defaultProps: { removeScrollProps: { shards: [viewerLayerRef] } } },
+    // The model viewer sits above these, outside their DOM, and so does every select / menu list
+    // opened inside them (portalled to the body): let both scroll (see scrollShards.ts).
+    Modal: { defaultProps: { removeScrollProps: { shards: [viewerLayerRef, floatingLayerRef] } } },
+    Drawer: { defaultProps: { removeScrollProps: { shards: [viewerLayerRef, floatingLayerRef] } } },
   },
 });
 
