@@ -82,3 +82,7 @@
 .il-ring-badge { position: absolute; top: -4px; right: -4px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--il-ember); color: var(--il-bg); font-size: 10px; font-weight: 900; display: grid; place-items: center; }
 @keyframes il-ring-in { from { opacity: 0; } }
 @keyframes il-ring-pop { from { opacity: 0; transform: scale(.4); } }
+/* say() in the band: a short line under the HUD (portrait) / at the column's top (landscape) */
+.il-band-say { position: absolute; left: 12px; right: 12px; bottom: calc(2px + var(--il-safe-bottom)); text-align: center; font-size: 11px; font-weight: 700; color: var(--il-fg2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
+.il-band-say[data-tone="warn"] { color: var(--il-warn); }
+.il-band[data-land] .il-band-say { left: 4px; right: 4px; top: calc(2px + env(safe-area-inset-top, 0px)); bottom: auto; white-space: normal; font-size: 10px; max-height: 40px; }

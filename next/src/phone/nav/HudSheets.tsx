@@ -1,7 +1,7 @@
 /**
  * The sheets the HUD ring opens (mobile pass, m-shell): Jobs (the job queue, × per row, Cancel all;
  * the download queue under it) and Sessions (the open sessions = the desktop's tabs: tap to switch,
- * ＋ New, All sessions = Home).
+ * hold = the tab menu (close, rename, duplicate…), ＋ New, All sessions = Home).
  */
 import { IconPlus } from '@tabler/icons-react';
 import { useSessions, useOpenSessions, displayName } from '~/app/sessionsStore';
@@ -13,6 +13,7 @@ import { SessionRing } from '~/screens/image/topbar/SessionTabs';
 import { useSessionOutputs } from '~/screens/home/useSessionOutputs';
 import { useRoute } from '~/app/routeStore';
 import { T } from '~/theme/tokens';
+import { menuProps } from '~/app/contextMenu';
 import { BottomSheet } from '../BottomSheet';
 import { useHud } from './hudStore';
 import { phoneNav } from './navStore';
@@ -46,7 +47,7 @@ function Sessions() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: T.gap.sm }}>
       {tabs.map((s) => (
-        <button key={s.id} type="button" onClick={() => open(s.id)} aria-current={s.id === currentId || undefined}
+        <button key={s.id} type="button" {...menuProps('tab', s)} onClick={() => open(s.id)} aria-current={s.id === currentId || undefined}
           style={{ display: 'flex', alignItems: 'center', gap: 12, minHeight: 56, padding: '0 12px', border: s.id === currentId ? '1px solid var(--il-ember-line)' : '1px solid var(--il-line)', borderRadius: T.radius.lg, background: s.id === currentId ? 'var(--il-card)' : 'var(--il-panel)', color: 'var(--il-fg)', textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit' }}>
           <SessionRing color={colorOf(s)} item={outputs[s.id]?.last ?? null} size={36} bg="var(--il-panel)" />
           <span style={{ flex: 1, minWidth: 0, fontWeight: 800, fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: s.name.trim() ? undefined : 'var(--il-dim)' }}>{displayName(s.name)}</span>

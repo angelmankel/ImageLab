@@ -86,9 +86,9 @@ function Tile({ s, out, isOpen, now, phone }: { s: Session; out?: SessionOutput;
         <span aria-hidden style={{ width: 10, height: 10, borderRadius: '50%', background: colorOf(s), flex: 'none' }} />
         {renaming
           ? <NameEdit s={s} onDone={() => setRenaming(null)} />
-          : <span style={{ flex: 1, minWidth: 0, fontWeight: 800, fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: blank ? 'var(--il-dim)' : 'var(--il-fg)' }}>{displayName(s.name)}</span>}
+          : <span style={{ flex: 1, minWidth: 0, fontWeight: 800, fontSize: phone ? 14 : 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: blank ? 'var(--il-dim)' : 'var(--il-fg)' }}>{displayName(s.name)}</span>}
         <span style={{ fontSize: 11, color: 'var(--il-muted)', fontWeight: 700, whiteSpace: 'nowrap', flex: 'none' }}>
-          {steps} {steps === 1 ? 'step' : 'steps'}{phone ? '' : ` · ${when(s.updatedAt, now)}`}
+          {steps} {steps === 1 ? 'step' : 'steps'} · {when(s.updatedAt, now)}
         </span>
       </div>
       {isOpen && <span style={{ position: 'absolute', top: 8, left: 8, height: 22, padding: '0 8px', borderRadius: 999, background: 'var(--il-ember)', color: 'var(--il-bg)', fontSize: 10, fontWeight: 800, display: 'grid', placeItems: 'center', letterSpacing: '.4px' }}>OPEN</span>}
@@ -103,10 +103,10 @@ function Tile({ s, out, isOpen, now, phone }: { s: Session; out?: SessionOutput;
 function NewTile({ phone }: { phone: boolean }) {
   return (
     <button type="button" onClick={() => { useSessions.getState().create(); useRoute.getState().go('step'); }} className="il-home-new"
-      style={{ display: 'grid', placeItems: 'center', width: '100%', aspectRatio: phone ? '4 / 3' : '1', borderRadius: 14, border: '2px dashed var(--il-line-strong)', background: 'transparent', color: 'var(--il-muted)', cursor: 'pointer', fontFamily: 'inherit' }}>
+      style={{ display: 'grid', placeItems: 'center', width: '100%', aspectRatio: phone ? undefined : '1', height: phone ? 72 : undefined, borderRadius: 14, border: '2px dashed var(--il-line-strong)', background: 'transparent', color: 'var(--il-muted)', cursor: 'pointer', fontFamily: 'inherit' }}>
       <span style={{ textAlign: 'center' }}>
-        <IconPlus size={34} stroke={1.6} style={{ display: 'block', margin: '0 auto' }} />
-        <span style={{ display: 'block', fontWeight: 800, fontSize: 12, marginTop: 4 }}>New session</span>
+        <IconPlus size={phone ? 22 : 34} stroke={1.6} style={{ display: phone ? 'inline-block' : 'block', margin: phone ? '0 8px -5px 0' : '0 auto' }} />
+        <span style={{ display: phone ? 'inline' : 'block', fontWeight: 800, fontSize: phone ? 14 : 12, marginTop: 4 }}>New session</span>
       </span>
     </button>
   );
@@ -136,11 +136,12 @@ function Ghost({ h, i }: { h: number; i: number }) {
  */
 function Masonry({ tiles, phone, scroller }: { tiles: Array<{ key: string; node: ReactNode }>; phone: boolean; scroller: React.RefObject<HTMLDivElement> }) {
   const gap = phone ? 10 : 14;
-  const colW = phone ? 150 : 230;
+  // Phone (Donny 10-21): full-width session cards, one column in portrait (two side by side in landscape).
+  const colW = phone ? 320 : 230;
   const box = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
   const [room, setRoom] = useState(0);
-  const cols = width ? columnsFor(width, colW, gap) : phone ? 2 : 4;
+  const cols = width ? columnsFor(width, colW, gap) : phone ? 1 : 4;
   const colRefs = useRef<Array<HTMLDivElement | null>>([]);
   const [heights, setHeights] = useState<number[]>([]);
 
@@ -195,7 +196,7 @@ export function HomeScreen({ phone = false, outputs: given }: { phone?: boolean;
     ...list.map((s) => ({ key: s.id, node: <Tile s={s} out={outputs[s.id]} isOpen={openIds.includes(s.id)} now={now} phone={phone} /> })),
   ];
   return (
-    <div ref={scroller} className="il-scroll" style={{ flex: 1, minWidth: 0, minHeight: 0, overflowY: 'auto', touchAction: 'pan-y', padding: phone ? '8px 12px 96px' : '6px 28px 24px' }}>
+    <div ref={scroller} className="il-scroll" style={{ flex: 1, minWidth: 0, minHeight: 0, overflowY: 'auto', touchAction: 'pan-y', padding: phone ? '8px 12px 16px' : '6px 28px 24px' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, margin: phone ? '4px 0 12px' : '8px 0 16px', flexWrap: 'wrap' }}>
         <h1 style={{ fontSize: phone ? 22 : 28, fontWeight: 800, letterSpacing: '-.6px', margin: 0 }}>Sessions</h1>
         <span style={{ color: 'var(--il-muted)', fontWeight: 700, fontSize: 12 }}>{list.length} · {order === 'name' ? 'by name' : 'newest first'}</span>

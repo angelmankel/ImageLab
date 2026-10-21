@@ -18,6 +18,7 @@ import { Hud } from './Hud';
 import { Ring } from './Ring';
 import { HudSheets } from './HudSheets';
 import { MapDots } from './MapDots';
+import { useSaid } from '~/app/notify';
 
 export const BAND_H = 80;
 export const BAND_W = 88;
@@ -48,14 +49,18 @@ export function PhoneBand({ landscape }: { landscape: boolean }) {
     ? { label: pageTitle(parent), icon: <IconChevronLeft size={18} stroke={2.6} />, tone: 'ghost', onClick: () => phoneNav.pop() }
     : null;
   const right = spec?.right ?? null;
+  // The footer's status line (`say()`: "Copied", "Saved") has no footer on the phone: it shows here.
+  const said = useSaid((s) => s.text);
+  const tone = useSaid((s) => s.tone);
   if (kb && !landscape) return <><Ring /><HudSheets /></>;
   return (
     <div className="il-band" data-land={landscape || undefined}>
       <div className="il-band-side" data-side="left">{left && <Pill a={left} vertical={landscape} />}</div>
       <div className="il-band-hud">
         <Hud />
-        <MapDots vertical={false} />
+        {!(said && !landscape) && <MapDots vertical={false} />}
       </div>
+      {said && <div className="il-band-say" data-tone={tone} role="status" aria-live="polite">{said}</div>}
       <div className="il-band-side" data-side="right">{right && <Pill a={right} vertical={landscape} />}</div>
       <Ring />
       <HudSheets />

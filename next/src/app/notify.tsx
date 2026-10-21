@@ -66,9 +66,7 @@ export function say(text: string, opts: { tone?: SayTone; ms?: number } = {}): v
   useSaid.setState({ text, tone, seq: n });
   clearTimeout(clearTimer);
   if (tone !== 'busy') clearTimer = setTimeout(() => { if (useSaid.getState().seq === n) useSaid.setState({ text: '' }); }, opts.ms ?? (tone === 'warn' ? 4000 : 2500));
-  if (tone === 'warn' && typeof window !== 'undefined' && window.innerWidth < 768) {
-    notifications.show({ message: text, color: 'gray', autoClose: 2500 });
-  }
+  // The phone shows say() in its band (phone/nav/Band) — no toast.
 }
 
 /** Clear a `busy` line (or any). */

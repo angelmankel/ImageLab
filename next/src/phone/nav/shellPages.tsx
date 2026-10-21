@@ -10,10 +10,10 @@ import { useSessions, displayName } from '~/app/sessionsStore';
 import { HomeScreen } from '~/screens/home/HomeScreen';
 import { PlacePills } from '~/screens/home/HomeTopBar';
 import { Logo, Wordmark } from '~/screens/image/TopBar';
+import { FullscreenBtn } from '~/screens/image/topbar/FullscreenBtn';
 import { LibraryPhoneScreen } from '~/screens/library';
 import { ModelsPhoneScreen } from '~/screens/models';
 import { ComfyPhoneScreen } from '~/screens/comfy';
-import { SettingsPhoneScreen } from '~/screens/settings';
 import { PhoneStepScreen } from '~/screens/phone/PhoneStepScreen';
 import { StepsStrip } from '~/screens/phone/StepsStrip';
 import { useGenerate } from '~/screens/phone/imageBridge';
@@ -38,6 +38,8 @@ function HomePage() {
       <div style={{ height: 52, flex: 'none', display: 'flex', alignItems: 'center', gap: 8, padding: '0 14px', paddingTop: 'env(safe-area-inset-top, 0px)', boxSizing: 'content-box' }}>
         <Logo size={28} />
         <Wordmark size={16} />
+        <span style={{ flex: 1 }} />
+        <FullscreenBtn />
       </div>
       <div className="il-scroll" style={{ flex: 'none', overflowX: 'auto', overflowY: 'hidden', touchAction: 'pan-x', padding: '0 12px 8px', scrollbarWidth: 'none' }}>
         <PlacePills phone />
@@ -51,7 +53,7 @@ registerPhonePage('home', { Component: HomePage, title: () => 'Home', screen: 'h
 
 /* ---------- Settings (m-shell) ---------- */
 
-registerPhonePage('settings', { Component: () => <div style={{ position: 'absolute', inset: 0 }}><SettingsPhoneScreen /></div>, title: () => 'Settings', screen: 'settings', header: false });
+import '~/screens/settings/SettingsPages'; // 'settings' → 'settings-category' (siblings = categories) → 'settings-provider'
 
 /* ---------- stand-ins for the places (m-browse registers the real ones) ---------- */
 
