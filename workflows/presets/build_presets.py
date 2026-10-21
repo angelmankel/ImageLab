@@ -129,6 +129,11 @@ class WF:
         out = se['outputs'][slot]
         k = next(j for j, i in enumerate(de['inputs']) if i['name'] == name)
         inp = de['inputs'][k]
+        if inp['type'] == 'COMFY_MATCHTYPE_V3':       # a switch takes the type of what is plugged in
+            inp['type'] = out['type']
+            for o in de['outputs']:
+                if o['type'] == 'COMFY_MATCHTYPE_V3':
+                    o['type'] = out['type']
         ok = out['type'] == inp['type'] or '*' in (out['type'], inp['type']) or \
             set(inp['type'].split(',')) & {out['type']}
         if not ok:
@@ -454,29 +459,43 @@ CN_FILES = {
 
 
 def controlnet(fam, kind):
+    res = 1024 if fam['key'] != 'SD 1.5' else 512
     titles = {
-        'canny': ('ControlNet canny', 'Picture to trace', 'The outlines (Canny edges) of the input picture guide the new picture: same shapes and layout, new content and style.\nEdge thresholds: lower = more edges.'),
-        'depth': ('ControlNet depth', 'Depth map', 'A DEPTH MAP (white = near, black = far) guides the new picture: same 3D layout.\nThis server has no depth-estimator node, so the input must already be a depth map (from a depth tool, Blender, or another workflow).'),
-        'pose': ('ControlNet pose (copy a pose)', 'Pose skeleton (OpenPose)', 'An OPENPOSE SKELETON picture (coloured stick figure on black) sets the pose of the person.\nThis server has no pose-detector node, so the input must already be an OpenPose skeleton (from a pose editor / openposes.com / a previous ControlNet preprocess); a normal photo will not work.'),
-        'sketch': ('sketch to picture', 'Sketch', 'Turns a line drawing into a finished picture. Dark lines on a light background work best (pencil, pen, or a drawing app).\nThe sketch is inverted into an edge map for the canny adapter.\nStrength: 0.5 = loose interpretation, 0.9 = follows every line.'),
+        'canny': ('ControlNet canny', 'Picture to trace', 'The outlines (Canny edges) of the input picture guide the new picture: same shapes and layout, new content and style.\nEdge thresholds: lower = more edges. The Edges preview shows what the ControlNet sees.'),
+        'depth': ('ControlNet depth', 'Photo (or a depth map)', 'The 3D layout of a normal photo guides the new picture: Depth Anything V2 makes a depth map (white = near, black = far), shown as the Depth map preview.\nAlready have a depth map? Turn "Make depth map from photo" off and the input is used as it is.'),
+        'pose': ('ControlNet pose (copy a pose)', 'Photo with a person (or a pose skeleton)', 'Copies the pose of the person in a normal photo: DWPose finds body, hands and face (shown as the Detected pose preview), and the new picture takes that pose.\nAlready have an OpenPose skeleton (coloured stick figure on black)? Turn "Find pose in photo" off and the input is used as it is.'),
+        'sketch': ('sketch to picture', 'Sketch', 'Turns a line drawing into a finished picture: pencil, pen, a drawing app, or a phone photo of paper.\nThe Lineart preprocessor turns the sketch into clean lines (the Line art preview) for the canny adapter.\nStrength: 0.5 = loose interpretation, 0.9 = follows every line.'),
     }
     label, slot, body = titles[kind]
     fname = CN_FILES[(fam['key'], 'canny' if kind == 'sketch' else kind)]
     strength = {'canny': 0.8, 'depth': 0.9, 'pose': 1.0, 'sketch': 0.75}[kind]
     end = {'canny': 0.8, 'depth': 0.8, 'pose': 1.0, 'sketch': 0.8}[kind]
+    first_run = '' if kind == 'canny' else '\nThe first run downloads the detector model (comfyui_controlnet_aux), so it takes a minute longer.'
     wf = WF(f"{fam['key']} · {label}", common_note(fam, f"""
 {body}
 The output takes the input's shape at about {fam['mp']} megapixels (Output size).
 ControlNet strength {strength}; End = when it lets go (0.8 leaves the last steps free for detail).
-Model file: {fname}."""))
+Model file: {fname}.{first_run}"""))
     img = load(wf, slot)
     px = working_size(wf, img[0], fam['mp'], title='Output size')
     if kind == 'canny':
         hint = wf.add('Canny', 'Find edges', 'Control', {'low_threshold': 0.4, 'high_threshold': 0.8}, image=px)[0]
+        preview = 'Edges'
     elif kind == 'sketch':
-        hint = wf.add('ImageInvert', 'Sketch to edge map', 'Control', image=px)[0]
+        hint = wf.add('LineArtPreprocessor', 'Clean lines', 'Control', {'coarse': 'disable', 'resolution': res}, image=px)[0]
+        preview = 'Line art'
+    elif kind == 'pose':
+        det = wf.add('DWPreprocessor', 'Pose finder', 'Control', {'detect_hand': 'enable', 'detect_body': 'enable', 'detect_face': 'enable',
+                                                                 'resolution': res, 'bbox_detector': 'yolox_l.onnx',
+                                                                 'pose_estimator': 'dw-ll_ucoco_384_bs5.torchscript.pt',
+                                                                 'scale_stick_for_xinsr_cn': 'disable'}, image=px)[0]
+        hint = wf.add('ComfySwitchNode', 'Find pose in photo', 'Control', {'switch': True}, on_true=det, on_false=px)[0]
+        preview = 'Detected pose'
     else:
-        hint = px
+        det = wf.add('DepthAnythingV2Preprocessor', 'Depth finder', 'Control', {'ckpt_name': 'depth_anything_v2_vitl.pth', 'resolution': res}, image=px)[0]
+        hint = wf.add('ComfySwitchNode', 'Make depth map from photo', 'Control', {'switch': True}, on_true=det, on_false=px)[0]
+        preview = 'Depth map'
+    wf.add('PreviewImage', preview, 'Control', images=hint)
     size = wf.add('GetImageSize', 'Read size', 'Control', image=px)
     m, clip, vae = model(wf, fam)
     pos, neg = prompts(wf, fam, clip)
@@ -487,7 +506,6 @@ Model file: {fname}."""))
     out = sample(wf, fam, m, a[0], a[1], lat)
     decode_save(wf, out, vae, f"{fam['slug']}-{kind}")
     return wf
-
 
 for fam in (SD15, SDXL, FLUX):
     register(f"{fam['key']} · txt2img")(lambda fam=fam: txt2img(fam))
@@ -653,7 +671,7 @@ For anime characters switch the checkpoint to an Illustrious model."""))
 def photo_to_painting():
     fam = SDXL
     wf = WF('SDXL · photo to painting', common_note(fam, """
-Turns a photo into a painting / drawing while keeping its layout (img2img + the photo's outlines as a canny guide).
+Turns a photo into a painting / drawing while keeping its layout (img2img + the photo's line art as a guide, shown as the Line art preview).
 Painting style: replace the text with one of these (or your own):
   oil: oil painting, thick visible brush strokes, impasto, rich colors, canvas texture, fine art
   anime: anime screencap, cel shading, clean line art, vibrant colors, studio anime style
@@ -669,7 +687,8 @@ For anime, an Illustrious checkpoint gives a cleaner anime look."""))
     j = wf.add('StringConcatenate', 'Style + prompt', 'Prompt', {'delimiter': ', '}, string_a=st[0], string_b=p[0])
     pos = wf.add('CLIPTextEncode', 'Encode prompt', 'Prompt', clip=clip, text=j[0])[0]
     neg = wf.add('CLIPTextEncode', 'Negative prompt', 'Prompt', {'text': 'photo, photograph, realistic, ' + NEG_REAL}, clip=clip)[0]
-    edges = wf.add('Canny', 'Photo outlines', 'Keep layout', {'low_threshold': 0.3, 'high_threshold': 0.7}, image=px)[0]
+    edges = wf.add('LineArtPreprocessor', 'Photo outlines', 'Keep layout', {'coarse': 'disable', 'resolution': 1024}, image=px)[0]
+    wf.add('PreviewImage', 'Line art', 'Keep layout', images=edges)
     cn = wf.add('ControlNetLoader', 'ControlNet model', 'Keep layout', {'control_net_name': CN_FILES[('SDXL', 'canny')]})[0]
     a = wf.add('ControlNetApplyAdvanced', 'Keep layout', 'Keep layout', {'strength': 0.55, 'start_percent': 0.0, 'end_percent': 0.7},
                positive=pos, negative=neg, control_net=cn, image=edges, vae=vae)
@@ -686,7 +705,7 @@ def style_transfer():
 Repaints your picture in the style of another picture (IP-Adapter "style transfer": colours, brushwork, medium, not the content).
 Input image = the picture to repaint. Style picture = the look to copy (a painting, an illustration, a texture...).
 Style weight 1.0 (up to 1.5 for a stronger look). Denoise 0.75: lower keeps more of the original.
-The layout is kept with the picture's outlines (canny). Prompt: what is in the picture (optional)."""))
+The layout is kept with the picture's line art (Lineart preprocessor, shown as the Line art preview). Prompt: what is in the picture (optional)."""))
     img = load(wf, 'Input image')
     sty = load(wf, 'Style picture', group='Style')
     px = working_size(wf, img[0], fam['mp'])
@@ -696,7 +715,8 @@ The layout is kept with the picture's outlines (canny). Prompt: what is in the p
                                                               'start_at': 0.0, 'end_at': 1.0, 'embeds_scaling': 'V only'},
                model=ul[0], ipadapter=ul[1], image=sty[0])[0]
     pos, neg = prompts(wf, fam, clip, pos='')
-    edges = wf.add('Canny', 'Outlines', 'Keep layout', {'low_threshold': 0.3, 'high_threshold': 0.7}, image=px)[0]
+    edges = wf.add('LineArtPreprocessor', 'Outlines', 'Keep layout', {'coarse': 'disable', 'resolution': 1024}, image=px)[0]
+    wf.add('PreviewImage', 'Line art', 'Keep layout', images=edges)
     cn = wf.add('ControlNetLoader', 'ControlNet model', 'Keep layout', {'control_net_name': CN_FILES[('SDXL', 'canny')]})[0]
     c = wf.add('ControlNetApplyAdvanced', 'Keep layout', 'Keep layout', {'strength': 0.5, 'start_percent': 0.0, 'end_percent': 0.7},
                positive=pos, negative=neg, control_net=cn, image=edges, vae=vae)

@@ -1,9 +1,9 @@
 {
- "last_node_id": 14,
- "last_link_id": 19,
+ "last_node_id": 15,
+ "last_link_id": 20,
  "nodes": [
   {
-   "id": 14,
+   "id": 15,
    "type": "Note",
    "pos": [
     20,
@@ -11,7 +11,7 @@
    ],
    "size": [
     400,
-    438
+    492
    ],
    "flags": {},
    "order": 0,
@@ -21,7 +21,7 @@
    "title": "About this workflow",
    "properties": {},
    "widgets_values": [
-    "Turns a line drawing into a finished picture. Dark lines on a light background work best (pencil, pen, or a drawing app).\nThe sketch is inverted into an edge map for the canny adapter.\nStrength: 0.5 = loose interpretation, 0.9 = follows every line.\nThe output takes the input's shape at about 1.0 megapixels (Output size).\nControlNet strength 0.75; End = when it lets go (0.8 leaves the last steps free for detail).\nModel file: t2i-adapter-canny-sdxl-1.0.safetensors.\n\nModel: SDXL checkpoints; Illustrious and Pony models work too (use their prompt style). Default: Juggernaut XL.\nDefaults: 30 steps, CFG 5.0, dpmpp_2m_sde / karras."
+    "Turns a line drawing into a finished picture: pencil, pen, a drawing app, or a phone photo of paper.\nThe Lineart preprocessor turns the sketch into clean lines (the Line art preview) for the canny adapter.\nStrength: 0.5 = loose interpretation, 0.9 = follows every line.\nThe output takes the input's shape at about 1.0 megapixels (Output size).\nControlNet strength 0.75; End = when it lets go (0.8 leaves the last steps free for detail).\nModel file: t2i-adapter-canny-sdxl-1.0.safetensors.\nThe first run downloads the detector model (comfyui_controlnet_aux), so it takes a minute longer.\n\nModel: SDXL checkpoints; Illustrious and Pony models work too (use their prompt style). Default: Juggernaut XL.\nDefaults: 30 steps, CFG 5.0, dpmpp_2m_sde / karras."
    ],
    "color": "#432",
    "bgcolor": "#653"
@@ -125,7 +125,7 @@
      "type": "IMAGE",
      "links": [
       2,
-      3
+      4
      ],
      "slot_index": 0
     }
@@ -142,14 +142,14 @@
   },
   {
    "id": 3,
-   "type": "ImageInvert",
+   "type": "LineArtPreprocessor",
    "pos": [
     900,
     110
    ],
    "size": [
     340,
-    58
+    110
    ],
    "flags": {},
    "order": 3,
@@ -159,6 +159,22 @@
      "name": "image",
      "type": "IMAGE",
      "link": 2
+    },
+    {
+     "name": "coarse",
+     "type": "COMBO",
+     "link": null,
+     "widget": {
+      "name": "coarse"
+     }
+    },
+    {
+     "name": "resolution",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "resolution"
+     }
     }
    ],
    "outputs": [
@@ -166,36 +182,75 @@
      "name": "IMAGE",
      "type": "IMAGE",
      "links": [
-      9
+      3,
+      10
      ],
      "slot_index": 0
     }
    ],
    "properties": {
-    "Node name for S&R": "ImageInvert"
+    "Node name for S&R": "LineArtPreprocessor"
    },
-   "widgets_values": [],
-   "title": "Sketch to edge map"
+   "widgets_values": [
+    "disable",
+    1024
+   ],
+   "title": "Clean lines"
   },
   {
    "id": 4,
-   "type": "GetImageSize",
+   "type": "PreviewImage",
    "pos": [
     900,
-    208
+    260
    ],
    "size": [
     340,
-    102
+    58
    ],
    "flags": {},
    "order": 4,
    "mode": 0,
    "inputs": [
     {
-     "name": "image",
+     "name": "images",
      "type": "IMAGE",
      "link": 3
+    }
+   ],
+   "outputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "links": [],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "PreviewImage"
+   },
+   "widgets_values": [],
+   "title": "Line art"
+  },
+  {
+   "id": 5,
+   "type": "GetImageSize",
+   "pos": [
+    900,
+    358
+   ],
+   "size": [
+    340,
+    102
+   ],
+   "flags": {},
+   "order": 5,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "image",
+     "type": "IMAGE",
+     "link": 4
     }
    ],
    "outputs": [
@@ -203,7 +258,7 @@
      "name": "width",
      "type": "INT",
      "links": [
-      11
+      12
      ],
      "slot_index": 0
     },
@@ -211,7 +266,7 @@
      "name": "height",
      "type": "INT",
      "links": [
-      12
+      13
      ],
      "slot_index": 1
     },
@@ -229,7 +284,7 @@
    "title": "Read size"
   },
   {
-   "id": 5,
+   "id": 6,
    "type": "CheckpointLoaderSimple",
    "pos": [
     1320,
@@ -240,7 +295,7 @@
     128
    ],
    "flags": {},
-   "order": 5,
+   "order": 6,
    "mode": 0,
    "inputs": [
     {
@@ -257,7 +312,7 @@
      "name": "MODEL",
      "type": "MODEL",
      "links": [
-      13
+      14
      ],
      "slot_index": 0
     },
@@ -265,8 +320,8 @@
      "name": "CLIP",
      "type": "CLIP",
      "links": [
-      4,
-      5
+      5,
+      6
      ],
      "slot_index": 1
     },
@@ -274,8 +329,8 @@
      "name": "VAE",
      "type": "VAE",
      "links": [
-      10,
-      18
+      11,
+      19
      ],
      "slot_index": 2
     }
@@ -289,58 +344,11 @@
    "title": "Checkpoint"
   },
   {
-   "id": 6,
-   "type": "CLIPTextEncode",
-   "pos": [
-    1740,
-    110
-   ],
-   "size": [
-    340,
-    194
-   ],
-   "flags": {},
-   "order": 6,
-   "mode": 0,
-   "inputs": [
-    {
-     "name": "text",
-     "type": "STRING",
-     "link": null,
-     "widget": {
-      "name": "text"
-     }
-    },
-    {
-     "name": "clip",
-     "type": "CLIP",
-     "link": 4
-    }
-   ],
-   "outputs": [
-    {
-     "name": "CONDITIONING",
-     "type": "CONDITIONING",
-     "links": [
-      6
-     ],
-     "slot_index": 0
-    }
-   ],
-   "properties": {
-    "Node name for S&R": "CLIPTextEncode"
-   },
-   "widgets_values": [
-    "a cozy wooden cabin in a snowy forest at dusk, warm light in the windows, soft falling snow, highly detailed"
-   ],
-   "title": "Positive prompt"
-  },
-  {
    "id": 7,
    "type": "CLIPTextEncode",
    "pos": [
     1740,
-    344
+    110
    ],
    "size": [
     340,
@@ -378,23 +386,70 @@
     "Node name for S&R": "CLIPTextEncode"
    },
    "widgets_values": [
+    "a cozy wooden cabin in a snowy forest at dusk, warm light in the windows, soft falling snow, highly detailed"
+   ],
+   "title": "Positive prompt"
+  },
+  {
+   "id": 8,
+   "type": "CLIPTextEncode",
+   "pos": [
+    1740,
+    344
+   ],
+   "size": [
+    340,
+    194
+   ],
+   "flags": {},
+   "order": 8,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "text",
+     "type": "STRING",
+     "link": null,
+     "widget": {
+      "name": "text"
+     }
+    },
+    {
+     "name": "clip",
+     "type": "CLIP",
+     "link": 6
+    }
+   ],
+   "outputs": [
+    {
+     "name": "CONDITIONING",
+     "type": "CONDITIONING",
+     "links": [
+      8
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "CLIPTextEncode"
+   },
+   "widgets_values": [
     "lowres, blurry, bad anatomy, bad hands, extra fingers, deformed, watermark, text, signature, worst quality, low quality, jpeg artifacts"
    ],
    "title": "Negative prompt"
   },
   {
-   "id": 8,
+   "id": 9,
    "type": "ControlNetLoader",
    "pos": [
     900,
-    350
+    500
    ],
    "size": [
     340,
     84
    ],
    "flags": {},
-   "order": 8,
+   "order": 9,
    "mode": 0,
    "inputs": [
     {
@@ -411,7 +466,7 @@
      "name": "CONTROL_NET",
      "type": "CONTROL_NET",
      "links": [
-      8
+      9
      ],
      "slot_index": 0
     }
@@ -425,39 +480,39 @@
    "title": "ControlNet model"
   },
   {
-   "id": 9,
+   "id": 10,
    "type": "ControlNetApplyAdvanced",
    "pos": [
     900,
-    474
+    624
    ],
    "size": [
     340,
     224
    ],
    "flags": {},
-   "order": 9,
+   "order": 10,
    "mode": 0,
    "inputs": [
     {
      "name": "positive",
      "type": "CONDITIONING",
-     "link": 6
+     "link": 7
     },
     {
      "name": "negative",
      "type": "CONDITIONING",
-     "link": 7
+     "link": 8
     },
     {
      "name": "control_net",
      "type": "CONTROL_NET",
-     "link": 8
+     "link": 9
     },
     {
      "name": "image",
      "type": "IMAGE",
-     "link": 9
+     "link": 10
     },
     {
      "name": "strength",
@@ -486,7 +541,7 @@
     {
      "name": "vae",
      "type": "VAE",
-     "link": 10
+     "link": 11
     }
    ],
    "outputs": [
@@ -494,7 +549,7 @@
      "name": "positive",
      "type": "CONDITIONING",
      "links": [
-      14
+      15
      ],
      "slot_index": 0
     },
@@ -502,7 +557,7 @@
      "name": "negative",
      "type": "CONDITIONING",
      "links": [
-      15
+      16
      ],
      "slot_index": 1
     }
@@ -518,7 +573,7 @@
    "title": "Apply ControlNet"
   },
   {
-   "id": 10,
+   "id": 11,
    "type": "EmptyLatentImage",
    "pos": [
     2160,
@@ -529,13 +584,13 @@
     136
    ],
    "flags": {},
-   "order": 10,
+   "order": 11,
    "mode": 0,
    "inputs": [
     {
      "name": "width",
      "type": "INT",
-     "link": 11,
+     "link": 12,
      "widget": {
       "name": "width"
      }
@@ -543,7 +598,7 @@
     {
      "name": "height",
      "type": "INT",
-     "link": 12,
+     "link": 13,
      "widget": {
       "name": "height"
      }
@@ -562,7 +617,7 @@
      "name": "LATENT",
      "type": "LATENT",
      "links": [
-      16
+      17
      ],
      "slot_index": 0
     }
@@ -578,7 +633,7 @@
    "title": "Size"
   },
   {
-   "id": 11,
+   "id": 12,
    "type": "KSampler",
    "pos": [
     2580,
@@ -589,13 +644,13 @@
     280
    ],
    "flags": {},
-   "order": 11,
+   "order": 12,
    "mode": 0,
    "inputs": [
     {
      "name": "model",
      "type": "MODEL",
-     "link": 13
+     "link": 14
     },
     {
      "name": "seed",
@@ -640,17 +695,17 @@
     {
      "name": "positive",
      "type": "CONDITIONING",
-     "link": 14
+     "link": 15
     },
     {
      "name": "negative",
      "type": "CONDITIONING",
-     "link": 15
+     "link": 16
     },
     {
      "name": "latent_image",
      "type": "LATENT",
-     "link": 16
+     "link": 17
     },
     {
      "name": "denoise",
@@ -666,7 +721,7 @@
      "name": "LATENT",
      "type": "LATENT",
      "links": [
-      17
+      18
      ],
      "slot_index": 0
     }
@@ -686,7 +741,7 @@
    "title": "Sampler"
   },
   {
-   "id": 12,
+   "id": 13,
    "type": "VAEDecode",
    "pos": [
     3000,
@@ -697,18 +752,18 @@
     80
    ],
    "flags": {},
-   "order": 12,
+   "order": 13,
    "mode": 0,
    "inputs": [
     {
      "name": "samples",
      "type": "LATENT",
-     "link": 17
+     "link": 18
     },
     {
      "name": "vae",
      "type": "VAE",
-     "link": 18
+     "link": 19
     }
    ],
    "outputs": [
@@ -716,7 +771,7 @@
      "name": "IMAGE",
      "type": "IMAGE",
      "links": [
-      19
+      20
      ],
      "slot_index": 0
     }
@@ -728,7 +783,7 @@
    "title": "Decode"
   },
   {
-   "id": 13,
+   "id": 14,
    "type": "SaveImage",
    "pos": [
     3000,
@@ -739,13 +794,13 @@
     84
    ],
    "flags": {},
-   "order": 13,
+   "order": 14,
    "mode": 0,
    "inputs": [
     {
      "name": "images",
      "type": "IMAGE",
-     "link": 19
+     "link": 20
     },
     {
      "name": "filename_prefix",
@@ -792,7 +847,7 @@
   ],
   [
    3,
-   2,
+   3,
    0,
    4,
    0,
@@ -800,15 +855,15 @@
   ],
   [
    4,
+   2,
+   0,
    5,
-   1,
-   6,
-   1,
-   "CLIP"
+   0,
+   "IMAGE"
   ],
   [
    5,
-   5,
+   6,
    1,
    7,
    1,
@@ -817,112 +872,120 @@
   [
    6,
    6,
-   0,
-   9,
-   0,
-   "CONDITIONING"
+   1,
+   8,
+   1,
+   "CLIP"
   ],
   [
    7,
    7,
    0,
-   9,
+   10,
+   0,
+   "CONDITIONING"
+  ],
+  [
+   8,
+   8,
+   0,
+   10,
    1,
    "CONDITIONING"
   ],
   [
-   8,
-   8,
-   0,
    9,
+   9,
+   0,
+   10,
    2,
    "CONTROL_NET"
   ],
   [
-   9,
+   10,
    3,
    0,
-   9,
+   10,
    3,
    "IMAGE"
   ],
   [
-   10,
-   5,
+   11,
+   6,
    2,
-   9,
+   10,
    7,
    "VAE"
   ],
   [
-   11,
-   4,
-   0,
-   10,
-   0,
-   "INT"
-  ],
-  [
    12,
-   4,
-   1,
-   10,
-   1,
+   5,
+   0,
+   11,
+   0,
    "INT"
   ],
   [
    13,
    5,
-   0,
+   1,
    11,
+   1,
+   "INT"
+  ],
+  [
+   14,
+   6,
+   0,
+   12,
    0,
    "MODEL"
   ],
   [
-   14,
-   9,
-   0,
-   11,
-   6,
-   "CONDITIONING"
-  ],
-  [
    15,
-   9,
-   1,
-   11,
-   7,
+   10,
+   0,
+   12,
+   6,
    "CONDITIONING"
   ],
   [
    16,
    10,
-   0,
-   11,
-   8,
-   "LATENT"
+   1,
+   12,
+   7,
+   "CONDITIONING"
   ],
   [
    17,
    11,
    0,
    12,
-   0,
+   8,
    "LATENT"
   ],
   [
    18,
-   5,
-   2,
    12,
+   0,
+   13,
+   0,
+   "LATENT"
+  ],
+  [
+   19,
+   6,
+   2,
+   13,
    1,
    "VAE"
   ],
   [
-   19,
-   12,
-   0,
+   20,
    13,
+   0,
+   14,
    0,
    "IMAGE"
   ]
@@ -946,7 +1009,7 @@
     880,
     60,
     380,
-    668
+    818
    ],
    "color": "#8A8",
    "font_size": 22,

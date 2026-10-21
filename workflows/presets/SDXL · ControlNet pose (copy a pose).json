@@ -1,9 +1,9 @@
 {
- "last_node_id": 13,
- "last_link_id": 18,
+ "last_node_id": 16,
+ "last_link_id": 22,
  "nodes": [
   {
-   "id": 13,
+   "id": 16,
    "type": "Note",
    "pos": [
     20,
@@ -11,7 +11,7 @@
    ],
    "size": [
     400,
-    420
+    474
    ],
    "flags": {},
    "order": 0,
@@ -21,7 +21,7 @@
    "title": "About this workflow",
    "properties": {},
    "widgets_values": [
-    "An OPENPOSE SKELETON picture (coloured stick figure on black) sets the pose of the person.\nThis server has no pose-detector node, so the input must already be an OpenPose skeleton (from a pose editor / openposes.com / a previous ControlNet preprocess); a normal photo will not work.\nThe output takes the input's shape at about 1.0 megapixels (Output size).\nControlNet strength 1.0; End = when it lets go (0.8 leaves the last steps free for detail).\nModel file: SDXL\\OpenPoseXL2.safetensors.\n\nModel: SDXL checkpoints; Illustrious and Pony models work too (use their prompt style). Default: Juggernaut XL.\nDefaults: 30 steps, CFG 5.0, dpmpp_2m_sde / karras."
+    "Copies the pose of the person in a normal photo: DWPose finds body, hands and face (shown as the Detected pose preview), and the new picture takes that pose.\nAlready have an OpenPose skeleton (coloured stick figure on black)? Turn \"Find pose in photo\" off and the input is used as it is.\nThe output takes the input's shape at about 1.0 megapixels (Output size).\nControlNet strength 1.0; End = when it lets go (0.8 leaves the last steps free for detail).\nModel file: SDXL\\OpenPoseXL2.safetensors.\nThe first run downloads the detector model (comfyui_controlnet_aux), so it takes a minute longer.\n\nModel: SDXL checkpoints; Illustrious and Pony models work too (use their prompt style). Default: Juggernaut XL.\nDefaults: 30 steps, CFG 5.0, dpmpp_2m_sde / karras."
    ],
    "color": "#432",
    "bgcolor": "#653"
@@ -72,7 +72,7 @@
    "widgets_values": [
     "example.png"
    ],
-   "title": "Pose skeleton (OpenPose)"
+   "title": "Photo with a person (or a pose skeleton)"
   },
   {
    "id": 2,
@@ -125,7 +125,8 @@
      "type": "IMAGE",
      "links": [
       2,
-      8
+      4,
+      6
      ],
      "slot_index": 0
     }
@@ -142,14 +143,14 @@
   },
   {
    "id": 3,
-   "type": "GetImageSize",
+   "type": "DWPreprocessor",
    "pos": [
     900,
     110
    ],
    "size": [
     340,
-    102
+    262
    ],
    "flags": {},
    "order": 3,
@@ -159,6 +160,201 @@
      "name": "image",
      "type": "IMAGE",
      "link": 2
+    },
+    {
+     "name": "detect_hand",
+     "type": "COMBO",
+     "link": null,
+     "widget": {
+      "name": "detect_hand"
+     }
+    },
+    {
+     "name": "detect_body",
+     "type": "COMBO",
+     "link": null,
+     "widget": {
+      "name": "detect_body"
+     }
+    },
+    {
+     "name": "detect_face",
+     "type": "COMBO",
+     "link": null,
+     "widget": {
+      "name": "detect_face"
+     }
+    },
+    {
+     "name": "resolution",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "resolution"
+     }
+    },
+    {
+     "name": "bbox_detector",
+     "type": "COMBO",
+     "link": null,
+     "widget": {
+      "name": "bbox_detector"
+     }
+    },
+    {
+     "name": "pose_estimator",
+     "type": "COMBO",
+     "link": null,
+     "widget": {
+      "name": "pose_estimator"
+     }
+    },
+    {
+     "name": "scale_stick_for_xinsr_cn",
+     "type": "COMBO",
+     "link": null,
+     "widget": {
+      "name": "scale_stick_for_xinsr_cn"
+     }
+    }
+   ],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      3
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "POSE_KEYPOINT",
+     "type": "POSE_KEYPOINT",
+     "links": [],
+     "slot_index": 1
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "DWPreprocessor"
+   },
+   "widgets_values": [
+    "enable",
+    "enable",
+    "enable",
+    1024,
+    "yolox_l.onnx",
+    "dw-ll_ucoco_384_bs5.torchscript.pt",
+    "disable"
+   ],
+   "title": "Pose finder"
+  },
+  {
+   "id": 4,
+   "type": "ComfySwitchNode",
+   "pos": [
+    900,
+    412
+   ],
+   "size": [
+    340,
+    106
+   ],
+   "flags": {},
+   "order": 4,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "switch",
+     "type": "BOOLEAN",
+     "link": null,
+     "widget": {
+      "name": "switch"
+     }
+    },
+    {
+     "name": "on_false",
+     "type": "IMAGE",
+     "link": 4
+    },
+    {
+     "name": "on_true",
+     "type": "IMAGE",
+     "link": 3
+    }
+   ],
+   "outputs": [
+    {
+     "name": "output",
+     "type": "IMAGE",
+     "links": [
+      5,
+      12
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "ComfySwitchNode"
+   },
+   "widgets_values": [
+    true
+   ],
+   "title": "Find pose in photo"
+  },
+  {
+   "id": 5,
+   "type": "PreviewImage",
+   "pos": [
+    900,
+    558
+   ],
+   "size": [
+    340,
+    58
+   ],
+   "flags": {},
+   "order": 5,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "link": 5
+    }
+   ],
+   "outputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "links": [],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "PreviewImage"
+   },
+   "widgets_values": [],
+   "title": "Detected pose"
+  },
+  {
+   "id": 6,
+   "type": "GetImageSize",
+   "pos": [
+    900,
+    656
+   ],
+   "size": [
+    340,
+    102
+   ],
+   "flags": {},
+   "order": 6,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "image",
+     "type": "IMAGE",
+     "link": 6
     }
    ],
    "outputs": [
@@ -166,7 +362,7 @@
      "name": "width",
      "type": "INT",
      "links": [
-      10
+      14
      ],
      "slot_index": 0
     },
@@ -174,7 +370,7 @@
      "name": "height",
      "type": "INT",
      "links": [
-      11
+      15
      ],
      "slot_index": 1
     },
@@ -192,7 +388,7 @@
    "title": "Read size"
   },
   {
-   "id": 4,
+   "id": 7,
    "type": "CheckpointLoaderSimple",
    "pos": [
     1320,
@@ -203,7 +399,7 @@
     128
    ],
    "flags": {},
-   "order": 4,
+   "order": 7,
    "mode": 0,
    "inputs": [
     {
@@ -220,7 +416,7 @@
      "name": "MODEL",
      "type": "MODEL",
      "links": [
-      12
+      16
      ],
      "slot_index": 0
     },
@@ -228,8 +424,8 @@
      "name": "CLIP",
      "type": "CLIP",
      "links": [
-      3,
-      4
+      7,
+      8
      ],
      "slot_index": 1
     },
@@ -237,8 +433,8 @@
      "name": "VAE",
      "type": "VAE",
      "links": [
-      9,
-      17
+      13,
+      21
      ],
      "slot_index": 2
     }
@@ -252,7 +448,7 @@
    "title": "Checkpoint"
   },
   {
-   "id": 5,
+   "id": 8,
    "type": "CLIPTextEncode",
    "pos": [
     1740,
@@ -263,7 +459,7 @@
     194
    ],
    "flags": {},
-   "order": 5,
+   "order": 8,
    "mode": 0,
    "inputs": [
     {
@@ -277,7 +473,7 @@
     {
      "name": "clip",
      "type": "CLIP",
-     "link": 3
+     "link": 7
     }
    ],
    "outputs": [
@@ -285,7 +481,7 @@
      "name": "CONDITIONING",
      "type": "CONDITIONING",
      "links": [
-      5
+      9
      ],
      "slot_index": 0
     }
@@ -299,7 +495,7 @@
    "title": "Positive prompt"
   },
   {
-   "id": 6,
+   "id": 9,
    "type": "CLIPTextEncode",
    "pos": [
     1740,
@@ -310,7 +506,7 @@
     194
    ],
    "flags": {},
-   "order": 6,
+   "order": 9,
    "mode": 0,
    "inputs": [
     {
@@ -324,7 +520,7 @@
     {
      "name": "clip",
      "type": "CLIP",
-     "link": 4
+     "link": 8
     }
    ],
    "outputs": [
@@ -332,7 +528,7 @@
      "name": "CONDITIONING",
      "type": "CONDITIONING",
      "links": [
-      6
+      10
      ],
      "slot_index": 0
     }
@@ -346,18 +542,18 @@
    "title": "Negative prompt"
   },
   {
-   "id": 7,
+   "id": 10,
    "type": "ControlNetLoader",
    "pos": [
     900,
-    252
+    798
    ],
    "size": [
     340,
     84
    ],
    "flags": {},
-   "order": 7,
+   "order": 10,
    "mode": 0,
    "inputs": [
     {
@@ -374,7 +570,7 @@
      "name": "CONTROL_NET",
      "type": "CONTROL_NET",
      "links": [
-      7
+      11
      ],
      "slot_index": 0
     }
@@ -388,39 +584,39 @@
    "title": "ControlNet model"
   },
   {
-   "id": 8,
+   "id": 11,
    "type": "ControlNetApplyAdvanced",
    "pos": [
     900,
-    376
+    922
    ],
    "size": [
     340,
     224
    ],
    "flags": {},
-   "order": 8,
+   "order": 11,
    "mode": 0,
    "inputs": [
     {
      "name": "positive",
      "type": "CONDITIONING",
-     "link": 5
+     "link": 9
     },
     {
      "name": "negative",
      "type": "CONDITIONING",
-     "link": 6
+     "link": 10
     },
     {
      "name": "control_net",
      "type": "CONTROL_NET",
-     "link": 7
+     "link": 11
     },
     {
      "name": "image",
      "type": "IMAGE",
-     "link": 8
+     "link": 12
     },
     {
      "name": "strength",
@@ -449,7 +645,7 @@
     {
      "name": "vae",
      "type": "VAE",
-     "link": 9
+     "link": 13
     }
    ],
    "outputs": [
@@ -457,7 +653,7 @@
      "name": "positive",
      "type": "CONDITIONING",
      "links": [
-      13
+      17
      ],
      "slot_index": 0
     },
@@ -465,7 +661,7 @@
      "name": "negative",
      "type": "CONDITIONING",
      "links": [
-      14
+      18
      ],
      "slot_index": 1
     }
@@ -481,7 +677,7 @@
    "title": "Apply ControlNet"
   },
   {
-   "id": 9,
+   "id": 12,
    "type": "EmptyLatentImage",
    "pos": [
     2160,
@@ -492,13 +688,13 @@
     136
    ],
    "flags": {},
-   "order": 9,
+   "order": 12,
    "mode": 0,
    "inputs": [
     {
      "name": "width",
      "type": "INT",
-     "link": 10,
+     "link": 14,
      "widget": {
       "name": "width"
      }
@@ -506,7 +702,7 @@
     {
      "name": "height",
      "type": "INT",
-     "link": 11,
+     "link": 15,
      "widget": {
       "name": "height"
      }
@@ -525,7 +721,7 @@
      "name": "LATENT",
      "type": "LATENT",
      "links": [
-      15
+      19
      ],
      "slot_index": 0
     }
@@ -541,7 +737,7 @@
    "title": "Size"
   },
   {
-   "id": 10,
+   "id": 13,
    "type": "KSampler",
    "pos": [
     2580,
@@ -552,13 +748,13 @@
     280
    ],
    "flags": {},
-   "order": 10,
+   "order": 13,
    "mode": 0,
    "inputs": [
     {
      "name": "model",
      "type": "MODEL",
-     "link": 12
+     "link": 16
     },
     {
      "name": "seed",
@@ -603,17 +799,17 @@
     {
      "name": "positive",
      "type": "CONDITIONING",
-     "link": 13
+     "link": 17
     },
     {
      "name": "negative",
      "type": "CONDITIONING",
-     "link": 14
+     "link": 18
     },
     {
      "name": "latent_image",
      "type": "LATENT",
-     "link": 15
+     "link": 19
     },
     {
      "name": "denoise",
@@ -629,7 +825,7 @@
      "name": "LATENT",
      "type": "LATENT",
      "links": [
-      16
+      20
      ],
      "slot_index": 0
     }
@@ -649,7 +845,7 @@
    "title": "Sampler"
   },
   {
-   "id": 11,
+   "id": 14,
    "type": "VAEDecode",
    "pos": [
     3000,
@@ -660,18 +856,18 @@
     80
    ],
    "flags": {},
-   "order": 11,
+   "order": 14,
    "mode": 0,
    "inputs": [
     {
      "name": "samples",
      "type": "LATENT",
-     "link": 16
+     "link": 20
     },
     {
      "name": "vae",
      "type": "VAE",
-     "link": 17
+     "link": 21
     }
    ],
    "outputs": [
@@ -679,7 +875,7 @@
      "name": "IMAGE",
      "type": "IMAGE",
      "links": [
-      18
+      22
      ],
      "slot_index": 0
     }
@@ -691,7 +887,7 @@
    "title": "Decode"
   },
   {
-   "id": 12,
+   "id": 15,
    "type": "SaveImage",
    "pos": [
     3000,
@@ -702,13 +898,13 @@
     84
    ],
    "flags": {},
-   "order": 12,
+   "order": 15,
    "mode": 0,
    "inputs": [
     {
      "name": "images",
      "type": "IMAGE",
-     "link": 18
+     "link": 22
     },
     {
      "name": "filename_prefix",
@@ -755,129 +951,161 @@
   ],
   [
    3,
+   3,
+   0,
    4,
-   1,
-   5,
-   1,
-   "CLIP"
+   2,
+   "IMAGE"
   ],
   [
    4,
+   2,
+   0,
    4,
    1,
-   6,
-   1,
-   "CLIP"
+   "IMAGE"
   ],
   [
    5,
+   4,
+   0,
    5,
    0,
-   8,
-   0,
-   "CONDITIONING"
+   "IMAGE"
   ],
   [
    6,
+   2,
+   0,
    6,
    0,
-   8,
-   1,
-   "CONDITIONING"
+   "IMAGE"
   ],
   [
    7,
    7,
-   0,
+   1,
    8,
+   1,
+   "CLIP"
+  ],
+  [
+   8,
+   7,
+   1,
+   9,
+   1,
+   "CLIP"
+  ],
+  [
+   9,
+   8,
+   0,
+   11,
+   0,
+   "CONDITIONING"
+  ],
+  [
+   10,
+   9,
+   0,
+   11,
+   1,
+   "CONDITIONING"
+  ],
+  [
+   11,
+   10,
+   0,
+   11,
    2,
    "CONTROL_NET"
   ],
   [
-   8,
-   2,
+   12,
+   4,
    0,
-   8,
+   11,
    3,
    "IMAGE"
   ],
   [
-   9,
-   4,
+   13,
+   7,
    2,
-   8,
+   11,
    7,
    "VAE"
   ],
   [
-   10,
-   3,
+   14,
+   6,
    0,
-   9,
-   0,
-   "INT"
-  ],
-  [
-   11,
-   3,
-   1,
-   9,
-   1,
-   "INT"
-  ],
-  [
    12,
-   4,
    0,
-   10,
+   "INT"
+  ],
+  [
+   15,
+   6,
+   1,
+   12,
+   1,
+   "INT"
+  ],
+  [
+   16,
+   7,
+   0,
+   13,
    0,
    "MODEL"
   ],
   [
-   13,
-   8,
+   17,
+   11,
    0,
-   10,
+   13,
    6,
    "CONDITIONING"
   ],
   [
-   14,
-   8,
+   18,
+   11,
    1,
-   10,
+   13,
    7,
    "CONDITIONING"
   ],
   [
-   15,
-   9,
+   19,
+   12,
    0,
-   10,
+   13,
    8,
    "LATENT"
   ],
   [
-   16,
-   10,
+   20,
+   13,
    0,
-   11,
+   14,
    0,
    "LATENT"
   ],
   [
-   17,
-   4,
+   21,
+   7,
    2,
-   11,
+   14,
    1,
    "VAE"
   ],
   [
-   18,
-   11,
+   22,
+   14,
    0,
-   12,
+   15,
    0,
    "IMAGE"
   ]
@@ -901,7 +1129,7 @@
     880,
     60,
     380,
-    570
+    1116
    ],
    "color": "#8A8",
    "font_size": 22,
