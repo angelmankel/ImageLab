@@ -4,7 +4,7 @@
  * chip row, the picked tags, the count line and a 2-per-row tile grid. On the route the centred
  * Back pill leaves the screen; in the modal the modal's top Back closes it.
  */
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { IconFilter } from '@tabler/icons-react';
 import { BackPill } from '~/ui';
 import { useRoute } from '~/app/routeStore';
@@ -23,15 +23,19 @@ import { SearchCivitaiRow } from './SearchCivitaiRow';
 import { PhoneFilters } from './PhoneFilters';
 import { SelectedTagChips } from './TagsRow';
 import { useKeepScroll, modelsListKey } from './useKeepScroll';
-import { LandBack } from '~/screens/browseKit/LandBack';
+
+/** The grid's model order, for the model card's siblings (a sideways swipe = next / previous model). */
+export const shownModelIds: { ids: readonly number[] } = { ids: [] };
 
 const ROW_TYPES = MODEL_TYPES.filter((t) => ['Checkpoint', 'LORA', 'LoCon', 'TextualInversion', 'Controlnet', 'VAE', 'Upscaler', 'MotionModule', 'Workflows'].includes(t));
 
 /**
- * `land` (mobile pass): the browse pane of the landscape two panes — no title row, the Back pill
- * becomes a pill before the search (the route only), 3 columns, the opened model stays outlined.
+ * `onOpenModel` (mobile pass): the page in the phone map — the frame draws the title and the band
+ * (no title row, no Back pill); opening a model pushes its card (`modelsPages`). `land`: 3
+ * columns, the opened model stays outlined (the frame shows its card beside the grid).
  */
-export function PhoneBrowse({ land = false }: { land?: boolean }) {
+export function PhoneBrowse({ land = false, onOpenModel }: { land?: boolean; onOpenModel?: (m: CivitaiModel) => void }) {
+  const inMap = !!onOpenModel;
   const go = useRoute((s) => s.go);
   const { close, kind } = usePick();
   const f = useModels((s) => s.filters);
@@ -53,9 +57,10 @@ export function PhoneBrowse({ land = false }: { land?: boolean }) {
   const installed = useInstalled();
   const actions = useModelActions();
   const active = activeFilters(f).filter((a) => !(kind && a.key === 'types')).length + tagCount;
-  const onOpen = useCallback((m: CivitaiModel) => open(m.id), [open]);
+  const onOpen = useCallback((m: CivitaiModel) => { open(m.id); onOpenModel?.(m); }, [open, onOpenModel]);
   const onUse = useCallback((m: CivitaiModel, picked?: CivitaiModelVersion) => { const v = picked ?? actions.versionToUse(m); if (v) actions.use(m, v); }, [actions]);
   const onLoadMore = useCallback(() => void loadMore(), [loadMore]);
+  useEffect(() => { if (inMap) shownModelIds.ids = shown.items.map((m) => m.id); }, [inMap, shown.items]);
 
   const summary = [
     shown.total != null ? `${shown.total} models` : `${shown.items.length}${shown.hasMore ? '+' : ''} models`,
@@ -64,15 +69,13 @@ export function PhoneBrowse({ land = false }: { land?: boolean }) {
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--il-bg)' }}>
-      {!close && !land && (
+      {!close && !inMap && (
         <div style={{ height: 'calc(56px + var(--il-safe-top))', flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'calc(12px + var(--il-safe-top)) 16px 0', boxSizing: 'border-box' }}>
           <span style={{ fontWeight: 800, fontSize: 18 }}>Models</span>
         </div>
       )}
-      <div ref={keepScroll} className="il-scroll" style={{ flex: 1, minHeight: 0, padding: land ? `calc(8px + env(safe-area-inset-top, 0px)) 12px calc(16px + var(--il-safe-bottom))` : `10px 16px ${close ? 24 : 100}px`, display: 'flex', flexDirection: 'column', gap: 8, touchAction: 'pan-y' }}>
-        {land && !close
-          ? <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}><LandBack onClick={() => go('step')} /><div style={{ flex: 1, minWidth: 0 }}><SearchBox height={44} fontSize={13} /></div></div>
-          : <SearchBox height={44} fontSize={13} />}
+      <div ref={keepScroll} className="il-scroll" style={{ flex: 1, minHeight: 0, padding: inMap ? '4px 12px 16px' : `10px 16px ${close ? 24 : 100}px`, display: 'flex', flexDirection: 'column', gap: 8, touchAction: 'pan-y' }}>
+        <SearchBox height={44} fontSize={13} />
         <div style={{ display: 'flex', gap: 6 }}>
           <MenuPill<Sort> size="phone" grow label="Sort" value={f.sort} onChange={(sort) => set({ sort })} options={SORTS.map((s) => ({ key: s, label: SORT_SHORT[s] }))} />
           <MenuPill<Period> size="phone" grow label="Period" value={f.period} onChange={(period) => set({ period })} options={PERIODS.map((p) => ({ key: p, label: PERIOD_LABEL[p] }))} />
@@ -97,7 +100,7 @@ export function PhoneBrowse({ land = false }: { land?: boolean }) {
           onOpen={onOpen} onReveal={reveal} onUse={onUse} onLoadMore={onLoadMore} onRetry={() => void refresh()}
           emptyAction={<SearchCivitaiRow size="phone" />} />
       </div>
-      {!close && !land && <BackPill onClick={() => go('step')} />}
+      {!close && !inMap && <BackPill onClick={() => go('step')} />}
       <PhoneFilters count={shown.total ?? shown.items.length} pool={shown.pool} />
     </div>
   );

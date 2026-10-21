@@ -26,7 +26,7 @@ import { PhoneTwoPane } from '~/phone';
 import { usePhoneLandscape } from '~/app/useIsPhone';
 
 /** First page on first visit; the kind lock from the context; "downloaded once" from the manager. */
-function useBrowserSetup() {
+export function useBrowserSetup() {
   const refresh = useModels((s) => s.refresh);
   const setKind = useModels((s) => s.setKind);
   const markDownloaded = useModels((s) => s.markDownloaded);
@@ -105,7 +105,8 @@ export function PhoneBrowser() {
 }
 
 /**
- * Phone landscape (mobile pass; mockup agent-handoffs/fixlist2-mockups/mobile-m-browse.html §3):
+ * The picker modal on a phone in landscape (the route is the phone map's 'models' page, ./modelsPages)
+ * (mobile pass; mockup agent-handoffs/fixlist2-mockups/mobile-m-browse.html §3):
  * the browse grid on the left, the opened model on the right — the desktop's detail panel, no
  * full-screen jump. A rotation keeps the opened model (`selectedId` is the store's).
  */

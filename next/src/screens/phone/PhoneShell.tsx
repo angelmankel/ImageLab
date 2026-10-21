@@ -9,6 +9,7 @@ import { PhoneEffects } from '~/phone/PhoneEffects';
 import { NavHost } from '~/phone/nav/NavHost';
 import '~/phone/nav/shellPages';
 import './tree/createPages';
+import '~/screens/browseKit/browsePages'; // History / picture, Models / model, ComfyUI (m-browse)
 
 export function PhoneShell() {
   return (

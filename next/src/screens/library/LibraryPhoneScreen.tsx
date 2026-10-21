@@ -1,29 +1,26 @@
 /**
- * Library — History & Collections, phone (rule 12 + 11; mobile pass, mockup
- * agent-handoffs/fixlist2-mockups/mobile-m-browse.html §1).
+ * Library — History & Collections on the phone, as places in the phone map (mobile pass, Donny
+ * 10-21: stacked cards, depth is vertical; mockup agent-handoffs/fixlist2-mockups/mobile-m-browse.html §1).
  *
- * Portrait (no dock, one centred glass Back pill):
- *   ┌ sticky: [search……][All items ▾][☑] ┐
- *   │         [All|Images|Videos|★] [⇅]  │
- *   │ 3-column grid (scrolls, pan-y)     │   tap = the item sheet; hold = the picture menu
- *   └──────────── ‹ Back ────────────────┘   Select mode: the bulk bar replaces the Back pill
+ *   'library'  (depth 1, from the HUD ring)       'picture' {key} (one card deeper)
+ *   ┌ ▬ History ─────────────────────┐            ┌ ▬ Picture ─────────────────────┐
+ *   │ [search……][All items ▾][⇅]     │  tap a  →  │ the picture (tap = full screen) │
+ *   │ [All|Images|Videos|★]          │  tile      │ when · prompt · settings        │
+ *   │ grid (3 cols; wider = more)    │            │ Use prompt · Reuse · Send · ★ ↓ │
+ *   └ band: ‹ Home · ◉ · Select ─────┘            └ band: ‹ History · ◉ · Recall ───┘
  *
- * Landscape (two panes, the desktop's three columns in two):
- *   ┌ ‹ Back  3 / 48 ······ ⤢ ┬ search · ▣ ▾ · ⇅ · ☑ ──────┐
- *   │  the selected picture   │ [Grid | Item] [All Img Vid ★] │
- *   │  (zoom, ‹ ›, tap = full │ 4-column grid  — or —        │
- *   │   screen)               │ the item's details + actions │
- *   └─────────────────────────┴──────────────────────────────┘
- * The selection, the open item (`detail`) and Select mode live in the store, so a rotation keeps them.
+ * Sideways on the picture card = the previous / next picture of the grid (its siblings); pull it
+ * down = back to the grid. Hold a tile = the picture menu (+ Select). Select mode: the bulk bar
+ * sits at the bottom of the page. Landscape: the frame puts the grid and the picture card side by
+ * side; the grid outlines the open picture, a tap on it = full screen. The visible order is
+ * published for the siblings (`visibleKeys`); the filters and Select mode live in the store, so a
+ * rotation or going in and out keeps them.
  */
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { IconSquareCheck } from '@tabler/icons-react';
-import { BackPill, GlassBar, Tabs } from '~/ui';
-import { useRoute } from '~/app/routeStore';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { IconCheck, IconRotateClockwise, IconSquareCheck } from '@tabler/icons-react';
+import { phoneNav, usePhoneBand, usePhoneNav, haptic, type PhonePageProps } from '~/phone';
 import { usePhoneLandscape } from '~/app/useIsPhone';
 import { T } from '~/theme/tokens';
-import { LandBack } from '~/screens/browseKit/LandBack';
-import { PhoneTwoPane, haptic } from '~/phone';
 import { useLibrary } from './libraryStore';
 import { useAllItems, useVisibleItems } from './useLibraryItems';
 import type { LibItem } from './libraryLogic';
@@ -31,182 +28,152 @@ import { SearchBox } from './SearchBox';
 import { CollectionPicker } from './CollectionPicker';
 import { KindTabs } from './KindTabs';
 import { SortMenu } from './SortMenu';
-import { MenuPill } from './MenuPill';
 import { BulkBar } from './BulkBar';
 import { LibraryGrid } from './LibraryGrid';
-import { PhoneSheet } from './PhoneSheet';
 import { LibraryViewer } from './LibraryViewer';
-import { LibraryStage } from './LibraryStage';
 import { ItemDetail } from './ItemDetail';
 import { EmptyState } from './EmptyState';
+import { recallItem } from './libraryActions';
 import './library.css';
 
-/** On mount (a rotation swaps the layout): bring the selected tile into view in this grid. */
-function useRevealSelected(ref: { current: HTMLElement | null }, key: string | null) {
-  const first = useRef(true);
-  useEffect(() => {
-    if (!first.current) return;
-    first.current = false;
-    if (!key) return;
-    ref.current?.querySelector(`[data-lib-key="${CSS.escape(key)}"]`)?.scrollIntoView({ block: 'center', behavior: 'instant' as ScrollBehavior });
-  }, [ref, key]);
-}
+/** The grid's order as the History page shows it: the picture card's siblings (pure reads). */
+export const visibleKeys: { keys: readonly string[] } = { keys: [] };
 
-function SelectToggle() {
-  const selecting = useLibrary((s) => s.selecting);
-  const setSelecting = useLibrary((s) => s.setSelecting);
-  return (
-    <MenuPill outline on={selecting} aria-label="Select several" aria-pressed={selecting} onClick={() => setSelecting(!selecting)} style={{ padding: '0 10px', minWidth: 44 }}>
-      <IconSquareCheck size={16} stroke={2.2} />
-    </MenuPill>
-  );
-}
+const openPicture = (key: string, from?: string) => {
+  haptic();
+  useLibrary.getState().select(key);
+  phoneNav.push('picture', { key }, { from });
+};
 
-export function LibraryPhoneScreen() {
-  const land = usePhoneLandscape();
+const scrollStyle = { position: 'absolute', inset: 0, overflowY: 'auto', overscrollBehavior: 'contain', touchAction: 'pan-y' } as const;
+
+export function LibraryPage({ page }: Partial<PhonePageProps>) {
   const all = useAllItems();
   const visible = useVisibleItems(all);
-  const select = useLibrary((s) => s.select);
-  const [viewer, setViewer] = useState<number | null>(null);
-  const viewerEl = viewer !== null && (
-    <LibraryViewer phone items={visible} index={Math.min(viewer, visible.length - 1)}
-      onIndexChange={(i) => { setViewer(i); const it = visible[i]; if (it) select(it.key); }}
-      onClose={() => setViewer(null)} />
-  );
-  return (
-    <>
-      {land
-        ? <Landscape all={all} visible={visible} viewerOpen={viewer !== null} onViewer={setViewer} />
-        : <Portrait all={all} visible={visible} viewerOpen={viewer !== null} onViewer={setViewer} />}
-      {viewerEl}
-    </>
-  );
-}
-
-interface LayoutProps { all: LibItem[]; visible: LibItem[]; viewerOpen: boolean; onViewer: (i: number) => void }
-
-function Portrait({ all, visible, viewerOpen, onViewer }: LayoutProps) {
-  const go = useRoute((s) => s.go);
-  const select = useLibrary((s) => s.select);
   const selectedKey = useLibrary((s) => s.selectedKey);
   const selecting = useLibrary((s) => s.selecting);
+  const setSelecting = useLibrary((s) => s.setSelecting);
   const picked = useLibrary((s) => s.picked);
   const togglePick = useLibrary((s) => s.togglePick);
-  const detail = useLibrary((s) => s.detail);
-  const setDetail = useLibrary((s) => s.setDetail);
-  const scroller = useRef<HTMLDivElement>(null);
-  useRevealSelected(scroller, selectedKey);
+  const [viewer, setViewer] = useState<number | null>(null);
+  // The picture card open on top of this page (landscape shows them side by side: outline it).
+  const openKey = usePhoneNav((s) => {
+    const i = page ? s.stack.findIndex((p) => p.key === page.key) : -1;
+    const next = i >= 0 ? s.stack[i + 1] : undefined;
+    return next?.kind === 'picture' ? String(next.params?.key ?? '') : null;
+  });
+  const land = usePhoneLandscape();
 
-  const sheetIndex = detail && selectedKey && !selecting ? visible.findIndex((i) => i.key === selectedKey) : -1;
-  const sheetItem = sheetIndex >= 0 ? visible[sheetIndex] : null;
+  useEffect(() => { visibleKeys.keys = visible.map((i) => i.key); }, [visible]);
+
+  usePhoneBand({
+    right: selecting
+      ? { label: 'Done', icon: <IconCheck size={18} stroke={2.6} />, tone: 'primary', onClick: () => setSelecting(false) }
+      : { label: 'Select', icon: <IconSquareCheck size={18} stroke={2.2} />, onClick: () => { haptic(); setSelecting(true); } },
+  });
 
   const onClick = useCallback((it: LibItem) => {
     if (useLibrary.getState().selecting) { haptic(); togglePick(it.key); return; }
-    select(it.key);
-    setDetail(true);
-  }, [togglePick, select, setDetail]);
+    openPicture(it.key, page?.key);
+  }, [togglePick, page?.key]);
   const onOpen = useCallback((it: LibItem) => {
     const i = visible.findIndex((x) => x.key === it.key);
-    if (i >= 0) onViewer(i);
-  }, [visible, onViewer]);
-  const stepSheet = (dir: 1 | -1) => {
-    const next = visible[sheetIndex + dir];
-    if (next) select(next.key);
-  };
+    if (i >= 0) setViewer(i);
+  }, [visible]);
+
+  // Back from a card: the tile it showed stays in view.
+  const scroller = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!selectedKey || openKey) return;
+    scroller.current?.querySelector(`[data-lib-key="${CSS.escape(selectedKey)}"]`)?.scrollIntoView({ block: 'nearest', behavior: 'instant' as ScrollBehavior });
+  }, [openKey, selectedKey]);
 
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--il-bg)' }}>
-      <div ref={scroller} className="il-scroll" style={{ flex: 1, minHeight: 0, touchAction: 'pan-y', overscrollBehavior: 'contain' }}>
-        <div style={{
-          position: 'sticky', top: 0, zIndex: 2, background: 'var(--il-bg)', borderBottom: '1px solid var(--il-line)',
-          padding: `calc(${T.pad.panel}px + env(safe-area-inset-top, 0px)) ${T.pad.panel}px 8px`, display: 'flex', flexDirection: 'column', gap: 6,
-        }}>
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-            <SearchBox style={{ flex: 1, minWidth: 0 }} />
-            <CollectionPicker all={all} compact />
-            <SelectToggle />
-          </div>
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-            <div style={{ flex: 1, minWidth: 0 }}><KindTabs fill /></div>
-            <SortMenu iconOnly />
-          </div>
+    <div ref={scroller} className="il-scroll" style={scrollStyle}>
+      <div style={{ position: 'sticky', top: 0, zIndex: 2, background: 'var(--il-panel)', borderBottom: '1px solid var(--il-line)', padding: `4px ${T.pad.panel}px 8px`, display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <SearchBox style={{ flex: 1, minWidth: 0 }} />
+          <CollectionPicker all={all} compact />
+          <SortMenu iconOnly />
         </div>
-        <div style={{ padding: `8px ${T.pad.panel}px calc(${selecting ? 120 : 84}px + var(--il-safe-bottom))` }}>
-          {visible.length
-            ? <LibraryGrid items={visible} size="m" fixedColumns={3} gap={6} radius={12} selectedKey={selecting ? null : selectedKey} selecting={selecting} picked={picked} paused={viewerOpen} onClick={onClick} onOpen={onOpen} />
-            : <EmptyState total={all.length} />}
-        </div>
+        <KindTabs fill />
       </div>
-
-      <PhoneSheet item={sheetItem} index={sheetIndex} count={visible.length} onClose={() => setDetail(false)} onOpen={() => onViewer(sheetIndex)} onStep={stepSheet} />
-      {/* Select mode: the bulk actions sit at the bottom, in thumb reach (they were in the top header). */}
-      {selecting && !viewerOpen && (
-        <GlassBar style={{ left: 10, right: 10, padding: 8 }}><BulkBar visible={visible} phone /></GlassBar>
+      <div style={{ padding: `8px ${T.pad.panel}px ${selecting ? 0 : 16}px` }}>
+        {visible.length
+          ? <LibraryGrid items={visible} size={land ? 's' : 'm'} fixedColumns={land ? undefined : 3} gap={6} radius={12}
+              selectedKey={selecting ? null : openKey} selecting={selecting} picked={picked} paused={viewer !== null} onClick={onClick} onOpen={onOpen} />
+          : <EmptyState total={all.length} />}
+      </div>
+      {/* Select mode: the bulk actions at the bottom of the page, in thumb reach. */}
+      {selecting && (
+        <div style={{ position: 'sticky', bottom: 0, zIndex: 2, padding: `8px ${T.pad.panel}px`, background: 'color-mix(in srgb, var(--il-panel) 92%, transparent)', backdropFilter: T.blur, WebkitBackdropFilter: T.blur, borderTop: '1px solid var(--il-line)' }}>
+          <BulkBar visible={visible} phone />
+        </div>
       )}
-      {!sheetItem && !viewerOpen && !selecting && <BackPill onClick={() => go('step')} />}
+      {viewer !== null && (
+        <LibraryViewer phone items={visible} index={Math.min(viewer, visible.length - 1)}
+          onIndexChange={setViewer} onClose={() => setViewer(null)} />
+      )}
     </div>
   );
 }
 
-function Landscape({ all, visible, viewerOpen, onViewer }: LayoutProps) {
-  const go = useRoute((s) => s.go);
-  const select = useLibrary((s) => s.select);
-  const selectedKey = useLibrary((s) => s.selectedKey);
-  const selecting = useLibrary((s) => s.selecting);
-  const picked = useLibrary((s) => s.picked);
-  const togglePick = useLibrary((s) => s.togglePick);
-  const detail = useLibrary((s) => s.detail);
-  const setDetail = useLibrary((s) => s.setDetail);
-  const gridRef = useRef<HTMLDivElement | null>(null);
-  useRevealSelected(gridRef, selectedKey);
+/** Kept for the old name (the map's stand-in, any old import). */
+export function LibraryPhoneScreen() { return <LibraryPage />; }
 
-  const current = visible.find((i) => i.key === selectedKey) ?? visible[0] ?? null;
-  const index = current ? visible.indexOf(current) : -1;
-  const pane: 'grid' | 'item' = detail && current && !selecting ? 'item' : 'grid';
+/** One picture of the History page, a card above the grid. */
+export function PicturePage({ params }: PhonePageProps<{ key: string }>) {
+  const all = useAllItems();
+  const visible = useVisibleItems(all);
+  const land = usePhoneLandscape();
+  const item = useMemo(() => all.find((i) => i.key === params.key) ?? null, [all, params.key]);
+  const index = item ? visible.findIndex((i) => i.key === item.key) : -1;
+  const [viewer, setViewer] = useState<number | null>(null);
+  useEffect(() => { if (item) useLibrary.getState().select(item.key); }, [item]);
 
-  const onClick = useCallback((it: LibItem) => {
-    haptic();
-    if (useLibrary.getState().selecting) togglePick(it.key);
-    else select(it.key);
-  }, [togglePick, select]);
-  const onOpen = useCallback((it: LibItem) => {
-    const i = visible.findIndex((x) => x.key === it.key);
-    if (i >= 0) { select(it.key); onViewer(i); }
-  }, [visible, select, onViewer]);
+  usePhoneBand({
+    right: item?.entry
+      ? { label: 'Recall', icon: <IconRotateClockwise size={18} stroke={2.4} />, tone: 'primary', onClick: () => { haptic(); recallItem(item); } }
+      : null,
+  });
 
-  const first = (
-    <div style={{ position: 'absolute', inset: 0, display: 'flex' }}>
-    <LibraryStage items={visible} index={Math.max(0, index)} lead={<LandBack onClick={() => go('step')} />}
-      onPick={(i) => { const it = visible[i]; if (it) select(it.key); }}
-      onOpen={() => { if (index >= 0) onViewer(index); }} />
-    </div>
-  );
-  const header = (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-        <SearchBox style={{ flex: 1, minWidth: 0 }} />
-        <CollectionPicker all={all} compact />
-        <SortMenu iconOnly />
-        <SelectToggle />
-      </div>
-      {selecting ? <BulkBar visible={visible} phone /> : (
-        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-          <div style={{ flex: 'none', width: 140 }}>
-            <Tabs<'grid' | 'item'> items={[{ key: 'grid', label: 'Grid' }, { key: 'item', label: 'Item' }]} value={pane} onChange={(k) => { haptic(); setDetail(k === 'item'); }} />
-          </div>
-          {pane === 'grid' && <div style={{ flex: 1, minWidth: 0 }}><KindTabs fill /></div>}
+  if (!item) {
+    return <div style={{ ...scrollStyle, display: 'grid', placeItems: 'center', color: 'var(--il-muted)', fontSize: 13, fontWeight: 600 }}>This picture is gone.</div>;
+  }
+  const openViewer = () => setViewer(Math.max(0, index));
+  const pager = index >= 0 ? `${index + 1} / ${visible.length}` : undefined;
+  return (
+    <div className="il-scroll" style={{ ...scrollStyle, padding: `0 ${T.pad.panel}px 16px` }}>
+      {land ? (
+        // Landscape: the picture beside its details (the card is wide and short).
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(240px, 1fr)', gap: 12, alignItems: 'start' }}>
+          <div style={{ position: 'sticky', top: 0 }}><PictureBox item={item} onOpen={openViewer} /></div>
+          <ItemDetail key={item.key} item={item} phone hidePicture onOpen={openViewer} onDeleted={() => phoneNav.pop()} pager={pager} />
         </div>
+      ) : (
+        <ItemDetail key={item.key} item={item} phone onOpen={openViewer} onDeleted={() => phoneNav.pop()} pager={pager} />
+      )}
+      {viewer !== null && visible.length > 0 && (
+        <LibraryViewer phone items={visible} index={Math.min(viewer, visible.length - 1)}
+          onIndexChange={setViewer}
+          onClose={() => {
+            // The viewer paged elsewhere: this card follows (same depth, no slide).
+            const at = visible[viewer];
+            setViewer(null);
+            if (at && at.key !== item.key) { useLibrary.getState().select(at.key); phoneNav.replace('picture', { key: at.key }); }
+          }} />
       )}
     </div>
   );
-  const side = (
-    <div style={{ padding: '0 10px 10px' }}>
-      {pane === 'item' && current
-        ? <ItemDetail key={current.key} item={current} phone hidePicture onOpen={() => onViewer(index)} onDeleted={() => setDetail(false)} pager={`${index + 1} / ${visible.length}`} />
-        : visible.length
-          ? <LibraryGrid items={visible} size="m" fixedColumns={4} gap={6} radius={12} selectedKey={selecting ? null : current?.key ?? null} selecting={selecting} picked={picked} paused={viewerOpen} onClick={onClick} onOpen={onOpen} />
-          : <EmptyState total={all.length} />}
+}
+
+function PictureBox({ item, onOpen }: { item: LibItem; onOpen: () => void }) {
+  return (
+    <div onClick={onOpen} role="button" aria-label="Open fullscreen"
+      style={{ width: '100%', aspectRatio: '1', borderRadius: 14, background: 'var(--il-bg-deep)', overflow: 'hidden', cursor: 'zoom-in' }}>
+      {item.kind === 'video'
+        ? <video key={item.key} src={item.url} autoPlay muted loop playsInline style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
+        : <img key={item.key} src={item.url} alt="" draggable={false} style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />}
     </div>
   );
-  return <PhoneTwoPane main={first} side={side} sideHeader={header} sideWidth="clamp(320px, 45%, 480px)" sideScrollRef={(el) => { gridRef.current = el; }} />;
 }

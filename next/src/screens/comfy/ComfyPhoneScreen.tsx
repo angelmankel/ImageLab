@@ -11,8 +11,9 @@ import { serverRole } from '@/lib/serverRoles';
 import { useRoute } from '~/app/routeStore';
 import { usePhoneLandscape } from '~/app/useIsPhone';
 import { PhoneTwoPane } from '~/phone';
-import { LandBack } from '~/screens/browseKit/LandBack';
-import { BackPill, Count, Dot, Tabs } from '~/ui';
+import { usePhoneBand } from '~/phone';
+import { IconExternalLink as IconOpen } from '@tabler/icons-react';
+import { Count, Dot, Tabs } from '~/ui';
 import { comfyPageUrl } from './comfyApi';
 import { LogBox } from './LogBox';
 import { QueueList } from './QueueList';
@@ -62,7 +63,6 @@ function ServerList({ pick, online, up }: { pick: ComfyServerPick; online: boole
 
 export function ComfyPhoneScreen() {
   useVideoServerProbe();
-  const go = useRoute((s) => s.go);
   const pick = useComfyServer();
   const host = pick.server?.host ?? null;
   const live = useComfyHost(host);
@@ -70,6 +70,8 @@ export function ComfyPhoneScreen() {
   const up = useServersUp(pick.servers);
   const [seg, setSeg] = useState<Seg>('servers');
   const land = usePhoneLandscape();
+  // The band (phone map): ‹ Home · ◉ · Open ComfyUI ↗ (a new tab: no node editor on a phone).
+  usePhoneBand({ right: host ? { label: 'Open', icon: <IconOpen size={17} stroke={2.4} />, onClick: () => window.open(comfyPageUrl(host), '_blank', 'noopener') } : null });
   const [side, setSide] = useState<'queue' | 'log' | 'servers'>('queue');
   const openBtn = host && (
     <a href={comfyPageUrl(host)} target="_blank" rel="noreferrer"
@@ -86,10 +88,8 @@ export function ComfyPhoneScreen() {
         <PhoneTwoPane
           mainBackground="var(--il-bg)"
           main={(
-            <div className="il-scroll" style={{ position: 'absolute', inset: 0, padding: `calc(8px + env(safe-area-inset-top, 0px)) 12px calc(16px + var(--il-safe-bottom))`, display: 'flex', flexDirection: 'column', gap: 10, touchAction: 'pan-y' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <LandBack onClick={() => go('step')} />
-                <span style={{ fontWeight: 800, fontSize: 16, flex: 1, minWidth: 0 }}>ComfyUI</span>
+            <div className="il-scroll" style={{ position: 'absolute', inset: 0, padding: '4px 12px 16px', display: 'flex', flexDirection: 'column', gap: 10, touchAction: 'pan-y' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8 }}>
                 <ServerPicker pick={pick} online={live.online} stats={live.stats} queued={live.rows.length} up={up} compact />
               </div>
               <WorkflowList wf={wf} large scroll={false} />
@@ -123,8 +123,7 @@ export function ComfyPhoneScreen() {
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--il-bg)' }}>
-      <div style={{ height: 'calc(56px + var(--il-safe-top))', flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: 'calc(10px + var(--il-safe-top)) 14px 0', boxSizing: 'border-box' }}>
-        <span style={{ fontWeight: 800, fontSize: 18 }}>ComfyUI</span>
+      <div style={{ flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, padding: '2px 14px 0' }}>
         <ServerPicker pick={pick} online={live.online} stats={live.stats} queued={live.rows.length} up={up} compact />
       </div>
       <div style={{ flex: 'none', padding: '8px 14px 4px' }}>
@@ -139,7 +138,7 @@ export function ComfyPhoneScreen() {
         />
       </div>
 
-      <div className="il-scroll" style={{ flex: 1, minHeight: 0, padding: '10px 14px 100px', display: 'flex', flexDirection: 'column', gap: 12, touchAction: 'pan-y' }}>
+      <div className="il-scroll" style={{ flex: 1, minHeight: 0, padding: '10px 14px 16px', display: 'flex', flexDirection: 'column', gap: 12, touchAction: 'pan-y' }}>
         {seg === 'servers' && (
           <>
             <ServerStatus server={pick.server} online={live.online} stats={live.stats} queued={live.rows.length} />
@@ -157,7 +156,6 @@ export function ComfyPhoneScreen() {
         )}
       </div>
 
-      <BackPill onClick={() => go('step')} />
       <ParamMapModal />
     </div>
   );
