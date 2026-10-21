@@ -12,7 +12,8 @@
  *   the ONE weight slider
  *   the kind's own parts: trigger words (LoRA / checkpoint), a guide image (ControlNet), `after`
  *   Recommended settings · Apply
- *   More ▾ (quiet fold): the kind's extras (prompt side, CLIP strength, VAE…), Change, Details, CivitAI
+ *   More ▾ (quiet fold): the kind's extras (prompt side, CLIP strength, VAE…), Details, CivitAI
+ * "⇄ Change" is a visible button under the chips, never folded (fix list 2, added item).
  *
  * Behind it all, the model's other pictures as a soft blurred texture (low contrast, under a shade
  * of the card colour). Dropped from the card on purpose (Donny: "i dont care about the filename"):
@@ -20,7 +21,7 @@
  * The art follows "Model preview starts on" and the NSFW opt-in (`useModelPreview`).
  */
 import { useMemo } from 'react';
-import { IconAlertTriangle, IconArrowsMaximize, IconChevronDown, IconExternalLink, IconInfoCircle } from '@tabler/icons-react';
+import { IconAlertTriangle, IconArrowsExchange, IconArrowsMaximize, IconExternalLink, IconInfoCircle } from '@tabler/icons-react';
 import { T } from '~/theme/tokens';
 import { Button, LoadingImage, Switch, SliderRow } from '~/ui';
 import { useIsPhone } from '~/app/useIsPhone';
@@ -148,6 +149,8 @@ export function EntryCard({ entry, api, onChange, link }: { entry: ModelEntry; a
               {badge && <Chip>{badge}</Chip>}
               {entry.name && !base && <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--il-muted)' }}>{meta.resolved ? 'Not on CivitAI' : 'Looking up…'}</span>}
             </div>
+            <Button tone="card" size={phone ? 'lg' : 'sm'} icon={<IconArrowsExchange size={14} stroke={2.4} />} onClick={onChange} tooltip={`Pick another ${spec.one}`}
+              style={{ alignSelf: 'flex-start', marginTop: 4 }}>{entry.name ? 'Change' : `Pick a ${spec.one}`}</Button>
           </div>
         </div>
 
@@ -163,10 +166,9 @@ export function EntryCard({ entry, api, onChange, link }: { entry: ModelEntry; a
 
         {hasRecommended(rec) && <RecommendedRow rec={rec} withStrength={api.kind !== 'checkpoint'} weight={weightTarget} />}
 
-        <Fold id={`card.more.${api.kind}`} title="More" summary={card?.moreHint?.(entry) ?? 'Change, details'}>
+        <Fold id={`card.more.${api.kind}`} title="More" summary={card?.moreHint?.(entry) ?? 'Details, CivitAI'}>
           {moreNode && <div style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingBottom: 10 }}>{moreNode}</div>}
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-            <Button tone="card" size={phone ? 'lg' : 'sm'} caret={<IconChevronDown size={13} stroke={2.6} />} onClick={onChange} tooltip={`Pick another ${spec.one}`}>Change</Button>
             <Button tone="card" size={phone ? 'lg' : 'sm'} caret={<IconInfoCircle size={13} stroke={2.4} />} disabled={!entry.name} onClick={details} tooltip="Model details">Details</Button>
             <Button tone="card" size={phone ? 'lg' : 'sm'} caret={<IconExternalLink size={13} stroke={2.4} />} disabled={!meta.civitaiUrl} onClick={() => meta.civitaiUrl && window.open(meta.civitaiUrl, '_blank', 'noopener')} tooltip={meta.civitaiUrl ? 'Open on CivitAI' : 'Not on CivitAI'}>CivitAI</Button>
           </div>

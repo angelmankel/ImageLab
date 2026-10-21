@@ -1,9 +1,11 @@
-/* The bubble row (fix list 2, added item): a bubble IS "Change" for its slot, and says so on
-   hover / keyboard focus — the picture dims, a ⇄ "Change" veil appears, the ring brightens. */
+/* The bubble row (fix list 2, added items): only the SELECTED bubble is "Change" (a second tap)
+   and says so on hover / keyboard focus — the picture dims under a ⇄ "Change" veil and the ring
+   brightens. Other bubbles get a plain hover ring (a tap selects them). */
 .ilm-bubble { cursor: pointer; }
+.ilm-bubble:focus-visible { outline: none; }
 .ilm-bubble .ilm-bubble-veil { opacity: 0; transition: opacity .12s ease; }
 .ilm-bubble .ilm-bubble-ring { transition: box-shadow .12s ease; }
-.ilm-bubble:hover .ilm-bubble-veil, .ilm-bubble:focus-visible .ilm-bubble-veil { opacity: 1; }
-.ilm-bubble:hover .ilm-bubble-ring, .ilm-bubble:focus-visible .ilm-bubble-ring { box-shadow: 0 0 0 2px var(--il-ember-hi); }
-.ilm-bubble:focus-visible { outline: none; }
+.ilm-bubble:hover .ilm-bubble-ring, .ilm-bubble:focus-visible .ilm-bubble-ring { box-shadow: 0 0 0 2px var(--il-line-strong); }
+.ilm-bubble[data-selected]:hover .ilm-bubble-veil, .ilm-bubble[data-selected]:focus-visible .ilm-bubble-veil { opacity: 1; }
+.ilm-bubble[data-selected]:hover .ilm-bubble-ring, .ilm-bubble[data-selected]:focus-visible .ilm-bubble-ring { box-shadow: 0 0 0 2px var(--il-ember-hi); }
 @media (prefers-reduced-motion: reduce) { .ilm-bubble .ilm-bubble-veil, .ilm-bubble .ilm-bubble-ring { transition: none; } }

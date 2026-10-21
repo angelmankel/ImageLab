@@ -10,10 +10,11 @@
  * "Checkpoint" badge was cut off on the left); raw node names ("Load Checkpoint") are hidden
  * (`displayBadge`). `linked` (item 40): a small link mark on entries that follow step 1.
  *
- * A tap on a bubble = "Change" for that slot (fix list 2, added item: `onChange`, the picker on
- * that kind swapping that entry; the entry is selected too, so its card shows). Hover / keyboard
- * focus says so: the picture dims under a ⇄ "Change" veil and the ring brightens (bubble.css).
- * The red × removes on its own and never opens Change.
+ * Bubbles (fix list 2, added items — Donny's final rule): the FIRST tap on a bubble selects it
+ * (its card shows); a tap on the ALREADY-SELECTED bubble opens Change for that slot (`onChange`,
+ * the picker on that kind swapping that entry). Only the selected bubble shows the ⇄ "Change"
+ * veil on hover / keyboard focus; the others get a plain hover ring (bubble.css). The red ×
+ * removes on its own and never selects or opens Change.
  */
 import { IconArrowsExchange, IconLink, IconPlus, IconX } from '@tabler/icons-react';
 import './bubble.css';
@@ -28,7 +29,7 @@ const CIRCLE = 56;
 
 export function CircleRow({ entries, selectedId, onSelect, onChange, onAdd, onRemove, showWeight = true, linked, kind = 'other' }: {
   entries: ModelEntry[]; selectedId?: string; onSelect: (id: string) => void;
-  /** A tap on a bubble opens Change for that entry (after selecting it). Absent: a tap only selects. */
+  /** A tap on the already-selected bubble opens Change for it. Absent: a tap only selects. */
   onChange?: (id: string) => void;
   onAdd?: () => void; onRemove?: (id: string) => void; showWeight?: boolean;
   /** Entries that follow step 1 (item 40); absent = no link marks. */
@@ -53,10 +54,11 @@ export function CircleRow({ entries, selectedId, onSelect, onChange, onAdd, onRe
           <button
             type="button"
             className="ilm-bubble"
-            onClick={() => { onSelect(e.id); onChange?.(e.id); }}
+            data-selected={selected || undefined}
+            onClick={() => (selected && onChange ? onChange(e.id) : onSelect(e.id))}
             aria-pressed={selected}
-            aria-label={onChange ? `Change ${meta.name ?? label}` : (meta.name ?? label)}
-            title={e.pending ? `${e.pending.modelName} · not downloaded yet` : e.missing ? `${e.name} · not on this server` : onChange ? `${meta.name ?? label} · tap to change` : (meta.name ?? label)}
+            aria-label={selected && onChange ? `Change ${meta.name ?? label}` : (meta.name ?? label)}
+            title={e.pending ? `${e.pending.modelName} · not downloaded yet` : e.missing ? `${e.name} · not on this server` : selected && onChange ? `${meta.name ?? label} · tap again to change` : (meta.name ?? label)}
             style={{ width: 64, flex: 'none', border: 0, background: 'transparent', padding: 0, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, color: selected ? 'var(--il-fg)' : dim ? 'var(--il-dim)' : 'var(--il-fg2)' }}
           >
             <span style={{ position: 'relative', width: CIRCLE, height: CIRCLE, flex: 'none' }}>
@@ -64,7 +66,7 @@ export function CircleRow({ entries, selectedId, onSelect, onChange, onAdd, onRe
                 <ModelThumb label={e.name ? meta.label : '?'} meta={meta} size={CIRCLE} round
                   style={{ border: `3px solid ${selected ? 'var(--il-ember)' : 'var(--il-line-strong)'}`, opacity: dim ? 0.45 : 1, boxSizing: 'border-box' }} />
               </span>
-              {onChange && (
+              {onChange && selected && (
                 <span aria-hidden className="ilm-bubble-veil" style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: 'rgba(10,10,12,.58)', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1, pointerEvents: 'none' }}>
                   <IconArrowsExchange size={16} stroke={2.6} />
                   <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: '.3px' }}>Change</span>
