@@ -59,3 +59,24 @@ test('merge / move targets: never itself, same kind only unless asked, grouped, 
   const fromU = M.targetOptions(cats, sn, 'any', 'uncategorized', false, (c) => c.name);
   assert.equal(fromU.some((o) => o.value === 'uncategorized'), false);
 });
+
+test('selection: toggle, Shift ranges both ways, header tri-state, select all / none, drag set', () => {
+  const S = load('src/screens/image/snippets/selectionLogic.ts');
+  const order = ['a', 'b', 'c', 'd', 'e'];
+  let sel = S.toggleOne(new Set(), 'b');
+  assert.deepEqual([...sel], ['b']);
+  sel = S.selectRange(sel, order, 'b', 'd');
+  assert.deepEqual([...sel].sort(), ['b', 'c', 'd']);
+  sel = S.selectRange(sel, order, 'd', 'c'); // c is ticked → the range unticks
+  assert.deepEqual([...sel].sort(), ['b']);
+  assert.deepEqual([...S.selectRange(new Set(), order, 'e', 'c')].sort(), ['c', 'd', 'e'], 'upwards');
+  assert.deepEqual([...S.selectRange(new Set(), order, 'gone', 'c')], ['c'], 'lost anchor = plain toggle');
+  assert.equal(S.headerState(new Set(), order), 'none');
+  assert.equal(S.headerState(new Set(['a']), order), 'some');
+  assert.equal(S.headerState(new Set(order), order), 'all');
+  assert.equal(S.headerState(new Set(['x']), []), 'none');
+  assert.deepEqual([...S.toggleAll(new Set(['a']), order)].sort(), order);
+  assert.deepEqual([...S.toggleAll(new Set([...order, 'x']), order)], ['x'], 'none of the shown; others kept');
+  assert.deepEqual(S.dragSet(new Set(['d', 'b']), order, 'd'), ['b', 'd']);
+  assert.deepEqual(S.dragSet(new Set(['d', 'b']), order, 'a'), ['a']);
+});

@@ -3,13 +3,15 @@
  * LEFT the categories: drag ⋮⋮ to reorder, count, right-click for the category menu, + New.
  * RIGHT the picked category: emoji (popover grid or any text), name, colour swatches, ✦ Generate
  * snippets (writeit's helper, when present), Merge into…, Delete (snippets → Uncategorized), + Snippet;
- * its snippets as rows — tick to multi-select (Move to… · Duplicate · Delete), click to edit, ⋯ /
+ * its snippets as rows — tick to multi-select (Shift = a range; the header box = all / none; then
+ * Move to… · Duplicate · Delete), drag rows onto a category on the left to move them (desktop; on a
+ * phone: Move to…), click to edit, ⋯ /
  * right-click = the tile menu. A search box looks through every category. All changes are one app
  * undo step each (`snippetOps`), no toasts.
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, Popover } from '@mantine/core';
-import { IconArrowLeft, IconCheck, IconCopy, IconDots, IconGripVertical, IconPlus, IconSearch, IconSparkles, IconTrash, IconX } from '@tabler/icons-react';
+import { IconArrowLeft, IconCheck, IconCopy, IconDots, IconGripVertical, IconMinus, IconPlus, IconSearch, IconSparkles, IconTrash, IconX } from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
 import type { Snippet, SnippetCategory } from '@/lib/types';
 import { menuProps, openMenu } from '~/app/contextMenu';
@@ -22,6 +24,7 @@ import { useTileEdit } from '../prompt/tileStore';
 import { CATEGORY_EMOJI, CATEGORY_HUES, categoryKind, countByCategory, targetOptions, UNCATEGORIZED, type CatKind } from './snippetModel';
 import { addCategory, deleteCategory, deleteSnippets, duplicateSnippets, mergeCategory, moveSnippets, reorderCategory, updateCategory } from './snippetOps';
 import { previewText, searchSnippets } from './snippetLogic';
+import { dragSet, headerState, selectRange, toggleAll, toggleOne } from './selectionLogic';
 import { generateSnippetsFor } from './generateBridge';
 
 const EMPTY: never[] = [];
@@ -46,6 +49,10 @@ function ManageModal({ opened, start, onClose }: { opened: boolean; start: strin
   const [picked, setPicked] = useState<Set<string>>(() => new Set());
   const [dragFrom, setDragFrom] = useState<number | null>(null);
   const [dragOver, setDragOver] = useState<number | null>(null);
+  // Snippet rows dragged onto a category (desktop): the ids carried and the category hovered.
+  const [snipDrag, setSnipDrag] = useState<string[] | null>(null);
+  const [dropCat, setDropCat] = useState<string | null>(null);
+  const anchor = useRef<string | null>(null);
   const cat = cats.find((c) => c.id === catId) ?? cats[0];
   useEffect(() => { if (cat && cat.id !== catId) setCatId(cat.id); }, [cat, catId]);
   useEffect(() => { setPicked(new Set()); }, [catId, query]);
@@ -76,7 +83,29 @@ function ManageModal({ opened, start, onClose }: { opened: boolean; start: strin
   const gen = cat ? generateSnippetsFor(cat.id) : null;
   const sz = phone ? 'lg' : 'sm';
 
-  const toggle = (id: string) => setPicked((p) => { const n = new Set(p); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const order = useMemo(() => rows.map((s) => s.id), [rows]);
+  /** Tick a row; with Shift, the range from the last row ticked without Shift. */
+  const pick = (id: string, shift: boolean) => {
+    setPicked((p) => (shift ? selectRange(p, order, anchor.current, id) : toggleOne(p, id)));
+    if (!shift) anchor.current = id;
+  };
+  const head = headerState(picked, order);
+  const startSnipDrag = (e: React.DragEvent, id: string) => {
+    const ids = dragSet(picked, order, id);
+    setSnipDrag(ids);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('application/x-il-snippets', ids.join(','));
+    e.dataTransfer.setData('text/plain', ids.length === 1 ? (snippets.find((s) => s.id === id)?.name ?? '') : `${ids.length} snippets`);
+    // The drag badge: "N snippets" (or the one name).
+    const badge = document.createElement('div');
+    badge.textContent = ids.length === 1 ? (snippets.find((s) => s.id === id)?.name ?? '1 snippet') : `${ids.length} snippets`;
+    Object.assign(badge.style, { position: 'fixed', top: '-1000px', left: '0', padding: '4px 12px', borderRadius: '999px', font: '800 12px Manrope, system-ui, sans-serif',
+      background: 'var(--il-ember)', color: 'var(--il-bg)', whiteSpace: 'nowrap' });
+    document.body.appendChild(badge);
+    e.dataTransfer.setDragImage(badge, -10, -10);
+    setTimeout(() => badge.remove(), 0);
+  };
+  const endSnipDrag = () => { setSnipDrag(null); setDropCat(null); };
   const pickCat = (id: string) => { setCatId(id); setQuery(''); setPane('snips'); };
   const newCat = () => { const id = addCategory('New category'); pickCat(id); };
 
@@ -94,13 +123,27 @@ function ManageModal({ opened, start, onClose }: { opened: boolean; start: strin
             <div key={c.id} role="button" tabIndex={0} onClick={() => pickCat(c.id)} onKeyDown={(e) => { if (e.key === 'Enter') pickCat(c.id); }}
               draggable={!fixed && !phone}
               onDragStart={(e) => { setDragFrom(i); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', c.id); }}
-              onDragOver={(e) => { if (dragFrom === null) return; e.preventDefault(); setDragOver(i); }}
-              onDrop={(e) => { e.preventDefault(); if (dragFrom !== null && dragFrom !== i) reorderCategory(dragFrom, i); setDragFrom(null); setDragOver(null); }}
+              onDragOver={(e) => {
+                if (snipDrag) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (dropCat !== c.id) setDropCat(c.id); return; }
+                if (dragFrom === null) return; e.preventDefault(); setDragOver(i);
+              }}
+              onDragLeave={() => { if (snipDrag && dropCat === c.id) setDropCat(null); }}
+              onDrop={(e) => {
+                e.preventDefault();
+                if (snipDrag) {
+                  const moving = snipDrag.filter((id) => snippets.find((x) => x.id === id)?.categoryId !== c.id);
+                  if (moving.length) { moveSnippets(moving, c.id); setPicked(new Set()); }
+                  endSnipDrag(); return;
+                }
+                if (dragFrom !== null && dragFrom !== i) reorderCategory(dragFrom, i); setDragFrom(null); setDragOver(null);
+              }}
               onDragEnd={() => { setDragFrom(null); setDragOver(null); }}
               {...menuProps('snippet-category', c)}
               style={{
                 display: 'flex', alignItems: 'center', gap: 8, minHeight: phone ? 44 : 36, padding: '0 8px', borderRadius: 10, cursor: 'pointer',
-                background: on ? 'var(--il-card-on)' : 'transparent', color: fixed ? 'var(--il-muted)' : 'var(--il-fg)', fontSize: 12, fontWeight: 700,
+                background: snipDrag && dropCat === c.id ? 'var(--il-ember-soft)' : on ? 'var(--il-card-on)' : 'transparent',
+                outline: snipDrag && dropCat === c.id ? '1.5px solid var(--il-ember)' : 'none', outlineOffset: -1.5,
+                color: fixed ? 'var(--il-muted)' : 'var(--il-fg)', fontSize: 12, fontWeight: 700,
                 opacity: dragFrom === i ? 0.4 : 1,
                 boxShadow: dragOver === i && dragFrom !== null && dragFrom !== i ? `inset 0 ${dragFrom < i ? -2 : 2}px 0 var(--il-ember)` : undefined,
               }}>
@@ -164,24 +207,40 @@ function ManageModal({ opened, start, onClose }: { opened: boolean; start: strin
     </div>
   );
 
-  const bulk = picked.size > 0 && (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', minHeight: phone ? 48 : 38, padding: '4px 6px 4px 10px', borderRadius: 10, background: 'color-mix(in srgb, var(--il-ember) 13%, transparent)' }}>
-      <b style={{ fontSize: 12, fontWeight: 800, color: 'var(--il-ember-hi)' }}>{picked.size} selected</b>
+  // The list header: tri-state "select all" + count; the bulk actions when anything is ticked.
+  const bulk = order.length > 0 && (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', minHeight: phone ? 48 : 36, padding: '2px 6px', borderRadius: 10,
+      background: picked.size ? 'color-mix(in srgb, var(--il-ember) 13%, transparent)' : 'transparent' }}>
+      <button type="button" role="checkbox" aria-checked={head === 'all' ? true : head === 'some' ? 'mixed' : false} aria-label={head === 'all' ? 'Select none' : 'Select all'}
+        onClick={() => { setPicked((p) => toggleAll(p, order)); anchor.current = null; }}
+        style={{ display: 'flex', alignItems: 'center', gap: 8, height: phone ? 44 : 30, border: 0, background: 'transparent', color: 'var(--il-fg2)', padding: '0 4px 0 5px', cursor: 'pointer', font: 'inherit' }}>
+        <CheckBox state={head} />
+        <span style={{ fontSize: 12, fontWeight: 800, color: picked.size ? 'var(--il-ember-hi)' : 'var(--il-muted)' }}>
+          {picked.size ? `${picked.size} selected` : 'Select all'}
+        </span>
+      </button>
+      {picked.size > 0 && head !== 'all' && <Button tone="ghost" size={sz} onClick={() => setPicked((p) => new Set([...p, ...order]))}>All</Button>}
+      {picked.size > 0 && <Button tone="ghost" size={sz} onClick={() => setPicked(new Set())}>None</Button>}
       <div style={{ flex: 1 }} />
-      <div style={{ width: phone ? 150 : 140 }}>
-        <SearchSelect label="Move to" value={null} placeholder="Move to…" size={sz} options={moveOptions} searchable={false} dropdownWidth={260} maxDropdownHeight={380}
-          position="bottom-end" onChange={(to) => { moveSnippets(picked, to); setPicked(new Set()); }} />
-      </div>
-      <Button tone="card" size={sz} icon={<IconCopy size={13} />} onClick={() => { duplicateSnippets(picked); setPicked(new Set()); }}>Duplicate</Button>
-      <Button tone="ghost" size={sz} icon={<IconTrash size={13} />} style={{ color: 'var(--il-err)' }} onClick={() => { deleteSnippets(picked); setPicked(new Set()); }}>Delete</Button>
-      <Button tone="ghost" size={sz} icon={<IconX size={13} />} tooltip="Clear the selection" onClick={() => setPicked(new Set())} />
+      {picked.size > 0 && <>
+        <div style={{ width: phone ? 150 : 140 }}>
+          <SearchSelect label="Move to" value={null} placeholder="Move to…" size={sz} options={moveOptions} searchable={false} dropdownWidth={260} maxDropdownHeight={380}
+            position="bottom-end" onChange={(to) => { moveSnippets(picked, to); setPicked(new Set()); }} />
+        </div>
+        <Button tone="card" size={sz} icon={<IconCopy size={13} />} onClick={() => { duplicateSnippets(picked); setPicked(new Set()); }}>Duplicate</Button>
+        <Button tone="ghost" size={sz} icon={<IconTrash size={13} />} style={{ color: 'var(--il-err)' }} onClick={() => { deleteSnippets(picked); setPicked(new Set()); }}>Delete</Button>
+      </>}
+      {!picked.size && !phone && <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--il-dim)', paddingRight: 4 }}>Drag rows onto a category to move them</span>}
     </div>
   );
 
   const list = (
     <div className="il-scroll" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 2, touchAction: 'pan-y', marginTop: 4 }}>
       {rows.length === 0 && <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--il-dim)', padding: '14px 4px' }}>{query ? 'No snippet matches.' : 'No snippets here yet — + Snippet.'}</div>}
-      {rows.map((s) => <SnipRow key={s.id} s={s} picked={picked.has(s.id)} onPick={() => toggle(s.id)} catName={query ? cats.find((c) => c.id === s.categoryId) : undefined} phone={phone} />)}
+      {rows.map((s) => (
+        <SnipRow key={s.id} s={s} picked={picked.has(s.id)} onPick={(shift) => pick(s.id, shift)} catName={query ? cats.find((c) => c.id === s.categoryId) : undefined} phone={phone}
+          dragging={!!snipDrag && snipDrag.includes(s.id)} onDragStart={(e) => startSnipDrag(e, s.id)} onDragEnd={endSnipDrag} />
+      ))}
     </div>
   );
 
@@ -223,17 +282,32 @@ function ManageModal({ opened, start, onClose }: { opened: boolean; start: strin
   );
 }
 
-function SnipRow({ s, picked, onPick, catName, phone }: { s: Snippet; picked: boolean; onPick: () => void; catName?: SnippetCategory; phone: boolean }) {
+function CheckBox({ state }: { state: 'none' | 'some' | 'all' }) {
+  const on = state !== 'none';
   return (
-    <div {...menuProps('style-tile', s)} style={{ display: 'flex', alignItems: 'center', gap: 10, minHeight: phone ? 56 : 46, padding: '4px 6px', borderRadius: 10, background: picked ? 'color-mix(in srgb, var(--il-ember) 8%, transparent)' : 'transparent' }}
+    <span aria-hidden style={{ width: 18, height: 18, flex: 'none', borderRadius: 5, border: `1.5px solid ${on ? 'var(--il-ember)' : 'var(--il-line-strong)'}`, background: on ? 'var(--il-ember)' : 'transparent', display: 'grid', placeItems: 'center', color: 'var(--il-bg)' }}>
+      {state === 'all' && <IconCheck size={12} stroke={3.2} />}
+      {state === 'some' && <IconMinus size={12} stroke={3.2} />}
+    </span>
+  );
+}
+
+function SnipRow({ s, picked, onPick, catName, phone, dragging, onDragStart, onDragEnd }: {
+  s: Snippet; picked: boolean; onPick: (shift: boolean) => void; catName?: SnippetCategory; phone: boolean;
+  dragging: boolean; onDragStart: (e: React.DragEvent) => void; onDragEnd: () => void;
+}) {
+  const open = () => useTileEdit.getState().edit(s.id);
+  return (
+    <div {...menuProps('style-tile', s)} draggable={!phone} onDragStart={onDragStart} onDragEnd={onDragEnd}
+      style={{ display: 'flex', alignItems: 'center', gap: 10, minHeight: phone ? 56 : 46, padding: '4px 6px', borderRadius: 10, opacity: dragging ? 0.45 : 1,
+        background: picked ? 'color-mix(in srgb, var(--il-ember) 8%, transparent)' : 'transparent', cursor: phone ? undefined : 'grab' }}
       className="il-snip-row">
-      <button type="button" role="checkbox" aria-checked={picked} aria-label={`Select ${s.name}`} onClick={onPick}
+      <button type="button" role="checkbox" aria-checked={picked} aria-label={`Select ${s.name}`} onClick={(e) => onPick(e.shiftKey)}
         style={{ width: phone ? 40 : 28, height: phone ? 40 : 28, flex: 'none', border: 0, background: 'transparent', display: 'grid', placeItems: 'center', cursor: 'pointer', padding: 0 }}>
-        <span style={{ width: 18, height: 18, borderRadius: 5, border: `1.5px solid ${picked ? 'var(--il-ember)' : 'var(--il-line-strong)'}`, background: picked ? 'var(--il-ember)' : 'transparent', display: 'grid', placeItems: 'center', color: 'var(--il-bg)' }}>
-          {picked && <IconCheck size={12} stroke={3.2} />}
-        </span>
+        <CheckBox state={picked ? 'all' : 'none'} />
       </button>
-      <button type="button" onClick={() => useTileEdit.getState().edit(s.id)} title="Edit"
+      <div role="button" tabIndex={0} title="Edit" onClick={(e) => (e.shiftKey ? onPick(true) : open())}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } }}
         style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 10, border: 0, background: 'transparent', color: 'var(--il-fg)', padding: 0, cursor: 'pointer', textAlign: 'left', font: 'inherit' }}>
         <span aria-hidden style={{ width: 36, height: 36, borderRadius: 9, flex: 'none', background: s.image ? `center / cover no-repeat url("${s.image}")` : tileBackground(tileHue(s)) }} />
         <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
@@ -243,7 +317,7 @@ function SnipRow({ s, picked, onPick, catName, phone }: { s: Snippet; picked: bo
           </b>
           <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--il-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{previewText(s)}</span>
         </span>
-      </button>
+      </div>
       <button type="button" aria-label="More" onClick={(e) => openMenu('style-tile', s, e.currentTarget)}
         style={{ width: phone ? 40 : 28, height: phone ? 40 : 28, flex: 'none', border: 0, borderRadius: 8, background: 'transparent', color: 'var(--il-muted)', display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
         <IconDots size={15} />
