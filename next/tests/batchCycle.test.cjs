@@ -18,3 +18,10 @@ test('cleanCycle: sorted, unique, 1..16, never empty', () => {
   assert.deepEqual(B.cleanCycle([5, 1, 5, 0, 40, 3]), [1, 3, 5]);
   assert.deepEqual(B.cleanCycle([]), [1, 2, 3]);
 });
+
+test('migrateCycle: one list from v1 per-step lists (first non-default wins), v2 kept', () => {
+  assert.deepEqual(B.migrateCycle({ lists: { a: [1, 2, 3], b: [4, 1] } }), [1, 4]);
+  assert.deepEqual(B.migrateCycle({ lists: {} }), [1, 2, 3]);
+  assert.deepEqual(B.migrateCycle(undefined), [1, 2, 3]);
+  assert.deepEqual(B.migrateCycle({ list: [2, 8] }), [2, 8]);
+});

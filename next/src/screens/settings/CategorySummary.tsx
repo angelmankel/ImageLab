@@ -12,7 +12,8 @@ import { aiStatusLine } from '@/lib/aiProviders';
 import { useTheme } from '~/theme/themeStore';
 import { PRESETS } from '~/theme/themeModel';
 import type { CategoryId } from './categories';
-import { aiSummary, appearanceSummary, modelsSummary, serversSummary, soundsSummary, themesSummary } from './settingsLogic';
+import { useCycleList } from '~/app/batchCycle';
+import { aiSummary, appearanceSummary, generateSummary, modelsSummary, serversSummary, soundsSummary, themesSummary } from './settingsLogic';
 import { useServersUp } from './useServersUp';
 
 function Servers() {
@@ -20,6 +21,10 @@ function Servers() {
   const up = useServersUp(servers);
   const online = servers.filter((s) => s.enabled !== false && up[s.id]).length;
   return <>{serversSummary(servers.length, online)}</>;
+}
+
+function Generate() {
+  return <>{generateSummary(useCycleList())}</>;
 }
 
 function Ai() {
@@ -64,7 +69,7 @@ function Hints() {
   return <>{on ? 'On' : 'Off'}{edited ? ` · ${edited} edited` : ''}</>;
 }
 
-const SUMMARY: Record<CategoryId, () => JSX.Element> = { servers: Servers, ai: Ai, models: Models, appearance: Appearance, themes: Themes, sounds: Sounds, hints: Hints, about: About };
+const SUMMARY: Record<CategoryId, () => JSX.Element> = { servers: Servers, generate: Generate, ai: Ai, models: Models, appearance: Appearance, themes: Themes, sounds: Sounds, hints: Hints, about: About };
 
 export function CategorySummary({ id }: { id: CategoryId }) {
   const S = SUMMARY[id];

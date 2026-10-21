@@ -1,6 +1,7 @@
 /**
- * Sampler · Scheduler · Seed · Batch · Clip skip (rule 5): compact 44px rows, two per line. Batch =
- * the step's ×N cycle list + the current ×N (item 18, `BatchCycleRow`; desktop also has ×N on Generate).
+ * Sampler · Scheduler · Seed · Clip skip (rule 5): compact 44px rows, two per line. The ×N batch is on
+ * the Generate button (its cycle list is in Settings → Generate, fix list 2 #25); the phone, whose
+ * Generate is the dock orb, keeps one tap-to-cycle "Images per run" row here.
  * Sampler and scheduler from the servers' lists; the seed box with a dice (new seed now) and a
  * lock (keep this seed vs a new one every run = `randomizeSeed`); clip skip
  * as a pick.
@@ -12,7 +13,7 @@ import { DEFAULT_CLIP_SKIP } from '@/lib/pipeline';
 import { IconBtn, NumberField, SearchSelect, Tip, samplerFamily, SAMPLER_NOTES, type SelectOption } from '~/ui';
 import { useIsPhone } from '~/app/useIsPhone';
 import { T } from '~/theme/tokens';
-import { BatchCycleRow } from './BatchCycleRow';
+import { nextInCycle, useCycleList } from '~/app/batchCycle';
 
 const MAX_SEED = 0xFFFFFFFF;
 const newSeed = () => Math.floor(Math.random() * MAX_SEED);
@@ -40,6 +41,21 @@ function Pick({ label, value, options, onChange, searchable = true }: { label: s
   );
 }
 
+/** Phone only: the batch as one tap-to-cycle pill (the desktop has it on Generate). */
+function BatchRow() {
+  const batch = useStore((s) => s.workflow.batch);
+  const set = useStore((s) => s.setWorkflow);
+  const list = useCycleList();
+  return (
+    <Row label="Images per run">
+      <button type="button" className="il-btn" aria-label={`×${batch}, tap for ×${nextInCycle(list, batch)}`} onClick={() => set({ batch: nextInCycle(list, batch) })}
+        style={{ height: 40, minWidth: 56, padding: '0 14px', border: 0, borderRadius: 999, background: 'var(--il-ember-soft)', color: 'var(--il-ember-hi)', fontSize: 14, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>
+        ×{batch}
+      </button>
+    </Row>
+  );
+}
+
 export function SamplingRows() {
   const w = useStore((s) => s.workflow);
   const samplers = useStore((s) => s.server.samplers);
@@ -62,7 +78,7 @@ export function SamplingRows() {
         <IconBtn size={phone ? 40 : 30} tone="card" hint="seed.lock" on={!w.randomizeSeed} icon={w.randomizeSeed ? <IconLockOpen size={16} /> : <IconLock size={16} />}
           label={w.randomizeSeed ? 'New seed every run · tap to keep this seed' : 'Seed kept · tap for a new seed every run'} onClick={() => set({ randomizeSeed: !w.randomizeSeed })} />
       </Row>
-      <BatchCycleRow />
+      {phone && <BatchRow />}
       <Row label="Clip skip" hint="clipSkip">
         <Pick searchable={false} label="Clip skip" value={String(clip)} options={CLIP_SKIPS.map((n) => ({ value: String(n), label: n === -1 ? 'off' : String(n) }))} onChange={(v) => set({ clipSkip: Number(v) })} />
       </Row>

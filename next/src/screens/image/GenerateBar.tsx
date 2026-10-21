@@ -20,7 +20,7 @@ import type { Step } from '~/app/stepsStore';
 import { cancelQueueRow, useQueue } from '~/app/queue';
 import { enqueueRun } from '~/app/runQueue';
 import { runTagged } from '~/app/runSteps';
-import { nextInCycle, useCycleOf } from '~/app/batchCycle';
+import { nextInCycle, useCycleList } from '~/app/batchCycle';
 import { Tip } from '~/ui';
 import { useVideoStepRun } from './video';
 import { startWorkflowStepRun } from './workflow';
@@ -79,16 +79,16 @@ export function useStepRun(step: Step): { run: (newSeed?: boolean) => void; stop
 }
 
 /**
- * Item 18: ×N is one tap-to-cycle button (the step's list from the Parameters tab, default 1 / 2 / 3):
- * how many images one press makes (the main workflow's `batch`).
+ * Item 18 + fix list 2 #25: ×N is one tap-to-cycle button (the app's list from Settings → Generate,
+ * default 1 / 2 / 3): how many images one press makes (the main workflow's `batch`).
  */
-function BatchCycle({ stepId, h }: { stepId: string; h: number }) {
+function BatchCycle({ h }: { h: number }) {
   const batch = useStore((s) => s.workflow.batch);
   const set = useStore((s) => s.setWorkflow);
-  const list = useCycleOf(stepId);
+  const list = useCycleList();
   return (
     <>
-      <Tip label={`Images per Generate · tap for ×${nextInCycle(list, batch)} (cycle ${list.join(' / ')}, set in Parameters)`}>
+      <Tip label="Images per run">
         <button type="button" className="il-btn" aria-label={`Batch ×${batch}, tap to change`} onClick={() => set({ batch: nextInCycle(list, batch) })}
           style={{ minWidth: 54, height: h, border: 0, padding: '0 6px 0 14px', background: 'transparent', color: 'var(--il-bg)', fontSize: 15, fontWeight: 800, fontVariantNumeric: 'tabular-nums', display: 'grid', placeItems: 'center', flex: 'none' }}>
           ×{batch}
@@ -116,7 +116,7 @@ export function GenerateBar({ step, large = false }: { step: Step; large?: boole
   return (
     <div style={{ padding: large ? '10px 12px 12px' : '12px 20px 18px', borderTop: '1px solid var(--il-line)', flex: 'none' }}>
       <div className="il-btn-primary" style={{ position: 'relative', display: 'flex', height: h, borderRadius: 999, overflow: 'hidden', background: 'var(--il-ember)' }}>
-        {step.kind === 'image' && <BatchCycle stepId={step.id} h={h} />}
+        {step.kind === 'image' && <BatchCycle h={h} />}
         <Tip label={disabled ?? (pending ? `Queue one more (${pending} on the way) · ⌘/Ctrl + Enter` : 'Generate · ⌘/Ctrl + Enter')}>
           <button type="button" className="il-btn" onClick={() => { if (!off) run(false); }} aria-label="Generate"
             style={{ ...seg, flex: 1, minWidth: 0, fontSize: 16, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>

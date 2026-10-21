@@ -6,8 +6,8 @@
  * the one-line summaries the phone list shows under each category. No imports.
  */
 
-export type CategoryId = 'servers' | 'ai' | 'models' | 'appearance' | 'themes' | 'sounds' | 'hints' | 'about';
-export const CATEGORY_IDS: readonly CategoryId[] = ['servers', 'ai', 'models', 'appearance', 'themes', 'sounds', 'hints', 'about'];
+export type CategoryId = 'servers' | 'generate' | 'ai' | 'models' | 'appearance' | 'themes' | 'sounds' | 'hints' | 'about';
+export const CATEGORY_IDS: readonly CategoryId[] = ['servers', 'generate', 'ai', 'models', 'appearance', 'themes', 'sounds', 'hints', 'about'];
 
 /** What the search reads from a row; the registry's rows carry more (group, control). */
 export interface SearchableRow {
@@ -154,6 +154,11 @@ export function modelsSummary(hasKey: boolean, previewLabel: string): string {
 
 export function appearanceSummary(tilePx: number): string {
   return `Library tiles ${tilePx}px`;
+}
+
+/** Generate (fix list 2 #25): "×1 / ×2 / ×3 per run". */
+export function generateSummary(list: readonly number[]): string {
+  return `${list.map((n) => `×${n}`).join(' / ')} per run`;
 }
 
 export function soundsSummary(volume: number): string {

@@ -4,7 +4,7 @@
  * so the search is data-driven (settingsLogic.ts), plus the component that renders its control.
  */
 import type { ReactElement } from 'react';
-import { IconBrush, IconBulb, IconCube, IconInfoCircle, IconPalette, IconServer, IconSparkles, IconVolume } from '@tabler/icons-react';
+import { IconBrush, IconBulb, IconCube, IconInfoCircle, IconPalette, IconPhotoBolt, IconServer, IconSparkles, IconVolume } from '@tabler/icons-react';
 import type { CategoryId, SearchableRow } from './settingsLogic';
 
 export type { CategoryId };
@@ -18,6 +18,7 @@ export interface Category {
 
 export const CATEGORIES: readonly Category[] = [
   { id: 'servers', label: 'Servers', description: 'The ComfyUI servers that render images and video.', icon: IconServer },
+  { id: 'generate', label: 'Generate', description: 'The Generate button: how many images one run can make.', icon: IconPhotoBolt },
   { id: 'ai', label: 'AI helper', description: 'The provider and model that write, improve and read prompts. Keys stay in this browser; calls go straight from this tab to the active provider.', icon: IconSparkles },
   { id: 'models', label: 'Models & CivitAI', description: 'CivitAI access and how model previews play.', icon: IconCube },
   { id: 'appearance', label: 'Appearance', description: 'Sizes and looks of the library.', icon: IconPalette },

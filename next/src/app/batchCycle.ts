@@ -1,7 +1,7 @@
 /**
- * Item 18: the ×N on the Generate button is one tap-to-cycle button. Each step has its own list of
- * values (default 1 / 2 / 3, edited in the step's Parameters tab); a tap moves to the next value
- * and wraps. Persisted per step id. The pure part (`nextInCycle`, `cleanCycle`) is tested in
+ * Item 18 + fix list 2 #25: the ×N on the Generate button is one tap-to-cycle button. ONE list for
+ * the whole app (default 1 / 2 / 3), edited in Settings → Generate; a tap moves to the next value
+ * and wraps. The pure part (`nextInCycle`, `cleanCycle`, `migrateCycle`) is tested in
  * tests/batchCycle.test.cjs.
  */
 import { create } from 'zustand';
@@ -24,20 +24,33 @@ export function nextInCycle(list: readonly number[], current: number): number {
   return l.find((v) => v > current) ?? l[0];
 }
 
+/** v1 kept a list per step id; v2 keeps one. The first stored list that differs from the default wins. */
+export function migrateCycle(persisted: unknown): number[] {
+  const p = (persisted ?? {}) as { list?: unknown; lists?: Record<string, unknown> };
+  if (Array.isArray(p.list)) return cleanCycle(p.list as number[]);
+  const lists = Object.values(p.lists ?? {}).filter(Array.isArray).map((l) => cleanCycle(l as number[]));
+  return lists.find((l) => l.join() !== DEFAULT_CYCLE.join()) ?? [...DEFAULT_CYCLE];
+}
+
 interface BatchCycleState {
-  lists: Record<string, number[]>;
-  setList: (stepId: string, values: readonly number[]) => void;
+  list: number[];
+  setList: (values: readonly number[]) => void;
 }
 
 export const useBatchCycle = create<BatchCycleState>()(
   persist(
     (set) => ({
-      lists: {},
-      setList: (stepId, values) => set((s) => ({ lists: { ...s.lists, [stepId]: cleanCycle(values) } })),
+      list: [...DEFAULT_CYCLE],
+      setList: (values) => set({ list: cleanCycle(values) }),
     }),
-    { name: 'imagelab.next.batchCycle.v1' },
+    {
+      name: 'imagelab.next.batchCycle.v1',
+      version: 2,
+      partialize: (s) => ({ list: s.list }),
+      migrate: (persisted) => ({ list: migrateCycle(persisted) }) as unknown as BatchCycleState,
+    },
   ),
 );
 
-/** A step's cycle list (the default when it has none). Stable reference for the selector. */
-export const useCycleOf = (stepId: string): readonly number[] => useBatchCycle((s) => s.lists[stepId] ?? DEFAULT_CYCLE);
+/** The app's ×N cycle list. */
+export const useCycleList = (): readonly number[] => useBatchCycle((s) => s.list);
