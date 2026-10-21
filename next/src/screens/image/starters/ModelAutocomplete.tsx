@@ -45,7 +45,7 @@ function useSafePreviews(models: InstalledCivitai[]): Map<number, string> {
 function Pic({ url, label, size }: { url?: string; label: string; size: number }) {
   const [broken, setBroken] = useState(false);
   return (
-    <span aria-hidden style={{ width: size, height: size, borderRadius: 10, flex: 'none', overflow: 'hidden', display: 'grid', placeItems: 'center', background: 'linear-gradient(140deg,#3f4f5e,#1e262d)', color: 'var(--il-fg)', fontWeight: 800, fontSize: Math.round(size * 0.3) }}>
+    <span aria-hidden style={{ width: size, height: size, borderRadius: Math.min(10, Math.round(size / 3)), flex: 'none', overflow: 'hidden', display: 'grid', placeItems: 'center', background: 'linear-gradient(140deg,#3f4f5e,#1e262d)', color: 'var(--il-fg)', fontWeight: 800, fontSize: Math.round(size * 0.3) }}>
       {url && !broken
         ? <img src={url} alt="" loading="lazy" decoding="async" onError={() => setBroken(true)} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
         : initials(label)}
@@ -53,7 +53,11 @@ function Pic({ url, label, size }: { url?: string; label: string; size: number }
   );
 }
 
-export function ModelAutocomplete({ models, value, onChange }: { models: InstalledCivitai[]; value: number | null; onChange: (versionId: number) => void }) {
+export function ModelAutocomplete({ models, value, onChange, compact }: {
+  models: InstalledCivitai[]; value: number | null; onChange: (versionId: number) => void;
+  /** One toolbar row high (Starters' packed toolbar): a 26px thumbnail, the name only. */
+  compact?: boolean;
+}) {
   const phone = useIsPhone();
   const [search, setSearch] = useState('');
   const input = useRef<HTMLInputElement>(null);
@@ -64,7 +68,8 @@ export function ModelAutocomplete({ models, value, onChange }: { models: Install
   const shown = filterOptions(options, search);
   const byId = useMemo(() => new Map(models.map((m) => [String(m.versionId), m])), [models]);
   const open = combobox.dropdownOpened;
-  const boxH = phone ? 60 : 56;
+  const boxH = compact ? (phone ? 40 : 34) : phone ? 60 : 56;
+  const pic = compact ? (phone ? 30 : 26) : 48;
 
   return (
     <Combobox store={combobox} withinPortal zIndex={T.z.popover} position="bottom-start" width="target" offset={4} transitionProps={{ transition: 'pop', duration: 120 }}
@@ -73,9 +78,9 @@ export function ModelAutocomplete({ models, value, onChange }: { models: Install
       <Combobox.DropdownTarget>
         <div className="il-field" data-open={open}
           onMouseDown={(e) => { if (e.target === input.current) return; e.preventDefault(); if (open) combobox.closeDropdown(); else { input.current?.focus(); combobox.openDropdown(); } }}
-          style={{ height: boxH, padding: '0 10px 0 4px', gap: 10, cursor: 'pointer', maxWidth: phone ? undefined : 460, width: '100%' }}>
-          {open ? <span style={{ width: 48, display: 'grid', placeItems: 'center', flex: 'none', color: 'var(--il-dim)' }}><IconSearch size={18} stroke={2.4} /></span>
-            : <Pic url={current ? previews.get(current.versionId) : undefined} label={current?.model ?? '?'} size={48} />}
+          style={{ height: boxH, padding: compact ? '0 8px 0 4px' : '0 10px 0 4px', gap: compact ? 8 : 10, cursor: 'pointer', maxWidth: compact ? 280 : phone ? undefined : 460, width: '100%', minWidth: compact ? 180 : undefined, flex: compact ? '1 1 200px' : undefined }}>
+          {open ? <span style={{ width: pic, display: 'grid', placeItems: 'center', flex: 'none', color: 'var(--il-dim)' }}><IconSearch size={compact ? 15 : 18} stroke={2.4} /></span>
+            : <Pic url={current ? previews.get(current.versionId) : undefined} label={current?.model ?? '?'} size={pic} />}
           <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
             <Combobox.EventsTarget>
               <input ref={input} aria-label="Model" role="combobox" aria-expanded={open} spellCheck={false} autoComplete="off" autoCorrect="off" autoCapitalize="off" data-1p-ignore data-lpignore="true"
@@ -84,7 +89,7 @@ export function ModelAutocomplete({ models, value, onChange }: { models: Install
                 onClick={() => combobox.openDropdown()} onFocus={() => combobox.openDropdown()} onBlur={() => combobox.closeDropdown()}
                 style={{ fontSize: 13, fontWeight: 800, textOverflow: 'ellipsis', cursor: 'text' }} />
             </Combobox.EventsTarget>
-            {!open && current && <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--il-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{current.version} · {current.type || 'Model'}</span>}
+            {!open && current && !compact && <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--il-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{current.version} · {current.type || 'Model'}</span>}
           </span>
           <IconChevronDown size={15} stroke={2.6} className="il-chev" style={{ flex: 'none' }} aria-hidden />
         </div>

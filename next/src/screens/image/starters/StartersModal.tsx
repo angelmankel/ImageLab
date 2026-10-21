@@ -3,21 +3,23 @@
  * model picker (the same ≈ 94vw × 92vh window; full screen with Back on a phone). The body is
  * only pictures, in a masonry; a click uses the picture's prompt (+ negative, steps / CFG / seed)
  * with Undo and closes; right-click / long-press: Use · As input image · Copy prompt · Open on
- * CivitAI. The top section filters: source (Your models / Mine / Built-in), the model (ONE
- * search with thumbnails, fix list 2 item 5 — no more long row of model chips), sort, content,
- * shape, search, and tags (the parts that recur in the loaded prompts).
+ * CivitAI. The top is ONE toolbar row (fix list 2, added item): source (CivitAI / Mine /
+ * Built-in) · search · "Your models" (off by default: the general CivitAI feed; on: one installed
+ * model's pictures, picked with the thumbnail search of item 5) · content · shape · sort · time
+ * window · reload — remembered per viewer — and the tags as one sideways row with an edge fade.
  *
  * Fast (item 5): pages show as they land (`useStarterGallery`, cached per model + filter), tiles
  * load small CivitAI renditions lazily with a placeholder that fades in (`LoadingImage`), and
  * tiles off screen skip layout and paint (`content-visibility: auto`). Skeleton tiles while the
- * first page loads, a few more at the end while the next one does. NSFW pictures are covered
- * until tapped unless the user opted in (item 27).
+ * first page loads, a few more at the end while the next one does. In the mixed "All" view NSFW
+ * pictures are veiled (a blurred tiny rendition + "tap to show") unless the user opted in (item
+ * 27); the NSFW view is an explicit choice and shows them plainly.
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { Modal } from '@mantine/core';
-import { IconSparkles, IconChevronLeft, IconCopy, IconExternalLink, IconEyeOff, IconPhotoUp, IconRefresh, IconSearch, IconTextCaption, IconTrash, IconX } from '@tabler/icons-react';
+import { IconSparkles, IconChevronLeft, IconCopy, IconExternalLink, IconEyeOff, IconFilter, IconPhotoUp, IconRefresh, IconSearch, IconTextCaption, IconTrash, IconX } from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
-import { civitaiThumbUrl, type CivitaiImageSort, type NsfwFilter } from '@/lib/civitai';
+import { civitaiThumbUrl, type CivitaiImage, type CivitaiImageSort, type NsfwFilter } from '@/lib/civitai';
 import { loadNsfw, saveNsfw, useInstalledCivitai } from '@/features/layers/civitaiPrompts';
 import { PROMPT_PRESETS, familyForCheckpoint, presetPrompt } from '@/lib/promptLibrary';
 import { profileById } from '@/lib/modelProfiles';
@@ -25,7 +27,8 @@ import { useMine } from '@/features/next/mineStore';
 import { menuProps, registerMenu } from '~/app/contextMenu';
 import { useIsPhone } from '~/app/useIsPhone';
 import { T } from '~/theme/tokens';
-import { Button, LoadingImage, SkeletonTiles } from '~/ui';
+import { Button, LoadingImage, SearchSelect, SkeletonTiles, useEdgeFade } from '~/ui';
+import { PERIODS, type Period } from '~/screens/models/civitaiQuery';
 import { useNsfwCover } from '~/screens/models/nsfwCover';
 import { ModelAutocomplete } from './ModelAutocomplete';
 import { tileBackground } from '../prompt/promptSearch';
@@ -34,7 +37,26 @@ import { passes, topTags, type Shape } from './starterLogic';
 import { useStarterGallery } from './useStarterGallery';
 import { dvh, vh, vw } from '~/theme/uiScale';
 
-type Source = 'models' | 'mine' | 'builtin';
+type Source = 'civitai' | 'mine' | 'builtin';
+
+/** What the viewer picked last (source, "Your models", sort, window), this browser only. */
+const PREFS_KEY = 'imagelab.next.starters.v1';
+interface Prefs { source: Source; ours: boolean; sort: CivitaiImageSort; period: Period; shape: Shape }
+const DEFAULT_PREFS: Prefs = { source: 'civitai', ours: false, sort: 'Most Reactions', period: 'Week', shape: 'any' };
+function loadPrefs(): Prefs {
+  try {
+    const raw = JSON.parse(localStorage.getItem(PREFS_KEY) || 'null') as Partial<Prefs> | null;
+    if (!raw) return DEFAULT_PREFS;
+    return {
+      source: raw.source === 'mine' || raw.source === 'builtin' ? raw.source : 'civitai',
+      ours: raw.ours === true,
+      sort: SORTS.some((x) => x.key === raw.sort) ? raw.sort as CivitaiImageSort : DEFAULT_PREFS.sort,
+      period: (PERIODS as readonly string[]).includes(raw.period ?? '') ? raw.period as Period : DEFAULT_PREFS.period,
+      shape: SHAPES.some((x) => x.key === raw.shape) ? raw.shape as Shape : 'any',
+    };
+  } catch { return DEFAULT_PREFS; }
+}
+function savePrefs(p: Prefs) { try { localStorage.setItem(PREFS_KEY, JSON.stringify(p)); } catch { /* ignore */ } }
 
 /** One tile of the masonry: a CivitAI picture, or a saved / built-in prompt as a colour card. */
 export interface StarterItem {
@@ -56,6 +78,7 @@ registerMenu<StarterItem>('starter', [
 
 const SORTS: Array<{ key: CivitaiImageSort; label: string }> = [{ key: 'Most Reactions', label: 'Most reactions' }, { key: 'Newest', label: 'Newest' }, { key: 'Most Collected', label: 'Most collected' }];
 const NSFW: Array<{ key: NsfwFilter; label: string }> = [{ key: 'all', label: 'All' }, { key: 'sfw', label: 'SFW' }, { key: 'nsfw', label: 'NSFW' }];
+const PERIOD_ITEMS = [{ value: 'Day', label: 'Today' }, { value: 'Week', label: 'This week' }, { value: 'Month', label: 'This month' }, { value: 'Year', label: 'This year' }, { value: 'AllTime', label: 'All time' }];
 const SHAPES: Array<{ key: Shape; label: string }> = [{ key: 'any', label: 'Any' }, { key: 'portrait', label: 'Portrait' }, { key: 'landscape', label: 'Landscape' }, { key: 'square', label: 'Square' }];
 
 function Seg<K extends string>({ items, value, onChange, h }: { items: Array<{ key: K; label: string }>; value: K; onChange: (k: K) => void; h: number }) {
@@ -69,17 +92,10 @@ function Seg<K extends string>({ items, value, onChange, h }: { items: Array<{ k
   );
 }
 
-function Pills<K extends string>({ label, items, value, onChange, h }: { label: string; items: Array<{ key: K; label: string }>; value: K; onChange: (k: K) => void; h: number }) {
-  return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, flex: 'none' }}>
-      <span className="il-eyebrow" style={{ marginRight: 2 }}>{label}</span>
-      {items.map((it) => {
-        const on = it.key === value;
-        return <button key={it.key} type="button" aria-pressed={on} onClick={() => onChange(it.key)}
-          style={{ height: h, padding: '0 11px', borderRadius: 999, fontSize: 11, fontWeight: 800, cursor: 'pointer', border: `1px solid ${on ? 'var(--il-fg)' : 'var(--il-line-soft)'}`, background: on ? 'var(--il-fg)' : 'transparent', color: on ? 'var(--il-bg)' : 'var(--il-muted)' }}>{it.label}</button>;
-      })}
-    </span>
-  );
+/** The picture's own CivitAI page, when the API sent its id. */
+function imageLink(img: CivitaiImage): string | undefined {
+  const id = (img as { id?: number }).id;
+  return id ? `https://civitai.com/images/${id}` : undefined;
 }
 
 function hue(s: string) { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return h % 360; }
@@ -103,7 +119,9 @@ function Tile({ it, onUse }: { it: StarterItem; onUse: () => void }) {
     if (it.img.nsfw && !shown) {
       return (
         <button type="button" onClick={() => setShown(true)} aria-label="NSFW picture · tap to show" style={{ ...box, background: 'var(--il-elev)', aspectRatio: String(aspect), display: 'grid', placeItems: 'center' }}>
-          <span style={{ height: 30, padding: '0 12px', borderRadius: 999, background: 'color-mix(in srgb, var(--il-bg) 80%, transparent)', color: 'var(--il-fg)', fontSize: 11, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6 }}><IconEyeOff size={13} stroke={2.2} />NSFW · tap to show</span>
+          {/* The picture is there, just veiled: a tiny rendition, heavily blurred (never an empty card). */}
+          <img src={civitaiThumbUrl(it.img.url, 32)} alt="" aria-hidden loading="lazy" decoding="async" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', filter: 'blur(18px) saturate(.8)', transform: 'scale(1.15)', opacity: 0.7 }} />
+          <span style={{ position: 'relative', height: 30, padding: '0 12px', borderRadius: 999, background: 'color-mix(in srgb, var(--il-bg) 80%, transparent)', color: 'var(--il-fg)', fontSize: 11, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6 }}><IconEyeOff size={13} stroke={2.2} />NSFW · tap to show</span>
         </button>
       );
     }
@@ -127,31 +145,37 @@ function Tile({ it, onUse }: { it: StarterItem; onUse: () => void }) {
 function Body({ onClose }: { onClose: () => void }) {
   const phone = useIsPhone();
   const h = phone ? 40 : 34;
-  const [source, setSource] = useState<Source>('models');
+  const [prefs, setPrefs] = useState<Prefs>(loadPrefs);
+  const set = (patch: Partial<Prefs>) => setPrefs((p) => { const n = { ...p, ...patch }; savePrefs(n); return n; });
+  const { source, ours, sort, period, shape } = prefs;
   const [query, setQuery] = useState('');
   const [tags, setTags] = useState<string[]>([]);
-  const [shape, setShape] = useState<Shape>('any');
-  const [sort, setSort] = useState<CivitaiImageSort>('Most Reactions');
   const [nsfw, setNsfw] = useState<NsfwFilter>(loadNsfw);
   useEffect(() => { saveNsfw(nsfw); }, [nsfw]);
   const installed = useInstalledCivitai('image');
   const [picked, setPicked] = useState<number | null>(null);
   const model = installed.find((m) => m.versionId === picked) ?? installed[0] ?? null;
-  const gallery = useStarterGallery(source === 'models' ? model?.versionId ?? null : null, nsfw, sort);
+  const civitai = source === 'civitai';
+  const byModel = civitai && ours;
+  // General CivitAI pictures by default; one installed model's only when "Your models" is on.
+  const gallery = useStarterGallery({ enabled: civitai && (!ours || !!model), versionId: byModel ? model?.versionId ?? null : null, nsfw, sort, period });
+  const fade = useEdgeFade<HTMLDivElement>();
   const mine = useMine((s) => s.items);
   const checkpoint = useStore((s) => s.workflow.checkpoints[0]?.name);
   const typeHasTags = useStore((s) => !!profileById(s.workflow.modelProfile)?.tags.length);
-  const covered = useNsfwCover();
-  useEffect(() => { setTags([]); }, [source, model?.versionId]);
+  const coveredRule = useNsfwCover();
+  // Picking NSFW is an explicit choice: that view shows the pictures, never covers (added item, 3).
+  const covered = useCallback((lvl: number | string | undefined | null) => nsfw !== 'nsfw' && coveredRule(lvl), [nsfw, coveredRule]);
+  useEffect(() => { setTags([]); }, [source, ours, model?.versionId]);
 
   const items = useMemo<StarterItem[]>(() => {
-    if (source === 'models') {
+    if (civitai) {
       return gallery.items.map((img, i) => ({
         key: `${img.url.split('/').pop() ?? i}-${i}`,
-        name: model ? `${model.model} picture` : 'CivitAI picture',
+        name: byModel && model ? `${model.model} picture` : 'CivitAI picture',
         prompt: img.meta!.prompt!,
         use: { positive: img.meta!.prompt!, negative: img.meta!.negativePrompt || undefined, steps: img.meta!.steps, cfg: img.meta!.cfgScale, seed: img.meta!.seed },
-        img: { url: img.url, width: img.width, height: img.height, link: model ? `https://civitai.com/models/${model.modelId}?modelVersionId=${model.versionId}` : 'https://civitai.com', nsfw: covered(img.nsfwLevel) },
+        img: { url: img.url, width: img.width, height: img.height, link: imageLink(img) ?? (byModel && model ? `https://civitai.com/models/${model.modelId}?modelVersionId=${model.versionId}` : 'https://civitai.com/images'), nsfw: covered(img.nsfwLevel) },
       }));
     }
     if (source === 'mine') {
@@ -159,7 +183,7 @@ function Body({ onClose }: { onClose: () => void }) {
     }
     const fam = familyForCheckpoint(checkpoint, typeHasTags);
     return PROMPT_PRESETS.map((p) => { const t = presetPrompt(p, fam); return { key: p.id, name: p.name, prompt: p.positive, use: { positive: t.positive, negative: t.negative } }; });
-  }, [source, gallery.items, model, mine, checkpoint, typeHasTags, covered]);
+  }, [civitai, byModel, source, gallery.items, model, mine, checkpoint, typeHasTags, covered]);
 
   const tagList = useMemo(() => topTags(items.map((i) => i.prompt)), [items]);
   const shown = useMemo(() => items.filter((it) => passes({ prompt: it.prompt, width: it.img?.width, height: it.img?.height }, { tags, query, shape: it.img ? shape : 'any' })), [items, tags, query, shape]);
@@ -169,45 +193,54 @@ function Body({ onClose }: { onClose: () => void }) {
   const { more, hasMore, loading } = gallery;
   useEffect(() => {
     const el = sentinel.current;
-    if (!el || source !== 'models') return;
+    if (!el || !civitai) return;
     const io = new IntersectionObserver((e) => { if (e[0]?.isIntersecting && hasMore && !loading) more(); }, { rootMargin: '600px' });
     io.observe(el);
     return () => io.disconnect();
-  }, [source, hasMore, loading, more]);
+  }, [civitai, hasMore, loading, more]);
 
   const use = useCallback((it: StarterItem) => { applyStarter(it.use, it.name); onClose(); }, [onClose]);
   const toggleTag = (t: string) => setTags((cur) => (cur.includes(t) ? cur.filter((x) => x !== t) : [...cur, t]));
 
-  const empty: ReactNode = source === 'models'
-    ? (!installed.length ? 'None of the installed models is known to CivitAI yet (their hashes may still be loading).'
+  const empty: ReactNode = civitai
+    ? (byModel && !installed.length ? 'None of the installed models is known to CivitAI yet (their hashes may still be loading).'
       : gallery.failed ? 'CivitAI did not answer. Try again in a moment.'
-      : gallery.loading ? null : items.length ? 'Nothing passes these filters.' : 'No pictures with a prompt for this model under this filter.')
+      : gallery.loading ? null : items.length ? 'Nothing passes these filters.' : (byModel ? 'No pictures with a prompt for this model under this filter.' : 'No pictures with a prompt under this filter.'))
     : source === 'mine' ? (items.length ? 'Nothing passes these filters.' : 'Nothing saved yet.') : 'Nothing passes these filters.';
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-      <div style={{ flex: 'none', padding: phone ? '8px 10px' : '10px 16px', borderBottom: '1px solid var(--il-line)', display: 'flex', flexDirection: 'column', gap: 8, background: 'linear-gradient(var(--il-panel), var(--il-bg))' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: phone ? 'wrap' : 'nowrap' }}>
-          <Seg<Source> h={h} value={source} onChange={setSource} items={[{ key: 'models', label: phone ? 'Models' : 'Your models' }, { key: 'mine', label: 'Mine' }, { key: 'builtin', label: 'Built-in' }]} />
-          <label style={{ flex: 1, minWidth: phone ? 140 : 200, height: h, borderRadius: 12, background: 'var(--il-bg-deep)', border: '1px solid var(--il-line-soft)', display: 'flex', alignItems: 'center', gap: 8, padding: '0 8px 0 12px' }}>
+      <div style={{ flex: 'none', padding: phone ? '8px 10px' : '8px 16px', borderBottom: '1px solid var(--il-line)', display: 'flex', flexDirection: 'column', gap: 6, background: 'linear-gradient(var(--il-panel), var(--il-bg))' }}>
+        {/* ONE toolbar row (added item, 1): source · search · Your models (+ its picker) · content · shape · sort · window · reload. Wraps only when it must. */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          <Seg<Source> h={h} value={source} onChange={(v) => set({ source: v })} items={[{ key: 'civitai', label: 'CivitAI' }, { key: 'mine', label: 'Mine' }, { key: 'builtin', label: 'Built-in' }]} />
+          <label style={{ flex: '2 1 180px', minWidth: 140, height: h, borderRadius: 12, background: 'var(--il-bg-deep)', border: '1px solid var(--il-line-soft)', display: 'flex', alignItems: 'center', gap: 8, padding: '0 8px 0 12px' }}>
             <IconSearch size={14} stroke={2.4} style={{ color: 'var(--il-dim)', flex: 'none' }} />
             <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search the prompts…" aria-label="Search the prompts"
               style={{ flex: 1, minWidth: 0, border: 0, background: 'transparent', color: 'var(--il-fg)', fontSize: 13, fontWeight: 600, outline: 'none', fontFamily: 'inherit' }} />
             {query && <button type="button" aria-label="Clear search" onClick={() => setQuery('')} style={{ width: 24, height: 24, border: 0, background: 'transparent', color: 'var(--il-muted)', display: 'grid', placeItems: 'center', cursor: 'pointer' }}><IconX size={12} stroke={2.6} /></button>}
           </label>
-          {source === 'models' && !phone && <Seg<CivitaiImageSort> h={h} value={sort} onChange={setSort} items={SORTS} />}
-          {source === 'models' && <Button tone="card" h={h} icon={<IconRefresh size={15} stroke={2.2} />} tooltip="Reload" onClick={gallery.reload} disabled={gallery.loading} />}
-        </div>
-        {source === 'models' && installed.length > 0 && (
-          <ModelAutocomplete models={installed} value={model?.versionId ?? null} onChange={setPicked} />
-        )}
-        <div className="il-scroll-x" data-no-swipe style={{ display: 'flex', alignItems: 'center', gap: 10, touchAction: 'pan-x pan-y' }}>
-          {source === 'models' && phone && <Pills<CivitaiImageSort> label="Sort" h={30} value={sort} onChange={setSort} items={SORTS} />}
-          {source === 'models' && <Pills<NsfwFilter> label="Content" h={phone ? 34 : 28} value={nsfw} onChange={setNsfw} items={NSFW} />}
-          {source === 'models' && <Pills<Shape> label="Shape" h={phone ? 34 : 28} value={shape} onChange={setShape} items={SHAPES} />}
+          {civitai && (
+            <Button tone={ours ? 'card' : 'ghost'} on={ours} h={h} icon={<IconFilter size={14} stroke={2.4} />} onClick={() => set({ ours: !ours })}
+              tooltip={ours ? 'Showing one of your models · tap for all of CivitAI' : 'Only pictures made with one of your models'}>Your models</Button>
+          )}
+          {byModel && installed.length > 0 && <ModelAutocomplete compact models={installed} value={model?.versionId ?? null} onChange={setPicked} />}
+          {civitai && <Seg<NsfwFilter> h={h} value={nsfw} onChange={setNsfw} items={NSFW} />}
+          {civitai && (
+            <SearchSelect size="sm" searchable={false} label="Shape" value={shape} onChange={(v) => set({ shape: v as Shape })} style={{ width: 118, height: h }}
+              options={SHAPES.map((x) => ({ value: x.key, label: x.key === 'any' ? 'Any shape' : x.label }))} />
+          )}
+          {civitai && (
+            <SearchSelect size="sm" searchable={false} label="Sort" value={sort} onChange={(v) => set({ sort: v as CivitaiImageSort })} style={{ width: 146, height: h }}
+              options={SORTS.map((x) => ({ value: x.key, label: x.label }))} />
+          )}
+          {civitai && !byModel && (
+            <SearchSelect size="sm" searchable={false} label="Time window" value={period} onChange={(v) => set({ period: v as Period })} style={{ width: 124, height: h }} options={PERIOD_ITEMS} />
+          )}
+          {civitai && <Button tone="card" h={h} icon={<IconRefresh size={15} stroke={2.2} />} tooltip="Reload" onClick={gallery.reload} disabled={gallery.loading} />}
         </div>
         {tagList.length > 0 && (
-          <div className="il-scroll-x" data-no-swipe style={{ display: 'flex', alignItems: 'center', gap: 6, touchAction: 'pan-x pan-y', flexWrap: phone ? 'nowrap' : 'wrap' }}>
+          <div ref={fade.ref} className="il-scroll-x" data-no-swipe style={{ display: 'flex', alignItems: 'center', gap: 6, touchAction: 'pan-x pan-y', flexWrap: 'nowrap', ...fade.style }}>
             <span className="il-eyebrow" style={{ flex: 'none' }}>Tags</span>
             {tagList.map(({ tag, count }) => {
               const on = tags.includes(tag);
@@ -228,7 +261,7 @@ function Body({ onClose }: { onClose: () => void }) {
           {shown.map((it) => <Tile key={it.key} it={it} onUse={() => use(it)} />)}
         </div>
         {shown.length === 0 && empty && <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--il-muted)', textAlign: 'center', padding: '40px 12px' }}>{empty}</div>}
-        {source === 'models' && gallery.loading && (
+        {civitai && gallery.loading && (
           <SkeletonTiles masonry count={shown.length ? (phone ? 4 : 5) : (phone ? 6 : 15)} columns={phone ? 2 : undefined} min={220} gap={phone ? 8 : 10} radius={12} style={shown.length ? { marginTop: 4 } : undefined} />
         )}
         <div ref={sentinel} style={{ height: 1 }} />
