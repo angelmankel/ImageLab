@@ -10,7 +10,7 @@ import { create } from 'zustand';
 import { useStore } from '@/lib/store';
 import type { Collection } from '@/lib/types';
 import { runStoreOf } from '~/app/deleteResult';
-import { undoNote } from '~/app/undoNote';
+import { pushUndo } from '~/app/undo';
 import { dropToBlob, type DropItem } from '~/dnd';
 import { moveInto, nextName, removeEverywhere, restoreAt } from './collectionsLogic';
 
@@ -38,7 +38,7 @@ export function renameCollection(id: string, name: string): void {
   useStore.getState().renameCollection(id, name);
 }
 
-/** ×: the collection goes, its pictures stay (back to "no collection"). Undo for 3 s. */
+/** ×: the collection goes, its pictures stay (back to "no collection"). Ctrl+Z brings it back (app undo stack). */
 export function deleteCollection(id: string): void {
   const list = useStore.getState().collections;
   const index = list.findIndex((c) => c.id === id);
@@ -46,7 +46,7 @@ export function deleteCollection(id: string): void {
   const gone = list[index];
   useStore.getState().deleteCollection(id);
   if (useCollectionsUi.getState().active === id) setActiveCollection(null);
-  undoNote(`${gone.name} deleted · pictures kept`, () => setCollections(restoreAt(useStore.getState().collections, gone, index)));
+  pushUndo({ label: 'Delete collection', undo: () => setCollections(restoreAt(useStore.getState().collections, gone, index)), redo: () => deleteCollection(id) });
 }
 
 /** Move an item id (history entry id, run key or imported id) into a collection. */

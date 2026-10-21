@@ -1,6 +1,6 @@
 /**
  * Rule 8: the right panel is history. A filter row only (This step | All, then the Images · Videos · ★
- * toggles), no title, no search, no date dividers, one grid. This step (the default) shows what the
+ * segmented control — tap the lit one again for every kind — and ⋯ = Clear history / Reset session; the row wraps when narrow), no title, no search, no date dividers, one grid. This step (the default) shows what the
  * open step made (`inStep`, tags from `resultSteps.ts`). Click = show on the stage, double-click = fullscreen, the ★
  * toggles favourite, the trash (top-left, on hover) deletes with Undo (`~/app/deleteResult`). Images
  * from the main store's history; videos from the video / workflow run stores. The pure merge +
@@ -10,8 +10,8 @@
  * a picture dropped on a tile (or on the grid while a collection is shown) moves there.
  */
 import { useMemo, useRef, useState } from 'react';
-import { useScrollIntoView } from '~/ui';
-import { IconArrowLeft, IconHeart, IconHeartFilled, IconTrash } from '@tabler/icons-react';
+import { LoadingImage, useScrollIntoView } from '~/ui';
+import { IconArrowLeft, IconDots, IconEraser, IconHeart, IconHeartFilled, IconRestore, IconTrash } from '@tabler/icons-react';
 import { FullscreenImage } from '@/components/FullscreenImage';
 import { useStore } from '@/lib/store';
 import type { HistoryEntry } from '@/lib/types';
@@ -24,9 +24,10 @@ import { deleteOutput } from '~/app/deleteResult';
 import { filterTiles, inStep, mergeTiles, type HistoryFilter, type HistoryScope, type Tile } from './historyLogic';
 import { useResultSteps } from './resultSteps';
 import { makePayload, useImageDrag, useLongPress, openSendTo } from '~/dnd';
-import { menuProps } from '~/app/contextMenu';
+import { menuProps, openMenu, registerMenu } from '~/app/contextMenu';
+import { confirmClearHistory, confirmResetSession } from '~/app/sessionActions';
 import { useImageDrop } from '~/dnd';
-import { undoNote } from '~/app/undoNote';
+import { pushUndo } from '~/app/undo';
 import { CollectionsRow } from './collections/CollectionsRow';
 import { useCollectionView } from './collections/useCollectionView';
 import { addImageToCollection, moveItem, removeFromCollections, setActiveCollection, useCollectionsUi } from './collections/collectionActions';
@@ -36,7 +37,28 @@ import { PasteButton, PasteNote } from '~/compose/PasteButton';
 
 const SCOPES: Array<{ key: HistoryScope; label: string; title: string }> = [{ key: 'step', label: 'This step', title: 'Only what the open step made' }, { key: 'all', label: 'All', title: 'Everything this session made' }];
 /** Toggles: tap one to show only that, tap it again for everything (no 'All' chip, Donny 10-20). */
-const FILTERS: Array<{ key: HistoryFilter; label: string }> = [{ key: 'images', label: 'Images' }, { key: 'videos', label: 'Videos' }, { key: 'liked', label: '★' }];
+const FILTERS: Array<{ key: HistoryFilter; label: string; title: string }> = [{ key: 'images', label: 'Images', title: 'Only images' }, { key: 'videos', label: 'Videos', title: 'Only videos' }, { key: 'liked', label: '★', title: 'Only favourites' }];
+
+// The bar's ⋯ (fix list 2, item 9: "an easy Clear all history"): the open session's history actions.
+registerMenu<string>('history-bar', [
+  { id: 'clear', label: 'Clear history…', icon: IconEraser, group: 'session', action: (id) => confirmClearHistory(id) },
+  { id: 'reset', label: 'Reset session…', icon: IconRestore, group: 'session', action: (id) => confirmResetSession(id) },
+]);
+
+/** One segmented control (This step | All, Images | Videos | ★): segments share one pill; 40px tall on a phone. */
+function Segmented({ label, items, phone }: { label: string; phone: boolean; items: Array<{ key: string; label: string; title: string; on: boolean; onClick: () => void }> }) {
+  const h = phone ? 36 : 26;
+  return (
+    <div role="group" aria-label={label} style={{ display: 'flex', gap: 2, padding: 2, borderRadius: 999, background: 'var(--il-bg-deep)', flex: 'none' }}>
+      {items.map((it) => (
+        <button key={it.key} type="button" onClick={it.onClick} aria-pressed={it.on} title={it.title}
+          style={{ height: h, minWidth: phone ? 40 : undefined, padding: '0 10px', border: 0, borderRadius: 999, background: it.on ? 'var(--il-card-on)' : 'transparent', color: it.on ? 'var(--il-fg)' : 'var(--il-muted)', fontWeight: 800, fontSize: 11, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+          {it.label}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 const corner: React.CSSProperties = { position: 'absolute', top: 6, width: 26, height: 26, border: 0, borderRadius: '50%', background: 'color-mix(in srgb, var(--il-bg-deep) 60%, transparent)', display: 'grid', placeItems: 'center', cursor: 'pointer' };
 
@@ -52,7 +74,7 @@ function TileView({ tile, selected, onPick, onOpen, onLike, onDelete }: { tile: 
         style={{ display: 'block', width: '100%', height: '100%', padding: 0, border: 0, background: 'transparent', cursor: 'pointer' }}>
         {tile.kind === 'video'
           ? <video src={tile.url} muted playsInline preload="metadata" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', pointerEvents: 'none' }} />
-          : <img src={tile.url} alt="" loading="lazy" {...drag} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />}
+          : <LoadingImage src={tile.url} alt="" {...drag} style={{ width: '100%', height: '100%' }} />}
       </button>
       {onLike && (
         <button type="button" onClick={(e) => { e.stopPropagation(); onLike(); }} aria-label={tile.liked ? 'Remove from favourites' : 'Favourite'} aria-pressed={tile.liked}
@@ -74,7 +96,6 @@ export function HistoryPanel({ columns = 2, phone = false }: { columns?: number;
   const videos = useVideoResults();
   const runs = useWorkflowResults();
   const selected = useStore((s) => s.selectedEntry);
-  const newest = useStore((s) => s.history[0] ?? null);
   const select = useStore((s) => s.selectHistoryEntry);
   const openViewer = useStore((s) => s.openViewer);
   const toggleLiked = useStore((s) => s.toggleHistoryLiked);
@@ -111,27 +132,25 @@ export function HistoryPanel({ columns = 2, phone = false }: { columns?: number;
   const takeOut = (key: string) => {
     const from = activeCollection;
     removeFromCollections(key);
-    if (from) undoNote('Taken out of the collection', () => moveItem(from, key));
+    if (from) pushUndo({ label: 'Take out of collection', undo: () => moveItem(from, key), redo: () => removeFromCollections(key) });
   };
-  const currentKey = runKey ?? (selected ?? newest)?.id ?? null;
+  // What the stage shows: the pick when it is this session's, else the session's newest picture (as `useStageMedia`).
+  const currentKey = runKey ?? (selected && mine.some((t) => t.key === selected.id) ? selected.id : mine.find((t) => t.entry)?.key ?? null);
   // ← / → on the stage move the selection: keep its tile in view, scrolling this grid only (item 39).
   const gridRef = useRef<HTMLDivElement>(null);
   useScrollIntoView(gridRef, currentKey, { selector: 'button[aria-pressed="true"][data-viewer-origin]', axis: 'y' });
 
   return (
     <aside aria-label="History" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', background: 'var(--il-panel)' }}>
-      <div className="il-scroll-x" data-no-swipe style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 12px 8px', flex: 'none', touchAction: 'pan-x pan-y' }}>
-        <div role="group" aria-label="Show" style={{ display: 'flex', gap: 2, padding: 2, borderRadius: 999, background: 'var(--il-bg-deep)', flex: 'none' }}>
-          {SCOPES.map((sc) => {
-            const on = sc.key === scope;
-            return <button key={sc.key} type="button" onClick={() => setScope(sc.key)} aria-pressed={on} title={sc.title} style={{ height: 26, padding: '0 10px', border: 0, borderRadius: 999, background: on ? 'var(--il-card-on)' : 'transparent', color: on ? 'var(--il-fg)' : 'var(--il-muted)', fontWeight: 800, fontSize: 11, cursor: 'pointer', whiteSpace: 'nowrap' }}>{sc.label}</button>;
-          })}
-        </div>
-        <span aria-hidden style={{ width: 1, height: 18, background: 'var(--il-line)', flex: 'none' }} />
-        {FILTERS.map((f) => {
-          const on = f.key === filter;
-          return <button key={f.key} type="button" onClick={() => setFilter(on ? 'all' : f.key)} aria-pressed={on} style={{ flex: 'none', height: 30, padding: '0 12px', border: 0, borderRadius: 999, background: on ? 'var(--il-fg)' : 'var(--il-card)', color: on ? 'var(--il-bg)' : 'var(--il-fg2)', fontWeight: on ? 800 : 700, fontSize: 12, cursor: 'pointer' }}>{f.label}</button>;
-        })}
+      {/* Item 3: the bar wraps to a second row when the panel is narrow (never clipped); kind = one segmented control. */}
+      <div data-no-swipe role="toolbar" aria-label="History filters" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6, padding: '10px 12px 8px', flex: 'none' }}>
+        <Segmented label="Show" phone={phone} items={SCOPES.map((sc) => ({ key: sc.key, label: sc.label, title: sc.title, on: sc.key === scope, onClick: () => setScope(sc.key) }))} />
+        <Segmented label="Kind" phone={phone} items={FILTERS.map((f) => ({ key: f.key, label: f.label, title: f.title, on: f.key === filter, onClick: () => setFilter(f.key === filter ? 'all' : f.key) }))} />
+        <button type="button" aria-label="History options" title="Clear history, reset session"
+          onClick={(e) => openMenu('history-bar', sessionId, e.currentTarget)}
+          style={{ marginLeft: 'auto', width: phone ? 40 : 30, height: phone ? 40 : 30, border: 0, borderRadius: 999, background: 'transparent', color: 'var(--il-muted)', display: 'grid', placeItems: 'center', cursor: 'pointer', flex: 'none' }}>
+          <IconDots size={16} stroke={2.4} />
+        </button>
       </div>
       <CollectionsRow lookup={coll.lookup} />
       {coll.name && (

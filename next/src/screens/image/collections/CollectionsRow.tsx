@@ -1,9 +1,11 @@
 /**
  * The Collections row under the history filters (FIXLIST 21, Donny's sketch): one square tile per
  * collection, then "+" (a new one; a picture dropped on "+" starts one holding it). Scrolls
- * sideways. Collections hold any picture: results, imports from outside, model pictures.
+ * sideways (the mouse wheel too), with an edge fade while more tiles are off-screen. Collections hold any picture: results, imports from outside, model pictures.
  */
+import { useCallback } from 'react';
 import { IconPlus } from '@tabler/icons-react';
+import { useEdgeFade, useWheelSideways } from '~/ui';
 import { useStore } from '@/lib/store';
 import { useImageDrop, useRegisterDropTarget } from '~/dnd';
 import { CollectionTile, TILE } from './CollectionTile';
@@ -34,9 +36,14 @@ function PlusTile() {
 export function CollectionsRow({ lookup }: { lookup: ItemLookup }) {
   const collections = useStore((s) => s.collections);
   const active = useCollectionsUi((s) => s.active);
+  // Item 23: an up/down wheel scrolls the row sideways; an edge fades while more tiles hide that way.
+  const wheel = useWheelSideways<HTMLDivElement>();
+  const fade = useEdgeFade<HTMLDivElement>();
+  const fadeRef = fade.ref;
+  const ref = useCallback((el: HTMLDivElement | null) => { wheel(el); fadeRef(el); }, [wheel, fadeRef]);
   return (
-    <div className="il-scroll-x" data-no-swipe aria-label="Collections" role="group"
-      style={{ display: 'flex', gap: 8, padding: '8px 12px 10px', flex: 'none', overflowX: 'auto', overflowY: 'hidden', touchAction: 'pan-x pan-y' }}>
+    <div ref={ref} className="il-scroll-x" data-no-swipe aria-label="Collections" role="group"
+      style={{ display: 'flex', gap: 8, padding: '8px 12px 10px', flex: 'none', overflowX: 'auto', overflowY: 'hidden', touchAction: 'pan-x pan-y', ...fade.style }}>
       {collections.map((c) => {
         const cov = coverId(c, lookup.exists);
         return (
