@@ -17,7 +17,7 @@ export const ALL_KINDS: readonly ModelKind[] = ['checkpoint', 'lora', 'embedding
 /** What the Image step shows. */
 export const IMAGE_KINDS: readonly ModelKind[] = ['checkpoint', 'lora', 'embedding', 'controlnet'];
 
-export interface WeightSpec { label: string; min: number; max: number; step: number; presets: number[] }
+export interface WeightSpec { label: string; min: number; max: number; step: number; presets: number[]; /** The reset value (item 8). */ default?: number }
 
 export interface KindSpec {
   key: ModelKind;
@@ -39,7 +39,7 @@ export interface KindSpec {
   baseModels?: string[];
 }
 
-const STRENGTH: WeightSpec = { label: 'Strength', min: 0, max: 2, step: 0.05, presets: [0.5, 0.8, 1, 1.2] };
+const STRENGTH: WeightSpec = { label: 'Strength', min: 0, max: 2, step: 0.05, presets: [0.5, 0.8, 1, 1.2], default: 1 };
 
 export const KINDS: Record<ModelKind, KindSpec> = {
   checkpoint: { key: 'checkpoint', label: 'Checkpoint', one: 'checkpoint', weight: { label: 'Merge ratio', min: 0, max: 1, step: 0.01, presets: [0.25, 0.5, 0.75] }, hasSwitch: false, list: 'models', folder: folderForKind('checkpoint'), pick: 'checkpoint' },

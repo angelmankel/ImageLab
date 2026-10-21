@@ -18,6 +18,7 @@ import { IconCheck, IconChevronDown, IconX } from '@tabler/icons-react';
 import { useIsPhone } from '~/app/useIsPhone';
 import { T } from '~/theme/tokens';
 import { filterOptions, groupOptions, splitMatch, type SelectOption } from './selectLogic';
+import { ResetButton, resetWithUndo } from './ResetButton';
 
 export type { SelectOption } from './selectLogic';
 
@@ -47,6 +48,8 @@ export interface SearchSelectProps {
   leftSection?: ReactNode;
   style?: CSSProperties;
   maxDropdownHeight?: number;
+  /** The default (item 8): a ↺ in the box puts it back while the value differs (Ctrl+Z undoes). */
+  defaultValue?: string | null;
 }
 
 const HEIGHT = { sm: 30, md: 34, lg: 44 } as const;
@@ -57,7 +60,7 @@ function Highlight({ text, q }: { text: string; q: string }) {
 
 export function SearchSelect({
   value, onChange, options, label, placeholder, size, bare, searchable = true, onClear, disabled, dropdownWidth, position = 'bottom-start',
-  missingLabel = (v) => `${v} (not on this server)`, nothingFound = 'No match', leftSection, style, maxDropdownHeight = 300,
+  missingLabel = (v) => `${v} (not on this server)`, nothingFound = 'No match', leftSection, style, maxDropdownHeight = 300, defaultValue,
 }: SearchSelectProps) {
   const phone = useIsPhone();
   const sz = size ?? (phone ? 'lg' : 'md');
@@ -150,6 +153,11 @@ export function SearchSelect({
               style={{ cursor: searchable ? 'text' : 'pointer', textOverflow: 'ellipsis' }}
             />
           </Combobox.EventsTarget>
+          {defaultValue != null && !disabled && (
+            <ResetButton shown={!open && value !== defaultValue}
+              label={`Reset to ${all.find((o) => o.value === defaultValue)?.label ?? defaultValue}`}
+              onReset={() => resetWithUndo(label, value, defaultValue, (v) => { if (v != null) onChange(v); })} size={sz === 'lg' ? 30 : 20} inField />
+          )}
           {onClear && value && !open ? (
             <button type="button" className="il-x" aria-label={`Clear ${label}`} onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); onClear(); }}>
               <IconX size={13} stroke={2.4} />

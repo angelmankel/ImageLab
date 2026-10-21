@@ -16,6 +16,10 @@ import {
   SIZE_PRESETS, fpsOf, lengthChips, secondsOf, sideStep, snapFrames, snapSide, speedLabel, tasksFor, visibleFields, type Task,
 } from './videoStepLogic';
 import { taskOf } from './videoChain';
+import { defaultVideoSettings } from '@/lib/wanGraph';
+
+/** Reset values (item 8): the fresh video settings. */
+const VD = defaultVideoSettings();
 
 const SAMPLERS = ['euler', 'res_multistep', 'uni_pc', 'dpmpp_2m', 'lcm'];
 const SCHEDULERS = ['simple', 'normal', 'beta', 'sgm_uniform'];
@@ -116,18 +120,18 @@ export function VideoSettingsTab() {
           {h3 ? (
             <>
               <SliderRow label="Steps" value={h.turbo.on ? h3EffectiveSteps(h) : h.steps} min={2} max={50} step={1} onChange={(n) => v.setH3({ steps: n })} hint={h.turbo.on ? 'Turbo sets the steps.' : '← quicker · more detail →'} />
-              <SliderRow label="CFG" value={h.cfg} min={1} max={6} step={0.5} presets={[1, 2, 3]} format={fmt1} onChange={(cfg) => v.setH3({ cfg })} hint="1 is the template (no negative); above it the zeroed negative costs a second pass." />
-              <SliderRow label="Shift · video" value={h.shiftVideo} min={1} max={20} step={0.5} format={fmt1} onChange={(shiftVideo) => v.setH3({ shiftVideo })} />
-              <SliderRow label="Shift · audio" value={h.shiftAudio} min={1} max={20} step={0.5} format={fmt1} onChange={(shiftAudio) => v.setH3({ shiftAudio })} />
+              <SliderRow label="CFG" value={h.cfg} defaultValue={VD.h3.cfg} min={1} max={6} step={0.5} presets={[1, 2, 3]} format={fmt1} onChange={(cfg) => v.setH3({ cfg })} hint="1 is the template (no negative); above it the zeroed negative costs a second pass." />
+              <SliderRow label="Shift · video" value={h.shiftVideo} defaultValue={VD.h3.shiftVideo} min={1} max={20} step={0.5} format={fmt1} onChange={(shiftVideo) => v.setH3({ shiftVideo })} />
+              <SliderRow label="Shift · audio" value={h.shiftAudio} defaultValue={VD.h3.shiftAudio} min={1} max={20} step={0.5} format={fmt1} onChange={(shiftAudio) => v.setH3({ shiftAudio })} />
               <ChipGroup title="Sampler">{samplers.map((s) => <Chip key={s} small on={h.sampler === s} onClick={() => v.setH3({ sampler: s })}>{s}</Chip>)}</ChipGroup>
               <ChipGroup title="Scheduler">{schedulers.map((s) => <Chip key={s} small on={h.scheduler === s} onClick={() => v.setH3({ scheduler: s })}>{s}</Chip>)}</ChipGroup>
             </>
           ) : (
             <>
-              <SliderRow label="Steps" value={eff.steps} min={2} max={60} step={1} onChange={(n) => (v.fast ? setFr({ steps: n, switchStep: Math.min(fr.switchStep, n) }) : v.set({ steps: n, switchStep: Math.min(v.switchStep, n) }))} hint="← quicker · more detail →" />
+              <SliderRow label="Steps" value={eff.steps} defaultValue={v.fast ? VD.fastRecipe.steps : VD.steps} min={2} max={60} step={1} onChange={(n) => (v.fast ? setFr({ steps: n, switchStep: Math.min(fr.switchStep, n) }) : v.set({ steps: n, switchStep: Math.min(v.switchStep, n) }))} hint="← quicker · more detail →" />
               {fields.expertSwitch && <SliderRow label="Switch to low-noise at step" value={eff.switchStep} min={0} max={eff.steps} step={1} onChange={(n) => (v.fast ? setFr({ switchStep: n, motionSteps: Math.min(fr.motionSteps, n) }) : v.set({ switchStep: n }))} hint="← less motion, more detail · more motion →" />}
-              <SliderRow label="CFG" value={eff.cfg} min={1} max={10} step={0.5} presets={v.fast ? [1] : [1, 3.5, 5]} format={fmt1} onChange={(cfg) => (v.fast ? setFr({ cfg }) : v.set({ cfg }))} hint={v.fast ? '1 is the distilled value (half the work per step).' : '← looser · follows the prompt, may burn →'} />
-              <SliderRow id="video.shift" label="Shift" value={v.shift} min={1} max={20} step={0.5} presets={[5, 8]} format={fmt1} onChange={(shift) => v.set({ shift })} />
+              <SliderRow label="CFG" value={eff.cfg} defaultValue={v.fast ? VD.fastRecipe.cfg : VD.cfg} min={1} max={10} step={0.5} presets={v.fast ? [1] : [1, 3.5, 5]} format={fmt1} onChange={(cfg) => (v.fast ? setFr({ cfg }) : v.set({ cfg }))} hint={v.fast ? '1 is the distilled value (half the work per step).' : '← looser · follows the prompt, may burn →'} />
+              <SliderRow id="video.shift" label="Shift" value={v.shift} defaultValue={VD.shift} min={1} max={20} step={0.5} presets={[5, 8]} format={fmt1} onChange={(shift) => v.set({ shift })} />
               <ChipGroup title="Sampler">{samplers.map((s) => <Chip key={s} small on={v.sampler === s} onClick={() => v.set({ sampler: s })}>{s}</Chip>)}</ChipGroup>
               <ChipGroup title="Scheduler">{schedulers.map((s) => <Chip key={s} small on={v.scheduler === s} onClick={() => v.set({ scheduler: s })}>{s}</Chip>)}</ChipGroup>
             </>
@@ -143,7 +147,7 @@ export function VideoSettingsTab() {
           ) : (
             <>
               <Switch label={`NAG — the negative at CFG 1${v.guidance.nag.on ? ` (scale ${v.guidance.nag.scale})` : ''}`} checked={v.guidance.nag.on} onChange={(on) => v.set({ guidance: { ...v.guidance, nag: { ...v.guidance.nag, on } } })} />
-              {v.guidance.nag.on && <SliderRow label="NAG scale" value={v.guidance.nag.scale} min={1} max={20} step={0.5} presets={[5, 11]} format={fmt1} onChange={(scale) => v.set({ guidance: { ...v.guidance, nag: { ...v.guidance.nag, scale } } })} />}
+              {v.guidance.nag.on && <SliderRow label="NAG scale" value={v.guidance.nag.scale} defaultValue={VD.guidance.nag.scale} min={1} max={20} step={0.5} presets={[5, 11]} format={fmt1} onChange={(scale) => v.set({ guidance: { ...v.guidance, nag: { ...v.guidance.nag, scale } } })} />}
               <Switch label="CFG-Zero*" checked={v.guidance.cfgZeroStar} onChange={(cfgZeroStar) => v.set({ guidance: { ...v.guidance, cfgZeroStar } })} />
               <Switch label={`EasyCache${v.speedups.easyCache.on ? ` (${v.speedups.easyCache.threshold})` : ''}`} checked={v.speedups.easyCache.on} onChange={(on) => v.set({ speedups: { ...v.speedups, easyCache: { ...v.speedups.easyCache, on } } })} />
               <Switch label="torch.compile" checked={v.speedups.torchCompile} onChange={(torchCompile) => v.set({ speedups: { ...v.speedups, torchCompile } })} />
@@ -179,7 +183,7 @@ export function VideoSettingsTab() {
         {fields.colorMatch && (
           <Section title="Colour match to the start frame">
             <Switch label={`On${v.colorMatch.on ? ` (${v.colorMatch.method})` : ''}`} checked={v.colorMatch.on} onChange={(on) => v.set({ colorMatch: { ...v.colorMatch, on } })} />
-            {v.colorMatch.on && <SliderRow label="Strength" value={v.colorMatch.strength} min={0} max={1} step={0.05} presets={[0.5, 1]} format={(x) => x.toFixed(2)} onChange={(strength) => v.set({ colorMatch: { ...v.colorMatch, strength } })} />}
+            {v.colorMatch.on && <SliderRow label="Strength" value={v.colorMatch.strength} defaultValue={VD.colorMatch.strength} min={0} max={1} step={0.05} presets={[0.5, 1]} format={(x) => x.toFixed(2)} onChange={(strength) => v.set({ colorMatch: { ...v.colorMatch, strength } })} />}
           </Section>
         )}
         <Section title="File">

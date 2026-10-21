@@ -8,7 +8,7 @@ import type { CSSProperties, ReactNode } from 'react';
 import { Slider } from '@mantine/core';
 import { useIsPhone } from '~/app/useIsPhone';
 import { btnRadius } from '~/theme/tokens';
-import { Chip } from '~/ui';
+import { Chip, ResetButton, resetWithUndo, sameValue } from '~/ui';
 
 export function Seg<V extends string>({ value, options, onChange, label }: {
   value: V; options: ReadonlyArray<{ value: V; label: string }>; onChange: (v: V) => void; label: string;
@@ -78,10 +78,14 @@ export function ColorWell({ value, onChange, label, size = 36, style, children }
   );
 }
 
-export function ThemeSlider({ value, min, max, step, onChange, label, presets, fmt }: {
+export function ThemeSlider({ value, min, max, step, onChange, label, presets, fmt, defaultValue }: {
   value: number; min: number; max: number; step: number; onChange: (v: number) => void; label: string;
   presets?: number[]; fmt: (v: number) => string;
+  /** Item 8: ↺ beside the track while the value differs; double-click the handle too. */
+  defaultValue?: number;
 }) {
+  const canReset = defaultValue != null && !sameValue(value, defaultValue, step);
+  const reset = () => { if (defaultValue != null) resetWithUndo(label, value, defaultValue, onChange); };
   return (
     <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 8 }}>
       {presets && (
@@ -89,8 +93,12 @@ export function ThemeSlider({ value, min, max, step, onChange, label, presets, f
           {presets.map((p) => <Chip key={p} small on={Math.abs(p - value) < step / 2} onClick={() => onChange(p)}>{fmt(p)}</Chip>)}
         </div>
       )}
-      <div className="il-slider"><Slider value={value} min={min} max={max} step={step} onChange={onChange} label={fmt} size="sm" color="ember" aria-label={label}
-        styles={{ track: { touchAction: 'pan-y' }, thumb: { touchAction: 'none', borderWidth: 2 } }} /></div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div className="il-slider" style={{ flex: 1, minWidth: 0 }}><Slider value={value} min={min} max={max} step={step} onChange={onChange} label={fmt} size="sm" color="ember" aria-label={label}
+          thumbProps={{ onDoubleClick: canReset ? reset : undefined }}
+          styles={{ track: { touchAction: 'pan-y' }, thumb: { touchAction: 'none', borderWidth: 2 } }} /></div>
+        <ResetButton shown={canReset} label={`Reset to ${defaultValue != null ? fmt(defaultValue) : ''}`} onReset={reset} />
+      </div>
     </div>
   );
 }

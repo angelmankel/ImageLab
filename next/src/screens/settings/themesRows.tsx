@@ -8,7 +8,7 @@ import type { CSSProperties } from 'react';
 import { useTheme } from '~/theme/themeStore';
 import { scaleSupported } from '~/theme/applyTheme';
 import {
-  BG_ART, CORNERS_MAX, CORNERS_MIN, FONTS, SCALE_MAX, SCALE_MIN,
+  BG_ART, CORNERS_MAX, DEFAULT_THEME, CORNERS_MIN, FONTS, SCALE_MAX, SCALE_MIN,
   type BgStyle, type Density, type FontId, type Motion, type PromptFont, type Shadows, type Speed,
 } from '~/theme/themeModel';
 import { Switch } from '~/ui';
@@ -91,7 +91,7 @@ function ScaleCtl() {
   const v = useTheme((s) => s.theme.scale);
   const set = useTheme((s) => s.set);
   if (!scaleSupported) return <span style={{ fontSize: 11, color: 'var(--il-muted)', fontWeight: 600 }}>This browser cannot scale the page; use its own zoom (Ctrl + / −).</span>;
-  return <ThemeSlider label="UI size" value={Math.round(v * 100)} min={SCALE_MIN * 100} max={SCALE_MAX * 100} step={5} presets={[90, 100, 110, 125]} fmt={(x) => `${x}%`} onChange={(x) => set({ scale: x / 100 })} />;
+  return <ThemeSlider label="UI size" defaultValue={DEFAULT_THEME.scale * 100} value={Math.round(v * 100)} min={SCALE_MIN * 100} max={SCALE_MAX * 100} step={5} presets={[90, 100, 110, 125]} fmt={(x) => `${x}%`} onChange={(x) => set({ scale: x / 100 })} />;
 }
 
 function DensityCtl() {
@@ -110,7 +110,7 @@ function CornersValue() {
 function CornersCtl() {
   const v = useTheme((s) => s.theme.corners);
   const set = useTheme((s) => s.set);
-  return <ThemeSlider label="Corners" value={Math.round(v * 100)} min={CORNERS_MIN * 100} max={CORNERS_MAX * 100} step={10} presets={[40, 70, 100, 130, 160]} fmt={(x) => (x === 40 ? 'Sharp' : x === 160 ? 'Round' : `${x}%`)} onChange={(x) => set({ corners: x / 100 })} />;
+  return <ThemeSlider label="Corners" defaultValue={DEFAULT_THEME.corners * 100} value={Math.round(v * 100)} min={CORNERS_MIN * 100} max={CORNERS_MAX * 100} step={10} presets={[40, 70, 100, 130, 160]} fmt={(x) => (x === 40 ? 'Sharp' : x === 160 ? 'Round' : `${x}%`)} onChange={(x) => set({ corners: x / 100 })} />;
 }
 
 function ButtonsValue() {
@@ -121,7 +121,7 @@ function ButtonsValue() {
 function ButtonsCtl() {
   const v = useTheme((s) => s.theme.btnRound);
   const set = useTheme((s) => s.set);
-  return <ThemeSlider label="Button rounding" value={Math.round(v * 100)} min={0} max={100} step={5} presets={[0, 50, 85, 100]} fmt={(x) => (x === 0 ? 'Square' : x === 100 ? 'Pill' : `${x}%`)} onChange={(x) => set({ btnRound: x / 100 })} />;
+  return <ThemeSlider label="Button rounding" defaultValue={DEFAULT_THEME.btnRound * 100} value={Math.round(v * 100)} min={0} max={100} step={5} presets={[0, 50, 85, 100]} fmt={(x) => (x === 0 ? 'Square' : x === 100 ? 'Pill' : `${x}%`)} onChange={(x) => set({ btnRound: x / 100 })} />;
 }
 
 function ShadowsCtl() {
@@ -139,11 +139,11 @@ function GlassCtl() {
     <div style={{ width: '100%', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
         <span style={lbl}>Blur<span>{blur}px</span></span>
-        <ThemeSlider label="Glass blur" value={blur} min={0} max={40} step={2} fmt={(x) => `${x}px`} onChange={(glassBlur) => set({ glassBlur })} />
+        <ThemeSlider label="Glass blur" defaultValue={DEFAULT_THEME.glassBlur} value={blur} min={0} max={40} step={2} fmt={(x) => `${x}px`} onChange={(glassBlur) => set({ glassBlur })} />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
         <span style={lbl}>See-through<span>{100 - Math.round(alpha * 100)}%</span></span>
-        <ThemeSlider label="Glass see-through" value={100 - Math.round(alpha * 100)} min={0} max={70} step={2} fmt={(x) => `${x}%`} onChange={(x) => set({ glassAlpha: (100 - x) / 100 })} />
+        <ThemeSlider label="Glass see-through" defaultValue={100 - Math.round(DEFAULT_THEME.glassAlpha * 100)} value={100 - Math.round(alpha * 100)} min={0} max={70} step={2} fmt={(x) => `${x}%`} onChange={(x) => set({ glassAlpha: (100 - x) / 100 })} />
       </div>
     </div>
   );

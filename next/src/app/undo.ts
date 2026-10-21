@@ -49,6 +49,15 @@ function run(fn: () => void): void {
   try { fn(); } catch (e) { console.error('[undo]', e); } finally { applying = false; }
 }
 
+/**
+ * Run `fn` without recording: any pushUndo inside it is ignored. For a caller that records ONE
+ * entry of its own around setters that would record their own (reset to default, item 8).
+ */
+export function withoutUndo(fn: () => void): void {
+  if (applying) { fn(); return; }
+  run(fn);
+}
+
 /** Undo the last action of the current session. False when there was nothing to undo. */
 export function undo(): boolean {
   const id = scope();

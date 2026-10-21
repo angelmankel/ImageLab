@@ -6,9 +6,9 @@
  * `WorkflowParam` (`/object_info` + the saved graph); the rules are `workflowStepLogic.ts`.
  */
 import { useEffect, useState, type ReactNode } from 'react';
-import { IconArrowBackUp, IconDice5, IconLock, IconLockOpen, IconPin, IconPinned } from '@tabler/icons-react';
+import { IconDice5, IconLock, IconLockOpen, IconPin, IconPinned } from '@tabler/icons-react';
 import { randomSeed, type WorkflowParam } from '@/features/studio/params';
-import { Chip, IconBtn, SearchSelect, Slider, Tip, NumberField as UiNumberField } from '~/ui';
+import { Chip, IconBtn, ResetButton, SearchSelect, Slider, Tip, NumberField as UiNumberField } from '~/ui';
 import { useIsPhone } from '~/app/useIsPhone';
 import { formatNumber, humanize, numberRange, presetsFor } from './workflowStepLogic';
 
@@ -59,7 +59,7 @@ export function FieldRow({ label, sub, value, changed, onReset, pinned, onPin, i
         {hintText ? <Tip label={hintText} multiline w={260}>{text}</Tip> : hint ? <Tip hint={hint}>{text}</Tip> : text}
         {value != null && <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--il-fg)', fontVariantNumeric: 'tabular-nums' }}>{value}</span>}
         {inline}
-        {changed && onReset && <IconBtn size={24} icon={<IconArrowBackUp size={13} />} label="Back to the value saved in ComfyUI" onClick={onReset} />}
+        {onReset && <ResetButton shown={!!changed} size={24} label="Reset to the value saved in ComfyUI" onReset={onReset} />}
         {onPin && <IconBtn size={24} on={pinned} icon={pinned ? <IconPinned size={13} /> : <IconPin size={13} />} label={pinned ? 'Unpin' : 'Pin to the top'} onClick={onPin} />}
       </div>
       {children}
@@ -94,7 +94,7 @@ export function NumberField({ p, value, onChange, onReset, pinned, onPin, sub, l
       {r.slider ? (
         <>
           {presets && <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>{presets.map((v) => <Chip key={v} small on={Math.abs(v - n) < r.step / 2} onClick={() => onChange(v)}>{fmt(v)}</Chip>)}</div>}
-          <Slider value={n} min={r.min} max={r.max} step={r.step} onChange={onChange} aria-label={`${name} slider`} />
+          <Slider value={n} min={r.min} max={r.max} step={r.step} onChange={onChange} aria-label={`${name} slider`} format={fmt} onReset={value !== p.value ? onReset : undefined} />
         </>
       ) : (
         <NumberBox label={name} value={n} min={r.min} max={r.max} step={r.step} isInt={p.type === 'INT'} onChange={onChange} />

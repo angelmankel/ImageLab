@@ -34,3 +34,4 @@ export { nearestScroll } from './scrollLogic';
 export { Skeleton, SkeletonText, SkeletonTiles, Spinner, LoadingState } from './Loading';
 export { LoadingImage } from './LoadingImage';
 export type { LoadingImageProps } from './LoadingImage';
+export { ResetButton, resetWithUndo, sameValue } from './ResetButton';

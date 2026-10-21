@@ -168,14 +168,14 @@ export function UpscaleSettingsTab({ step }: { step: Step }) {
   return (
     <>
       <div style={card}>
-        <SliderRow label="Scale" value={p.factor} min={1} max={4} step={0.25} presets={FACTORS} format={(v) => `×${v}`} hint={out} onChange={(v) => set({ factor: clampFactor(v) })} />
+        <SliderRow label="Scale" value={p.factor} defaultValue={DEFAULT_UPSCALE.factor} min={1} max={4} step={0.25} presets={FACTORS} format={(v) => `×${v}`} hint={out} onChange={(v) => set({ factor: clampFactor(v) })} />
       </div>
       <div style={card}>
         <Switch label="Refine after upscale" description="a light re-sample with step 1's model and prompt: crisper detail at the new size" checked={p.refine} onChange={(refine) => set({ refine })} />
         {p.refine && (
           <>
-            <SliderRow label="Denoise" value={p.denoise} min={0.05} max={0.7} step={0.05} presets={[0.2, 0.3, 0.4, 0.5]} format={(v) => v.toFixed(2)} hint="← keep the picture · more new detail →" onChange={(denoise) => set({ denoise })} />
-            <SliderRow label="Steps" value={p.steps} min={4} max={40} step={1} presets={[8, 12, 20]} onChange={(steps) => set({ steps })} />
+            <SliderRow label="Denoise" value={p.denoise} defaultValue={DEFAULT_UPSCALE.denoise} min={0.05} max={0.7} step={0.05} presets={[0.2, 0.3, 0.4, 0.5]} format={(v) => v.toFixed(2)} hint="← keep the picture · more new detail →" onChange={(denoise) => set({ denoise })} />
+            <SliderRow label="Steps" value={p.steps} defaultValue={DEFAULT_UPSCALE.steps} min={4} max={40} step={1} presets={[8, 12, 20]} onChange={(steps) => set({ steps })} />
           </>
         )}
       </div>

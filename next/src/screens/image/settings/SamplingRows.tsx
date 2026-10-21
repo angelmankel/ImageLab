@@ -15,6 +15,7 @@ import { useIsPhone } from '~/app/useIsPhone';
 import { T } from '~/theme/tokens';
 import { nextInCycle, useCycleList } from '~/app/batchCycle';
 import { useUndoableSetWorkflow } from '~/app/undoableWorkflow';
+import { useImageDefaults } from '~/app/paramDefaults';
 
 const MAX_SEED = 0xFFFFFFFF;
 const newSeed = () => Math.floor(Math.random() * MAX_SEED);
@@ -34,10 +35,10 @@ function Row({ label, hint, children, wide }: { label: string; hint?: string; ch
  * A dropdown that is also a search box (Donny 10-20: autocomplete): the shared `SearchSelect`
  * (item 38) in its bare in-row form: type to filter with the match highlighted, ↑ ↓ Enter, groups.
  */
-function Pick({ label, value, options, onChange, searchable = true }: { label: string; value: string; options: SelectOption[]; onChange: (v: string) => void; searchable?: boolean }) {
+function Pick({ label, value, options, onChange, searchable = true, defaultValue }: { label: string; value: string; options: SelectOption[]; onChange: (v: string) => void; searchable?: boolean; defaultValue?: string }) {
   const phone = useIsPhone();
   return (
-    <SearchSelect bare label={label} value={value} options={options} onChange={onChange} searchable={searchable}
+    <SearchSelect bare label={label} value={value} options={options} onChange={onChange} searchable={searchable} defaultValue={defaultValue}
       size={phone ? 'lg' : 'md'} position="bottom-end" dropdownWidth={260} style={{ flex: 1, minWidth: 0 }} />
   );
 }
@@ -63,6 +64,7 @@ export function SamplingRows() {
   const schedulers = useStore((s) => s.server.schedulers);
   const set = useUndoableSetWorkflow();
   const clip = w.clipSkip ?? DEFAULT_CLIP_SKIP;
+  const d = useImageDefaults();
 
   const phone = useIsPhone();
   const samplerOptions = useMemo(() => samplers.map((s) => ({ value: s, group: samplerFamily(s), description: SAMPLER_NOTES[s] })), [samplers]);
@@ -70,8 +72,8 @@ export function SamplingRows() {
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: T.gap.md }}>
-      <Row label="Sampler" hint="sampler" wide><Pick label="Sampler" value={w.sampler} options={samplerOptions} onChange={(sampler) => set({ sampler })} /></Row>
-      <Row label="Scheduler" hint="scheduler" wide><Pick label="Scheduler" value={w.scheduler} options={schedulerOptions} onChange={(scheduler) => set({ scheduler })} /></Row>
+      <Row label="Sampler" hint="sampler" wide><Pick label="Sampler" value={w.sampler} options={samplerOptions} defaultValue={d.sampler} onChange={(sampler) => set({ sampler })} /></Row>
+      <Row label="Scheduler" hint="scheduler" wide><Pick label="Scheduler" value={w.scheduler} options={schedulerOptions} defaultValue={d.scheduler} onChange={(scheduler) => set({ scheduler })} /></Row>
       <Row label="Seed" hint="seed" wide>
         <NumberField label="Seed" value={w.seed} min={0} max={MAX_SEED} step={1} steppers={false} size={phone ? 'lg' : 'sm'}
           onChange={(seed) => set({ seed })} style={{ flex: 1, minWidth: 0, color: w.randomizeSeed ? 'var(--il-muted)' : 'var(--il-fg)' }} />
@@ -81,7 +83,7 @@ export function SamplingRows() {
       </Row>
       {phone && <BatchRow />}
       <Row label="Clip skip" hint="clipSkip">
-        <Pick searchable={false} label="Clip skip" value={String(clip)} options={CLIP_SKIPS.map((n) => ({ value: String(n), label: n === -1 ? 'off' : String(n) }))} onChange={(v) => set({ clipSkip: Number(v) })} />
+        <Pick searchable={false} label="Clip skip" value={String(clip)} options={CLIP_SKIPS.map((n) => ({ value: String(n), label: n === -1 ? 'off' : String(n) }))} defaultValue={String(d.clipSkip)} onChange={(v) => set({ clipSkip: Number(v) })} />
       </Row>
     </div>
   );

@@ -12,6 +12,7 @@ import { useEffect, useRef, useState, type CSSProperties, type PointerEvent as R
 import { IconMinus, IconPlus } from '@tabler/icons-react';
 import { useIsPhone } from '~/app/useIsPhone';
 import { commitTyped, inputModeFor, nudge } from './numberLogic';
+import { ResetButton, resetWithUndo, sameValue } from './ResetButton';
 
 export interface NumberFieldProps {
   value: number;
@@ -35,6 +36,8 @@ export interface NumberFieldProps {
   style?: CSSProperties;
   /** Where the number sits (center by default with steppers, else right). */
   align?: 'left' | 'center' | 'right';
+  /** The default (item 8): a ↺ inside the box puts it back while the value differs (Ctrl+Z undoes). */
+  defaultValue?: number;
 }
 
 const HEIGHT = { sm: 30, md: 34, lg: 44 } as const;
@@ -64,7 +67,7 @@ function useHold(fn: () => void) {
 }
 
 export function NumberField({
-  value, onChange, min = -Infinity, max = Infinity, step = 1, label, unit, format, steppers = true, size, width, disabled, style, align,
+  value, onChange, min = -Infinity, max = Infinity, step = 1, label, unit, format, steppers = true, size, width, disabled, style, align, defaultValue,
 }: NumberFieldProps) {
   const phone = useIsPhone();
   const sz = size ?? (phone ? 'lg' : 'md');
@@ -145,6 +148,10 @@ export function NumberField({
         }}
       />
       {unit && <span className="il-unit">{unit}</span>}
+      {defaultValue != null && !disabled && (
+        <ResetButton shown={!editing && !sameValue(value, defaultValue, step)} label={`Reset to ${format ? format(defaultValue) : defaultValue}`}
+          onReset={() => resetWithUndo(label, value, defaultValue, (v) => { live.current = v; onChange(v); })} size={tall ? 30 : 20} inField />
+      )}
       {steppers && (
         <button type="button" className="il-step" aria-label={`${label} up`} disabled={disabled || value >= max} tabIndex={-1} {...up}>
           <IconPlus size={tall ? 16 : 13} stroke={2.4} />

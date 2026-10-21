@@ -91,26 +91,26 @@ export function LoopbackCard({ value, onChange, always = false, title = 'Loopbac
             <RangeRow label="Grow per round" ramp={lb.ramps.upscale} min={GROW_MIN} max={GROW_MAX} step={GROW_STEP} hint={growLabel(width, height, final)}
               onChange={(r) => save(setRamp(lb, 'upscale', r))} onFixed={fixed('upscale')} />
           ) : (
-            <SliderRow id="loopback.grow" label="Grow per round" value={lb.upscale} min={GROW_MIN} max={GROW_MAX} step={GROW_STEP} presets={[...GROW_CHIPS]} format={fmtGrow}
+            <SliderRow id="loopback.grow" defaultValue={DEFAULT_LOOPBACK.upscale} label="Grow per round" value={lb.upscale} min={GROW_MIN} max={GROW_MAX} step={GROW_STEP} presets={[...GROW_CHIPS]} format={fmtGrow}
               hint={`${growLabel(width, height, final)} after ${rounds} ${rounds === 1 ? 'round' : 'rounds'}`} onChange={(v) => save(setGrow(lb, v))} />
           )}
 
           {lb.autoDenoise ? (
             <RangeRow label="Denoise" ramp={denoiseRange(lb)} min={DENOISE_MIN} max={DENOISE_MAX} step={DENOISE_STEP} onChange={(r) => save(setDenoiseRange(lb, r))} />
           ) : (
-            <SliderRow id="loopback.denoise" label="Denoise" value={lb.denoise} min={DENOISE_MIN} max={DENOISE_MAX} step={DENOISE_STEP} presets={[...DENOISE_CHIPS]} format={(v) => fmtNum(v)} onChange={(v) => save(setDenoise(lb, v))} />
+            <SliderRow id="loopback.denoise" defaultValue={DEFAULT_LOOPBACK.denoise} label="Denoise" value={lb.denoise} min={DENOISE_MIN} max={DENOISE_MAX} step={DENOISE_STEP} presets={[...DENOISE_CHIPS]} format={(v) => fmtNum(v)} onChange={(v) => save(setDenoise(lb, v))} />
           )}
           <Switch label="Same every round" checked={!lb.autoDenoise} onChange={(same) => save(setSameEveryRound(lb, same))} />
 
           {lb.ramps?.steps ? (
             <RangeRow label="Steps" ramp={lb.ramps.steps} min={STEPS_MIN} max={STEPS_MAX} step={1} digits={0} onChange={(r) => save(setRamp(lb, 'steps', r))} onFixed={fixed('steps')} />
           ) : (
-            <SliderRow id="loopback.steps" label="Steps" value={lb.steps} min={STEPS_MIN} max={STEPS_MAX} step={1} presets={[...STEP_CHIPS]} onChange={(v) => save(setSteps(lb, v))} />
+            <SliderRow id="loopback.steps" defaultValue={DEFAULT_LOOPBACK.steps} label="Steps" value={lb.steps} min={STEPS_MIN} max={STEPS_MAX} step={1} presets={[...STEP_CHIPS]} onChange={(v) => save(setSteps(lb, v))} />
           )}
           {lb.ramps?.cfg ? (
             <RangeRow label="CFG" ramp={lb.ramps.cfg} min={CFG_MIN} max={CFG_MAX} step={CFG_STEP} digits={1} onChange={(r) => save(setRamp(lb, 'cfg', r))} onFixed={fixed('cfg')} />
           ) : (
-            <SliderRow id="loopback.cfg" label="CFG" value={lb.cfg} min={CFG_MIN} max={CFG_MAX} step={CFG_STEP} presets={[...CFG_CHIPS]} format={(v) => fmtNum(v, 1)} onChange={(v) => save(setCfg(lb, v))} />
+            <SliderRow id="loopback.cfg" defaultValue={DEFAULT_LOOPBACK.cfg} label="CFG" value={lb.cfg} min={CFG_MIN} max={CFG_MAX} step={CFG_STEP} presets={[...CFG_CHIPS]} format={(v) => fmtNum(v, 1)} onChange={(v) => save(setCfg(lb, v))} />
           )}
 
           <button type="button" onClick={() => setMore((m) => !m)} aria-expanded={more}
@@ -124,7 +124,7 @@ export function LoopbackCard({ value, onChange, always = false, title = 'Loopbac
               {lb.ramps?.noise ? (
                 <RangeRow label="Noise" ramp={lb.ramps.noise} min={NOISE_MIN} max={NOISE_MAX} step={NOISE_STEP} onChange={(r) => save(setRamp(lb, 'noise', r))} onFixed={fixed('noise')} />
               ) : (
-                <SliderRow id="loopback.noise" label="Noise" value={lb.noise ?? 0} min={NOISE_MIN} max={NOISE_MAX} step={NOISE_STEP} presets={[...NOISE_CHIPS]} format={fmtNoise}
+                <SliderRow id="loopback.noise" defaultValue={0} label="Noise" value={lb.noise ?? 0} min={NOISE_MIN} max={NOISE_MAX} step={NOISE_STEP} presets={[...NOISE_CHIPS]} format={fmtNoise}
                   hint="extra noise before each round samples: more new detail and grain" onChange={(v) => save(setNoise(lb, v))} />
               )}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>

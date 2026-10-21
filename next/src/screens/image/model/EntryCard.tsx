@@ -153,7 +153,7 @@ export function EntryCard({ entry, api, onChange, link }: { entry: ModelEntry; a
 
         {showWeight && spec.weight && (
           <SliderRow id={api.kind === 'lora' ? 'lora.strength' : api.kind === 'controlnet' ? 'controlnet.strength' : `${api.kind}.weight`} label={card?.weightLabel?.(entry) ?? spec.weight.label} value={entry.weight} min={spec.weight.min} max={spec.weight.max} step={spec.weight.step}
-            presets={spec.weight.presets} format={fmtWeight} onChange={(v) => api.setWeight(entry.id, v)}
+            presets={spec.weight.presets} format={fmtWeight} defaultValue={spec.weight.default} onChange={(v) => api.setWeight(entry.id, v)}
             hint={card?.weightHint?.(entry)} />
         )}
 

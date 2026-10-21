@@ -23,6 +23,7 @@ import { Button } from './Button';
 import { effectiveRange, isOverridden } from './numberLogic';
 import { useSliderRanges } from './sliderStore';
 import { useHints } from './hints';
+import { ResetButton, resetWithUndo, sameValue } from './ResetButton';
 import { motionScale } from '~/theme/motion';
 
 export interface SliderProps {
@@ -37,6 +38,8 @@ export interface SliderProps {
   disabled?: boolean;
   /** How the value bubble over the handle reads (item 24); default = the number at the step's precision. */
   format?: (v: number) => string;
+  /** Double-click on the handle (item 8). */
+  onReset?: () => void;
 }
 
 /** The value at the step's precision: step 0.05 → "0.50", step 1 → "7" (no float noise). */
@@ -50,7 +53,7 @@ export function stepFormat(step: number): (v: number) => string {
  * The bare track: Mantine's slider in the `.il-slider` dress (styles/next.css). Hover, drag or
  * keyboard focus shows the value in a small ember pin over the handle (item 24) — never the name.
  */
-export function Slider({ value, min, max, step = 1, onChange, onChangeEnd, disabled, format, ...aria }: SliderProps) {
+export function Slider({ value, min, max, step = 1, onChange, onChangeEnd, disabled, format, onReset, ...aria }: SliderProps) {
   return (
     <MSlider
       className="il-slider"
@@ -64,12 +67,12 @@ export function Slider({ value, min, max, step = 1, onChange, onChangeEnd, disab
       label={format ?? stepFormat(step)}
       labelTransitionProps={{ transition: 'pop', duration: Math.round(110 * motionScale()) }}
       color="ember"
-      thumbProps={{ 'aria-label': aria['aria-label'] }}
+      thumbProps={{ 'aria-label': aria['aria-label'], onDoubleClick: onReset }}
     />
   );
 }
 
-export function SliderRow({ label, value, min, max, step = 1, onChange, presets, format, hint, id, variant = 'advanced', unit, right }: {
+export function SliderRow({ label, value, min, max, step = 1, onChange, presets, format, hint, id, variant = 'advanced', unit, right, defaultValue }: {
   label: string; value: number; min: number; max: number; step?: number; onChange: (v: number) => void;
   presets?: number[]; format?: (v: number) => string;
   /** The small line under the track ("← keep · change →"). */
@@ -78,8 +81,10 @@ export function SliderRow({ label, value, min, max, step = 1, onChange, presets,
   id?: string;
   variant?: 'advanced' | 'simple';
   unit?: string;
-  /** Extra nodes at the right end of the label line (a reset, a lock). */
+  /** Extra nodes at the right end of the label line (a lock…). */
   right?: ReactNode;
+  /** The default (item 8): ↺ by the number while the value differs; double-click the handle too. */
+  defaultValue?: number;
 }) {
   const phone = useIsPhone();
   const key = id ?? `label:${label}`;
@@ -87,6 +92,8 @@ export function SliderRow({ label, value, min, max, step = 1, onChange, presets,
   const base = { min, max, step };
   const r = variant === 'advanced' ? effectiveRange(base, override) : base;
   const fmt = format ?? ((v: number) => String(v));
+  const canReset = defaultValue != null && !sameValue(value, defaultValue, step);
+  const reset = canReset ? () => resetWithUndo(label, value, defaultValue!, onChange) : undefined;
   // The name's tooltip only when hints are on (it then explains the parameter); a bare repeat of
   // the visible name is noise (item 24).
   const hintsOn = useHints((s) => s.enabled);
@@ -96,6 +103,7 @@ export function SliderRow({ label, value, min, max, step = 1, onChange, presets,
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, minHeight: variant === 'advanced' ? (phone ? 44 : 30) : undefined }}>
         {id && hintsOn ? <Tip hint={id}><span style={{ display: 'inline-flex', minWidth: 0, cursor: 'help' }}>{name}</span></Tip> : name}
         <div style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 'none' }}>
+          <ResetButton shown={canReset} label={`Reset to ${defaultValue != null ? fmt(defaultValue) : ''}${unit ? ` ${unit}` : ''}`} onReset={() => reset?.()} size={phone ? 40 : 24} />
           {right}
           {variant === 'advanced' ? (
             <>
@@ -112,7 +120,7 @@ export function SliderRow({ label, value, min, max, step = 1, onChange, presets,
           {presets.map((p) => <Chip key={p} small on={Math.abs(p - value) < r.step / 2} onClick={() => onChange(p)}>{fmt(p)}</Chip>)}
         </div>
       )}
-      <Slider value={value} min={r.min} max={r.max} step={r.step} onChange={onChange} aria-label={`${label} slider`} format={format ? (v) => `${format(v)}${unit ? ` ${unit}` : ''}` : unit ? (v) => `${stepFormat(r.step)(v)} ${unit}` : undefined} />
+      <Slider value={value} min={r.min} max={r.max} step={r.step} onChange={onChange} aria-label={`${label} slider`} onReset={reset} format={format ? (v) => `${format(v)}${unit ? ` ${unit}` : ''}` : unit ? (v) => `${stepFormat(r.step)(v)} ${unit}` : undefined} />
       {hint && <span style={{ fontSize: 10, color: 'var(--il-muted)' }}>{hint}</span>}
     </div>
   );

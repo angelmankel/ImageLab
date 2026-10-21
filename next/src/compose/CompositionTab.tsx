@@ -35,6 +35,10 @@ import { Seg } from './Seg';
 import { rememberOrigin, useOrigin } from './originStore';
 import { useComposition, useNativeArea, type CompositionMode, type SizeMode } from './sizeStore';
 import { originalOf, setCompositionMode, setInputShape, shapeOf, useInputShape, type Pic } from './inputShape';
+import { defaultWorkflow } from '@/lib/storage';
+
+/** Reset value of "How much to change" (item 8): the app's fresh img2img denoise. */
+const DENOISE_DEFAULT = defaultWorkflow().inputDenoise;
 import {
   SHAPES, cropRect, orientOf, orientOfRatio, type Orient, flipRatio, lockedPair, longForSide, megapixels, nearestRatio, presetArea, ratioById, reshape, scaledInput, sizeForArea, snap8, type SizePreset,
 } from './sizeLogic';
@@ -284,7 +288,7 @@ function HowMuch() {
   const preset = CHANGE.find((c) => Math.abs(c.v - denoise) < 0.005)?.key ?? null;
   return (
     <div style={card}>
-      <SliderRow id="denoise" label="How much to change" value={denoise} min={0} max={1} step={0.01} onChange={(v) => setWorkflow({ inputDenoise: v })} format={(v) => v.toFixed(2)} />
+      <SliderRow id="denoise" label="How much to change" value={denoise} min={0} max={1} step={0.01} defaultValue={DENOISE_DEFAULT} onChange={(v) => setWorkflow({ inputDenoise: v })} format={(v) => v.toFixed(2)} />
       <Seg label="How much to change" items={CHANGE} value={preset} onChange={(k) => setWorkflow({ inputDenoise: CHANGE.find((c) => c.key === k)!.v })} />
     </div>
   );
