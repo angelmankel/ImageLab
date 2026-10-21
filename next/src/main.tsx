@@ -8,6 +8,7 @@ import './styles/next.css';
 import './styles/theme.css';
 import { ThemedMantine, ThemeRoot } from '~/theme/ThemeRoot';
 import { App } from '~/app/App';
+import { getFormFactor } from '~/app/useFormFactor';
 
 // Installable app: register the service worker in built copies only (the dev server has none).
 // It sits next to index.html, so its scope is /imagelab/next/ — narrower than the main app's, so it wins here.
@@ -21,7 +22,7 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ThemedMantine>
       <ModalsProvider>
-        <Notifications position={window.matchMedia('(max-width: 767px)').matches ? 'top-center' : 'bottom-right'} limit={3} autoClose={3000} />
+        <Notifications position={getFormFactor().phone ? 'top-center' : 'bottom-right'} limit={3} autoClose={3000} />
         <ThemeRoot app={App} />
       </ModalsProvider>
     </ThemedMantine>
