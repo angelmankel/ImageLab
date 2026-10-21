@@ -33,7 +33,7 @@ export const Tile = memo(function Tile({ item, selected, selecting, picked, radi
       onClick={() => onClick(item)}
       onDoubleClick={() => onOpen(item)}
       {...drag}
-      style={{ borderRadius: radius, outline: ring ? '3px solid var(--il-ember)' : undefined, outlineOffset: -3 }}
+      style={{ borderRadius: radius }}
     >
       {broken ? (
         <span style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', color: 'var(--il-dim)', fontSize: 11, fontWeight: 700 }}>Not on the server</span>
@@ -45,6 +45,8 @@ export const Tile = memo(function Tile({ item, selected, selecting, picked, radi
         <img src={item.url} alt="" loading="lazy" decoding="async" draggable={false} onError={() => setBroken(true)} />
       )}
 
+      {/* The selected ring as its own inset layer over the picture: never under a positioned child, never clipped. */}
+      {ring && <span aria-hidden style={{ position: 'absolute', inset: 0, borderRadius: radius, boxShadow: 'inset 0 0 0 3px var(--il-ember)', pointerEvents: 'none' }} />}
       {item.liked && (
         <span className="lib-badge" style={{ right: 8, top: 8, width: 22, height: 22, color: 'var(--il-ember-hi)' }}><IconStarFilled size={12} /></span>
       )}

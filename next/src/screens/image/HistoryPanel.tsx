@@ -68,7 +68,7 @@ function TileView({ tile, selected, onPick, onOpen, onLike, onDelete }: { tile: 
   const drag = useImageDrag(payload);
   const press = useLongPress(() => openSendTo(payload()));
   return (
-    <div {...menuProps('history-image', tile)} style={{ position: 'relative', aspectRatio: '1', borderRadius: 14, overflow: 'hidden', background: 'var(--il-bg-deep)', outline: selected ? '3px solid var(--il-ember)' : undefined, outlineOffset: -3 }}>
+    <div {...menuProps('history-image', tile)} style={{ position: 'relative', aspectRatio: '1', borderRadius: 14, overflow: 'hidden', background: 'var(--il-bg-deep)' }}>
       {/* data-no-ctx: on a phone the hold is the Send-to sheet's; right-click still opens the menu. */}
       <button type="button" onClick={onPick} onDoubleClick={onOpen} aria-label={tile.filename} aria-pressed={selected} data-viewer-origin={tile.entryId} data-no-ctx {...press}
         style={{ display: 'block', width: '100%', height: '100%', padding: 0, border: 0, background: 'transparent', cursor: 'pointer' }}>
@@ -76,6 +76,9 @@ function TileView({ tile, selected, onPick, onOpen, onLike, onDelete }: { tile: 
           ? <video src={tile.url} muted playsInline preload="metadata" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', pointerEvents: 'none' }} />
           : <LoadingImage src={tile.url} alt="" {...drag} style={{ width: '100%', height: '100%' }} />}
       </button>
+      {/* The selected ring: its own layer over the picture (an outline on the tile was painted under the
+          positioned LoadingImage, so it vanished), inset so no scroller clips it. */}
+      {selected && <span aria-hidden style={{ position: 'absolute', inset: 0, borderRadius: 14, boxShadow: 'inset 0 0 0 3px var(--il-ember)', pointerEvents: 'none' }} />}
       {onLike && (
         <button type="button" onClick={(e) => { e.stopPropagation(); onLike(); }} aria-label={tile.liked ? 'Remove from favourites' : 'Favourite'} aria-pressed={tile.liked}
           style={{ ...corner, right: 6, color: tile.liked ? 'var(--il-ember)' : 'color-mix(in srgb, var(--il-fg) 80%, transparent)', opacity: tile.liked ? 1 : undefined }} className="il-tile-like">
