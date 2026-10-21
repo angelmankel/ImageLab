@@ -5,8 +5,9 @@
  *   New image | From image          the mode switch (New image = empty latent, From image = img2img)
  *   Input image                     From image only, always right under the switch (THE drop zone)
  *   How much to change              From image only (denoise + Subtle / Balanced / Strong / Reimagine)
- *   Size                            shape chips (1:1 4:5 3:4 2:3 9:16 16:9 3:2 4:3 + flip; From image
- *                                   adds "Picture" and a chip centre-crops the picture), the preview
+ *   Size                            Portrait | Landscape + one even row of the unique ratios (1:1 4:5
+ *                                   3:4 2:3 9:16, labels follow the orientation; From image adds
+ *                                   "Picture" and a cell centre-crops the picture), the preview
  *                                   with a readable size chip, S / M (model default) / L / Custom —
  *                                   Custom opens Width / Height sliders with number boxes (+ ratio
  *                                   lock) — and the final size as one plain line.
@@ -15,8 +16,8 @@
  * A step 2+ (Refine, Upscale, Remove BG…) shows its input picture alone. Size maths:
  * `sizeLogic.ts` (tested); the choices: `sizeStore.ts`.
  */
-import { useEffect, useState, type ReactNode } from 'react';
-import { IconArrowsExchange, IconLock, IconLockOpen } from '@tabler/icons-react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { IconLock, IconLockOpen } from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
 import { blobToImageState } from '@/features/inputImage/imageOps';
 import { EditImageModal } from '@/features/inputImage/EditImageModal';
@@ -35,7 +36,7 @@ import { rememberOrigin, useOrigin } from './originStore';
 import { useComposition, useNativeArea, type CompositionMode, type SizeMode } from './sizeStore';
 import { originalOf, setCompositionMode, setInputShape, shapeOf, useInputShape, type Pic } from './inputShape';
 import {
-  SHAPES, cropRect, flipRatio, lockedPair, longForSide, megapixels, nearestRatio, presetArea, ratioById, reshape, scaledInput, sizeForArea, snap8, type SizePreset,
+  SHAPES, cropRect, orientOf, orientOfRatio, type Orient, flipRatio, lockedPair, longForSide, megapixels, nearestRatio, presetArea, ratioById, reshape, scaledInput, sizeForArea, snap8, type SizePreset,
 } from './sizeLogic';
 
 const card: React.CSSProperties = { background: 'var(--il-card)', borderRadius: T.radius.lg, padding: 10, display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 };
@@ -75,29 +76,86 @@ function ShapeIcon({ w, h, dashed }: { w: number; h: number; dashed?: boolean })
   return <span aria-hidden style={{ width: Math.max(8, Math.round(w * k)), height: Math.max(8, Math.round(h * k)), border: `2px ${dashed ? 'dashed' : 'solid'} currentColor`, borderRadius: 3, flex: 'none' }} />;
 }
 
-/** The shape chips + flip. `picture` adds the picture's own shape first (From image). */
-function ShapeChips({ value, onPick, onFlip, picture, disabled }: {
-  value: string | null; onPick: (id: string) => void; onFlip: () => void; picture?: { w: number; h: number } | null; disabled?: boolean;
+/** Portrait | Landscape: two small icon segments (the ratio cells' labels follow it). */
+function OrientSeg({ value, onChange, disabled }: { value: 'portrait' | 'landscape'; onChange: (o: 'portrait' | 'landscape') => void; disabled?: boolean }) {
+  const phone = useIsPhone();
+  const h = phone ? 40 : 28;
+  const items = [{ key: 'portrait' as const, label: 'Portrait', w: 10, hh: 15 }, { key: 'landscape' as const, label: 'Landscape', w: 15, hh: 10 }];
+  return (
+    <div role="radiogroup" aria-label="Orientation" style={{ display: 'flex', gap: 2, padding: 3, borderRadius: `calc(${btnRadius(h)} + 3px)`, background: 'var(--il-bg-deep)', flex: 'none' }}>
+      {items.map((it) => {
+        const on = it.key === value;
+        return (
+          <Tip key={it.key} label={it.label}>
+            <button type="button" role="radio" aria-checked={on} aria-label={it.label} disabled={disabled} onClick={() => onChange(it.key)}
+              style={{ width: phone ? 48 : 38, height: h, border: 0, borderRadius: btnRadius(h), cursor: disabled ? 'default' : 'pointer', display: 'grid', placeItems: 'center', opacity: disabled ? 0.5 : 1,
+                background: on ? 'var(--il-card-on)' : 'transparent', color: on ? 'var(--il-fg)' : 'var(--il-muted)', boxShadow: on ? 'inset 0 0 0 1px var(--il-line-strong)' : undefined }}>
+              <span aria-hidden style={{ width: it.w, height: it.hh, border: '2px solid currentColor', borderRadius: 2 }} />
+            </button>
+          </Tip>
+        );
+      })}
+    </div>
+  );
+}
+
+/**
+ * Size → shape (list 2, added after close): the UNIQUE ratios (1:1 4:5 3:4 2:3 9:16) as one even
+ * row of equal cells — a tidy 3-column grid when the panel is narrow, never wrapping — and a
+ * Portrait | Landscape switch in the title row (labels follow it: 4:5 ↔ 5:4). `picture` adds the
+ * picture's own shape as the first cell (From image). `current` = the orientation of what is chosen
+ * now (null when square / the picture): switching it flips the size (`onFlip`).
+ */
+const UNIQUE = SHAPES.filter((id) => { const r = ratioById(id); return r.w <= r.h; });
+
+function ShapeChips({ value, onPick, onFlip, current, picture, disabled, title: head }: {
+  value: string | null; onPick: (id: string) => void; onFlip: () => void; current: Orient | null;
+  picture?: { w: number; h: number } | null; disabled?: boolean; title: ReactNode;
 }) {
   const phone = useIsPhone();
-  const h = phone ? 56 : 52;
-  const chip = (key: string, label: string, icon: ReactNode, on: boolean, click: () => void, tip?: string) => (
+  const [pref, setPref] = useState<'portrait' | 'landscape'>('portrait');
+  const orient: 'portrait' | 'landscape' = current === 'landscape' || current === 'portrait' ? current : pref;
+  const setOrient = (o: 'portrait' | 'landscape') => { setPref(o); if (current && current !== 'square' && current !== o) onFlip(); };
+  const gridRef = useRef<HTMLDivElement | null>(null);
+  const [width, setWidth] = useState(0);
+  useEffect(() => {
+    const el = gridRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(([e]) => setWidth(e.contentRect.width));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const cells = (picture ? 1 : 0) + UNIQUE.length;
+  const minCell = phone ? 52 : 46;
+  const cols = !width || width >= cells * minCell + (cells - 1) * 4 ? cells : 3;
+  const h = phone ? 56 : 50;
+  const cell = (key: string, label: string, icon: ReactNode, on: boolean, click: () => void, tip?: string) => (
     <Tip key={key} label={tip}>
-      <button type="button" role={key === 'flip' ? undefined : 'radio'} aria-checked={key === 'flip' ? undefined : on} aria-label={tip ?? label} onClick={click} disabled={disabled}
-        style={{ height: h, minWidth: 0, border: 0, borderRadius: btnRadius(40), cursor: disabled ? 'default' : 'pointer', opacity: disabled ? 0.5 : 1,
-          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', gap: 5, paddingBottom: 6, fontSize: 10, fontWeight: 800, fontVariantNumeric: 'tabular-nums',
-          background: on ? 'var(--il-ember-soft)' : 'var(--il-elev)', color: on ? 'var(--il-ember-hi)' : 'var(--il-fg2)', boxShadow: on ? 'inset 0 0 0 1px var(--il-ember-line)' : undefined }}>
-        <span style={{ flex: 1, display: 'grid', placeItems: 'center' }}>{icon}</span>
+      <button type="button" role="radio" aria-checked={on} aria-label={tip ?? label} onClick={click} disabled={disabled}
+        style={{ height: h, minWidth: 0, border: 0, borderRadius: btnRadius(h), cursor: disabled ? 'default' : 'pointer', opacity: disabled ? 0.5 : 1,
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 5, fontSize: 10.5, fontWeight: 800, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', overflow: 'hidden',
+          background: on ? 'var(--il-ember)' : 'var(--il-elev)', color: on ? 'var(--il-bg)' : 'var(--il-fg2)', transition: 'background-color .12s, color .12s' }}>
+        <span style={{ height: 18, display: 'grid', placeItems: 'center' }}>{icon}</span>
         {label}
       </button>
     </Tip>
   );
   return (
-    <div role="radiogroup" aria-label="Shape" style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fill, minmax(${phone ? 52 : 40}px, 1fr))`, gap: 4 }}>
-      {picture && chip('picture', 'Picture', <ShapeIcon w={picture.w} h={picture.h} dashed />, value === 'picture', () => onPick('picture'), "The picture's own shape")}
-      {SHAPES.map((id) => { const r = ratioById(id); return chip(id, id, <ShapeIcon w={r.w} h={r.h} />, value === id, () => onPick(id)); })}
-      {chip('flip', 'Flip', <IconArrowsExchange size={17} stroke={2.2} />, false, onFlip, 'Flip portrait / landscape')}
-    </div>
+    <>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: phone ? 46 : 34 }}>
+        {head}
+        <span style={{ flex: 1 }} />
+        <OrientSeg value={orient} onChange={setOrient} disabled={disabled} />
+      </div>
+      <div ref={gridRef} role="radiogroup" aria-label="Shape" style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`, gap: 4 }}>
+        {picture && cell('picture', 'Picture', <ShapeIcon w={picture.w} h={picture.h} dashed />, value === 'picture', () => onPick('picture'), "The picture's own shape")}
+        {UNIQUE.map((base) => {
+          const id = orient === 'landscape' ? flipRatio(base) : base;
+          const r = ratioById(id);
+          return cell(base, id, <ShapeIcon w={r.w} h={r.h} />, value === id, () => onPick(id));
+        })}
+      </div>
+    </>
   );
 }
 
@@ -198,8 +256,8 @@ function NewImageSize() {
 
   return (
     <div style={card}>
-      <Tip hint="width"><div style={title}>Size</div></Tip>
-      <ShapeChips value={lit} onPick={pick} onFlip={flip} />
+      <ShapeChips title={<Tip hint="width"><div style={title}>Size</div></Tip>} value={lit} onPick={pick} onFlip={flip}
+        current={orientOf(shown.width, shown.height) === 'square' ? null : orientOf(shown.width, shown.height)} />
       <ShapePreview w={shown.width} h={shown.height} height={phone ? 140 : 150} />
       <Seg<SizeMode> label="Size" items={PRESETS(phone)} value={sizeMode} onChange={toPreset} />
       {custom && (
@@ -257,8 +315,8 @@ function FromImageSize({ input }: { input: Pic | null }) {
   const custom = inputSize === 'custom';
   return (
     <div style={card}>
-      <Tip hint="width"><div style={title}>Size</div></Tip>
-      <ShapeChips value={shape} picture={{ w: original.width, h: original.height }} onPick={pickShape} disabled={busy}
+      <ShapeChips title={<Tip hint="width"><div style={title}>Size</div></Tip>} value={shape} picture={{ w: original.width, h: original.height }} onPick={pickShape} disabled={busy}
+        current={shape === 'picture' || shape === '1:1' ? null : orientOfRatio(ratioById(shape))}
         onFlip={() => { if (shape !== 'picture') pickShape(flipRatio(shape)); }} />
       <CropPreview original={original} shape={shape} out={out} height={phone ? 150 : 160} />
       <Seg<SizeMode> label="Size" items={PRESETS(phone)} value={inputSize} onChange={(m) => { if (m === 'custom') setLong(long); setInputSize(m); }} />
