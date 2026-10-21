@@ -12,7 +12,7 @@
 import { useEffect, useState } from 'react';
 import { useStore } from '@/lib/store';
 import { aiReady } from '@/lib/ai';
-import { Button, Chip } from '~/ui';
+import { Button, Chip, CollapseHeader, useSectionOpen } from '~/ui';
 import { useIsPhone } from '~/app/useIsPhone';
 import { usePromptText } from './usePromptText';
 import { WriteItModal } from './WriteItModal';
@@ -22,7 +22,6 @@ import { TileGrid } from './prompt/TileGrid';
 import { NegativePills } from './prompt/NegativePills';
 import { useTiles } from './prompt/useTiles';
 import { useTileEdit, useTileUi } from './prompt/tileStore';
-import { SectionToggle } from './prompt/SectionToggle';
 import { SnippetHost } from './snippets/SnippetHost';
 import { foldLayers } from './prompt/promptSections';
 import { usePromptTiles } from './prompt/usePromptTiles';
@@ -56,9 +55,10 @@ export function PromptTab({ large = false }: { large?: boolean }) {
   const put = (t: Text) => (next: string) => { t.set(next); t.flush(); };
   const { posOn, negOn, typed, toggle } = usePromptTiles({ text: pos.text, put: put(pos) }, { text: neg.text, put: put(neg) });
 
-  const promptFolded = useTileUi((s) => s.promptFolded);
-  const gridFolded = useTileUi((s) => s.gridFolded);
-  const setFolded = useTileUi((s) => s.setFolded);
+  const [promptOpen, setPromptOpen] = useSectionOpen('prompt.box');
+  const [gridOpen, setGridOpen] = useSectionOpen('prompt.snippets');
+  const promptFolded = !promptOpen;
+  const gridFolded = !gridOpen;
   const onOnly = useTileUi((s) => s.onOnly);
   const setOnOnly = useTileUi((s) => s.setOnOnly);
   const onCount = negative ? negOn.size : posOn.size;
@@ -74,7 +74,7 @@ export function PromptTab({ large = false }: { large?: boolean }) {
         position: 'sticky', top: phone ? 'env(safe-area-inset-top, 0px)' : -10, zIndex: 6, margin: '-10px -10px 0', padding: '6px 10px 8px',
         background: 'var(--il-panel)', boxShadow: '0 1px 0 var(--il-line-soft), 0 12px 14px -14px rgba(0,0,0,.7)', display: 'flex', flexDirection: 'column', gap: 4,
       }}>
-        <SectionToggle open={!promptFolded} onToggle={() => setFolded('prompt', !promptFolded)}
+        <CollapseHeader open={promptOpen} onToggle={() => setPromptOpen(!promptOpen)}
           label={negative ? 'Negative' : 'Prompt'} tone={negative ? 'color-mix(in srgb, var(--il-err) 75%, white)' : undefined}
           extra={promptFolded ? (
             <span style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: 600, color: preview ? 'var(--il-fg2)' : 'var(--il-dim)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -97,7 +97,7 @@ export function PromptTab({ large = false }: { large?: boolean }) {
         </>}
       />}
       </div>
-      <SectionToggle open={!gridFolded} onToggle={() => setFolded('grid', !gridFolded)} label={negative ? 'Negative snippets' : 'Styles & snippets'}
+      <CollapseHeader open={gridOpen} onToggle={() => setGridOpen(!gridOpen)} label={negative ? 'Negative snippets' : 'Styles & snippets'}
         right={!gridFolded && !negative ? (
           <Chip small={!phone} tall={phone} on={onOnly} onClick={() => setOnOnly(!onOnly)} title="Show only the tiles that are on">
             On only{onCount > 0 && <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 800, padding: '0 6px', borderRadius: 999, background: onOnly ? 'rgba(0,0,0,.2)' : 'var(--il-ember-soft)', color: onOnly ? 'inherit' : 'var(--il-ember-hi)' }}>{onCount}</span>}
