@@ -14,7 +14,7 @@ import { Modal } from '@mantine/core';
 import { IconDice5, IconPlus, IconRefresh, IconSparkles, IconTrash, IconX } from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
 import { compileLayers } from '@/lib/prompt';
-import { aiChat, aiNotReadyHint, aiReady } from '@/lib/ai';
+import { aiNotReadyHint, aiReady } from '@/lib/ai';
 import { activeEntry } from '@/lib/aiProviders';
 import { paramBody } from '@/lib/aiParams';
 import { AiModelPicker } from '@/features/ai/AiModelPicker';
@@ -29,10 +29,12 @@ import { useTiles } from './prompt/useTiles';
 import { tileBackground, tileHue } from './prompt/promptSearch';
 import { useWriteIt, type StudioTab } from './writeIt/writeItStore';
 import { IngredientPicker, usePickerList } from './writeIt/IngredientPicker';
-import { OptionCard, type StudioOption } from './writeIt/OptionCard';
+import { OptionCard } from './writeIt/OptionCard';
+import { addOption, freshOptions, patchOption, runOption, sessionNow, setStudioOpen, useStudioOptions } from './writeIt/studioRuns';
+import { useSessions } from '~/app/sessionsStore';
 import { StudioSettings, activeSystem } from './writeIt/StudioSettings';
 import {
-  LENGTH_PICKS, STYLE_PICKS, cleanPrompt, exampleIdeas, studioUserMessage, surpriseIdea, tweakUserMessage, type StudioMode,
+  LENGTH_PICKS, STYLE_PICKS, exampleIdeas, studioUserMessage, surpriseIdea, tweakUserMessage, type StudioMode,
 } from './writeIt/studioLogic';
 import './writeIt/studio.css';
 
@@ -47,9 +49,6 @@ function slashAt(text: string, caret: number): { start: number; query: string } 
   return { start: caret - m[1].length - 1, query: m[1] };
 }
 
-let optSeq = 0;
-const newOpt = (): StudioOption => ({ key: `o${++optSeq}`, versions: [], busy: true });
-
 export function WriteItModal({ opened, onClose }: { opened: boolean; onClose: () => void }) {
   const phone = useIsPhone();
   const ai = useStore((s) => s.ai);
@@ -60,23 +59,22 @@ export function WriteItModal({ opened, onClose }: { opened: boolean; onClose: ()
   const [mode, setMode] = useState<StudioMode>('idea');
   const [idea, setIdea] = useState('');
   const [ingredients, setIngredients] = useState<Snippet[]>([]);
-  const [options, setOptions] = useState<StudioOption[]>([]);
+  const sessionId = useSessions((s) => s.currentId) || 'app';
+  const options = useStudioOptions(sessionId);
   const [examples, setExamples] = useState<string[]>(() => exampleIdeas(3));
   const [picker, setPicker] = useState<null | 'add' | 'slash'>(null);
   const [pickQuery, setPickQuery] = useState('');
   const [hl, setHl] = useState(0);
   const [slash, setSlash] = useState<{ start: number; query: string } | null>(null);
-  const ctrls = useRef(new Set<AbortController>());
   const box = useRef<HTMLTextAreaElement>(null);
   const resultsTop = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (opened) { setExamples(exampleIdeas(phone ? 2 : 3)); return; }
-    ctrls.current.forEach((c) => c.abort());
-    ctrls.current.clear();
+    // Writes keep running when the studio closes (studioRuns); open = this session's badge clears.
+    if (opened) { setExamples(exampleIdeas(phone ? 2 : 3)); setStudioOpen(sessionId); return; }
+    setStudioOpen(null);
     setPicker(null);
-    setOptions((os) => os.map((o) => ({ ...o, busy: false })).filter((o) => o.versions.length));
-  }, [opened]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [opened, sessionId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const ready = aiReady(ai);
   const provider = activeEntry(ai).id;
@@ -85,17 +83,15 @@ export function WriteItModal({ opened, onClose }: { opened: boolean; onClose: ()
   const picked = useMemo(() => new Set(ingredients.map((s) => s.id)), [ingredients]);
   const slashList = usePickerList(tiles.positive, picker === 'slash' ? pickQuery : '');
 
-  // ---- the LLM calls -------------------------------------------------------------------
-  const call = async (user: string, signal: AbortSignal): Promise<string> => {
-    const st = useWriteIt.getState();
-    const p = paramBody(provider, st.params[provider] ?? {});
-    const raw = await aiChat({
-      settings: ai, signal, extra: p.extra,
+  // ---- the LLM calls (run in studioRuns, so closing the studio never loses them) ----------
+  const runInto = (key: string, user: string) => {
+    const p = paramBody(provider, useWriteIt.getState().params[provider] ?? {});
+    void runOption(sessionNow(), key, {
+      settings: ai, system: activeSystem(ai.promptStyle), user, extra: p.extra,
       temperature: p.temperature ?? (mode === 'idea' ? 0.95 : 0.75),
       maxTokens: p.maxTokens ?? 700,
-      messages: [{ role: 'system', content: activeSystem(ai.promptStyle) }, { role: 'user', content: user }],
+      idea: mode === 'idea' ? idea.trim() : `Rework${idea.trim() ? `: ${idea.trim()}` : ''}`,
     });
-    return cleanPrompt(raw);
   };
 
   const ask = (index: number, count: number, others: string[]) => studioUserMessage({
@@ -103,43 +99,25 @@ export function WriteItModal({ opened, onClose }: { opened: boolean; onClose: ()
     ingredients: ingredients.map((s) => ({ name: s.name, text: s.layers ? s.layers.filter((l) => l.kind === 'positive').map((l) => l.text).join(', ') : s.text, category: tiles.categoryNames[s.categoryId] })),
   });
 
-  const patchOpt = (key: string, fn: (o: StudioOption) => StudioOption) => setOptions((os) => os.map((o) => (o.key === key ? fn(o) : o)));
-
-  const runInto = async (key: string, user: string) => {
-    const ctrl = new AbortController();
-    ctrls.current.add(ctrl);
-    patchOpt(key, (o) => ({ ...o, busy: true, error: undefined }));
-    try {
-      const text = await call(user, ctrl.signal);
-      if (ctrl.signal.aborted) return;
-      if (!text) throw new Error('The AI returned nothing usable — try again.');
-      patchOpt(key, (o) => ({ ...o, busy: false, versions: [...o.versions, text] }));
-      useWriteIt.getState().addRecent({ id: `${key}-${Date.now()}`, at: Date.now(), idea: mode === 'idea' ? idea.trim() : `Rework${idea.trim() ? `: ${idea.trim()}` : ''}`, prompt: text });
-    } catch (e) {
-      if (!ctrl.signal.aborted) patchOpt(key, (o) => ({ ...o, busy: false, error: e instanceof Error ? e.message : 'Writing failed' }));
-    } finally { ctrls.current.delete(ctrl); }
-  };
-
   const writeAll = () => {
     if (!canRun) return;
     const n = w.count;
-    const fresh = Array.from({ length: n }, newOpt);
-    setOptions(fresh);
+    const keys = freshOptions(sessionNow(), n);
     useWriteIt.getState().setTab('results');
-    fresh.forEach((o, i) => { void runInto(o.key, ask(i, n, [])); });
+    keys.forEach((key, i) => runInto(key, ask(i, n, [])));
     if (phone) requestAnimationFrame(() => resultsTop.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
   };
 
   const again = (key: string) => {
     const i = options.findIndex((o) => o.key === key);
     const others = options.filter((o) => o.key !== key).map((o) => o.versions[o.versions.length - 1] ?? '').filter(Boolean);
-    void runInto(key, ask(Math.max(0, i), Math.max(options.length, 1), others));
+    runInto(key, ask(Math.max(0, i), Math.max(options.length, 1), others));
   };
 
   const tweak = (key: string, instruction: string) => {
     const o = options.find((x) => x.key === key);
     const text = o?.versions[o.versions.length - 1];
-    if (text) void runInto(key, tweakUserMessage(text, instruction));
+    if (text) runInto(key, tweakUserMessage(text, instruction));
   };
 
   const use = (text: string) => {
@@ -283,7 +261,7 @@ export function WriteItModal({ opened, onClose }: { opened: boolean; onClose: ()
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       {options.map((o, i) => (
         <OptionCard key={o.key} n={i + 1} opt={o} onUse={use} onAgain={() => again(o.key)} onTweak={(t) => tweak(o.key, t)}
-          onBack={() => patchOpt(o.key, (x) => ({ ...x, versions: x.versions.slice(0, -1) }))} />
+          onBack={() => patchOption(sessionId, o.key, (x) => ({ ...x, versions: x.versions.slice(0, -1) }))} />
       ))}
       {options.length > 1 && !busy && (
         <div><Button tone="card" size={phone ? 'lg' : 'sm'} icon={<IconRefresh size={14} stroke={2.4} />} disabled={!canRun} onClick={writeAll}>Write all again</Button></div>
@@ -310,7 +288,7 @@ export function WriteItModal({ opened, onClose }: { opened: boolean; onClose: ()
           <div style={{ fontSize: 12, lineHeight: 1.5, color: 'var(--il-fg2)', wordBreak: 'break-word' }}>{r.prompt}</div>
           <div style={{ display: 'flex', gap: 6 }}>
             <Button tone="primary" size={phone ? 'lg' : 'sm'} onClick={() => use(r.prompt)}>Use this</Button>
-            <Button tone="card" size={phone ? 'lg' : 'sm'} onClick={() => { setOptions((os) => [...os, { key: `o${++optSeq}`, versions: [r.prompt], busy: false }]); w.setTab('results'); }} tooltip="Tweak this">Tweak</Button>
+            <Button tone="card" size={phone ? 'lg' : 'sm'} onClick={() => { addOption(sessionId, r.prompt); w.setTab('results'); }} tooltip="Tweak this">Tweak</Button>
             <div style={{ flex: 1 }} />
             <Button tone="ghost" size={phone ? 'lg' : 'sm'} icon={<IconTrash size={14} />} tooltip="Remove" onClick={() => w.removeRecent(r.id)} />
           </div>

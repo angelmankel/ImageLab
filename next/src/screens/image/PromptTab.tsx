@@ -17,6 +17,7 @@ import { useIsPhone } from '~/app/useIsPhone';
 import { usePromptText } from './usePromptText';
 import { WriteItModal } from './WriteItModal';
 import { GenerateSnippetsHost } from './writeIt/GenerateSnippets';
+import { WriteItBadge } from './writeIt/WriteItBadge';
 import { StartersModal } from './starters/StartersModal';
 import { PromptCard } from './prompt/PromptCard';
 import { TileGrid } from './prompt/TileGrid';
@@ -93,7 +94,7 @@ export function PromptTab({ large = false }: { large?: boolean }) {
         onSaveAsSnippet={(text) => useTileEdit.getState().edit('new', text)}
         tools={<>
           <Button tone="card" size={size} style={{ color: 'var(--il-ember-hi)' }} onClick={() => { pos.flush(); setWriting(true); }}
-            tooltip={aiReady(ai) ? 'Let the AI write the prompt' : 'Set up AI in Settings'}>✦ Write it</Button>
+            tooltip={aiReady(ai) ? 'Let the AI write the prompt' : 'Set up AI in Settings'}>✦ Write it<WriteItBadge /></Button>
           <Button tone="card" size={size} onClick={() => { pos.flush(); setStarters(true); }} tooltip="Start from a picture">Starters</Button>
         </>}
       />}

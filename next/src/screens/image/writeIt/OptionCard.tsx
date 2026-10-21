@@ -9,7 +9,9 @@ import { useIsPhone } from '~/app/useIsPhone';
 import { Button, Chip, SkeletonText, Spinner } from '~/ui';
 import { TWEAKS } from './studioLogic';
 
-export interface StudioOption { key: string; versions: string[]; busy: boolean; error?: string }
+import type { StudioOption } from './studioRuns';
+
+export type { StudioOption };
 
 export function OptionCard({ n, opt, onUse, onAgain, onTweak, onBack }: {
   n: number; opt: StudioOption;
