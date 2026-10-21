@@ -13,6 +13,7 @@
  */
 import { create } from 'zustand';
 import { useShortcut, ShortcutPriority } from '@/hooks/useShortcut';
+import { playSound } from '@/lib/sounds';
 import { useSessions } from './sessionsStore';
 import { emptyStack, popRedo, popUndo, pushEntry, type UndoAction, type UndoStack } from './undoLogic';
 
@@ -65,6 +66,7 @@ export function undo(): boolean {
   if (!entry) return false;
   setStack(id, stack);
   run(entry.undo);
+  playSound('undo');
   return true;
 }
 
@@ -75,6 +77,7 @@ export function redo(): boolean {
   if (!entry) return false;
   setStack(id, stack);
   run(entry.redo);
+  playSound('redo');
   return true;
 }
 

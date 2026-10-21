@@ -1,5 +1,9 @@
 /**
- * App sounds. Synthesised with the Web Audio API, so there are no files to ship.
+ * App sounds: the shared switchboard (mute, master volume, `playSound`).
+ *
+ * The next UI registers a sample player (`setSoundPlayer`, next/src/app/sounds: Donny's UI sound
+ * pack, one sound + volume per action, FIXLIST-2 "New UI sounds"); while one is registered every
+ * `playSound` goes to it. Without one (the classic app) the old synthesised tones below play.
  *
  * Carried over from v1: a short rising blip when a job is queued (`playSubmitSound`) and a soft
  * two-note chime when its image lands (`playCompleteSound`). The next UI (item 44) adds small UI
@@ -11,32 +15,32 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-export type SoundKind = 'hover' | 'click' | 'toggle' | 'success' | 'error' | 'queued' | 'done';
+/** The synthesised kinds (classic) plus the next UI's actions (`next/src/app/sounds/soundActions.ts`). */
+export type SoundKind =
+  | 'hover' | 'click' | 'toggle' | 'success' | 'error' | 'queued' | 'done'
+  | 'toggleOn' | 'toggleOff' | 'tab' | 'open' | 'close' | 'allDone' | 'download' | 'favorite' | 'copy'
+  | 'delete' | 'undo' | 'redo' | 'notify' | 'warning' | 'dropOk' | 'dropRejected';
 
-/** Order + names for Settings. */
-export const SOUND_KINDS: ReadonlyArray<{ kind: SoundKind; label: string; hint: string }> = [
-  { kind: 'queued', label: 'Queued', hint: 'A rising blip when a job is sent.' },
-  { kind: 'done', label: 'Done', hint: 'A two-note chime when a picture or clip lands.' },
-  { kind: 'success', label: 'Success', hint: 'A light ping when something saved or copied.' },
-  { kind: 'error', label: 'Error', hint: 'A low soft tone when something failed.' },
-  { kind: 'click', label: 'Click', hint: 'A tiny tick on every button press.' },
-  { kind: 'toggle', label: 'Toggle', hint: 'Up for on, down for off.' },
-  { kind: 'hover', label: 'Hover', hint: 'A whisper of a tick when the mouse reaches a button.' },
-];
+/** A registered sample player: plays `kind` (already gated by mute and the first gesture). */
+export type SoundPlayer = (kind: SoundKind, opts: { on?: boolean }) => void;
+let player: SoundPlayer | null = null;
+/** The next UI's sample player; null puts the synthesised tones back. */
+export function setSoundPlayer(p: SoundPlayer | null) { player = p; }
 
-const DEFAULT_KINDS: Record<SoundKind, boolean> = { hover: true, click: true, toggle: true, success: true, error: true, queued: true, done: true };
+type SynthKind = 'hover' | 'click' | 'toggle' | 'success' | 'error' | 'queued' | 'done';
+const DEFAULT_KINDS: Record<SynthKind, boolean> = { hover: true, click: true, toggle: true, success: true, error: true, queued: true, done: true };
 
 interface SoundState {
   /** 0..1. Starts at half, as v1 did. */
   volume: number;
   /** The mute switch: silences every sound, keeps the volume. */
   muted: boolean;
-  /** Per-kind on / off. */
-  kinds: Record<SoundKind, boolean>;
+  /** Per-kind on / off of the synthesised tones (the next UI picks a sound or none per action instead). */
+  kinds: Record<SynthKind, boolean>;
   setVolume: (volume: number) => void;
   setMuted: (muted: boolean) => void;
   toggleMuted: () => void;
-  setKind: (kind: SoundKind, on: boolean) => void;
+  setKind: (kind: SynthKind, on: boolean) => void;
 }
 
 export const useSoundStore = create<SoundState>()(
@@ -95,12 +99,15 @@ function tone(freq: number, start: number, length: number, vol: number, rampTo?:
   osc.stop(t0 + length + 0.02);
 }
 
-/** The volume a kind plays at now, 0 = do not play. */
+/** The volume a synthesised kind plays at now, 0 = do not play. */
 function level(kind: SoundKind): number {
   const s = useSoundStore.getState();
-  if (s.muted || s.volume <= 0 || s.kinds[kind] === false) return 0;
+  if (s.muted || s.volume <= 0 || s.kinds[kind as SynthKind] === false) return 0;
   return s.volume;
 }
+
+/** True once the page has had a press or key (browsers refuse audio before one). */
+export function soundGestured(): boolean { return gestured; }
 
 let lastUi = 0;
 
@@ -109,6 +116,13 @@ let lastUi = 0;
  * rate-limited (one per 35 ms), and nothing plays before the first user gesture.
  */
 export function playSound(kind: SoundKind, opts: { on?: boolean } = {}) {
+  if (player) {
+    const st = useSoundStore.getState();
+    if (st.muted || st.volume <= 0) return;
+    if (!gestured && kind !== 'queued' && kind !== 'done' && kind !== 'allDone' && kind !== 'download') return;
+    try { player(kind, opts); } catch { /* sound is never worth an error */ }
+    return;
+  }
   const vol = level(kind);
   if (vol <= 0) return;
   if (!gestured && kind !== 'queued' && kind !== 'done') return;
