@@ -11,10 +11,22 @@ export type GridMode = 'manual' | 'auto';
 interface TileUi {
   gridMode: GridMode;
   setGridMode: (m: GridMode) => void;
+  /** Items 7 + 43: the Prompt tab's folded sections (per viewer). */
+  promptFolded: boolean;
+  gridFolded: boolean;
+  setFolded: (which: 'prompt' | 'grid', v: boolean) => void;
+  /** Item 47: the grid shows only the tiles that are on. */
+  onOnly: boolean;
+  setOnOnly: (v: boolean) => void;
 }
 
 export const useTileUi = create<TileUi>()(
-  persist((set) => ({ gridMode: 'manual', setGridMode: (gridMode) => set({ gridMode }) }), { name: 'imagelab.next.tiles.v1' }),
+  persist((set) => ({
+    gridMode: 'manual', setGridMode: (gridMode) => set({ gridMode }),
+    promptFolded: false, gridFolded: false,
+    setFolded: (which, v) => set(which === 'prompt' ? { promptFolded: v } : { gridFolded: v }),
+    onOnly: false, setOnOnly: (onOnly) => set({ onOnly }),
+  }), { name: 'imagelab.next.tiles.v1', partialize: (s) => ({ gridMode: s.gridMode, promptFolded: s.promptFolded, gridFolded: s.gridFolded }) }),
 );
 
 interface TileEdit {

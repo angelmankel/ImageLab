@@ -19,7 +19,11 @@ import {
 import { fuzzy, relatedTiles, searchTiles, tileBackground, tileHue, tileName, type TileSnippet } from './promptSearch';
 import './smartPrompt.css';
 
+/** Items 6 / 43: the box grows to this share of the window (between the two px bounds), then scrolls inside. */
 const MAX_H = 320;
+const MAX_SHARE = 0.24;
+const MIN_CAP = 110;
+const capFor = (large: boolean) => Math.round(Math.max(MIN_CAP, Math.min(large ? 260 : MAX_H, window.innerHeight * MAX_SHARE)));
 const PICK_MAX = 40;
 
 export interface SmartPromptBoxProps {
@@ -123,7 +127,7 @@ export function SmartPromptBox({ value, onChange, onBlur, kind, snippets, catego
     const el = ta.current;
     if (!el) return;
     el.style.height = 'auto';
-    el.style.height = `${Math.min(MAX_H, el.scrollHeight)}px`;
+    el.style.height = `${Math.min(capFor(large), el.scrollHeight)}px`;
     if (back.current) back.current.scrollTop = el.scrollTop;
     if (pendingSel.current) {
       const [a, b] = pendingSel.current;

@@ -118,7 +118,9 @@ export function StepPanel({ phone = false, stepId }: { phone?: boolean; stepId?:
           <StepTabs tab={tab} setTab={setTab} phone={phone} />
         </div>
       </div>
-      <div className="il-scroll" style={{ flex: 1, minHeight: 0, padding: '10px 10px 12px', display: 'flex', flexDirection: 'column', gap: 8, touchAction: 'pan-y' }}>
+      {/* Phone: the page itself scrolls (CreatePage), so this is no scroll container there — a sticky
+          section inside (the Prompt tab's pinned prompt, items 6 / 43) then sticks to the page. */}
+      <div className={phone ? undefined : 'il-scroll'} style={{ flex: 1, minHeight: 0, padding: '10px 10px 12px', display: 'flex', flexDirection: 'column', gap: 8, touchAction: 'pan-y' }}>
         {Body ? <Body key={`${step.id}:${tab}`} step={step} phone={phone} /> : <ComingSoon step={step} />}
       </div>
       {!phone && <GenerateBar step={step} />}

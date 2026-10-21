@@ -40,8 +40,12 @@ function Tile({ s, part, onToggle }: { s: Snippet; part: Part | undefined; onTog
 
 const label: React.CSSProperties = { gridColumn: '1 / -1', fontSize: 10, fontWeight: 800, letterSpacing: '.5px', textTransform: 'uppercase', color: 'var(--il-dim)', marginTop: 4 };
 
-export function TileGrid({ tiles, on, typed, onToggle }: {
+export function TileGrid({ tiles, on, typed, onToggle, flow = false, onlyOn = false }: {
   tiles: Tiles; on: Map<string, Part>; typed: string; onToggle: (s: Snippet) => void;
+  /** Items 6 / 43: no scroll of its own — the grid flows in the panel's one scroll (Prompt tab). */
+  flow?: boolean;
+  /** Item 47: show only the tiles that are on (each a tap away from off). */
+  onlyOn?: boolean;
 }) {
   const phone = useIsPhone();
   const mode = useTileUi((s) => s.gridMode);
@@ -50,9 +54,10 @@ export function TileGrid({ tiles, on, typed, onToggle }: {
   const draftText = useTileEdit((s) => s.draftText);
   const edit = useTileEdit((s) => s.edit);
   const [query, setQuery] = useState('');
-  const list = tiles.positive;
+  const all = tiles.positive;
+  const list = useMemo(() => (onlyOn ? all.filter((s) => on.has(s.id)) : all), [onlyOn, all, on]);
 
-  const auto = useMemo(() => (mode === 'auto' ? relatedTiles(list, typed, tiles.categoryNames) : null), [mode, list, typed, tiles.categoryNames]);
+  const auto = useMemo(() => (mode === 'auto' && !onlyOn ? relatedTiles(list, typed, tiles.categoryNames) : null), [mode, onlyOn, list, typed, tiles.categoryNames]);
   const found = useMemo(() => (query.trim() ? searchTiles(list, query) : null), [list, query]);
   const groups = useMemo(() => {
     if (found || auto) return null;
@@ -62,7 +67,7 @@ export function TileGrid({ tiles, on, typed, onToggle }: {
       .filter((g) => g.items.length);
   }, [found, auto, list, tiles.categories]);
 
-  const editSnip = editing && editing !== 'new' ? list.find((s) => s.id === editing) : undefined;
+  const editSnip = editing && editing !== 'new' ? all.find((s) => s.id === editing) : undefined;
   const formOpen = editing === 'new' || !!editSnip;
   const posCats = tiles.categories.filter((c) => !c.id.startsWith('neg-'));
   const h = phone ? 40 : 34;
@@ -109,12 +114,12 @@ export function TileGrid({ tiles, on, typed, onToggle }: {
         </div>
       )}
 
-      {auto && !typed.trim() && (
+      {auto && !typed.trim() && !onlyOn && (
         <div style={{ margin: '-2px 0 8px', fontSize: 11, fontWeight: 700, color: 'var(--il-muted)' }}>Type in the prompt — tiles that go with your words show here.</div>
       )}
 
-      <div className="il-scroll" data-no-swipe
-        style={{ display: 'grid', gridTemplateColumns: phone ? 'repeat(4, minmax(0, 1fr))' : 'repeat(auto-fill, minmax(82px, 1fr))', gap: 8, maxHeight: phone ? 330 : 360, overflowY: 'auto', touchAction: 'pan-y', paddingRight: 2, alignContent: 'start' }}>
+      <div className={flow ? undefined : 'il-scroll'} data-no-swipe
+        style={{ display: 'grid', gridTemplateColumns: phone ? 'repeat(4, minmax(0, 1fr))' : 'repeat(auto-fill, minmax(82px, 1fr))', gap: 8, ...(flow ? {} : { maxHeight: phone ? 330 : 360, overflowY: 'auto' as const, touchAction: 'pan-y', paddingRight: 2 }), alignContent: 'start' }}>
         {groups && groups.map((g) => (
           <Fragment key={g.c.id}>
             <div style={label}>{g.c.name}</div>
@@ -122,7 +127,10 @@ export function TileGrid({ tiles, on, typed, onToggle }: {
           </Fragment>
         ))}
         {shown && shown.map((s) => <Tile key={s.id} s={s} part={on.get(s.id)} onToggle={() => onToggle(s)} />)}
-        {shown && shown.length === 0 && (found || typed.trim()) && (
+        {onlyOn && list.length === 0 && (
+          <div style={{ gridColumn: '1 / -1', fontSize: 12, fontWeight: 600, color: 'var(--il-dim)', padding: '10px 2px' }}>No tile is on yet — turn off "On only" and tap one.</div>
+        )}
+        {!onlyOn && shown && shown.length === 0 && (found || typed.trim()) && (
           <div style={{ gridColumn: '1 / -1', fontSize: 12, fontWeight: 600, color: 'var(--il-dim)', padding: '10px 2px' }}>
             {found ? 'No tile matches — try another word, or + to make one.' : 'Nothing related yet — keep typing, or switch to Manual.'}
           </div>
