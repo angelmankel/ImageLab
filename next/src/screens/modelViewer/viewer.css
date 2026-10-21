@@ -1,10 +1,5 @@
-/* The model viewer's info panel (fix list 2 item 29): plain rows whose copy icon shows on hover,
-   and the low-profile fold rows. Touch has no hover: the icon stays, dimmed. */
+/* The model viewer's info panel (fix list 2 item 29): plain rows whose copy icon shows on hover.
+   Touch has no hover: the icon stays, dimmed. */
 .ilv-row .ilv-copy { opacity: 0; transition: opacity .12s ease; }
 .ilv-row:hover .ilv-copy, .ilv-row:focus-within .ilv-copy { opacity: 1; }
 @media (hover: none) { .ilv-row .ilv-copy { opacity: .6; } }
-.ilv-fold { transition: color .12s ease; }
-.ilv-fold:hover, .ilv-fold:focus-visible { color: var(--il-fg); }
-.ilv-fold .ilv-chev { transition: transform .15s ease; }
-.ilv-fold[aria-expanded='true'] .ilv-chev { transform: rotate(90deg); }
-@media (prefers-reduced-motion: reduce) { .ilv-fold .ilv-chev { transition: none; } }

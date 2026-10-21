@@ -1,40 +1,49 @@
 /**
- * The selected entry's card (rule 4; rebuilt for fix list item 16: "more metadata, NOT
- * overloaded, show off more of the model's art and its important features"). ONE card for every
- * kind of every step — checkpoint, LoRA, embedding, ControlNet, VAE, upscaler, text encoder…:
+ * The selected entry's card (rule 4) — rebuilt for fix list 2 item 33 ("one image that is 1:1 …
+ * this component needs to be simpler"; mockup `agent-handoffs/fixlist2-mockups/33-model-card.html`,
+ * option A). ONE card for every kind of every step — checkpoint, LoRA, embedding, ControlNet, VAE,
+ * upscaler, text encoder…:
  *
- *   [link strip (steps 2+, item 40)] [pending / missing strip]
- *   the art: three previews (ModelArt) → the model viewer on a tap
- *   name · a real node title as a badge (raw node names hidden) · On/Off
- *   file · version
- *   facts: base model · ★ rating · ↓ downloads · size          (only what is known)
- *   "Recommended settings": steps · CFG · sampler · clip skip · a LoRA's usual strength
- *   the kind's own parts (trigger words, a guide image), the weight slider, `after`
- *   Change ▾ · CivitAI ↗ · More ▾        (Remove is the × on the entry's circle, `CircleRow`)
+ *   [link strip (steps 2+)] [pending / missing strip]
+ *   ┌────────┐ name (tap → model details)              On
+ *   │  1:1   │ version · kind
+ *   │ picture│ base model chip
+ *   └────────┘ (tap → the full-screen viewer, all the model's pictures)
+ *   the ONE weight slider
+ *   the kind's own parts: trigger words (LoRA / checkpoint), a guide image (ControlNet), `after`
+ *   Recommended settings · Apply
+ *   More ▾ (quiet fold): the kind's extras (prompt side, CLIP strength, VAE…), Change, Details, CivitAI
  *
- * The api says what the entry can do (switch, weight) and hands in its per-kind pieces
- * (`KindApi.card`). The art follows "Model preview starts on" (`useModelPreview`, active: the
- * card loads "Most popular"); the samples' settings come from CivitAI's images API (cached, one
- * request per version, shared with the Models panel).
+ * Behind it all, the model's other pictures as a soft blurred texture (low contrast, under a shade
+ * of the card colour). Dropped from the card on purpose (Donny: "i dont care about the filename"):
+ * file name, size, downloads, rating, hashes — they live in the model viewer (item 29).
+ * The art follows "Model preview starts on" and the NSFW opt-in (`useModelPreview`).
  */
-import { useMemo, useState } from 'react';
-import { IconAlertTriangle, IconChevronDown, IconExternalLink, IconStarFilled, IconDownload } from '@tabler/icons-react';
+import { useMemo } from 'react';
+import { IconAlertTriangle, IconArrowsMaximize, IconChevronDown, IconExternalLink, IconInfoCircle } from '@tabler/icons-react';
 import { T } from '~/theme/tokens';
 import { Button, Switch, SliderRow } from '~/ui';
 import { useIsPhone } from '~/app/useIsPhone';
+import { makePayload, nameFromUrl, useImageDrag } from '~/dnd';
 import { useModels } from '~/screens/models/modelsStore';
 import { useVersionImages } from '~/screens/models/useModelDetail';
-import { fmtSizeKB } from '~/screens/models/civitaiQuery';
+import { useNsfwCover } from '~/screens/models/nsfwCover';
+import { Fold } from '~/screens/modelViewer/metaBits';
+import { openExternalViewer } from '~/screens/viewer/externalViewer';
+import { civitaiThumbUrl, civitaiVideoUrl, isCivitaiVideo, previewStill, type CivitaiImage } from '@/lib/civitai';
+import { imageKey } from '@/lib/previewOrder';
 import { useModelPreview } from './ModelThumb';
-import { useModelMeta, fmtCount, type ModelMeta } from './useModelMeta';
+import { useModelMeta, smallThumb } from './useModelMeta';
 import { metaWithPending } from './pendingLogic';
 import { PendingStrip } from './PendingStrip';
 import { openModelViewer } from './viewerBridge';
 import { fmtWeight, type ModelEntry } from './kindSpecs';
 import type { KindApi } from './kindApi';
 import { displayBadge } from './followLogic';
-import { fmtNum, hasRecommended, recommendFrom, type Recommended } from './cardFacts';
-import { ModelArt } from './ModelArt';
+import { hasRecommended, recommendFrom, type Recommended } from './cardFacts';
+import { RecommendedRow } from './RecommendedRow';
+import { initials } from './Thumb';
+import '~/screens/models/models.css';
 
 /** The file is named but no server lists it (and nothing is downloading it). */
 export function MissingStrip({ file }: { file: string }) {
@@ -46,121 +55,139 @@ export function MissingStrip({ file }: { file: string }) {
   );
 }
 
+const KIND_WORD: Record<string, string> = { checkpoint: 'Checkpoint', lora: 'LoRA', embedding: 'Embedding', controlnet: 'ControlNet', vae: 'VAE', clip: 'Text encoder', upscale: 'Upscaler', other: 'Model' };
+const FULL_W = 2048;
+
 export function EntryCard({ entry, api, onChange, link }: { entry: ModelEntry; api: KindApi; onChange: () => void; link?: React.ReactNode }) {
   const phone = useIsPhone();
   const meta = metaWithPending(useModelMeta(entry.name), entry.pending);
   // The selected model, shown big: its "Most popular" list loads now, not on a hover.
   const preview = useModelPreview(meta, { active: !!entry.name });
-  const [more, setMore] = useState(false);
   const { spec, card } = api;
   const pending = entry.pending;
   const dim = !!pending || !!entry.missing || !entry.on;
   const showWeight = !!spec.weight && !entry.noWeight && !(api.kind === 'checkpoint' && entry.isBase);
   const title = entry.name ? (meta.name ?? meta.label) : `No ${spec.one} yet`;
   const moreNode = card?.more?.(entry, meta);
-  const moreHint = card?.moreHint?.(entry);
   const headLabel = card?.headLabel?.(entry);
   const afterNode = card?.after?.(entry);
-  // A raw node name ("Load Checkpoint") says nothing: hidden (items 39 / 40).
   const badge = displayBadge(entry.badge, api.kind, Math.max(0, api.entries.findIndex((e) => e.id === entry.id)), api.entries.length);
-  const rec = useRecommended(entry.name ? meta.versionId ?? pending?.versionId : undefined, api.kind);
-  const sub = [entry.name ? meta.label : '', meta.versionName].filter(Boolean).join(' · ');
-
-  return (
-    <div style={{ border: `1px ${pending ? 'dashed' : 'solid'} var(--il-line-strong)`, borderRadius: T.radius.xl, background: 'var(--il-card)', padding: T.pad.card, display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 }}>
-      {link}
-      {headLabel && <span className="il-eyebrow">{headLabel}</span>}
-      {pending && <PendingStrip record={pending} />}
-      {!pending && entry.missing && <MissingStrip file={entry.name} />}
-
-      <div style={{ opacity: pending || entry.missing ? 0.6 : entry.on ? 1 : 0.75 }}>
-        <ModelArt pictures={preview.pictures} label={meta.label || title} height={phone ? 190 : 168} rootRef={preview.observe} onPointerEnter={preview.hover.onPointerEnter}
-          onOpen={(p) => entry.name && void openModelViewer({ file: entry.name, start: p.start ?? preview.viewerStart })} />
-      </div>
-
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-            <span style={{ fontSize: 15, fontWeight: 800, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: dim ? 'var(--il-fg2)' : 'var(--il-fg)' }} title={entry.name}>{title}</span>
-            {badge && <span style={{ flex: 'none', fontSize: 9, fontWeight: 800, letterSpacing: '.4px', textTransform: 'uppercase', borderRadius: 999, padding: '2px 7px', background: 'var(--il-ember-soft)', color: 'var(--il-ember-hi)', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{badge}</span>}
-          </div>
-          {sub && <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--il-muted)', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={entry.name}>{sub}</div>}
-        </div>
-        {spec.hasSwitch && <span style={{ flex: 'none' }}><Switch label={entry.on ? 'On' : 'Off'} checked={entry.on} onChange={(on) => api.setOn(entry.id, on)} /></span>}
-      </div>
-
-      {entry.name && <Facts meta={meta} />}
-      {hasRecommended(rec) && <SamplesUse rec={rec} kind={api.kind} />}
-
-      {card?.words?.(entry, meta)}
-      {card?.body?.(entry)}
-
-      {showWeight && spec.weight && (
-        <SliderRow id={api.kind === 'lora' ? 'lora.strength' : api.kind === 'controlnet' ? 'controlnet.strength' : `${api.kind}.weight`} label={card?.weightLabel?.(entry) ?? spec.weight.label} value={entry.weight} min={spec.weight.min} max={spec.weight.max} step={spec.weight.step}
-          presets={spec.weight.presets} format={fmtWeight} onChange={(v) => api.setWeight(entry.id, v)}
-          hint={card?.weightHint?.(entry)} />
-      )}
-
-      {afterNode}
-
-      {more && moreNode && <div style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingTop: 2 }}>{moreNode}</div>}
-
-      <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-        <Button tone="card" size={phone ? 'lg' : 'sm'} caret={<IconChevronDown size={13} stroke={2.6} />} onClick={onChange} tooltip={`Pick another ${spec.one}`}>Change</Button>
-        <Button tone="card" size={phone ? 'lg' : 'sm'} caret={<IconExternalLink size={13} stroke={2.4} />} disabled={!meta.civitaiUrl} onClick={() => meta.civitaiUrl && window.open(meta.civitaiUrl, '_blank', 'noopener')} tooltip={meta.civitaiUrl ? 'Open on CivitAI' : 'Not on CivitAI'}>CivitAI</Button>
-        {moreNode && (
-          <Button tone="ghost" size={phone ? 'lg' : 'sm'} on={more} caret={<IconChevronDown size={13} stroke={2.6} style={{ transform: more ? 'rotate(180deg)' : undefined }} />} onClick={() => setMore((v) => !v)}
-            style={{ minWidth: 0, maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {more ? 'Less' : moreHint ? `More · ${moreHint}` : 'More'}
-          </Button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-/** Base model · rating · downloads · size — whatever is known; "Looking up…" / "Not on CivitAI" otherwise. */
-function Facts({ meta }: { meta: ModelMeta }) {
+  const versionId = entry.name ? meta.versionId ?? pending?.versionId : undefined;
+  const { rec, gallery } = useRecommended(versionId, api.kind);
   const base = meta.baseModel ? (meta.bucket === 'Other' || meta.bucket === 'Unknown' ? meta.baseModel : meta.bucket) : '';
-  const size = fmtSizeKB(meta.sizeKB);
-  const chip: React.CSSProperties = { height: 24, padding: '0 9px', borderRadius: 999, background: 'var(--il-elev)', color: 'var(--il-fg2)', fontSize: 11, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap' };
-  const parts = [
-    base && <span key="b" style={{ ...chip, background: 'var(--il-ember-soft)', color: 'var(--il-ember-hi)' }} title="Base model">{base}</span>,
-    meta.rating ? <span key="r" style={chip} title="Rating"><IconStarFilled size={10} />{meta.rating.toFixed(1)}</span> : null,
-    meta.downloads ? <span key="d" style={chip} title="Downloads"><IconDownload size={11} stroke={2.4} />{fmtCount(meta.downloads)}</span> : null,
-    size && <span key="s" style={chip} title="File size">{size}</span>,
-  ].filter(Boolean);
-  if (!parts.length) return <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--il-muted)' }}>{meta.resolved ? 'Not on CivitAI' : 'Looking up…'}</span>;
-  return <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>{parts}</div>;
-}
+  const sub = [meta.versionName, KIND_WORD[api.kind] ?? spec.one].filter(Boolean).join(' · ');
+  const hero = preview.pictures[0];
+  const texture = preview.pictures.slice(1, 5);
+  const covered = useNsfwCover();
+  const heroSize = phone ? 116 : 104;
 
-/** The settings the version's sample images were made with. */
-function SamplesUse({ rec, kind }: { rec: Recommended; kind: string }) {
-  const items: Array<[string, string]> = [];
-  if (rec.strength != null && kind !== 'checkpoint') items.push(['Strength', `≈ ${fmtNum(rec.strength)}`]);
-  if (rec.steps != null) items.push(['Steps', String(rec.steps)]);
-  if (rec.cfg != null) items.push(['CFG', fmtNum(rec.cfg)]);
-  if (rec.sampler) items.push(['Sampler', rec.sampler]);
-  if (rec.clipSkip != null) items.push(['Clip skip', String(rec.clipSkip)]);
+  // The picture → the full-screen viewer over all the version's pictures (with their generation
+  // data when the images API has them), starting on the shown one (item 31 / 33).
+  const openFull = () => {
+    if (!hero) return;
+    const list: CivitaiImage[] = gallery.length ? gallery : preview.pictures.map((p) => ({ url: p.url, width: 0, height: 0, nsfwLevel: 0, meta: null }));
+    const k = imageKey(hero.start?.url ?? hero.url);
+    const at = Math.max(0, list.findIndex((i) => imageKey(i.url) === k));
+    const images = list.map((img) => {
+      const video = isCivitaiVideo(img);
+      const id = (img as { id?: number }).id;
+      return {
+        url: video ? civitaiVideoUrl(img.url, FULL_W) : civitaiThumbUrl(previewStill(img, FULL_W), FULL_W), key: img.url, kind: video ? 'video' as const : 'image' as const,
+        width: img.width || undefined, height: img.height || undefined, meta: img.meta, nsfw: covered(img.nsfwLevel), link: id ? `https://civitai.com/images/${id}` : undefined,
+      };
+    });
+    openExternalViewer({ images, index: at, source: title, onLeave: () => {} });
+  };
+  const details = () => entry.name && void openModelViewer({ file: entry.name, start: preview.viewerStart });
+  const drag = useImageDrag(() => (hero && !/\.(mp4|webm)(\?|$)/i.test(hero.url) ? makePayload({ url: hero.url, name: nameFromUrl(hero.url) || `${title}.png`, source: 'model' }) : null));
+  const weightTarget = showWeight && api.kind !== 'checkpoint' ? { value: entry.weight, set: (v: number) => api.setWeight(entry.id, v) } : undefined;
+
   return (
-    <div title={`The typical settings of ${rec.from} sample image${rec.from === 1 ? '' : 's'} on CivitAI`}
-      style={{ background: 'var(--il-elev)', borderRadius: T.radius.md, padding: '7px 10px', display: 'flex', flexDirection: 'column', gap: 5, minWidth: 0 }}>
-      <span className="il-eyebrow">Recommended settings</span>
-      <div style={{ display: 'flex', flexWrap: 'wrap', columnGap: 14, rowGap: 4 }}>
-        {items.map(([k, v]) => (
-          <span key={k} style={{ minWidth: 0, maxWidth: '100%' }}>
-            <span style={{ display: 'block', fontSize: 9, fontWeight: 700, color: 'var(--il-muted)' }}>{k}</span>
-            <span style={{ display: 'block', fontSize: 12, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{v}</span>
-          </span>
-        ))}
+    <div style={{ position: 'relative', overflow: 'hidden', border: `1px ${pending ? 'dashed' : 'solid'} var(--il-line-strong)`, borderRadius: T.radius.xl, background: 'var(--il-card)', minWidth: 0, isolation: 'isolate' }}>
+      {texture.length > 0 && (
+        <div aria-hidden style={{ position: 'absolute', inset: 0, zIndex: -1, pointerEvents: 'none' }}>
+          <div style={{ position: 'absolute', inset: -24, display: 'grid', gridTemplateColumns: `repeat(${Math.min(texture.length, 4)}, 1fr)`, filter: 'blur(22px) saturate(1.15)', opacity: 0.32 }}>
+            {texture.map((p, i) => <img key={p.url + i} src={smallThumb(p.url, 60)} alt="" loading="lazy" decoding="async" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />)}
+          </div>
+          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, color-mix(in srgb, var(--il-card) 35%, transparent), var(--il-card) 78%)' }} />
+        </div>
+      )}
+      <div style={{ padding: T.pad.card, display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 }}>
+        {link}
+        {headLabel && <span className="il-eyebrow">{headLabel}</span>}
+        {pending && <PendingStrip record={pending} />}
+        {!pending && entry.missing && <MissingStrip file={entry.name} />}
+
+        <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', minWidth: 0 }}>
+          <button type="button" className="ilm-art" onClick={openFull} disabled={!hero} aria-label={`Open ${title}'s pictures full screen`} {...drag}
+            ref={preview.observe} onPointerEnter={preview.hover.onPointerEnter}
+            style={{ position: 'relative', width: heroSize, height: heroSize, flex: 'none', padding: 0, border: 0, borderRadius: T.radius.lg, overflow: 'hidden', cursor: hero ? 'zoom-in' : 'default',
+              background: 'var(--il-elev)', boxShadow: '0 6px 18px rgba(0,0,0,.28)', opacity: pending || entry.missing ? 0.6 : entry.on ? 1 : 0.75, display: 'grid', placeItems: 'center', color: 'var(--il-fg)', fontWeight: 800, fontSize: 26 }}>
+            {hero
+              ? <img src={smallThumb(hero.url, heroSize)} alt="" decoding="async" draggable={false} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+              : initials(meta.label || title)}
+            {hero && (
+              <span aria-hidden style={{ position: 'absolute', right: 5, bottom: 5, width: 22, height: 22, borderRadius: '50%', background: 'color-mix(in srgb, var(--il-bg) 70%, transparent)', display: 'grid', placeItems: 'center' }}>
+                <IconArrowsMaximize size={11} stroke={2.4} />
+              </span>
+            )}
+          </button>
+
+          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, minWidth: 0 }}>
+              <button type="button" onClick={details} disabled={!entry.name} title="Model details"
+                style={{ flex: 1, minWidth: 0, padding: 0, border: 0, background: 'transparent', textAlign: 'left', cursor: entry.name ? 'pointer' : 'default', color: dim ? 'var(--il-fg2)' : 'var(--il-fg)',
+                  fontSize: 15, fontWeight: 800, lineHeight: 1.25, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', overflowWrap: 'anywhere' }}>
+                {title}
+              </button>
+              {spec.hasSwitch && <span style={{ flex: 'none' }}><Switch label={entry.on ? 'On' : 'Off'} checked={entry.on} onChange={(on) => api.setOn(entry.id, on)} /></span>}
+            </div>
+            {entry.name && <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--il-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sub}</span>}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 2 }}>
+              {base && <Chip ember>{base}</Chip>}
+              {badge && <Chip>{badge}</Chip>}
+              {entry.name && !base && <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--il-muted)' }}>{meta.resolved ? 'Not on CivitAI' : 'Looking up…'}</span>}
+            </div>
+          </div>
+        </div>
+
+        {showWeight && spec.weight && (
+          <SliderRow id={api.kind === 'lora' ? 'lora.strength' : api.kind === 'controlnet' ? 'controlnet.strength' : `${api.kind}.weight`} label={card?.weightLabel?.(entry) ?? spec.weight.label} value={entry.weight} min={spec.weight.min} max={spec.weight.max} step={spec.weight.step}
+            presets={spec.weight.presets} format={fmtWeight} onChange={(v) => api.setWeight(entry.id, v)}
+            hint={card?.weightHint?.(entry)} />
+        )}
+
+        {card?.words?.(entry, meta)}
+        {card?.body?.(entry)}
+        {afterNode}
+
+        {hasRecommended(rec) && <RecommendedRow rec={rec} withStrength={api.kind !== 'checkpoint'} weight={weightTarget} />}
+
+        <Fold id={`card.more.${api.kind}`} title="More" summary={card?.moreHint?.(entry) ?? 'Change, details'}>
+          {moreNode && <div style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingBottom: 10 }}>{moreNode}</div>}
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+            <Button tone="card" size={phone ? 'lg' : 'sm'} caret={<IconChevronDown size={13} stroke={2.6} />} onClick={onChange} tooltip={`Pick another ${spec.one}`}>Change</Button>
+            <Button tone="card" size={phone ? 'lg' : 'sm'} caret={<IconInfoCircle size={13} stroke={2.4} />} disabled={!entry.name} onClick={details} tooltip="Model details">Details</Button>
+            <Button tone="card" size={phone ? 'lg' : 'sm'} caret={<IconExternalLink size={13} stroke={2.4} />} disabled={!meta.civitaiUrl} onClick={() => meta.civitaiUrl && window.open(meta.civitaiUrl, '_blank', 'noopener')} tooltip={meta.civitaiUrl ? 'Open on CivitAI' : 'Not on CivitAI'}>CivitAI</Button>
+          </div>
+        </Fold>
       </div>
     </div>
   );
 }
 
-/** "Recommended settings", from the version's sample images (the images API, cached per version). */
-function useRecommended(versionId: number | undefined, kind: string): Recommended {
+function Chip({ children, ember }: { children: React.ReactNode; ember?: boolean }) {
+  return (
+    <span style={{ height: 22, padding: '0 8px', borderRadius: 999, fontSize: 10, fontWeight: 800, letterSpacing: '.2px', display: 'inline-flex', alignItems: 'center', whiteSpace: 'nowrap', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis',
+      background: ember ? 'var(--il-ember-soft)' : 'var(--il-elev)', color: ember ? 'var(--il-ember-hi)' : 'var(--il-fg2)' }}>{children}</span>
+  );
+}
+
+/** "Recommended settings", from the version's pictures (the images API, cached per version), and those pictures. */
+function useRecommended(versionId: number | undefined, kind: string): { rec: Recommended; gallery: CivitaiImage[] } {
   const mask = useModels((s) => s.filters.nsfwMask);
   const { items } = useVersionImages(versionId ?? null, mask, undefined);
-  return useMemo(() => recommendFrom(items.map((i) => i.meta), kind === 'checkpoint' ? null : versionId), [items, versionId, kind]);
+  const rec = useMemo(() => recommendFrom(items.map((i) => i.meta), kind === 'checkpoint' ? null : versionId), [items, versionId, kind]);
+  return { rec, gallery: items };
 }
+

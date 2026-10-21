@@ -5,7 +5,8 @@
  * Dense by design: 12px body, 11px labels, 6–8px gaps, no box around a single line.
  */
 import { useState, type CSSProperties, type ReactNode } from 'react';
-import { IconChevronRight, IconCopy } from '@tabler/icons-react';
+import { IconCopy } from '@tabler/icons-react';
+import { Collapse } from '~/ui';
 import './viewer.css';
 import { Label } from '~/screens/models/bits';
 import { useModelActions } from '~/screens/models/useModelActions';
@@ -85,23 +86,15 @@ export function Line({ label, value, copy, mono, title }: { label: string; value
 }
 
 /**
- * The low-profile fold (item 29; base's shared Collapse, item 7, can replace it): one quiet line —
- * title, a muted summary of what is inside, a chevron — that opens its content under it. Closed
- * by default, remembered per title for the session.
+ * A quiet fold (item 29): base's low-profile `Collapse` (item 7) — chevron + label, a one-line
+ * summary while folded — on a hairline. Closed by default; remembered per viewer under `id`.
  */
-const openFolds = new Set<string>();
-export function Fold({ title, summary, children }: { title: string; summary?: string; children: ReactNode }) {
-  const [open, setOpen] = useState(() => openFolds.has(title));
-  const flip = () => setOpen((o) => { const n = !o; if (n) openFolds.add(title); else openFolds.delete(title); return n; });
+export function Fold({ title, summary, id, children }: { title: string; summary?: string; id?: string; children: ReactNode }) {
   return (
-    <div style={{ borderTop: '1px solid var(--il-line)' }}>
-      <button type="button" className="ilv-fold" aria-expanded={open} onClick={flip}
-        style={{ width: '100%', minHeight: 40, padding: '0 2px', border: 0, background: 'transparent', color: 'var(--il-fg2)', display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', textAlign: 'left' }}>
-        <span style={{ fontSize: 12, fontWeight: 800, flex: 'none' }}>{title}</span>
-        <span style={{ flex: 1, minWidth: 0, fontSize: 11, fontWeight: 600, color: 'var(--il-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'right' }}>{open ? '' : summary}</span>
-        <IconChevronRight className="ilv-chev" size={14} stroke={2.4} style={{ flex: 'none', color: 'var(--il-muted)' }} />
-      </button>
-      {open && <div style={{ display: 'flex', flexDirection: 'column', gap: 2, padding: '0 2px 10px' }}>{children}</div>}
+    <div style={{ borderTop: '1px solid var(--il-line)', padding: '4px 0' }}>
+      <Collapse id={`mv.${id ?? title}`} defaultOpen={false} label={title} preview={summary} headerStyle={{ minHeight: 36 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2, padding: '0 2px 8px' }}>{children}</div>
+      </Collapse>
     </div>
   );
 }
