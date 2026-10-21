@@ -68,14 +68,33 @@ export function detectNegative(params: readonly WorkflowParam[], targetId: strin
   return targetId && texts.length === 1 && params.filter(multiText).length === 2 ? texts[0].id : null;
 }
 
+/**
+ * A shared value on a Primitive node (PrimitiveInt / PrimitiveFloat / PrimitiveString…, the `value`
+ * widget): its node's title is what it is ("Seed", "Tile size", "Quality tags"), so the title gives
+ * the label and, for the common ones, the role.
+ */
+export const isPrimitiveValue = (p: Pick<WorkflowParam, 'nodeType' | 'name'>): boolean => /^Primitive/.test(p.nodeType) && p.name === 'value';
+
+const TITLE_ROLE: Array<[RegExp, Role]> = [
+  [/^steps?$/i, 'steps'], [/^cfg\b/i, 'cfg'], [/^denoise\b/i, 'denoise'], [/^width$/i, 'width'], [/^height$/i, 'height'],
+  [/^batch\b/i, 'batch'], [/^guidance$/i, 'guidance'], [/^shift$/i, 'shift'],
+];
+
 /** The role a widget plays, automatically. */
 export function autoRole(p: WorkflowParam, targetId: string | null, negativeId: string | null): Role | null {
   if (targetId && p.id === targetId) return 'positive';
   if (negativeId && p.id === negativeId) return 'negative';
   if (p.seedLike && p.type === 'INT') return 'seed';
   if (p.type === 'BOOLEAN') return null;
+  if (isPrimitiveValue(p)) {
+    const title = p.nodeLabel.replace(/\s*#\d+$/, '').trim();
+    return (p.type === 'INT' || p.type === 'FLOAT') ? TITLE_ROLE.find(([re]) => re.test(title))?.[1] ?? null : null;
+  }
   return BY_NAME[p.name] ?? null;
 }
+
+/** The group of role-less Primitive values (shared numbers such as "Tile size"). */
+export const GROUP_SHARED = 'Settings';
 
 /** Friendly names for common node classes (a node the user titled keeps its own title). */
 const NODE_NAMES: Array<[RegExp, string]> = [
@@ -129,27 +148,29 @@ export function resolveParams(params: readonly WorkflowParam[], targetId: string
     const role = m.role === 'none' ? null : (m.role as Role | undefined) ?? autoRole(p, posId, negId);
     const info = role ? ROLE_INFO[role] : null;
     const node = friendlyNode(p);
+    const prim = isPrimitiveValue(p);
     return {
       p, role,
-      label: m.label?.trim() || info?.label || friendlyName(p.name),
-      group: m.group?.trim() || info?.group || node,
+      label: m.label?.trim() || info?.label || (prim ? node : friendlyName(p.name)),
+      group: m.group?.trim() || info?.group || (prim ? GROUP_SHARED : node),
       hintId: info?.hint,
       hintText: m.hint?.trim() || undefined,
       control: m.control ?? 'auto',
       hidden: !!m.hidden,
     };
   });
-  // The same label twice in a group (two samplers' Steps): say which node each one is.
-  const seen = new Map<string, number>();
-  for (const r of out) seen.set(`${r.group}|${r.label}`, (seen.get(`${r.group}|${r.label}`) ?? 0) + 1);
-  const nth = new Map<string, number>();
+  // The same label twice in a group (two samplers' Steps): say which node each one is — by its
+  // title when the titles differ ("First pass" / "Hires pass"), else numbered ("Sampler 1", "Sampler 2").
+  const same = new Map<string, ResolvedParam[]>();
   for (const r of out) {
     const k = `${r.group}|${r.label}`;
-    if ((seen.get(k) ?? 0) > 1) {
-      const i = (nth.get(k) ?? 0) + 1;
-      nth.set(k, i);
-      r.sub = `${friendlyNode(r.p)} ${i}`;
-    }
+    (same.get(k) ?? same.set(k, []).get(k)!).push(r);
+  }
+  for (const list of same.values()) {
+    if (list.length < 2) continue;
+    const names = list.map((r) => friendlyNode(r.p));
+    const distinct = new Set(names).size === names.length;
+    list.forEach((r, i) => { r.sub = distinct ? names[i] : `${names[i]} ${i + 1}`; });
   }
   return out;
 }

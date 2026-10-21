@@ -15,6 +15,7 @@ import { useSteps, stepTitle, type Step } from '~/app/stepsStore';
 import { ImageDropZone, StepImageInput, rememberOrigin, slotLabel, useOrigin } from '~/compose';
 import { Hint } from './Hint';
 import { WorkflowPicker } from './WorkflowPicker';
+import { WorkflowAbout } from './WorkflowAbout';
 import { rememberUpload } from './stepRun';
 import { markStepEdited, useWorkflowStepHost } from './useWorkflowStepHost';
 import { isImageParam, uploadName } from './workflowStepLogic';
@@ -88,6 +89,7 @@ export function WorkflowInputTab({ step }: { step: Step }) {
       {!ref && <WorkflowPicker step={step} />}
       {!ref && <Hint>Pick a workflow first.</Hint>}
       {loading && <Hint>Opening {ref?.name}…</Hint>}
+      {open && <WorkflowAbout />}
       {open && !images.length && <Hint>This workflow takes no input picture.</Hint>}
       {main && <StepImageInput step={step} title={slotLabel(main.nodeLabel, 0)} own={<Picture host={host} p={main} value={valueOf(main)} step={step} main />} />}
       {more.map((p, i) => (

@@ -16,6 +16,7 @@ import { Chip, Eyebrow } from '~/ui';
 import { BoolField, ComboField, NumberField, SeedField, StringField } from './fields';
 import { Hint } from './Hint';
 import { WorkflowPicker } from './WorkflowPicker';
+import { WorkflowAbout } from './WorkflowAbout';
 import { markStepEdited, useWorkflowStepHost } from './useWorkflowStepHost';
 import { useKeptSeeds, useWorkflowStepStore } from './workflowStepStore';
 import { classify, pinnedFirst, type WidgetKind } from './workflowStepLogic';
@@ -75,6 +76,7 @@ export function WorkflowSettingsTab({ step }: { step: Step }) {
       <WorkflowPicker step={step} />
       {!ref && <Hint>Pick a workflow above. Every setting of its nodes shows here.</Hint>}
       {loading && <Hint>Opening {ref?.name}…</Hint>}
+      {open && <WorkflowAbout />}
       {open && !shown.length && <Hint>This workflow has no settings to change.</Hint>}
       {top.length > 0 && (
         <section style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>

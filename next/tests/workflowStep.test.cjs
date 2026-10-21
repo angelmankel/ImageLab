@@ -114,3 +114,10 @@ test('workflow list grouping: root first, folders after, names sorted naturally'
   assert.equal(L.uploadName('my photo (1).png', 5), '5-my-photo-1-.png');
   assert.equal(L.uploadName('', 5), '5-image.png');
 });
+
+test('workflowAbout: the "About" note, else the first note, else nothing', () => {
+  assert.equal(L.workflowAbout(null), '');
+  assert.equal(L.workflowAbout({ nodes: [{ type: 'KSampler', widgets_values: [1] }] }), '');
+  assert.equal(L.workflowAbout({ nodes: [{ type: 'Note', widgets_values: [' first '] }, { type: 'MarkdownNote', title: 'About this workflow', widgets_values: ['the about'] }] }), 'the about');
+  assert.equal(L.workflowAbout({ nodes: [{ type: 'Note', widgets_values: ['only note'] }] }), 'only note');
+});

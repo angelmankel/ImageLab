@@ -99,7 +99,9 @@ export function readParams(wf: EditorWorkflowWithSubgraphs, info: ObjectInfo): W
         options: input.widget.options,
         multiline: input.widget.multiline,
         min, max, step,
-        seedLike: input.widget.control,
+        // A Primitive node (PrimitiveInt "Tile size", "Steps"…) declares control_after_generate too, but it is a
+        // seed only when its title says so; otherwise every run would re-roll a tile size.
+        seedLike: input.widget.control && (!/^Primitive/.test(node.type) || /seed/i.test(nodeLabel)),
       });
     }
   }

@@ -203,3 +203,16 @@ export function groupWorkflows<W extends SavedWorkflowLike>(list: readonly W[]):
 
 /** "Wan 2.2 I2V A14B" from "Wan 2.2 I2V A14B.json" or "TagForce/….json". */
 export const workflowName = (path: string): string => path.replace(/^.*\//, '').replace(/\.json$/i, '');
+
+interface NoteLike { type?: string; title?: string; widgets_values?: unknown }
+
+/**
+ * The workflow's own explanation: the text of its Note / MarkdownNote titled "About…", else of its
+ * first note (the ready-made presets carry one; any workflow with a note shows it). '' = none.
+ */
+export function workflowAbout(wf: { nodes?: readonly NoteLike[] } | null | undefined): string {
+  const notes = (wf?.nodes ?? []).filter((n) => n.type === 'Note' || n.type === 'MarkdownNote');
+  const pick = notes.find((n) => /^about/i.test(n.title ?? '')) ?? notes[0];
+  const v = Array.isArray(pick?.widgets_values) ? pick!.widgets_values[0] : undefined;
+  return typeof v === 'string' ? v.trim() : '';
+}
