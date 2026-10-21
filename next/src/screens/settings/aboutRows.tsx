@@ -23,7 +23,7 @@ export function ClassicLink({ short }: { short?: boolean }) {
 function ClassicWorkspaceCtl() {
   const classic = useNext((s) => s.classic);
   const setClassic = useNext((s) => s.setClassic);
-  return <MSwitch checked={classic} onChange={(e) => setClassic(e.currentTarget.checked)} color="ember" size="sm" aria-label="Classic workspace in the classic UI" />;
+  return <MSwitch className="il-switch" checked={classic} onChange={(e) => setClassic(e.currentTarget.checked)} color="ember" size="sm" aria-label="Classic workspace in the classic UI" />;
 }
 
 function BuildCtl() {

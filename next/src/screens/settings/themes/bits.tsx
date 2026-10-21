@@ -89,7 +89,7 @@ export function ThemeSlider({ value, min, max, step, onChange, label, presets, f
           {presets.map((p) => <Chip key={p} small on={Math.abs(p - value) < step / 2} onClick={() => onChange(p)}>{fmt(p)}</Chip>)}
         </div>
       )}
-      <div className="il-slider"><Slider value={value} min={min} max={max} step={step} onChange={onChange} label={null} size="sm" color="ember" aria-label={label}
+      <div className="il-slider"><Slider value={value} min={min} max={max} step={step} onChange={onChange} label={fmt} size="sm" color="ember" aria-label={label}
         styles={{ track: { touchAction: 'pan-y' }, thumb: { touchAction: 'none', borderWidth: 2 } }} /></div>
     </div>
   );

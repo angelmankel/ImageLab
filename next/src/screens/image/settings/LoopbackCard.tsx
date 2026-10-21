@@ -70,7 +70,7 @@ export function LoopbackCard({ value, onChange, always = false, title = 'Loopbac
           </div>
           <span style={{ fontSize: 10, color: 'var(--il-muted)' }}>re-samples the image N times, growing it each round</span>
         </div>
-        {!always && <MSwitch checked={lb.enabled} onChange={(e) => save(setEnabled(lb, e.currentTarget.checked))} aria-label="Loopback on or off" color="ember" size="sm" style={{ flex: 'none' }} />}
+        {!always && <MSwitch className="il-switch" checked={lb.enabled} onChange={(e) => save(setEnabled(lb, e.currentTarget.checked))} aria-label="Loopback on or off" color="ember" size="sm" style={{ flex: 'none' }} />}
       </div>
 
       {lb.enabled && (

@@ -42,7 +42,7 @@ function ServerForm({ server, onDone }: { server: Server; onDone: () => void }) 
           items={[{ key: 'both', label: 'Images + video' }, { key: 'image', label: 'Images' }, { key: 'video', label: 'Video' }]} />
       </div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-        <MSwitch checked={enabled} onChange={(e) => updateServer(server.id, { enabled: e.currentTarget.checked })} label={enabled ? 'In use' : 'Paused'}
+        <MSwitch className="il-switch" checked={enabled} onChange={(e) => updateServer(server.id, { enabled: e.currentTarget.checked })} label={enabled ? 'In use' : 'Paused'}
           color="ember" size="sm" styles={{ label: { fontWeight: 700, fontSize: 12, color: 'var(--il-fg2)' } }} />
         <Chip small on onClick={onDone}>Done</Chip>
       </div>
