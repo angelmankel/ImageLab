@@ -17,6 +17,7 @@ import { ModelViewerHost } from '~/screens/modelViewer';
 import { ExternalViewerHost } from '~/screens/viewer/ExternalViewerHost';
 import { useCreditOutputs } from './outputs';
 import { ContextMenuHost } from './contextMenu';
+import { SnippetsFromImageHost } from '~/screens/image/writeIt/SnippetsFromImage';
 import { DragLayer, SendToSheet } from '~/dnd';
 import { CompositionSync } from '~/compose/sizeStore';
 import { UiEffects } from '~/ui/UiEffects';
@@ -38,6 +39,7 @@ export function App() {
       <ModelViewerHost />
       <ExternalViewerHost />
       <ContextMenuHost />
+      <SnippetsFromImageHost />
       <DragLayer />
       <CompositionSync />
       <SendToSheet />

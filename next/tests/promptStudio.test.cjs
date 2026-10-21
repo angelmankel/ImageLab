@@ -77,3 +77,17 @@ test('snippet ideas: parse lines, fill missing names, skip dupes and existing', 
   assert.match(u, /Direction: night/);
   assert.match(u, /do not repeat\): A; B/);
 });
+
+test('snippets from a picture: parse category lines, style flag, match categories', () => {
+  const raw = '1. Lighting > Golden Rim: warm rim light, low sun\nColor: Teal Orange: teal shadows, orange highlights\nMoody Fog: thick fog, muted tones\nStyle > Overall Look: painterly, soft brush, warm palette, cinematic';
+  const r = S.parseImageSnippets(raw, 'Atmosphere');
+  assert.deepEqual(r.map((x) => [x.category, x.name, !!x.style]), [
+    ['Lighting', 'Golden Rim', false], ['Color', 'Teal Orange', false], ['Atmosphere', 'Moody Fog', false], ['Style', 'Overall Look', true],
+  ]);
+  const cats = [{ id: 'lighting', name: '💡 Lighting' }, { id: 'color', name: 'Color' }, { id: 'style', name: 'Style & medium' }];
+  assert.equal(S.matchCategory('lighting', cats), 'lighting');
+  assert.equal(S.matchCategory('Style', cats), 'style');
+  assert.equal(S.matchCategory('Weather', cats), null);
+  assert.match(S.imageSnippetSystem('sdxl', ['Lighting', 'Color'], true), /LAST line[^]*"Style"/);
+  assert.match(S.imageSnippetUser({ count: 5, hint: 'only the lighting', category: 'Lighting' }), /Write 5[^]*"Lighting"[^]*Focus: only the lighting/);
+});
