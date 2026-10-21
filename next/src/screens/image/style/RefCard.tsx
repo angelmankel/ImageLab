@@ -47,7 +47,8 @@ function MainPicture({ img, onBlob, onClear, label }: { img: StyleRefImage | nul
   const url = useRefImageUrl(img);
   return (
     <ImageDropZone url={url} name={img?.name} dims={img ? { width: img.width, height: img.height } : null}
-      onBlob={(b) => onBlob(b.blob, b.name)} onClear={img ? onClear : undefined} emptyTitle="Drop the reference picture" label={label} />
+      onBlob={(b) => onBlob(b.blob, b.name)} onClear={img ? onClear : undefined} emptyTitle="Drop the reference picture" label={label}
+      pasteAnywhere={!img} target={{ id: 'style-reference', label: 'Style reference', order: 60 }} />
   );
 }
 

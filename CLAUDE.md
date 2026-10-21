@@ -256,6 +256,25 @@ npm run build
   (active provider, model, prompt style, the local manager); keys are entered and tested in the
   next UI's Settings → AI helper (`next/src/screens/settings/ai/*`).
 
+- **Style references (the next UI's Style tab, 10-20).** `WorkflowState.styleRefs` (`lib/styleRefs.ts`, pure + tested in
+  `next/tests/styleGraph.test.cjs` / `styleTab.test.cjs`): Style · Composition · Subject (IP-Adapter), Face (FaceID Plus v2 /
+  Portrait, InstantID, PuLID) and Flux Redux. Family: SD 1.5 and the SDXL types get IP-Adapter + Face (InstantID / PuLID SDXL
+  only), Flux gets Redux, other types none. `fetchServerInfo` reads `ServerInfo.style` (`styleSupportOf`: the feature node
+  classes + IPAdapterModelLoader / CLIPVisionLoader / StyleModelLoader / InstantIDModelLoader / PulidModelLoader combos) from
+  the same `/object_info`; `/models/insightface` is NOT a registered folder (the packs read models/insightface directly), so
+  Face is never gated on it. `missingResources` adds each active reference's missing nodes / files, so routing never sends a
+  reference to a server that cannot run it. At queue time `GenerateButton` resolves each reference's files for the target
+  (`resolveStyleRefs` → `ref.use`: adapter, CLIP vision, FaceID LoRA, InstantID ControlNet) and `queuePrompt` uploads its
+  pictures (IndexedDB `imagelab-style-refs`, key = content hash; `lib/styleRefImages.ts`); the workflow keeps only the key +
+  a 160 px thumbnail (fingerprint, history metadata). The graph stage is `graphs/style.ts`, called by `core.ts` after the
+  LoRAs and before the sampler (ids `sr<i>…`); InstantID / Redux change the prompt conditioning, so `finish` re-points every
+  `["6",0]` / `["7",0]` outside the stage at the stage's end (sampler, Loopback / refine passes, inpaint ControlNet). No active,
+  uploaded, resolved reference = the very same graph, byte for byte (`next/tests/fixtures/style-baseline.json`, captured
+  before the stage existed). Defaults come from the packs' own example workflows (`methodDefaults` / `newStyleRef`, see the
+  comment there); stacked references are scaled (`stackFactor`); InstantID wants CFG ≤ 5 (adding it lowers CFG to 4.5, one
+  undo, and the card says so). Checked on winold (ComfyUI 0.35.0 + ComfyUI_IPAdapter_plus, ComfyUI_InstantID,
+  PuLID_ComfyUI; Juggernaut XL, 1024², 30 steps): every type renders clean. **The pod does not have these nodes / models yet.**
+
 **The seed trap.** The ComfyUI editor gives any INT named `seed` / `noise_seed` a
 `control_after_generate` slot even when `/object_info` does not declare one, and saves the extra
 `"randomize"` in `widgets_values`. `lib/workflowGraph.ts` mirrors that rule. Break it and every
