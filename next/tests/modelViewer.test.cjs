@@ -131,3 +131,14 @@ test('nearEnd: within 3 of the last item, never on an empty list', () => {
   assert.equal(L.nearEnd(5, 10, 1), false);
   assert.equal(L.nearEnd(8, 10, 1), true);
 });
+
+test('item 28: the creator samples come first, the gallery after, each picture once; gallery copies carry meta in place', () => {
+  const key = (u) => u.split('#')[0];
+  const samples = [{ url: 'a' }, { url: 'b' }, { url: 'a#dup' }];
+  const gallery = [{ url: 'c', meta: 1 }, { url: 'b', meta: 2 }, { url: 'd', meta: 3 }];
+  assert.deepEqual(L.mergeGallery(samples, gallery, key), [{ url: 'a' }, { url: 'b', meta: 2 }, { url: 'c', meta: 1 }, { url: 'd', meta: 3 }]);
+  assert.deepEqual(L.mergeGallery([], gallery, key).map((i) => i.url), ['c', 'b', 'd']);
+  assert.equal(L.counterText(2, 40, true), '3 / 40+');
+  assert.equal(L.counterText(2, 128, false), '3 / 128');
+  assert.equal(L.counterText(0, 0, false), '');
+});

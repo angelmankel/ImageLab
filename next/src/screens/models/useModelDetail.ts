@@ -36,7 +36,8 @@ export function useModelDetail(modelId: number | null): { model: CivitaiModel | 
   return { model, loading, error, retry };
 }
 
-const IMAGES_PAGE = 20;
+/** A page of the gallery (item 28: enough per request that a big gallery fills quickly). */
+const IMAGES_PAGE = 40;
 const imageCache = new Map<string, { items: CivitaiImage[]; nextCursor: string | null }>();
 
 /**
@@ -49,6 +50,7 @@ export function useVersionImages(versionId: number | null, nsfwMask: number, fal
     { key, items: imageCache.get(key)?.items ?? [], nextCursor: imageCache.get(key)?.nextCursor ?? null, loading: false, failed: false },
   );
   const busy = useRef(false);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   useEffect(() => {
     if (!key) { setState({ key, items: [], nextCursor: null, loading: false, failed: false }); return; }
@@ -71,15 +73,16 @@ export function useVersionImages(versionId: number | null, nsfwMask: number, fal
   const loadMore = useCallback(async () => {
     if (!key || !state.nextCursor || busy.current) return;
     busy.current = true;
+    setLoadingMore(true);
     try {
       const p = await fetchImages({ modelVersionId: versionId!, nsfwMask, limit: IMAGES_PAGE, sort: 'Most Reactions', cursor: state.nextCursor });
       const merged = { items: [...state.items, ...p.items], nextCursor: p.nextCursor };
       imageCache.set(key, merged);
       setState((s) => (s.key === key ? { ...s, ...merged } : s));
-    } catch { /* keep what we have */ } finally { busy.current = false; }
+    } catch { /* keep what we have */ } finally { busy.current = false; setLoadingMore(false); }
   }, [key, versionId, nsfwMask, state.nextCursor, state.items]);
 
   const useFallback = state.items.length === 0 && (state.loading || state.failed);
   const items = useFallback ? (fallback ?? []) : state.items;
-  return { items, loading: state.loading && items.length === 0, hasMore: !!state.nextCursor, loadMore, fromApi: !useFallback };
+  return { items, loading: state.loading && items.length === 0, loadingMore, hasMore: !!state.nextCursor, loadMore, fromApi: !useFallback };
 }

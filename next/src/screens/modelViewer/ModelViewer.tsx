@@ -14,7 +14,8 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CivitaiImage } from '@/lib/civitai';
-import { isCivitaiVideo } from '@/lib/civitai';
+import { civitaiThumbUrl, civitaiVideoUrl, isCivitaiVideo, previewStill } from '@/lib/civitai';
+import { openExternalViewer, updateExternalViewer, useExternalViewer, type ExternalImage } from '~/screens/viewer/externalViewer';
 import { useIsPhone } from '~/app/useIsPhone';
 import { BackPill } from '~/ui';
 import { useNsfwCover } from '~/screens/models/nsfwCover';
@@ -23,7 +24,7 @@ import { useModelViewer } from './viewerStore';
 import { useViewerModel } from './useViewerModel';
 import { useViewerKeys } from './useViewerKeys';
 import { useHorizontalSwipe } from './useHorizontalSwipe';
-import { nearEnd } from './modelViewerLogic';
+import { counterText, nearEnd } from './modelViewerLogic';
 import { usePreloadAround } from './preload';
 import { TopRow } from './TopRow';
 import { Picture, pictureUrl } from './Picture';
@@ -32,6 +33,8 @@ import { MetaColumn } from './MetaColumn';
 import { vh } from '~/theme/uiScale';
 
 const META_W = 420;
+/** The full-screen viewer's picture width (item 31). */
+const FULL_W = 2048;
 
 export function ModelViewer() {
   const phone = useIsPhone();
@@ -60,22 +63,49 @@ export function ModelViewer() {
     else if (gallery.hasMore) void gallery.loadMore().then(() => setImage(index + 1));
   }, [index, images.length, gallery, setImage]);
   const keys = useMemo(() => ({ close, prev, next }), [close, prev, next]);
-  useViewerKeys(true, keys);
+  // The full-screen viewer on top owns the keys while it is open (item 31).
+  const externalOpen = useExternalViewer((s) => s.open);
+  useViewerKeys(!externalOpen, keys);
+
+  // Item 31: a tap on the picture (or on the current thumb) opens it in the full-screen viewer —
+  // ← / → through all of this model's pictures, Esc back here at the same one.
+  const toExternal = useCallback((list: CivitaiImage[]): ExternalImage[] => list.map((img) => {
+    const video = isCivitaiVideo(img);
+    const id = (img as { id?: number }).id;
+    return {
+      url: video ? civitaiVideoUrl(img.url, FULL_W) : civitaiThumbUrl(previewStill(img, FULL_W), FULL_W),
+      key: img.url, kind: video ? 'video' : 'image', width: img.width || undefined, height: img.height || undefined,
+      meta: img.meta, nsfw: covered(img.nsfwLevel), link: id ? `https://civitai.com/images/${id}` : undefined,
+    };
+  }), [covered]);
+  const { hasMore, loadMore } = gallery;
+  const openFull = useCallback((i: number) => {
+    const img = images[i];
+    if (!img || isHidden(img)) return;
+    openExternalViewer({
+      images: toExternal(images), index: i, source: model?.name ?? local?.meta.label,
+      onIndexChange: setImage, onClose: setImage, hasMore, loadMore: hasMore ? () => loadMore() : undefined,
+    });
+  }, [images, isHidden, toExternal, model, local, setImage, hasMore, loadMore]);
+  // A longer list (another page) or a changed opt-in reaches the open viewer.
+  useEffect(() => {
+    if (externalOpen) updateExternalViewer({ images: toExternal(images), hasMore, loadMore: hasMore ? () => loadMore() : undefined });
+  }, [externalOpen, images, toExternal, hasMore, loadMore]);
 
   // Warm the pictures around the shown one (not the hidden ones, not the clips), and fetch the
   // next gallery page a few images before the end so the strip never stalls.
   const urls = useMemo(() => images.map((img) => (isCivitaiVideo(img) || isHidden(img) ? '' : pictureUrl(img))), [images, isHidden]);
   usePreloadAround(urls, index);
-  const { hasMore, loadMore } = gallery;
   useEffect(() => { if (hasMore && nearEnd(index, images.length)) void loadMore(); }, [hasMore, loadMore, index, images.length]);
 
   const pictureRef = useRef<HTMLDivElement>(null);
   useHorizontalSwipe(pictureRef, { enabled: phone, onLeft: next, onRight: prev });
 
+  const onMore = useCallback(() => void loadMore(), [loadMore]);
   const title = model?.name ?? local?.meta.name ?? local?.meta.label ?? (loading ? 'Loading…' : 'Model');
   const empty = local && local.state !== 'found' ? 'No preview' : 'No sample images';
-  const strip = <ThumbStrip images={images} index={index} onSelect={setImage} isHidden={isHidden} hasMore={gallery.hasMore} onMore={() => void gallery.loadMore()} loading={gallery.loading} scrollKey={stripKey} />;
-  const top = <TopRow model={model} version={version} title={title} count={images.length} index={index} hasMore={gallery.hasMore} phone={phone} onClose={close} />;
+  const strip = <ThumbStrip images={images} index={index} onSelect={setImage} onOpen={openFull} isHidden={isHidden} hasMore={hasMore} onMore={onMore} loading={gallery.loading} loadingMore={gallery.loadingMore} scrollKey={stripKey} />;
+  const top = <TopRow model={model} version={version} title={title} counter={counterText(index, images.length, hasMore)} phone={phone} onClose={close} />;
 
   if (phone) {
     const ratio = image && image.width && image.height ? `${image.width} / ${image.height}` : '4 / 5';
@@ -85,7 +115,7 @@ export function ModelViewer() {
         <div ref={keepMeta} className="il-scroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto', touchAction: 'pan-y', display: 'flex', flexDirection: 'column' }}>
           {/* A plain block (not a grid): the picture sizes itself absolutely inside it (item 6). */}
           <div ref={pictureRef} style={{ width: '100%', aspectRatio: ratio, maxHeight: vh(56), flex: 'none', position: 'relative', touchAction: 'pan-y' }}>
-            <Picture image={image} hidden={!!image && isHidden(image)} onReveal={reveal} loading={gallery.loading} empty={empty} edges={false} canPrev={canPrev} canNext={canNext} onPrev={prev} onNext={next} />
+            <Picture image={image} hidden={!!image && isHidden(image)} onReveal={reveal} loading={gallery.loading} empty={empty} onOpen={() => openFull(index)} edges={false} canPrev={canPrev} canNext={canNext} onPrev={prev} onNext={next} />
           </div>
           {strip}
           <MetaColumn data={data} onVersion={setVersion} phone onClose={close} style={{ overflow: 'visible' }} />
@@ -99,7 +129,7 @@ export function ModelViewer() {
     <div style={{ position: 'absolute', inset: 0, display: 'grid', gridTemplateRows: 'auto minmax(0, 1fr)', gridTemplateColumns: `minmax(0, 1fr) ${META_W}px`, background: 'var(--il-bg)' }}>
       <div style={{ gridColumn: '1 / -1' }}>{top}</div>
       <div style={{ display: 'grid', gridTemplateRows: 'minmax(0, 1fr) auto', minHeight: 0, minWidth: 0 }}>
-        <Picture image={image} hidden={!!image && isHidden(image)} onReveal={reveal} loading={gallery.loading} empty={empty} edges canPrev={canPrev} canNext={canNext} onPrev={prev} onNext={next} />
+        <Picture image={image} hidden={!!image && isHidden(image)} onReveal={reveal} loading={gallery.loading} empty={empty} onOpen={() => openFull(index)} edges canPrev={canPrev} canNext={canNext} onPrev={prev} onNext={next} />
         {strip}
       </div>
       <MetaColumn data={data} onVersion={setVersion} phone={false} onClose={close} scrollRef={keepMeta} style={{ minHeight: 0, overflowY: 'auto', borderLeft: '1px solid var(--il-line)' }} />

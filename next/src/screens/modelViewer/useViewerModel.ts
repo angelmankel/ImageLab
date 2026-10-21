@@ -15,7 +15,8 @@ import { useModelDetail, useVersionImages } from '~/screens/models/useModelDetai
 import { useModels } from '~/screens/models/modelsStore';
 import { useModelViewer, type ModelViewerTarget } from './viewerStore';
 import { imageKey } from '@/lib/previewOrder';
-import { clampIndex, fileLookupState, folderOfKey, modelFromVersion, resolveFileTarget, withStartImage, type FileLookupState } from './modelViewerLogic';
+import { clampIndex, fileLookupState, folderOfKey, mergeGallery, modelFromVersion, resolveFileTarget, withStartImage, type FileLookupState } from './modelViewerLogic';
+import { passesMask } from '~/screens/models/civitaiQuery';
 
 export interface LocalFile {
   name: string;
@@ -87,7 +88,12 @@ export function useViewerModel(target: ModelViewerTarget | null): ViewerData {
   const model = fullModel ?? standIn;
   const wanted = versionId ?? resolved?.versionId ?? null;
   const version = useMemo(() => model?.modelVersions.find((v) => v.id === wanted) ?? model?.modelVersions[0], [model, wanted]);
-  const raw = useVersionImages(version?.id ?? null, mask, version?.images ?? EMPTY);
+  // Item 28: every picture — the creator's samples (within the Max rating) first, then the whole
+  // community gallery, page by page (`raw.loadMore`, cursor-based).
+  const api = useVersionImages(version?.id ?? null, mask, EMPTY);
+  const samples = useMemo(() => (version?.images ?? EMPTY).filter((i) => passesMask(i.nsfwLevel, mask)), [version, mask]);
+  const merged = useMemo(() => mergeGallery(samples, api.items, imageKey), [samples, api.items]);
+  const raw = useMemo(() => ({ ...api, items: merged, loading: api.loading && merged.length === 0 }), [api, merged]);
   // The picture the tapped preview showed comes first, while the tapped version is the one shown.
   const start = target?.start;
   const startOn = !!start && !!version && (start.versionId == null || start.versionId === version.id);

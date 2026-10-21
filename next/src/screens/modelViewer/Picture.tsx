@@ -47,8 +47,10 @@ function useSwapWhenDecoded(url: string): string {
 const MEDIA: CSSProperties = { position: 'absolute', inset: 0, width: '100%', height: '100%', maxWidth: 'none', maxHeight: 'none', objectFit: 'contain', display: 'block' };
 const CENTRE: CSSProperties = { position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' };
 
-export function Picture({ image, hidden, onReveal, loading, empty, edges, canPrev, canNext, onPrev, onNext, style }: {
+export function Picture({ image, hidden, onReveal, onOpen, loading, empty, edges, canPrev, canNext, onPrev, onNext, style }: {
   image: CivitaiImage | undefined; hidden: boolean; onReveal: () => void; loading: boolean;
+  /** A tap on the shown picture: the full-screen viewer (item 31). */
+  onOpen?: () => void;
   /** What to say when there is no image at all. */
   empty: string;
   edges: boolean; canPrev: boolean; canNext: boolean; onPrev: () => void; onNext: () => void; style?: CSSProperties;
@@ -69,9 +71,9 @@ export function Picture({ image, hidden, onReveal, loading, empty, edges, canPre
       </button>
     </div>
   ) : video ? (
-    <video key={image.url} src={civitaiVideoUrl(image.url, PICTURE_WIDTH)} poster={url} muted loop autoPlay playsInline style={MEDIA} />
+    <video key={image.url} src={civitaiVideoUrl(image.url, PICTURE_WIDTH)} poster={url} muted loop autoPlay playsInline onClick={onOpen} style={{ ...MEDIA, cursor: onOpen ? 'zoom-in' : undefined }} />
   ) : (
-    <img src={shown} alt="" decoding="async" {...drag} style={MEDIA} />
+    <img src={shown} alt="" decoding="async" {...drag} onClick={onOpen} style={{ ...MEDIA, cursor: onOpen ? 'zoom-in' : undefined }} />
   );
 
   const area = (

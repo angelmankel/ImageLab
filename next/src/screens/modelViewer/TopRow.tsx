@@ -13,14 +13,14 @@ import { civitaiModelLink } from '~/screens/models/civitaiApi';
 import { useModels } from '~/screens/models/modelsStore';
 import { NsfwToggle } from '~/screens/models/nsfwCover';
 
-export function TopRow({ model, version, title, count, index, hasMore, phone, onClose }: {
+export function TopRow({ model, version, title, counter, phone, onClose }: {
   model: CivitaiModel | null; version: CivitaiModelVersion | undefined; title: string;
-  count: number; index: number; hasMore: boolean; phone: boolean; onClose: () => void;
+  /** "3 / 40+" (more pages to come) or "3 / 128" (the real total, item 28). */
+  counter: string; phone: boolean; onClose: () => void;
 }) {
   const favourites = useModels((s) => s.favourites);
   const toggleFavourite = useModels((s) => s.toggleFavourite);
   const fav = !!model && favourites.includes(model.id);
-  const counter = count > 0 ? `${index + 1} / ${count}${hasMore ? '+' : ''}` : '';
 
   return (
     <div style={{ height: T.size.toolbar, display: 'flex', alignItems: 'center', gap: 6, padding: '0 8px', borderBottom: '1px solid var(--il-line)', background: 'var(--il-bg)', flex: 'none' }}>

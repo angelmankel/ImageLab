@@ -207,6 +207,38 @@ export function withStartImage<T extends { url: string }>(items: T[], start: T |
   return [start, ...items];
 }
 
+/**
+ * ALL of a version's pictures (fix list 2 item 28): the creator's own samples (the model
+ * payload's `version.images`, shown first) and then the community gallery from /images (paged by
+ * cursor), each picture once. A sample that the gallery also has is swapped for the gallery's copy
+ * in place (that one carries the generation `meta`), so loading more pages never moves a picture
+ * that is already shown.
+ */
+export function mergeGallery<T extends { url: string }>(samples: readonly T[], gallery: readonly T[], keyOf: (url: string) => string): T[] {
+  const byKey = new Map<string, T>();
+  for (const g of gallery) { const k = keyOf(g.url); if (!byKey.has(k)) byKey.set(k, g); }
+  const seen = new Set<string>();
+  const out: T[] = [];
+  for (const s of samples) {
+    const k = keyOf(s.url);
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(byKey.get(k) ?? s);
+  }
+  for (const g of gallery) {
+    const k = keyOf(g.url);
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(g);
+  }
+  return out;
+}
+
+/** "3 / 40+" while more pages exist, "3 / 128" once the last page is in; '' for none. */
+export function counterText(index: number, count: number, hasMore: boolean): string {
+  return count > 0 ? `${index + 1} / ${count}${hasMore ? '+' : ''}` : '';
+}
+
 /** `i` kept inside `[0, len)`; 0 for an empty list. */
 export function clampIndex(i: number, len: number): number {
   if (len <= 0) return 0;

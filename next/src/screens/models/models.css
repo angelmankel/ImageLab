@@ -37,3 +37,8 @@
 /* The selected-model card's art (item 16): a picture lifts on hover → opens the viewer. */
 .ilm-art img { transition: transform .25s ease, filter .15s ease; }
 .ilm-art:hover img, .ilm-art:focus-visible img { transform: scale(1.04); filter: brightness(1.08); }
+
+/* A loading placeholder (item 28 / 5) until base's shared Skeleton lands: a soft pulse, still under reduced motion. */
+.ilm-skel { animation: ilm-pulse 1.2s ease-in-out infinite; }
+@keyframes ilm-pulse { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .ilm-skel { animation: none; } }
