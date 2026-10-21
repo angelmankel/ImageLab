@@ -4,6 +4,7 @@
  * `tests/library.test.cjs` can load it straight from the source.
  */
 import type { HistoryEntry } from '@/lib/types';
+import { formatWhen } from '~/lib/time';
 
 export type Kind = 'all' | 'image' | 'video' | 'fav';
 export type SortKey = 'newest' | 'oldest' | 'favourites';
@@ -139,17 +140,9 @@ export function prettySampler(s: string): string {
   return t.charAt(0).toUpperCase() + t.slice(1);
 }
 
-/** "Today · 14:32", "Yesterday · 09:05", "12 Oct · 18:40", "12 Oct 2025 · 18:40". */
+/** "Today · 2:32 PM", "Yesterday · 9:05 AM", "12 Oct · 6:40 PM", "12 Oct 2025 · 6:40 PM" (`~/lib/time`, list 2 #10). */
 export function whenLabel(ts: number, now = Date.now()): string {
-  const d = new Date(ts);
-  const n = new Date(now);
-  const hm = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-  const day = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
-  const diff = Math.round((day(n) - day(d)) / 86400000);
-  if (diff === 0) return `Today · ${hm}`;
-  if (diff === 1) return `Yesterday · ${hm}`;
-  const mon = d.toLocaleString('en-GB', { month: 'short' });
-  return d.getFullYear() === n.getFullYear() ? `${d.getDate()} ${mon} · ${hm}` : `${d.getDate()} ${mon} ${d.getFullYear()} · ${hm}`;
+  return formatWhen(ts, now);
 }
 
 /** 4.2 → "0:04", 75 → "1:15". */

@@ -10,7 +10,8 @@ function load() {
   const src = fs.readFileSync(path.join(__dirname, '../src/screens/library/libraryLogic.ts'), 'utf8');
   const code = ts.transpileModule(src, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
   // Same realm as the asserts (deepStrictEqual compares prototypes). Type-only imports vanish in transpile.
-  new Function('exports', 'require', code)(exports, () => ({}));
+  const time = require('./_load.cjs')('src/lib/time.ts');
+  new Function('exports', 'require', code)(exports, (name) => (name === '~/lib/time' ? time : {}));
   return exports;
 }
 const L = load();
@@ -104,7 +105,7 @@ test('labels', () => {
   assert.equal(L.durationLabel(75), '1:15');
   assert.equal(L.durationLabel(NaN), '');
   const now = new Date(2026, 9, 19, 15, 0).getTime();
-  assert.equal(L.whenLabel(new Date(2026, 9, 19, 14, 32).getTime(), now), 'Today · 14:32');
-  assert.equal(L.whenLabel(new Date(2026, 9, 18, 9, 5).getTime(), now), 'Yesterday · 09:05');
-  assert.match(L.whenLabel(new Date(2026, 9, 12, 18, 40).getTime(), now), /^12 Oct · 18:40$/);
+  assert.equal(L.whenLabel(new Date(2026, 9, 19, 14, 32).getTime(), now), 'Today · 2:32 PM');
+  assert.equal(L.whenLabel(new Date(2026, 9, 18, 9, 5).getTime(), now), 'Yesterday · 9:05 AM');
+  assert.match(L.whenLabel(new Date(2026, 9, 12, 18, 40).getTime(), now), /^12 Oct · 6:40 PM$/);
 });

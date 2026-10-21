@@ -12,6 +12,7 @@ import { IconCopy } from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
 import { reuseSettingsFrom, usePromptFrom, recallFrom } from '~/app/actions';
 import { Button } from '~/ui';
+import { formatDateTime } from '~/lib/time';
 import { describeEntry, formatDuration } from './metaLogic';
 import { useResultMeta } from './resultMeta';
 import type { ViewerItem } from './types';
@@ -110,7 +111,7 @@ export function DetailsPanel({ item, natural }: { item: ViewerItem; natural: { w
   const took = formatDuration(item.durationMs ?? e?.durationMs);
   const created = item.createdAt ?? e?.createdAt;
   const rows: Array<[string, string]> = [];
-  if (created) rows.push(['Created', new Date(created).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })]);
+  if (created) rows.push(['Created', formatDateTime(created)]);
   if (took) rows.push(['Took', took]);
   if (server) rows.push(['Server', server]);
   if (natural) rows.push(['Pixels', `${natural.w} × ${natural.h}`]);

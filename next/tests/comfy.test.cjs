@@ -1,7 +1,8 @@
 // The ComfyUI screen's pure helpers (rule 14). Loads the real file: Node strips the types.
 const test = require('node:test');
 const assert = require('node:assert');
-const h = require('../src/screens/comfy/comfyHelpers.ts');
+const load = require('./_load.cjs');
+const h = load('src/screens/comfy/comfyHelpers.ts', { '~/lib/time': load('src/lib/time.ts') });
 
 const graphA = {
   '4': { class_type: 'CheckpointLoaderSimple', inputs: { ckpt_name: 'sdxl/illustriousXL_v2.safetensors' } },
@@ -49,7 +50,7 @@ test('nodeName', () => {
 test('log lines from bus events', () => {
   const at = new Date(2026, 9, 19, 12, 4, 11).getTime();
   const g = () => graphA;
-  assert.equal(h.clock(at), '12:04:11');
+  assert.equal(h.clock(at), '12:04:11 PM');
   assert.equal(h.logLine({ type: 'binary' }, at), null);
   assert.equal(h.logLine({ type: 'executing', promptId: 'p', node: null }, at), null);
   assert.equal(h.logLine({ type: 'execution_cached', promptId: 'p', nodes: [] }, at), null);
@@ -77,7 +78,7 @@ test('appendLog collapses same-key runs and caps the length', () => {
   let many = [];
   for (let i = 0; i < 10; i++) many = h.appendLog(many, l(String(i)), 4);
   assert.deepEqual(many.map((x) => x.text), ['6', '7', '8', '9']);
-  assert.equal(h.logText([{ at: new Date(2026, 0, 1, 1, 2, 3).getTime(), text: 'hi', tone: 'dim' }]), '[01:02:03] hi');
+  assert.equal(h.logText([{ at: new Date(2026, 0, 1, 1, 2, 3).getTime(), text: 'hi', tone: 'dim' }]), '[1:02:03 AM] hi');
 });
 
 test('system_stats → GPU, version, status line', () => {

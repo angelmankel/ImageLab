@@ -4,14 +4,10 @@
  * setTimeout aimed at the next minute boundary, re-armed after each tick (no per-second interval).
  */
 import { useEffect, useState } from 'react';
+import { formatClock } from '~/lib/time';
 
-/** "02:07PM" — Donny's format (10-19): two-digit 12-hour clock, no space before AM/PM. */
-export function fmtClock(d: Date): string {
-  const h = d.getHours();
-  const hh = String(h % 12 || 12).padStart(2, '0');
-  const mm = String(d.getMinutes()).padStart(2, '0');
-  return `${hh}:${mm}${h < 12 ? 'AM' : 'PM'}`;
-}
+/** "02:07PM" — Donny's format (10-19): two-digit 12-hour clock, no space before AM/PM (`~/lib/time`). */
+export const fmtClock = (d: Date): string => formatClock(d);
 
 export function Clock() {
   const [now, setNow] = useState(() => new Date());

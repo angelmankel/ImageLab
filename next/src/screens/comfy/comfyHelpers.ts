@@ -1,8 +1,9 @@
 /**
  * Pure helpers for the ComfyUI screen (rule 14): queue rows out of ComfyUI's `/queue`, log lines
  * out of the bus's events, the status line out of `/system_stats`, workflow-file checks.
- * Imports nothing (types only), so `tests/comfy.test.cjs` loads this very file.
+ * Imports only `~/lib/time` (pure), so `tests/comfy.test.cjs` loads this very file.
  */
+import { formatTime } from '~/lib/time';
 
 // ─── Queue ──────────────────────────────────────────────────────────────────
 
@@ -137,11 +138,9 @@ export interface LogLine {
 
 const shortId = (id: string) => (id ? id.slice(0, 8) : '?');
 
-/** `12:04:11` in local time. */
+/** `12:04:11 PM` in local time (`~/lib/time`, list 2 #10). */
 export function clock(at: number): string {
-  const d = new Date(at);
-  const p = (n: number) => String(n).padStart(2, '0');
-  return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+  return formatTime(at, { seconds: true });
 }
 
 /**
