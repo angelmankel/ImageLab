@@ -73,10 +73,14 @@ function labelOf(p: Omit<JobProgress, 'label'>): string {
 
 const MARK: Record<JobState, string> = { running: '▶ ', queued: '⏳ ', done: '✓ ', error: '⚠ ', offline: '⚠ ', idle: '' };
 
-/** The browser tab's title: short, the live part first. Idle with no download = just the base. */
+/**
+ * The browser tab's title: short words, the live part first, never a percent (fix list 2: the
+ * favicon's ring shows how far). Idle with no download = just the base.
+ */
 export function tabTitleOf(p: JobProgress, base = 'ImageLab'): string {
-  if (p.state === 'idle') return p.downloads ? `${p.label} · ${base}` : base;
-  return `${MARK[p.state]}${p.label} · ${base}`;
+  if (p.state === 'idle') return p.downloads ? `↓ Downloading · ${base}` : base;
+  const word = p.state === 'running' ? ['Running', p.queued ? `${p.queued} queued` : null].filter(Boolean).join(' · ') : p.label;
+  return `${MARK[p.state]}${word} · ${base}`;
 }
 
 const COLOR: Record<JobState, string> = {

@@ -13,7 +13,7 @@ test('running: percent, step (only with several steps), queued count', () => {
   assert.equal(p.stepIndex, 2);
   assert.equal(p.queued, 2);
   assert.equal(p.label, '42% · step 2 · 2 queued');
-  assert.equal(P.tabTitleOf(p), '▶ 42% · step 2 · 2 queued · ImageLab');
+  assert.equal(P.tabTitleOf(p), '▶ Running · 2 queued · ImageLab');
   const one = P.jobProgressOf({ ...base, stepIds: ['a'], rows: [run('j', 'a', undefined)] });
   assert.equal(one.label, 'Running');
 });
@@ -24,7 +24,7 @@ test('order: queued, then a latched flash, then offline, then idle / downloads',
   assert.equal(P.tabTitleOf(P.jobProgressOf({ ...base, flash: 'error' })), '⚠ Error · ImageLab');
   assert.equal(P.tabTitleOf(P.jobProgressOf({ ...base, offline: true })), '⚠ Offline · ImageLab');
   assert.equal(P.tabTitleOf(P.jobProgressOf(base)), 'ImageLab');
-  assert.equal(P.tabTitleOf(P.jobProgressOf({ ...base, downloads: 2, downloadPercent: 36.6 })), '↓ 37% · ImageLab');
+  assert.equal(P.tabTitleOf(P.jobProgressOf({ ...base, downloads: 2, downloadPercent: 36.6 })), '↓ Downloading · ImageLab');
 });
 
 test('favicon: none when idle, a ring otherwise; sameProgress spots no change', () => {
