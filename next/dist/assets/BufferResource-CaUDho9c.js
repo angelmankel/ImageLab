@@ -1,4 +1,4 @@
-import{w as _,g as y,S as c,u as S,B as g,a as m,E as I,b as p}from"./GpuStage-C5mrA9nO.js";const D={name:"texture-bit",vertex:{header:`
+import{w as _,g as y,S as c,u as S,B as g,a as m,E as I,b as p}from"./GpuStage-DA5Jlrlc.js";const D={name:"texture-bit",vertex:{header:`
 
         struct TextureUniforms {
             uTextureMatrix:mat3x3<f32>,
