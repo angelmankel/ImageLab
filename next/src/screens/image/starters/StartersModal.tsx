@@ -25,6 +25,7 @@ import { PROMPT_PRESETS, familyForCheckpoint, presetPrompt } from '@/lib/promptL
 import { profileById } from '@/lib/modelProfiles';
 import { useMine } from '@/features/next/mineStore';
 import { menuProps, registerMenu } from '~/app/contextMenu';
+import { makePayload, useImageDrag } from '~/dnd';
 import { useIsPhone } from '~/app/useIsPhone';
 import { T } from '~/theme/tokens';
 import { Button, LoadingImage, SearchSelect, SkeletonTiles, useEdgeFade } from '~/ui';
@@ -106,6 +107,8 @@ const TILE_W = 440;
 function Tile({ it, onUse }: { it: StarterItem; onUse: () => void }) {
   const [hover, setHover] = useState(false);
   const [shown, setShown] = useState(false);
+  // A Starter's picture drags like any picture in the app (the one small preview card).
+  const drag = useImageDrag(it.img && (!it.img.nsfw || shown) ? () => makePayload({ url: it.img!.url, name: `starter-${it.key}.jpg`, source: 'model' }) : null);
   const box: CSSProperties = { breakInside: 'avoid', marginBottom: 10, borderRadius: 12, overflow: 'hidden', position: 'relative', cursor: 'pointer', display: 'block', width: '100%', border: 0, padding: 0, textAlign: 'left', color: '#fff', font: 'inherit',
     contentVisibility: 'auto', containIntrinsicSize: 'auto 300px' } as CSSProperties;
   const overlay = (
@@ -126,7 +129,7 @@ function Tile({ it, onUse }: { it: StarterItem; onUse: () => void }) {
       );
     }
     return (
-      <button type="button" onClick={onUse} onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)} aria-label={`Use: ${it.prompt.slice(0, 80)}`} style={{ ...box, background: 'var(--il-bg-deep)' }} {...menuProps('starter', it)}>
+      <button type="button" onClick={onUse} onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)} aria-label={`Use: ${it.prompt.slice(0, 80)}`} style={{ ...box, background: 'var(--il-bg-deep)' }} {...menuProps('starter', it)} {...drag}>
         <LoadingImage src={civitaiThumbUrl(it.img.url, TILE_W)} thumb={civitaiThumbUrl(it.img.url, 32)} aspect={aspect} />
         {overlay}
       </button>

@@ -127,11 +127,6 @@ export function GpuStage({ editing, view, onZoom, fallback, children, phone = fa
           cursor: editing ? 'grab' : !view.src ? 'default' : fitted ? 'zoom-in' : 'grab' }}>
         {rect && (
           <div {...(fitted && view.dragProps ? view.dragProps : { draggable: false })} data-viewer-origin={view.originId ?? undefined} aria-hidden
-            onDragStartCapture={(e) => {
-              // The drag ghost is a snapshot of this proxy: show its (otherwise see-through) copy of the picture for that one frame.
-              const img = e.currentTarget.querySelector('img');
-              if (img) { img.style.opacity = '1'; requestAnimationFrame(() => { img.style.opacity = '0'; }); }
-            }}
             style={{ position: 'absolute', left: rect.x, top: rect.y, width: rect.w, height: rect.h, zIndex: 1 }}>
             {fitted && (view.dragProps as { draggable?: boolean } | undefined)?.draggable && view.src && <img src={view.src} alt="" draggable={false} style={{ width: '100%', height: '100%', display: 'block', opacity: 0, pointerEvents: 'none' }} />}
           </div>

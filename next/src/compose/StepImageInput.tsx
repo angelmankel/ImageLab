@@ -16,6 +16,7 @@ import { makePayload, useImageDrag } from '~/dnd';
 import { useIsPhone } from '~/app/useIsPhone';
 import { Button, useWheelSideways } from '~/ui';
 import { T } from '~/theme/tokens';
+import { vh } from '~/theme/uiScale';
 import { SourceChoice } from './SourceChoice';
 import { displayName, fmtDims } from './inputLogic';
 import { dvh } from '~/theme/uiScale';
@@ -39,13 +40,13 @@ function ResultTile({ r, selected, size, onPick }: { r: StepResult; selected: bo
 function ChainedPicture({ url, name, kind, badge, small }: { url: string; name: string; kind: 'image' | 'video'; badge: string; small?: boolean }) {
   const [dims, setDims] = useState<{ w: number; h: number } | null>(null);
   const drag = useImageDrag(() => makePayload({ url, name: displayName(name), source: 'input' }));
-  const media: React.CSSProperties = { maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', display: 'block' };
+  const media: React.CSSProperties = { width: '100%', height: '100%', objectFit: 'contain', display: 'block' };
   return (
     <>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, minHeight: 24 }}>
         <span style={{ flex: 'none', height: 22, padding: '0 8px', borderRadius: 999, background: 'var(--il-ember-soft)', color: 'var(--il-ember-hi)', fontSize: 10, fontWeight: 800, letterSpacing: .3, textTransform: 'uppercase', display: 'inline-flex', alignItems: 'center' }}>{badge}</span>
       </div>
-      <div style={{ ...checker, position: 'relative', width: '100%', aspectRatio: small ? '16 / 7' : '4 / 3', maxHeight: small ? 140 : 260, borderRadius: T.radius.lg, overflow: 'hidden', display: 'grid', placeItems: 'center' }}>
+      <div style={{ ...checker, position: 'relative', width: '100%', aspectRatio: dims ? `${dims.w} / ${dims.h}` : '4 / 3', maxHeight: small ? vh(24) : vh(50), borderRadius: T.radius.lg, overflow: 'hidden', display: 'grid', placeItems: 'center' }}>
         {kind === 'video'
           ? <video key={url} src={url} muted playsInline preload="metadata" onLoadedMetadata={(e) => setDims({ w: e.currentTarget.videoWidth, h: e.currentTarget.videoHeight })} style={media} />
           : <img key={url} src={url} alt="" {...drag} onLoad={(e) => setDims({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight })} style={{ ...media, cursor: 'grab' }} />}

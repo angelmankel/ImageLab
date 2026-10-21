@@ -17,6 +17,7 @@ import { dropToBlob, makePayload, useImageDrag, useImageDrop, useRegisterDropTar
 import { useIsPhone } from '~/app/useIsPhone';
 import { Button } from '~/ui';
 import { T } from '~/theme/tokens';
+import { vh } from '~/theme/uiScale';
 import { LibraryPicker, type LibraryPick, type ServerFiles } from './LibraryPicker';
 import { ORIGIN_LABEL, displayName, fmtDims, originOfDrop, type Origin } from './inputLogic';
 import { usePaste } from './usePaste';
@@ -146,9 +147,9 @@ export function ImageDropZone(p: ImageDropZoneProps) {
         <>
           <div style={{ display: 'flex', flexDirection: side ? 'row' : 'column', gap: 8, minWidth: 0 }}>
             <div {...drop.props} tabIndex={0} aria-label="Input picture: drop or paste another picture to replace it"
-              style={{ ...checker, position: 'relative', flex: side ? 1 : undefined, minWidth: 0, width: side ? undefined : '100%', aspectRatio: side ? undefined : small ? '16 / 7' : '4 / 3', height: side ? (small ? 140 : 200) : undefined, maxHeight: small ? 140 : 260, borderRadius: T.radius.lg, overflow: 'hidden', display: 'grid', placeItems: 'center', outline: glow ? `2px dashed ${glow}` : undefined, outlineOffset: -2, opacity: working ? 0.55 : 1, transition: 'opacity .12s' }}>
+              style={{ ...checker, position: 'relative', flex: side ? 1 : undefined, minWidth: 0, width: side ? undefined : '100%', alignSelf: 'flex-start', aspectRatio: size ? `${size.width} / ${size.height}` : '4 / 3', maxHeight: small ? vh(24) : vh(50), borderRadius: T.radius.lg, overflow: 'hidden', display: 'grid', placeItems: 'center', outline: glow ? `2px dashed ${glow}` : undefined, outlineOffset: -2, opacity: working ? 0.55 : 1, transition: 'opacity .12s' }}>
               <img src={url} alt="" {...drag} onLoad={(e) => { const i = e.currentTarget; if (i.naturalWidth) setMeasured({ width: i.naturalWidth, height: i.naturalHeight }); }}
-                style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', display: 'block', cursor: 'grab' }} />
+                style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block', cursor: 'grab' }} />
               {size && !drop.over && (
                 <span style={{ position: 'absolute', left: 8, bottom: 8, height: 22, padding: '0 8px', borderRadius: 999, background: 'var(--il-panel)', color: 'var(--il-fg)', boxShadow: '0 0 0 1px var(--il-line-strong)', fontSize: 11, fontWeight: 800, fontVariantNumeric: 'tabular-nums', display: 'inline-flex', alignItems: 'center', pointerEvents: 'none' }}>
                   {fmtDims(size.width, size.height)}

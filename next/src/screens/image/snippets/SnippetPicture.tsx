@@ -4,15 +4,19 @@
  * Replace · Paste on hover (always shown on a touch screen). Ctrl+V over / in it pastes, a dropped
  * picture is taken (`usePaste` + `PasteButton`, `useImageDrop`; fix list 2 item 36).
  */
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { IconPhoto, IconUpload, IconX } from '@tabler/icons-react';
 import { dropToBlob, useImageDrop, type DropItem } from '~/dnd';
 import { PasteButton, PasteNote, usePaste } from '~/compose';
 import { Button, Tip } from '~/ui';
+import { vh } from '~/theme/uiScale';
 import './snippetPicture.css';
 
 export function SnippetPicture({ url, onBlob, onClear, size }: { url: string | null; onBlob: (blob: Blob) => Promise<void> | void; onClear: () => void; size: number | string }) {
   const [busy, setBusy] = useState(false);
+  // Filled: the box takes the picture's own shape (capped), the whole picture shown, never cropped.
+  const [nat, setNat] = useState<{ w: number; h: number } | null>(null);
+  useEffect(() => { setNat(null); }, [url]);
   const file = useRef<HTMLInputElement>(null);
   const touch = typeof window !== 'undefined' && !!window.matchMedia?.('(hover: none)').matches;
   const take = async (item: DropItem) => {
@@ -31,13 +35,13 @@ export function SnippetPicture({ url, onBlob, onClear, size }: { url: string | n
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: size }}>
       <div {...zone} {...drop.props} tabIndex={0} aria-label="Picture" className={`il-snip-pic${url ? ' has-pic' : ''}${touch ? ' is-touch' : ''}`}
         style={{
-          position: 'relative', width: '100%', aspectRatio: '1 / 1', borderRadius: 14, overflow: 'hidden', outline: 'none',
+          position: 'relative', width: '100%', aspectRatio: url && nat ? `${nat.w} / ${nat.h}` : '1 / 1', maxHeight: vh(40), borderRadius: 14, overflow: 'hidden', outline: 'none',
           border: url ? '1px solid var(--il-line-soft)' : `1.5px dashed ${drop.over ? 'var(--il-ember)' : 'var(--il-line-strong)'}`,
           background: url ? 'var(--il-bg-deep)' : drop.over ? 'var(--il-ember-soft)' : 'var(--il-bg-deep)', opacity: busy ? 0.6 : 1,
         }}>
         {url ? (
           <>
-            <img src={url} alt="" draggable={false} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+            <img src={url} alt="" draggable={false} onLoad={(e) => { const i = e.currentTarget; if (i.naturalWidth) setNat({ w: i.naturalWidth, h: i.naturalHeight }); }} style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
             <Tip label="Remove picture">
               <button type="button" aria-label="Remove picture" onClick={onClear} className="il-snip-pic-x"
                 style={{ position: 'absolute', top: 6, right: 6, width: touch ? 32 : 24, height: touch ? 32 : 24, borderRadius: '50%', border: 0, display: 'grid', placeItems: 'center', cursor: 'pointer', background: 'rgba(0,0,0,.6)', color: '#fff' }}>
