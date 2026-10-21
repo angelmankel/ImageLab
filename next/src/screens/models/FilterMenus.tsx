@@ -20,6 +20,7 @@ import { hasApiKey } from './civitaiApi';
 import { FilterMenu, MenuHead, MenuSep, CheckRow, CheckGrid } from './FilterMenu';
 import { FilterFields } from './FilterFields';
 import { TagGroups } from './TagsRow';
+import { vh } from '~/theme/uiScale';
 
 /** A folding section inside a menu ("More base models", "More filters"). */
 function Fold({ label, open, onToggle }: { label: string; open: boolean; onToggle: () => void }) {
@@ -139,7 +140,7 @@ export function MoreMenu() {
       <MenuSep />
       <Fold label="More filters… licence, files, rating, creator" open={open} onToggle={() => setOpen(!open)} />
       {open && (
-        <div className="il-scroll" style={{ maxHeight: '52vh', padding: `${T.gap.xs}px ${T.gap.md}px ${T.gap.md}px` }}>
+        <div className="il-scroll" style={{ maxHeight: vh(52), padding: `${T.gap.xs}px ${T.gap.md}px ${T.gap.md}px` }}>
           <FilterFields f={f} set={set} size="desktop" inline lockedKind={kind} />
         </div>
       )}

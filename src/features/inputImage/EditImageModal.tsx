@@ -147,7 +147,7 @@ export function EditImageModal({ image, onClose }: Props) {
       opened
       onClose={onClose}
       fullScreen={narrow}
-      size="calc(min(1100px, 95vw))"
+      size="calc(min(1100px, 95 * var(--il-vw, 1vw)))"
       centered
       padding={0}
       title={
@@ -158,7 +158,7 @@ export function EditImageModal({ image, onClose }: Props) {
         </Group>
       }
       styles={{
-        content: { display: 'flex', flexDirection: 'column', height: narrow ? '100dvh' : 'min(720px, 90dvh)', overflow: 'hidden' },
+        content: { display: 'flex', flexDirection: 'column', height: narrow ? 'calc(100 * var(--il-dvh, 1dvh))' : 'min(720px, 90 * var(--il-dvh, 1dvh))', overflow: 'hidden' },
         // `padding={0}` is for the body; the header keeps v1's padding.
         header: { flexShrink: 0, padding: 'var(--mantine-spacing-sm) var(--mantine-spacing-md)' },
         body: { flex: 1, minHeight: 0, display: 'flex', flexDirection: narrow ? 'column' : 'row', padding: 0 },

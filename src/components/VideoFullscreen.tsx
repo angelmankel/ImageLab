@@ -120,7 +120,7 @@ export function VideoFullscreen({ url, startTime = 0, onClose }: {
       <div
         className="absolute"
         style={cssRotated
-          ? { width: '100vh', height: '100vw', top: '50%', left: '50%', transform: 'translate(-50%, -50%) rotate(90deg)' }
+          ? { width: 'calc(100 * var(--il-vh, 1vh))', height: 'calc(100 * var(--il-vw, 1vw))', top: '50%', left: '50%', transform: 'translate(-50%, -50%) rotate(90deg)' }
           : { inset: 0 }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}

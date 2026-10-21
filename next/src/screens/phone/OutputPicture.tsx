@@ -17,6 +17,7 @@ import type { ResultItem } from '@/lib/workspace';
 import { StagePlayer } from '~/screens/image/player';
 import { LiveGrid, useLiveFrames } from '~/screens/image/jobs/LiveGrid';
 import { FrameImage } from '~/screens/image/frame/FrameImage';
+import { dvh } from '~/theme/uiScale';
 
 export function OutputPicture({ items, currentKey, onPick, onOpen, live, busy, status, fallbackAspect, empty, liveGrid = false }: {
   items: readonly ResultItem[];
@@ -43,7 +44,7 @@ export function OutputPicture({ items, currentKey, onPick, onOpen, live, busy, s
 
   if (liveFrames.length) {
     return (
-      <div onClick={() => onOpen(currentKey ?? '')} style={{ position: 'relative', width: '100%', aspectRatio: String(fallbackAspect || 1), maxHeight: '68dvh', flex: 'none', overflow: 'hidden', background: 'var(--il-bg)' }}>
+      <div onClick={() => onOpen(currentKey ?? '')} style={{ position: 'relative', width: '100%', aspectRatio: String(fallbackAspect || 1), maxHeight: dvh(68), flex: 'none', overflow: 'hidden', background: 'var(--il-bg)' }}>
         <LiveGrid frames={liveFrames} />
       </div>
     );
@@ -52,7 +53,7 @@ export function OutputPicture({ items, currentKey, onPick, onOpen, live, busy, s
   // Item 41: a live frame never flashes: the old one stays until the next decoded, then a quick cross-fade.
   if (live) {
     return (
-      <div onClick={() => onOpen(currentKey ?? '')} aria-label="Live preview" style={{ position: 'relative', width: '100%', aspectRatio: String(aspect || 1), maxHeight: '68dvh', flex: 'none', overflow: 'hidden', background: 'var(--il-bg)' }}>
+      <div onClick={() => onOpen(currentKey ?? '')} aria-label="Live preview" style={{ position: 'relative', width: '100%', aspectRatio: String(aspect || 1), maxHeight: dvh(68), flex: 'none', overflow: 'hidden', background: 'var(--il-bg)' }}>
         <FrameImage src={live} fade imgProps={{ draggable: false }} />
       </div>
     );
@@ -76,7 +77,7 @@ export function OutputPicture({ items, currentKey, onPick, onOpen, live, busy, s
           onTap={openFull}
           onSwipe={swipe}
           resumeAt={resume}
-          clipStyle={{ flex: 'none', width: '100%', aspectRatio: String(aspect || 1), maxHeight: '68dvh' }}
+          clipStyle={{ flex: 'none', width: '100%', aspectRatio: String(aspect || 1), maxHeight: dvh(68) }}
           style={{ flex: 'none' }}
         />
         {full && (
@@ -89,7 +90,7 @@ export function OutputPicture({ items, currentKey, onPick, onOpen, live, busy, s
   return (
     <div
       data-no-swipe={canPage ? '' : undefined}
-      style={{ position: 'relative', width: '100%', aspectRatio: String(aspect || 1), maxHeight: '68dvh', flex: 'none', overflow: 'hidden', background: 'var(--il-bg)' }}
+      style={{ position: 'relative', width: '100%', aspectRatio: String(aspect || 1), maxHeight: dvh(68), flex: 'none', overflow: 'hidden', background: 'var(--il-bg)' }}
     >
       <HeroResult
         bare

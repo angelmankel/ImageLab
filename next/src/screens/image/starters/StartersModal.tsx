@@ -23,6 +23,7 @@ import { tileBackground } from '../prompt/promptSearch';
 import { applyStarter, setAsInput, type StarterUse } from './applyStarter';
 import { passes, topTags, type Shape } from './starterLogic';
 import { useStarterGallery } from './useStarterGallery';
+import { dvh, vh, vw } from '~/theme/uiScale';
 
 type Source = 'models' | 'mine' | 'builtin';
 
@@ -239,14 +240,14 @@ export function StartersModal({ opened, onClose }: { opened: boolean; onClose: (
       withCloseButton={false}
       fullScreen={phone}
       centered
-      size={phone ? undefined : '94vw'}
+      size={phone ? undefined : vw(94)}
       zIndex={T.z.modal}
       radius={phone ? 0 : T.radius.xl}
       padding={0}
       overlayProps={{ backgroundOpacity: 0.55, blur: 6 }}
       transitionProps={{ transition: 'pop', duration: 160 }}
       styles={{
-        content: { background: 'var(--il-bg)', border: phone ? 0 : '1px solid var(--il-line-soft)', height: phone ? '100dvh' : '92vh', maxHeight: phone ? '100dvh' : '92vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' },
+        content: { background: 'var(--il-bg)', border: phone ? 0 : '1px solid var(--il-line-soft)', height: phone ? dvh(100) : vh(92), maxHeight: phone ? dvh(100) : vh(92), display: 'flex', flexDirection: 'column', overflow: 'hidden' },
         body: { padding: 0, flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', height: '100%' },
       }}
     >

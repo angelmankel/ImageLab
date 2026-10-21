@@ -29,6 +29,7 @@ import { TopRow } from './TopRow';
 import { Picture, pictureUrl } from './Picture';
 import { ThumbStrip } from './ThumbStrip';
 import { MetaColumn } from './MetaColumn';
+import { vh } from '~/theme/uiScale';
 
 const META_W = 420;
 
@@ -83,7 +84,7 @@ export function ModelViewer() {
         {top}
         <div ref={keepMeta} className="il-scroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto', touchAction: 'pan-y', display: 'flex', flexDirection: 'column' }}>
           {/* A plain block (not a grid): the picture sizes itself absolutely inside it (item 6). */}
-          <div ref={pictureRef} style={{ width: '100%', aspectRatio: ratio, maxHeight: '56vh', flex: 'none', position: 'relative', touchAction: 'pan-y' }}>
+          <div ref={pictureRef} style={{ width: '100%', aspectRatio: ratio, maxHeight: vh(56), flex: 'none', position: 'relative', touchAction: 'pan-y' }}>
             <Picture image={image} hidden={!!image && isHidden(image)} onReveal={reveal} loading={gallery.loading} empty={empty} edges={false} canPrev={canPrev} canNext={canNext} onPrev={prev} onNext={next} />
           </div>
           {strip}

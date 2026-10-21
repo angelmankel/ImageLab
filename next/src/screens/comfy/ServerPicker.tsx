@@ -21,6 +21,7 @@ import { gpuLabel } from '~/screens/image/gpuLabel';
 import { vramText, type ServerStats } from './comfyHelpers';
 import { pickerLine, pickerTitle, ROLE_LABEL } from './serverPickLogic';
 import type { ComfyServerPick } from './useComfyServer';
+import { vh, vw } from '~/theme/uiScale';
 
 const dotColor = (paused: boolean, online: boolean | null) => (paused ? 'var(--il-dim)' : online ? 'var(--il-ok)' : online === null ? 'var(--il-dim)' : 'var(--il-err)');
 
@@ -84,11 +85,11 @@ export function ServerPicker({ pick, online, stats, queued, up, compact }: {
   );
 
   return (
-    <Popover opened={open} onChange={setOpen} position={compact ? 'bottom-end' : 'bottom-start'} shadow="lg" width={compact ? 'min(340px, calc(100vw - 24px))' : 'target'} withinPortal zIndex={T.z.popover}>
+    <Popover opened={open} onChange={setOpen} position={compact ? 'bottom-end' : 'bottom-start'} shadow="lg" width={compact ? `min(340px, calc(${vw(100)} - 24px))` : 'target'} withinPortal zIndex={T.z.popover}>
       <Popover.Target>{trigger}</Popover.Target>
       <Popover.Dropdown style={{ background: 'var(--il-panel)', border: '1px solid var(--il-line-soft)', borderRadius: T.radius.xl, padding: 8, minWidth: 280 }}>
         <div className="il-eyebrow" style={{ margin: '2px 4px 6px', display: 'flex', alignItems: 'center', gap: 6 }}><IconServer size={12} />ComfyUI server</div>
-        <div role="listbox" aria-label="ComfyUI servers" className="il-scroll" style={{ maxHeight: 'min(60vh, 420px)', display: 'flex', flexDirection: 'column', gap: 2, touchAction: 'pan-y' }}>
+        <div role="listbox" aria-label="ComfyUI servers" className="il-scroll" style={{ maxHeight: `min(${vh(60)}, 420px)`, display: 'flex', flexDirection: 'column', gap: 2, touchAction: 'pan-y' }}>
           {pick.servers.map((x) => (
             <PickRow key={x.id} server={x} on={x.id === s?.id} online={x.id === s?.id ? !!online : !!up[x.id]} large={compact}
               onPick={() => { pick.select(x); setOpen(false); }} />

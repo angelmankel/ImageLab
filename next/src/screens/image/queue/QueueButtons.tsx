@@ -13,12 +13,13 @@ import { T } from '~/theme/tokens';
 import { QueueList } from '../QueueList';
 import { DownloadList } from './DownloadList';
 import { downloadCounts } from './downloadLogic';
+import { vw } from '~/theme/uiScale';
 
 function QueuePopover({ title, target, children, open, setOpen }: { title: string; target: ReactNode; children: ReactNode; open: boolean; setOpen: (o: boolean) => void }) {
   return (
     <Popover opened={open} onChange={setOpen} position="bottom-end" shadow="lg" width={360} withinPortal zIndex={T.z.popover}>
       <Popover.Target><span style={{ display: 'inline-flex' }}>{target}</span></Popover.Target>
-      <Popover.Dropdown style={{ background: 'var(--il-panel)', border: '1px solid var(--il-line-soft)', borderRadius: T.radius.xl, padding: T.pad.panel, maxWidth: 'calc(100vw - 24px)' }}>
+      <Popover.Dropdown style={{ background: 'var(--il-panel)', border: '1px solid var(--il-line-soft)', borderRadius: T.radius.xl, padding: T.pad.panel, maxWidth: `calc(${vw(100)} - 24px)` }}>
         <div className="il-eyebrow" style={{ margin: '2px 2px 8px' }}>{title}</div>
         <div className="il-scroll" style={{ maxHeight: 400, touchAction: 'pan-y' }}>{children}</div>
       </Popover.Dropdown>

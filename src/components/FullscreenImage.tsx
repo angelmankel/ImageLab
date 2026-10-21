@@ -107,7 +107,8 @@ const DEFAULT_SLIDESHOW_MS = 3000;
  * the whole screen, so a tall image always fills its full height. The buttons and badges float
  * over it; they never take space from it.
  */
-const IMAGE_BOX = 'block h-[100dvh] w-screen select-none object-contain';
+// Viewport units read the next UI's zoom-safe vars (FIXLIST-2 item 4); the classic app has none, so 1dvh / 1vw.
+const IMAGE_BOX = 'block h-[calc(100*var(--il-dvh,1dvh))] w-[calc(100*var(--il-vw,1vw))] select-none object-contain';
 
 const SIDES = [-1, 0, 1] as const;
 const NO_URLS: readonly string[] = [];
@@ -477,7 +478,7 @@ export function FullscreenImage({
             // On a phone the panel spans under the top bar, so its header starts below it.
             paddingTop: narrow ? 'calc(env(safe-area-inset-top, 0px) + 62px)' : undefined,
           }}
-          className={cn(!instant && 'viewer-chrome-in', 'absolute right-0 top-0 z-10 flex h-full w-[340px] max-w-[85vw] flex-col', instant ? '' : 'transition-transform duration-200', infoOpen ? 'translate-x-0' : 'pointer-events-none translate-x-full')}
+          className={cn(!instant && 'viewer-chrome-in', 'absolute right-0 top-0 z-10 flex h-full w-[340px] max-w-[calc(85*var(--il-vw,1vw))] flex-col', instant ? '' : 'transition-transform duration-200', infoOpen ? 'translate-x-0' : 'pointer-events-none translate-x-full')}
         >
           <Group justify="space-between" px="md" py="sm" style={{ borderBottom: '1px solid var(--mantine-color-dark-4)' }}>
             <Text size="sm" fw={600}>Image info</Text>

@@ -21,6 +21,7 @@ import { useMapEditor, useParamMap, useWorkflowMap } from './paramMapStore';
 import { groupByNode } from './workflowStepLogic';
 import { registerMenu } from '~/app/contextMenu';
 import type { ComfyWorkflowTarget } from '~/screens/comfy/workflowMenu';
+import { dvh, vh } from '~/theme/uiScale';
 
 // The ComfyUI screen's saved-workflow menu gets "Labels & controls" (the row key is `host|path`).
 registerMenu<ComfyWorkflowTarget>('comfy-workflow', [
@@ -128,7 +129,7 @@ export function ParamMapModal() {
   return (
     <Modal opened={!!target} onClose={close} withCloseButton={false} centered fullScreen={phone} size={phone ? undefined : 760} zIndex={T.z.modal} radius={phone ? 0 : T.radius.xl} padding={0}
       overlayProps={{ backgroundOpacity: 0.55, blur: 6 }}
-      styles={{ content: { background: 'var(--il-panel)', border: phone ? 0 : '1px solid var(--il-line-soft)', height: phone ? '100dvh' : '86vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }, body: { padding: 0, flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' } }}>
+      styles={{ content: { background: 'var(--il-panel)', border: phone ? 0 : '1px solid var(--il-line-soft)', height: phone ? dvh(100) : vh(86), display: 'flex', flexDirection: 'column', overflow: 'hidden' }, body: { padding: 0, flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' } }}>
       {target && (
         <>
           <div style={{ height: 52, flex: 'none', display: 'flex', alignItems: 'center', gap: 10, padding: '0 8px 0 16px', borderBottom: '1px solid var(--il-line)' }}>

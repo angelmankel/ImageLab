@@ -17,6 +17,7 @@ import { Popover } from '@mantine/core';
 import { IconKeyboard } from '@tabler/icons-react';
 import { IconBtn } from '~/ui';
 import { T } from '~/theme/tokens';
+import { dvh, vw } from '~/theme/uiScale';
 
 const MOD = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/i.test(navigator.platform || navigator.userAgent) ? '⌘' : 'Ctrl';
 
@@ -95,11 +96,11 @@ export function ShortcutsCard({ trigger, position = 'bottom-end' }: { trigger?: 
         </span>
       </Popover.Target>
       <Popover.Dropdown style={{
-        width: 'min(560px, calc(100vw - 32px))', background: 'var(--il-panel)', border: '1px solid var(--il-line-soft)',
+        width: `min(560px, calc(${vw(100)} - 32px))`, background: 'var(--il-panel)', border: '1px solid var(--il-line-soft)',
         borderRadius: T.radius.xl, padding: T.pad.panel,
       }}>
         <div className="il-eyebrow" style={{ margin: '2px 2px 8px' }}>Keyboard shortcuts</div>
-        <div className="il-scroll" style={{ maxHeight: 'calc(100dvh - 120px)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: T.gap.md }}>
+        <div className="il-scroll" style={{ maxHeight: `calc(${dvh(100)} - 120px)`, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: T.gap.md }}>
           {GROUPS.map((g) => (
             <section key={g.title} style={{ background: 'var(--il-card)', border: '1px solid var(--il-line-soft)', borderRadius: T.radius.lg, padding: T.pad.card }}>
               <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--il-fg)', marginBottom: T.gap.sm }}>{g.title}</div>

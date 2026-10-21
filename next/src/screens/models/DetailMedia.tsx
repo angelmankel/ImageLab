@@ -14,6 +14,7 @@ import { makePayload, nameFromUrl, useImageDrag } from '~/dnd';
 import { useNsfwCover } from './nsfwCover';
 import { COVER_FALLBACK } from './bits';
 import { Media } from './DetailGallery';
+import { vh } from '~/theme/uiScale';
 
 /** Thumbnails per page. */
 export const THUMB_PAGE = 8;
@@ -53,7 +54,7 @@ export function DetailMedia({ images, index, onSelect, onView, hasMore, onMore, 
   useEffect(() => { setPage(pageOf(index)); }, [index]);
   const heroDrag = useDrag(current, !!current && isBlurred(current));
 
-  const heroH = 'clamp(200px, 34vh, 380px)';
+  const heroH = `clamp(200px, ${vh(34)}, 380px)`;
   if (images.length === 0) {
     return (
       <div style={{ height: heroH, borderRadius: 14, background: COVER_FALLBACK, display: 'grid', placeItems: 'center', color: 'var(--il-muted)', fontSize: 11, fontWeight: 700 }}>

@@ -8,6 +8,7 @@ import { useSwipe } from '@/hooks/useSwipe';
 import { T } from '~/theme/tokens';
 import type { LibItem } from './libraryLogic';
 import { ItemDetail } from './ItemDetail';
+import { dvh } from '~/theme/uiScale';
 
 export function PhoneSheet({ item, index, count, onClose, onOpen, onStep }: {
   item: LibItem | null; index: number; count: number; onClose: () => void; onOpen: () => void; onStep: (dir: 1 | -1) => void;
@@ -26,7 +27,7 @@ export function PhoneSheet({ item, index, count, onClose, onOpen, onStep }: {
       withCloseButton={false}
       radius={0}
       styles={{
-        content: { background: 'var(--il-panel)', borderRadius: '22px 22px 0 0', maxHeight: '92dvh', display: 'flex', flexDirection: 'column' },
+        content: { background: 'var(--il-panel)', borderRadius: '22px 22px 0 0', maxHeight: dvh(92), display: 'flex', flexDirection: 'column' },
         body: { padding: 0, flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' },
       }}
     >

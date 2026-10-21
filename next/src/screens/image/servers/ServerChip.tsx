@@ -19,6 +19,7 @@ import { T } from '~/theme/tokens';
 import { useGpuName } from '../useGpuName';
 import { chipOf, previewChoice, PREVIEW_SIZES, serverName, statusOf, type ServerRowState } from './serversLogic';
 import { useHostStats, usePreviewSize } from './useServerHost';
+import { vh, vw } from '~/theme/uiScale';
 
 const ROLE: Record<'image' | 'video' | 'both', string> = { image: 'images', video: 'video', both: 'images + video' };
 const DOT: Record<'online' | 'offline' | 'paused', string> = { online: 'var(--il-ok)', offline: 'var(--il-err)', paused: 'var(--il-dim)' };
@@ -122,9 +123,9 @@ export function ServerChip() {
           </Pill>
         </span>
       </Popover.Target>
-      <Popover.Dropdown style={{ background: 'var(--il-panel)', border: '1px solid var(--il-line-soft)', borderRadius: T.radius.xl, padding: T.pad.panel, maxWidth: 'calc(100vw - 24px)' }}>
+      <Popover.Dropdown style={{ background: 'var(--il-panel)', border: '1px solid var(--il-line-soft)', borderRadius: T.radius.xl, padding: T.pad.panel, maxWidth: `calc(${vw(100)} - 24px)` }}>
         <div className="il-eyebrow" style={{ margin: '2px 2px 8px', display: 'flex', alignItems: 'center', gap: 6 }}><IconServer size={12} />Servers</div>
-        <div className="il-scroll" style={{ maxHeight: 'min(70vh, 520px)' }}>
+        <div className="il-scroll" style={{ maxHeight: `min(${vh(70)}, 520px)` }}>
           {servers.map((s) => (
             <ServerRow key={s.id} server={s} online={!!serverInfo[s.id]} local={!!origin && s.host === origin}
               open={firstOpen === s.id} onToggle={() => setExpanded(firstOpen === s.id ? '' : s.id)} />

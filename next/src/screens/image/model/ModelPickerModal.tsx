@@ -6,6 +6,7 @@ import { Modal } from '@mantine/core';
 import { useIsPhone } from '~/app/useIsPhone';
 import { T } from '~/theme/tokens';
 import { ModelPickerGrid } from './ModelPickerGrid';
+import { dvh, vh } from '~/theme/uiScale';
 
 type GridProps = Parameters<typeof ModelPickerGrid>[0];
 
@@ -29,7 +30,7 @@ export function ModelPickerModal({ opened, onClose, title, ...grid }: { opened: 
         body: { padding: '4px 14px 14px' },
       }}
     >
-      <ModelPickerGrid {...grid} maxHeight={phone ? 'calc(100dvh - 160px)' : '64vh'} />
+      <ModelPickerGrid {...grid} maxHeight={phone ? `calc(${dvh(100)} - 160px)` : vh(64)} />
     </Modal>
   );
 }

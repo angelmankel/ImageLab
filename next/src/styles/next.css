@@ -24,6 +24,13 @@
 html[data-motion="off"] { --il-motion: 0; }
 
 html, body, #root { height: 100%; margin: 0; }
+/* UI scale (FIXLIST-2 item 4 / 26): <body> wears CSS zoom, which multiplies vw / vh, so 100vh would be
+   110% of the window at 110%. --il-vw/vh/dvh = one unit ÷ zoom (set by theme/applyTheme); code uses
+   vw() / vh() / dvh() from theme/uiScale. Mantine's own modal sizes read them here too. */
+:root { --il-vw: 1vw; --il-vh: 1vh; --il-dvh: 1dvh; }
+html .mantine-Modal-root, html .mantine-Drawer-root { --modal-y-offset: calc(5 * var(--il-dvh)); --modal-x-offset: calc(5 * var(--il-vw)); }
+html .mantine-Modal-content { --modal-content-max-height: calc(100 * var(--il-dvh) - var(--modal-y-offset) * 2); }
+html .mantine-Modal-root[data-full-screen] .mantine-Modal-content { --modal-content-height: calc(100 * var(--il-dvh)); }
 body {
   background: var(--il-bg);
   color: var(--il-fg);

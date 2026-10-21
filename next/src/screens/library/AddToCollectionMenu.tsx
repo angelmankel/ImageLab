@@ -10,13 +10,14 @@ import { useStore } from '@/lib/store';
 import { T } from '~/theme/tokens';
 import type { LibItem } from './libraryLogic';
 import { addToCollection, newCollection, removeFromCollection } from './libraryActions';
+import { vh } from '~/theme/uiScale';
 
 export function AddToCollectionMenu({ items, children, position = 'bottom-end' }: { items: readonly LibItem[]; children: ReactElement; position?: 'bottom-end' | 'top-end' | 'top' | 'bottom' }) {
   const collections = useStore((s) => s.collections);
   return (
     <Menu position={position} zIndex={T.z.popover} width={230} radius={T.radius.md} shadow="lg" disabled={!items.length}>
       <Menu.Target>{children}</Menu.Target>
-      <Menu.Dropdown style={{ maxHeight: '50vh', overflowY: 'auto', touchAction: 'pan-y' }}>
+      <Menu.Dropdown style={{ maxHeight: vh(50), overflowY: 'auto', touchAction: 'pan-y' }}>
         {collections.length === 0 && <Menu.Label>No collections yet</Menu.Label>}
         {collections.map((c) => {
           const all = items.length > 0 && items.every((i) => c.itemIds.includes(i.key));

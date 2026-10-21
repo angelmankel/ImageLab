@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState, type ReactNode } from 'react';
 import { useMediaQuery } from '@mantine/hooks';
 import { T } from '~/theme/tokens';
+import { toCssPx } from '~/theme/uiScale';
 
 /** The invisible grab area centred on the 1px hairline (wide enough for a finger). */
 const HIT = 10;
@@ -41,7 +42,7 @@ export function Panel({ side, width, min = 240, max = 640, open, onResize, onTog
   }, [onResize, width]);
   const onPointerMove = useCallback((e: React.PointerEvent) => {
     if (!start.current || !onResize) return;
-    const dx = (e.clientX - start.current.x) * (side === 'left' ? 1 : -1);
+    const dx = toCssPx(e.clientX - start.current.x) * (side === 'left' ? 1 : -1); // window px → CSS px under the UI scale
     onResize(Math.max(min, Math.min(max, start.current.w + dx)));
   }, [onResize, side, min, max]);
   const onPointerUp = useCallback(() => { start.current = null; setDragging(false); }, []);

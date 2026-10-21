@@ -12,6 +12,7 @@ import { useLibrary } from './libraryStore';
 import { bucketCounts, bucketLabel, type LibItem } from './libraryLogic';
 import { newCollection } from './libraryActions';
 import { MenuPill } from './MenuPill';
+import { vh } from '~/theme/uiScale';
 
 export function CollectionPicker({ all, compact }: { all: LibItem[]; compact?: boolean }) {
   const bucket = useLibrary((s) => s.bucket);
@@ -41,7 +42,7 @@ export function CollectionPicker({ all, compact }: { all: LibItem[]; compact?: b
           <span style={{ color: 'var(--il-muted)' }}>▾</span>
         </MenuPill>
       </Menu.Target>
-      <Menu.Dropdown style={{ maxHeight: '60vh', overflowY: 'auto', touchAction: 'pan-y' }}>
+      <Menu.Dropdown style={{ maxHeight: vh(60), overflowY: 'auto', touchAction: 'pan-y' }}>
         <Row on={bucket === 'all'} icon={<IconFolder size={15} />} label="All items" n={counts.all} onClick={() => setBucket('all')} />
         <Row on={bucket === 'favourites'} icon={<IconStar size={15} />} label="Favourites" n={counts.favourites} onClick={() => setBucket('favourites')} />
         {collections.length > 0 && <Menu.Divider />}

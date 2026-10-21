@@ -18,6 +18,7 @@ import { Button, useWheelSideways } from '~/ui';
 import { T } from '~/theme/tokens';
 import { SourceChoice } from './SourceChoice';
 import { displayName, fmtDims } from './inputLogic';
+import { dvh } from '~/theme/uiScale';
 
 const STRIP_MAX = 24;
 const muted: React.CSSProperties = { fontSize: 11, fontWeight: 600, color: 'var(--il-muted)', lineHeight: 1.4 };
@@ -106,7 +107,7 @@ export function StepSource({ step, own, small, children }: {
       )}
       {mode !== 'off' && children}
       <Modal opened={browsing} onClose={() => setBrowsing(false)} title={`Pick a result of step ${n}`} size="lg" centered={!phone} fullScreen={phone} zIndex={T.z.modal}>
-        <div className="il-scroll" style={{ maxHeight: phone ? undefined : 'calc(100dvh - 180px)', touchAction: 'pan-y', paddingRight: 2 }}>
+        <div className="il-scroll" style={{ maxHeight: phone ? undefined : `calc(${dvh(100)} - 180px)`, touchAction: 'pan-y', paddingRight: 2 }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(96px, 1fr))', gap: 6 }}>
             {results.map((r) => <ResultTile key={r.key} r={r} selected={r.key === picked} size="fill" onPick={() => pick(r)} />)}
           </div>

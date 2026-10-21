@@ -5,9 +5,12 @@
  * Scale = CSS `zoom` on <body> (every px in the app is inline, so rem scaling would do nothing).
  * The body is then sized to the viewport ÷ zoom in px, so the zoomed page still fits the window
  * exactly; Mantine portals live in <body> and scale with it. At 100% nothing is set at all. A
- * browser without `zoom` keeps 100% (`scaleSupported`).
+ * browser without `zoom` keeps 100% (`scaleSupported`). What floating / full-window code must do
+ * under the zoom (FIXLIST-2 item 4): see `uiScale.ts` (body `position: relative`, vw() / vh(),
+ * toCssPx()).
  */
 import { LIVE } from './live';
+import { bodyScaleStyle, setUiZoom, viewportVars } from './uiScale';
 import { DENSITY_FACTOR, themeVars, type Palette, type ThemeSettings } from './themeModel';
 
 export const scaleSupported = typeof CSS !== 'undefined' && typeof CSS.supports === 'function' && CSS.supports('zoom', '1.1');
@@ -18,18 +21,18 @@ let listening = false;
 function sizeBody() {
   const body = document.body;
   if (!body) return;
-  if (scale === 1) {
-    for (const p of ['zoom', 'width', 'height']) body.style.removeProperty(p);
-    return;
-  }
   const html = document.documentElement;
-  body.style.setProperty('zoom', String(scale));
-  body.style.width = `${html.clientWidth / scale}px`;
-  body.style.height = `${html.clientHeight / scale}px`;
+  for (const [k, v] of Object.entries(bodyScaleStyle(scale, html.clientWidth, html.clientHeight))) {
+    if (v == null) body.style.removeProperty(k);
+    else body.style.setProperty(k, v);
+  }
 }
 
 function applyScale(s: number) {
   scale = scaleSupported ? s : 1;
+  setUiZoom(scale);
+  const root = document.documentElement;
+  for (const [k, v] of Object.entries(viewportVars(scale))) root.style.setProperty(k, v);
   if (scale !== 1 && !listening) {
     listening = true;
     window.addEventListener('resize', sizeBody);

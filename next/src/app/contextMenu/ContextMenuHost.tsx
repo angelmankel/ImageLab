@@ -13,6 +13,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from
 import { createPortal } from 'react-dom';
 import { IconCheck, IconChevronRight } from '@tabler/icons-react';
 import { T } from '~/theme/tokens';
+import { toCssPx, vh } from '~/theme/uiScale';
 import { useIsPhone } from '~/app/useIsPhone';
 import {
   firstIndex, isTextField, lastIndex, letterIndex, placeAtPoint, placeBeside, stepIndex, type MenuRow,
@@ -139,8 +140,9 @@ function Panel({ level, depth, phone, onHover, onActivate }: {
   }, [level.anchor, level.rows]);
 
   const style: CSSProperties = {
-    position: 'fixed', left: pos?.left ?? 0, top: pos?.top ?? 0, visibility: pos ? 'visible' : 'hidden',
-    zIndex: Z + depth, minWidth: phone ? 220 : 196, maxWidth: 320, maxHeight: 'calc(100vh - 16px)',
+    // pos is in window px (rects / clientX); the menu sits in the zoomed body, so convert (item 4).
+    position: 'fixed', left: toCssPx(pos?.left ?? 0), top: toCssPx(pos?.top ?? 0), visibility: pos ? 'visible' : 'hidden',
+    zIndex: Z + depth, minWidth: phone ? 220 : 196, maxWidth: 320, maxHeight: `calc(${vh(100)} - 16px)`,
     padding: 4, background: 'var(--il-elev)', border: '1px solid var(--il-line-strong)', borderRadius: T.radius.md,
     boxShadow: '0 12px 32px rgba(0,0,0,.45), 0 2px 6px rgba(0,0,0,.3)', fontFamily: 'var(--il-font)',
     overflowY: 'auto', overscrollBehavior: 'contain', touchAction: 'pan-y', userSelect: 'none',

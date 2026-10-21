@@ -19,6 +19,7 @@ import { useIsPhone } from '~/app/useIsPhone';
 import { Button, SliderRow, Tabs } from '~/ui';
 import { T } from '~/theme/tokens';
 import { useWriteIt } from './writeIt/writeItStore';
+import { dvh } from '~/theme/uiScale';
 
 const area: React.CSSProperties = { width: '100%', border: '1px solid var(--il-line-soft)', borderRadius: 14, background: 'var(--il-bg-deep)', color: 'var(--il-fg)', fontSize: 14, lineHeight: 1.5, padding: '12px 14px', resize: 'none', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' };
 const eyebrow: React.CSSProperties = { fontSize: 10, fontWeight: 800, letterSpacing: '.6px', textTransform: 'uppercase', color: 'var(--il-muted)' };
@@ -128,7 +129,7 @@ export function WriteItModal({ opened, onClose }: { opened: boolean; onClose: ()
     <Modal opened={opened} onClose={onClose} withCloseButton={false} centered size={advanced ? 640 : 520} fullScreen={phone} zIndex={T.z.modal} radius={phone ? 0 : T.radius.xl} padding={0}
       overlayProps={{ backgroundOpacity: 0.55, blur: 6 }} transitionProps={{ transition: 'pop', duration: 140 }}
       styles={{ content: { background: 'var(--il-panel)', border: phone ? 0 : '1px solid var(--il-line-soft)' } }}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: phone ? '12px 14px 16px' : '16px 18px 18px', minHeight: phone ? '100dvh' : undefined, boxSizing: 'border-box' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: phone ? '12px 14px 16px' : '16px 18px 18px', minHeight: phone ? dvh(100) : undefined, boxSizing: 'border-box' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <span aria-hidden style={{ width: 32, height: 32, borderRadius: 10, display: 'grid', placeItems: 'center', background: 'var(--il-ember-soft)', color: 'var(--il-ember-hi)' }}><IconSparkles size={17} stroke={2.2} /></span>
           <div style={{ flex: 1, minWidth: 0 }}>

@@ -14,6 +14,7 @@ import { useIsPhone } from '~/app/useIsPhone';
 import { Tabs } from '~/ui';
 import { T } from '~/theme/tokens';
 import { displayName, type Origin } from './inputLogic';
+import { dvh } from '~/theme/uiScale';
 
 export interface LibraryPick { url: string; name: string; origin: Origin; /** A server file name (On the server): the slot takes it as is, nothing is fetched. */ serverFile?: string }
 
@@ -90,14 +91,14 @@ export function LibraryPicker({ opened, onClose, onPick, server }: {
 
   return (
     <Modal opened={opened} onClose={onClose} title="Pick a picture" size="lg" centered={!phone} fullScreen={phone} zIndex={T.z.modal}
-      styles={{ body: { display: 'flex', flexDirection: 'column', gap: 10, maxHeight: phone ? undefined : 'calc(100dvh - 140px)' } }}>
+      styles={{ body: { display: 'flex', flexDirection: 'column', gap: 10, maxHeight: phone ? undefined : `calc(${dvh(100)} - 140px)` } }}>
       <Tabs<Tab> items={tabs} value={cur} onChange={setTab} />
       <label style={{ height: 36, borderRadius: T.radius.sm, background: 'var(--il-elev)', boxShadow: 'inset 0 0 0 1px var(--il-line-strong)', display: 'flex', alignItems: 'center', gap: 8, padding: '0 10px', flex: 'none' }}>
         <IconSearch size={14} color="var(--il-muted)" />
         <input value={q} onChange={(e) => setQ(e.currentTarget.value)} placeholder={cur === 'server' ? 'File name…' : 'Prompt or file name…'} aria-label="Search pictures"
           style={{ flex: 1, minWidth: 0, height: '100%', border: 0, outline: 'none', background: 'transparent', color: 'var(--il-fg)', fontSize: 12, fontWeight: 600 }} />
       </label>
-      <div className="il-scroll" style={{ flex: 1, minHeight: 200, maxHeight: phone ? undefined : 'calc(100dvh - 280px)', touchAction: 'pan-y', paddingRight: 2 }}>
+      <div className="il-scroll" style={{ flex: 1, minHeight: 200, maxHeight: phone ? undefined : `calc(${dvh(100)} - 280px)`, touchAction: 'pan-y', paddingRight: 2 }}>
         {cur === 'recent' && <Grid cells={recent} onPick={(c) => pick(c, 'history')} empty={needle ? 'Nothing matches.' : 'No pictures yet: generate one first.'} />}
         {cur === 'liked' && <Grid cells={liked} onPick={(c) => pick(c, 'history')} empty="No liked pictures." />}
         {cur === 'collections' && <Collections q={q} onPick={(c) => pick(c, 'collection')} />}

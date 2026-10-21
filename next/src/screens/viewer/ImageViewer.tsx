@@ -32,6 +32,7 @@ import { useViewerStore, type ViewerTab } from './viewerStore';
 import type { ViewerItem } from './types';
 import './viewerMenu';
 import './resultMeta';
+import { dvh } from '~/theme/uiScale';
 
 export type { ViewerItem } from './types';
 
@@ -146,7 +147,7 @@ export function ImageViewer({ items, index, onIndexChange, onClose, liveUrl = nu
     return createPortal(
       <div {...rootProps}>
         {nav}
-        <div style={{ flex: meta ? 'none' : 1, height: meta ? '58dvh' : undefined, display: 'flex', minHeight: 0 }}>{pictureBox}</div>
+        <div style={{ flex: meta ? 'none' : 1, height: meta ? dvh(58) : undefined, display: 'flex', minHeight: 0 }}>{pictureBox}</div>
         {meta && canPage && (
           <div aria-hidden style={{ height: 22, flex: 'none', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 5 }}>
             {items.slice(Math.max(0, i - 3), i + 4).map((it) => (
