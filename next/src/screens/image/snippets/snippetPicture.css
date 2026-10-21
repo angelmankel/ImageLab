@@ -1,0 +1,4 @@
+/* Item 42 redesign: the snippet picture slot's tools show on hover / focus (always on touch). */
+.il-snip-pic .il-snip-pic-tools { opacity: 0; transition: opacity .12s ease; }
+.il-snip-pic:hover .il-snip-pic-tools, .il-snip-pic:focus-within .il-snip-pic-tools, .il-snip-pic.is-touch .il-snip-pic-tools { opacity: 1; }
+.il-snip-pic:focus-visible { box-shadow: 0 0 0 2px var(--il-ember); }
