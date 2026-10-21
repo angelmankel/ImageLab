@@ -19,6 +19,7 @@ import { T } from '~/theme/tokens';
 import { useGpuName } from '../useGpuName';
 import { chipOf, previewChoice, PREVIEW_SIZES, serverName, statusOf, type ServerRowState } from './serversLogic';
 import { useHostStats, usePreviewSize } from './useServerHost';
+import { usePreviewInfo } from '~/screens/comfy/usePreviewInfo';
 import { vh, vw } from '~/theme/uiScale';
 
 const ROLE: Record<'image' | 'video' | 'both', string> = { image: 'images', video: 'video', both: 'images + video' };
@@ -33,6 +34,8 @@ function HostSettings({ server, online }: { server: Server; online: boolean }) {
   const stats = useHostStats(server.host, online);
   const secondary = hostPath(server.host) === VIDEO_PATH;
   const preview = usePreviewSize(secondary ? null : server.host, enabled && online);
+  // The real live-preview method: TAESD, or the blurry latent2rgb fallback when decoders are missing.
+  const method = usePreviewInfo(server.host, enabled && online);
   const jobs = useStore((s) => s.jobs);
   const updateServer = useStore((s) => s.updateServer);
   const mine = jobs.filter((j) => j.serverId === server.id);
@@ -58,6 +61,11 @@ function HostSettings({ server, online }: { server: Server; online: boolean }) {
           )}
       </div>
       {preview.value && choice === null && !preview.value.unlimited && <div style={{ ...VAL, textAlign: 'left', marginTop: -4 }}>Now {preview.value.size}px</div>}
+      <div style={LINE}>
+        <span style={KEY}>Live preview method</span>
+        <span style={{ ...VAL, color: method?.poor ? 'var(--il-warn)' : VAL.color }} title={method?.hint ?? undefined}>{!online || !enabled ? '—' : method ? method.label : '…'}</span>
+      </div>
+      {method?.hint && online && enabled && <div style={{ ...VAL, textAlign: 'left', color: 'var(--il-warn)', marginTop: -4, marginBottom: 4 }}>{method.hint}</div>}
       <div style={LINE}>
         <span style={KEY}>ComfyUI</span>
         <span style={VAL}>{stats?.comfy ? `v${stats.comfy}` : online ? '…' : 'offline'}{preview.value ? ' · ImageLabCore' : ''}</span>

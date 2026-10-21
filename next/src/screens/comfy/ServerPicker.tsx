@@ -20,6 +20,7 @@ import { serverName } from '~/screens/image/servers/serversLogic';
 import { gpuLabel } from '~/screens/image/gpuLabel';
 import { vramText, type ServerStats } from './comfyHelpers';
 import { pickerLine, pickerTitle, ROLE_LABEL } from './serverPickLogic';
+import { usePreviewInfo } from './usePreviewInfo';
 import type { ComfyServerPick } from './useComfyServer';
 import { vh, vw } from '~/theme/uiScale';
 
@@ -32,6 +33,7 @@ function PickRow({ server, on, online, large, onPick }: { server: Server; on: bo
   const stats = useHostStats(server.host, online && !paused);
   const role = serverRole(server);
   const facts = paused ? 'paused' : !online ? 'offline' : stats?.gpu ? `${stats.gpu}${stats.vramGb ? ` · ${stats.vramGb} GB` : ''}` : server.host;
+  const preview = usePreviewInfo(server.host, online && !paused);
   return (
     <button type="button" role="option" aria-selected={on} disabled={paused} onClick={onPick}
       style={{
@@ -43,7 +45,11 @@ function PickRow({ server, on, online, large, onPick }: { server: Server; on: bo
       <Dot color={dotColor(paused, online)} />
       <span style={{ flex: 1, minWidth: 0 }}>
         <span style={{ display: 'block', fontSize: 12, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{nameOf(server)}</span>
-        <span style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--il-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{facts}</span>
+        <span style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--il-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {facts}
+          {preview && <span title={preview.hint ?? undefined} style={{ color: preview.poor ? 'var(--il-warn)' : undefined }}> · Preview {preview.label}</span>}
+        </span>
+        {preview?.hint && <span style={{ display: 'block', fontSize: 10.5, fontWeight: 600, color: 'var(--il-warn)', lineHeight: 1.3, marginTop: 2, whiteSpace: 'normal' }}>{preview.hint}</span>}
       </span>
       <span style={{ flex: 'none', fontSize: 10, fontWeight: 800, padding: '2px 7px', borderRadius: 999, background: 'var(--il-card-on)', color: 'var(--il-fg2)' }}>{ROLE_LABEL[role]}</span>
       <span style={{ flex: 'none', width: 14, display: 'grid', placeItems: 'center', color: 'var(--il-ember)' }}>{on && <IconCheck size={14} stroke={3} />}</span>
