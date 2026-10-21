@@ -28,6 +28,8 @@ import { CollectionsRow } from './collections/CollectionsRow';
 import { useCollectionView } from './collections/useCollectionView';
 import { addImageToCollection, moveItem, removeFromCollections, setActiveCollection, useCollectionsUi } from './collections/collectionActions';
 import './collections/collectionMenus';
+import { usePaste } from '~/compose/usePaste';
+import { PasteButton, PasteNote } from '~/compose/PasteButton';
 
 const SCOPES: Array<{ key: HistoryScope; label: string; title: string }> = [{ key: 'step', label: 'This step', title: 'Only what the open step made' }, { key: 'all', label: 'All', title: 'Every generation' }];
 /** Toggles: tap one to show only that, tap it again for everything (no 'All' chip, Donny 10-20). */
@@ -96,6 +98,8 @@ export function HistoryPanel({ columns = 2, phone = false }: { columns?: number;
   }, [all, coll.tiles, filter, scope, steps, activeId, tags]);
   // While a collection is shown, the whole grid takes drops into it.
   const gridDrop = useImageDrop({ onDrop: (item) => { if (activeCollection) void addImageToCollection(activeCollection, item); }, disabled: !coll.tiles });
+  // …and a paste (item 36): the Paste button in its header, Ctrl+V over the grid.
+  const clip = usePaste({ onItem: (item) => { if (activeCollection) void addImageToCollection(activeCollection, item); }, disabled: !coll.tiles });
   /** Out of the collection (an imported picture's "delete"), with Undo. */
   const takeOut = (key: string) => {
     const from = activeCollection;
@@ -128,10 +132,12 @@ export function HistoryPanel({ columns = 2, phone = false }: { columns?: number;
           </button>
           <span style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{coll.name}</span>
           <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--il-muted)', flex: 'none' }}>{coll.tiles?.length ?? 0}</span>
+          <PasteButton onPaste={() => void clip.paste()} />
         </div>
       )}
-      <div className="il-scroll" {...gridDrop.props} style={{ flex: 1, minHeight: 0, padding: '0 12px 12px', touchAction: 'pan-y', outline: gridDrop.over ? '2px solid var(--il-ember)' : undefined, outlineOffset: -2, borderRadius: 14 }}>
-        {tiles.length === 0 && <div style={{ padding: '28px 8px', textAlign: 'center', fontSize: 12, fontWeight: 600, color: 'var(--il-muted)' }}>{coll.tiles ? 'Drag pictures here (or onto the tile) to keep them in this collection.' : filter === 'liked' ? 'No favourites yet.' : scope === 'step' ? 'This step has made nothing yet.' : 'Nothing here yet.'}</div>}
+      {coll.name && clip.note && <div style={{ padding: '0 12px 8px', flex: 'none' }}><PasteNote note={clip.note} /></div>}
+      <div className="il-scroll" {...gridDrop.props} {...clip.zone} style={{ flex: 1, minHeight: 0, padding: '0 12px 12px', touchAction: 'pan-y', outline: gridDrop.over ? '2px solid var(--il-ember)' : undefined, outlineOffset: -2, borderRadius: 14 }}>
+        {tiles.length === 0 && <div style={{ padding: '28px 8px', textAlign: 'center', fontSize: 12, fontWeight: 600, color: 'var(--il-muted)' }}>{coll.tiles ? 'Drag or paste pictures here to keep them in this collection.' : filter === 'liked' ? 'No favourites yet.' : scope === 'step' ? 'This step has made nothing yet.' : 'Nothing here yet.'}</div>}
         <div style={{ display: 'grid', gridTemplateColumns: `repeat(${phone ? 3 : columns}, minmax(0, 1fr))`, gap: 6 }}>
           {tiles.map((t, i) => coll.isImported(t.key) ? (
             // An imported picture (Collections): the stage cannot show it, so a click opens the viewer.

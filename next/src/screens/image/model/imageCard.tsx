@@ -4,15 +4,14 @@
  * checkpoint's VAE + model type, the ControlNet guide image + preprocessor. Handed to the universal
  * card through `KindApi.card`; every piece reads and writes the main app's workflow.
  */
-import { useRef } from 'react';
-import { IconPhotoPlus, IconX } from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
 import { embeddingExtraWords } from '@/lib/embeddings';
 import { modelKeywordState } from '@/lib/modelKeywords';
 import { useModelProfile } from '@/hooks/useModelProfileSync';
 import { modelLabel } from '@/components/models/modelInfo';
+import { blobToImageState } from '@/features/inputImage/imageOps';
+import { ImageDropZone } from '~/compose/ImageDropZone';
 import { Chip, SearchSelect, SliderRow, Switch, Tabs } from '~/ui';
-import { T } from '~/theme/tokens';
 import { TriggerWords, type AutoWords } from './TriggerWords';
 import { fmtWeight, type ModelKind } from './kindSpecs';
 import type { CardParts } from './kindApi';
@@ -138,41 +137,21 @@ function EmbeddingMore({ id, words }: { id: string; words: string[] }) {
   );
 }
 
-/** ControlNet: the guide image and the preprocessor. */
+/** ControlNet: the guide image (the shared drop zone: drop · Upload · Library · Paste) and the preprocessor. */
 function ControlNetInput({ id }: { id: string }) {
   const entry = useControlnets((s) => s.entries.find((e) => e.id === id));
   const update = useControlnets((s) => s.update);
-  const file = useRef<HTMLInputElement>(null);
   if (!entry) return null;
-  const pick = (f: File | undefined) => {
-    if (!f) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = String(reader.result);
-      const img = new Image();
-      img.onload = () => update(id, { image: { dataUrl, name: f.name, width: img.naturalWidth, height: img.naturalHeight } satisfies ControlNetImage });
-      img.src = dataUrl;
-    };
-    reader.readAsDataURL(f);
-  };
+  const img = entry.image;
   return (
-    <div style={{ display: 'flex', gap: 10, alignItems: 'stretch' }}>
-      <button type="button" onClick={() => file.current?.click()} aria-label={entry.image ? 'Change the guide image' : 'Add a guide image'}
-        style={{ width: 88, height: 88, flex: 'none', border: entry.image ? 0 : '2px dashed var(--il-line-strong)', borderRadius: T.radius.lg, background: 'var(--il-elev)', color: 'var(--il-muted)', display: 'grid', placeItems: 'center', overflow: 'hidden', padding: 0, cursor: 'pointer' }}>
-        {entry.image ? <img src={entry.image.dataUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <IconPhotoPlus size={22} />}
-      </button>
-      <input ref={file} type="file" accept="image/*" hidden onChange={(e) => { pick(e.currentTarget.files?.[0]); e.currentTarget.value = ''; }} />
-      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--il-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {entry.image ? `${entry.image.name} · ${entry.image.width}×${entry.image.height}` : 'Guide image · tap the box'}
-          </span>
-          {entry.image && <button type="button" aria-label="Remove the guide image" onClick={() => update(id, { image: null })} style={{ border: 0, background: 'transparent', color: 'var(--il-muted)', cursor: 'pointer', display: 'grid', placeItems: 'center', padding: 2 }}><IconX size={14} /></button>}
-        </div>
-        <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--il-fg2)' }}>Preprocessor</span>
-        <SearchSelect options={PREPROCESSORS.map((p) => ({ value: p, label: p === 'none' ? 'None (image as is)' : p }))} value={entry.preprocessor}
-          onChange={(v) => update(id, { preprocessor: v as Preprocessor })} searchable={false} label="Preprocessor" />
-      </div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0 }}>
+      <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--il-fg2)' }}>Guide image</span>
+      <ImageDropZone url={img?.dataUrl ?? null} name={img?.name} dims={img ? { width: img.width, height: img.height } : null} small emptyTitle="Add a guide image"
+        onBlob={async ({ blob, name }) => { const st = await blobToImageState(blob, name); update(id, { image: { dataUrl: st.dataUrl, name: st.name, width: st.width, height: st.height } satisfies ControlNetImage }); }}
+        onClear={() => update(id, { image: null })} />
+      <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--il-fg2)' }}>Preprocessor</span>
+      <SearchSelect options={PREPROCESSORS.map((p) => ({ value: p, label: p === 'none' ? 'None (image as is)' : p }))} value={entry.preprocessor}
+        onChange={(v) => update(id, { preprocessor: v as Preprocessor })} searchable={false} label="Preprocessor" />
     </div>
   );
 }

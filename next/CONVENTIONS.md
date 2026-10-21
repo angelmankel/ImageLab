@@ -59,6 +59,7 @@ Nothing ever overlaps the picture. No Simple/Advanced. No preset slots. No mode 
 - Snippets: `@/lib/snippetLibrary.ts`, `@/lib/chips.ts`. Fullscreen: `@/components/FullscreenImage`, `@/components/VideoFullscreen`, `@/hooks/usePager`, `@/lib/pager.ts`, `@/hooks/useSwipe`.
 - History/collections: `@/features/history/*`, `@/features/collections/*`, `@/lib/favorites.ts`, `@/lib/jobsDb.ts`.
 - Server info/roles: `@/lib/serverRoles.ts`, `@/hooks/useVideoServerProbe.ts`, `@/hooks/useComfyConnection.ts`, `@/lib/routing.ts`.
+**Every place that takes a picture has Paste** (FIXLIST-2 #36): use `ImageDropZone` from `~/compose`, or `usePaste` + `PasteButton` when it cannot be one; `tests/paste.test.cjs` fails a drop zone without Paste.
 Zustand selectors are compared by reference: never return a fresh array/object from a selector (React error #185); use a module-level frozen empty.
 
 ## Working rules

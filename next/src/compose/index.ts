@@ -8,6 +8,9 @@
  *   LibraryPicker     Recent · Liked · Collections · On the server
  *   inputLogic        pure: choice words, origins, display names, slot labels (tested)
  *   originStore       where each slot's picture came from (the badge)
+ *   usePaste / PasteButton / PasteNote / readClipboard   Paste on every slot (FIXLIST-2 #36):
+ *                     a new place that takes a picture uses ImageDropZone, or usePaste + PasteButton
+ *                     (tests/paste.test.cjs fails otherwise)
  */
 export { ImageDropZone } from './ImageDropZone';
 export type { ImageDropZoneProps } from './ImageDropZone';
@@ -22,3 +25,7 @@ export { CompositionTab } from './CompositionTab';
 export { useComposition, useCompositionSync, CompositionSync, useNativeArea } from './sizeStore';
 export type { SizeMode, InputSizeMode } from './sizeStore';
 export { Seg } from './Seg';
+export { usePaste } from './usePaste';
+export { PasteButton, PasteNote } from './PasteButton';
+export { readClipboard, fromClipboardItems, PASTE_MISS } from './clipboard';
+export type { PasteResult, PasteMiss } from './clipboard';
