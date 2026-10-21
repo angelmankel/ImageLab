@@ -22,7 +22,7 @@ import { CompareView } from '~/screens/image/CompareView';
 import { compareIndex } from '~/screens/image/compareLogic';
 import { useStage } from '~/screens/image/stageStore';
 
-export function OutputPicture({ items, currentKey, onPick, onOpen, live, busy, status, fallbackAspect, empty, liveGrid = false, compare = false, sourceKey = null }: {
+export function OutputPicture({ items, currentKey, onPick, onOpen, live, busy, status, fallbackAspect, empty, liveGrid = false, compare = false, sourceKey = null, fill = false }: {
   items: readonly ResultItem[];
   currentKey: string | null;
   onPick: (key: string) => void;
@@ -38,8 +38,13 @@ export function OutputPicture({ items, currentKey, onPick, onOpen, live, busy, s
   compare?: boolean;
   /** Compare's default Before: the picture a derived result came from. */
   sourceKey?: string | null;
+  /** Fill the parent's height (the landscape main pane) instead of full width at its aspect. */
+  fill?: boolean;
 }) {
   const current = items.find((i) => i.key === currentKey) ?? null;
+  const size = (a: number): React.CSSProperties => (fill
+    ? { width: '100%', height: '100%', flex: 1, minHeight: 0 }
+    : { width: '100%', aspectRatio: String(a || 1), maxHeight: dvh(68), flex: 'none' });
   const shown = live ?? current?.url ?? null;
   const isClip = !live && current?.kind === 'video';
   const measured = useMediaAspect(shown, isClip ? 'video' : 'image');
@@ -56,7 +61,7 @@ export function OutputPicture({ items, currentKey, onPick, onOpen, live, busy, s
   // Compare (the desktop toolbar's split view, touch version): its own 48 px row on top, then the split.
   if (other >= 0) {
     return (
-      <div data-no-swipe style={{ width: '100%', flex: 'none', display: 'flex', flexDirection: 'column', height: `calc(min(${vw(100)} / ${aspect || 1}, ${dvh(68)}) + 48px)` }}>
+      <div data-no-swipe style={{ width: '100%', flex: 'none', display: 'flex', flexDirection: 'column', height: fill ? '100%' : `calc(min(${vw(100)} / ${aspect || 1}, ${dvh(68)}) + 48px)` }}>
         <CompareView items={items} shown={shownAt} other={other} />
       </div>
     );
@@ -64,7 +69,7 @@ export function OutputPicture({ items, currentKey, onPick, onOpen, live, busy, s
 
   if (liveFrames.length) {
     return (
-      <div onClick={() => onOpen(currentKey ?? '')} style={{ position: 'relative', width: '100%', aspectRatio: String(fallbackAspect || 1), maxHeight: dvh(68), flex: 'none', overflow: 'hidden', background: 'var(--il-bg)' }}>
+      <div onClick={() => onOpen(currentKey ?? '')} style={{ position: 'relative', ...size(fallbackAspect), overflow: 'hidden', background: 'var(--il-bg)' }}>
         <LiveGrid frames={liveFrames} />
       </div>
     );
@@ -73,7 +78,7 @@ export function OutputPicture({ items, currentKey, onPick, onOpen, live, busy, s
   // Item 41: a live frame never flashes: the old one stays until the next decoded, then a quick cross-fade.
   if (live) {
     return (
-      <div onClick={() => onOpen(currentKey ?? '')} aria-label="Live preview" style={{ position: 'relative', width: '100%', aspectRatio: String(aspect || 1), maxHeight: dvh(68), flex: 'none', overflow: 'hidden', background: 'var(--il-bg)' }}>
+      <div onClick={() => onOpen(currentKey ?? '')} aria-label="Live preview" style={{ position: 'relative', ...size(aspect), overflow: 'hidden', background: 'var(--il-bg)' }}>
         <FrameImage src={live} fade imgProps={{ draggable: false }} />
       </div>
     );
@@ -84,7 +89,7 @@ export function OutputPicture({ items, currentKey, onPick, onOpen, live, busy, s
     const swipe = (dir: 1 | -1) => { const it = items[index + dir]; if (it) onPick(it.key); };
     const openFull = (time: number) => setFull({ url: current.url, time });
     return (
-      <div data-no-swipe={canPage ? '' : undefined} style={{ width: '100%', flex: 'none' }}>
+      <div data-no-swipe={canPage ? '' : undefined} style={fill ? { width: '100%', height: '100%', display: 'flex', flexDirection: 'column' } : { width: '100%', flex: 'none' }}>
         <StagePlayer
           phone
           src={current.url}
@@ -97,8 +102,8 @@ export function OutputPicture({ items, currentKey, onPick, onOpen, live, busy, s
           onTap={openFull}
           onSwipe={swipe}
           resumeAt={resume}
-          clipStyle={{ flex: 'none', width: '100%', aspectRatio: String(aspect || 1), maxHeight: dvh(68) }}
-          style={{ flex: 'none' }}
+          clipStyle={size(aspect)}
+          style={fill ? { flex: 1, minHeight: 0 } : { flex: 'none' }}
         />
         {full && (
           <VideoFullscreen url={full.url} startTime={full.time} onClose={(t) => { setFull(null); setResume((r) => ({ time: t, nonce: (r?.nonce ?? 0) + 1 })); }} />
@@ -110,7 +115,7 @@ export function OutputPicture({ items, currentKey, onPick, onOpen, live, busy, s
   return (
     <div
       data-no-swipe={canPage ? '' : undefined}
-      style={{ position: 'relative', width: '100%', aspectRatio: String(aspect || 1), maxHeight: dvh(68), flex: 'none', overflow: 'hidden', background: 'var(--il-bg)' }}
+      style={{ position: 'relative', ...size(aspect), overflow: 'hidden', background: 'var(--il-bg)' }}
     >
       <HeroResult
         bare

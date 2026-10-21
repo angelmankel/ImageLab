@@ -82,7 +82,11 @@ export function usePhoneStage(step: Step) {
 export type PhoneStageApi = ReturnType<typeof usePhoneStage>;
 
 /** `stage` = the caller's `usePhoneStage(step)` when it needs `open` too (a Fullscreen button). */
-export function PhoneStage({ step, stage }: { step: Step; stage: PhoneStageApi }) {
+export function PhoneStage({ step, stage, fill = false }: {
+  step: Step; stage: PhoneStageApi;
+  /** Landscape main pane: the picture fills the pane's height, the actions row under it; the results, prompt and Send go to the side pane (`StageExtras`). */
+  fill?: boolean;
+}) {
   const { media, pick, open, viewer } = stage;
   const go = useRoute((s) => s.go);
   const width = useStore((s) => s.workflow.width);
@@ -95,16 +99,30 @@ export function PhoneStage({ step, stage }: { step: Step; stage: PhoneStageApi }
   const noun = step.kind === 'video' ? 'video' : step.kind === 'image' ? 'image' : 'result';
   const fallbackAspect = step.kind === 'image' ? width / height : step.kind === 'video' ? 16 / 9 : 1;
   const caption = media.entry?.positive ?? null;
+  const menu = current && !live ? menuProps('canvas-image', { ...canvasTarget(media, NO_ZOOM, () => open()), noZoom: true }) : {};
+  const picture = (
+    <OutputPicture items={items} currentKey={current?.key ?? null} onPick={pick} onOpen={open} live={live} busy={media.busy} status={media.statusLine}
+      liveGrid={media.source === 'image'} fallbackAspect={fallbackAspect} empty={`No ${noun} yet — press Generate.`}
+      compare={comparable} sourceKey={media.entry?.derivedFrom?.id ?? null} fill={fill} />
+  );
+  const actions = <OutputActions step={step} current={current} comparable={comparable} onEdit={src && !live ? () => enterEdit(src, false) : undefined} />;
+  if (fill) {
+    return (
+      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column' }}>
+        <div {...menu} style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>{picture}</div>
+        {media.busy && <div style={{ paddingTop: 6, flex: 'none' }}><ProgressLine status={media.statusLine} progress={media.progress} /></div>}
+        <div style={{ flex: 'none', padding: '8px 0 calc(6px + var(--il-safe-bottom))' }}>{actions}</div>
+        {viewer}
+        <PhoneEdit />
+      </div>
+    );
+  }
   return (
     <>
-      <div {...(current && !live ? menuProps('canvas-image', { ...canvasTarget(media, NO_ZOOM, () => open()), noZoom: true }) : {})}>
-        <OutputPicture items={items} currentKey={current?.key ?? null} onPick={pick} onOpen={open} live={live} busy={media.busy} status={media.statusLine}
-          liveGrid={media.source === 'image'} fallbackAspect={fallbackAspect} empty={`No ${noun} yet — press Generate.`}
-          compare={comparable} sourceKey={media.entry?.derivedFrom?.id ?? null} />
-      </div>
+      <div {...menu}>{picture}</div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: T.gap.md, paddingTop: T.gap.md }}>
         {media.busy && <ProgressLine status={media.statusLine} progress={media.progress} />}
-        <OutputActions step={step} current={current} comparable={comparable} onEdit={src && !live ? () => enterEdit(src, false) : undefined} />
+        {actions}
         <ResultThumbs items={items} currentKey={current?.key ?? null} onPick={pick} onOpen={(k) => open(k)} onMore={() => go('library')} />
         {caption && (
           <p style={{ margin: `0 ${T.pad.panel}px`, fontSize: 13, color: 'var(--il-fg2)', lineHeight: 1.45, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{caption}</p>
@@ -114,5 +132,19 @@ export function PhoneStage({ step, stage }: { step: Step; stage: PhoneStageApi }
       {viewer}
       <PhoneEdit />
     </>
+  );
+}
+
+/** Landscape side pane, Output tab: the results, the prompt line and Send to the next step (the picture is in the main pane). */
+export function StageExtras({ step, stage }: { step: Step; stage: PhoneStageApi }) {
+  const { media, pick, open } = stage;
+  const go = useRoute((s) => s.go);
+  const caption = media.entry?.positive ?? null;
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: T.gap.md, padding: `${T.gap.md}px 0` }}>
+      <ResultThumbs items={media.items} currentKey={media.item?.key ?? null} onPick={pick} onOpen={(k) => open(k)} onMore={() => go('library')} />
+      {caption && <p style={{ margin: `0 ${T.pad.panel}px`, fontSize: 13, color: 'var(--il-fg2)', lineHeight: 1.45, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{caption}</p>}
+      <SendNext step={step} current={media.item} />
+    </div>
   );
 }

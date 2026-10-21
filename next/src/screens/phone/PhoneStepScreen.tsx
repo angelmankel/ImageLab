@@ -16,12 +16,43 @@ import { OutputPage } from './OutputPage';
 import { PhoneDock } from './PhoneDock';
 import { StepPeek } from './StepPeek';
 import { StepSheet } from './StepSheet';
+import { PhoneTwoPane } from '~/phone';
+import { usePhoneLandscape } from '~/app/useFormFactor';
+import { PhoneRail } from './PhoneRail';
+import { StepsStrip } from './StepsStrip';
+import { StepPanel } from './imageBridge';
+import { QueueCard } from './QueueCard';
+import { PhoneStage, StageExtras, usePhoneStage } from './PhoneStage';
+import type { Step } from '~/app/stepsStore';
 import { usePhone } from './phoneStore';
 import { PAGE_GAP, PAGE_SLIDE_MS, pageDragOffset, pageSettleOffset, stepForSwipe } from './phoneLogic';
 
 const EASE = 'cubic-bezier(0.22, 1, 0.36, 1)';
 
+/**
+ * Landscape (mobile pass): a compact desktop. The step's picture fills the left pane with the
+ * toolbar's actions under it; the right pane = the steps strip on top, then Create (the step
+ * panel) or Output (results, prompt, Send, the queue); the dock is a column at the right edge
+ * (`PhoneRail`, Generate in the right thumb's reach). The step, tab and Create / Output choice live in
+ * stores, so a rotation keeps them.
+ */
+function LandscapeStep({ step, onJump }: { step: Step; onJump: (id: string) => void }) {
+  const page = usePhone((s) => s.page);
+  const stage = usePhoneStage(step);
+  return (
+    <PhoneTwoPane
+      main={<PhoneStage step={step} stage={stage} fill />}
+      sideHeader={<StepsStrip onJump={onJump} />}
+      side={page === 'create'
+        ? <StepPanel phone stepId={step.id} />
+        : <><StageExtras step={step} stage={stage} /><div style={{ padding: `0 10px 12px` }}><QueueCard /></div></>}
+      rail={<PhoneRail />}
+    />
+  );
+}
+
 export function PhoneStepScreen() {
+  const land = usePhoneLandscape();
   const steps = useSteps((s) => s.steps);
   const activeId = useSteps((s) => s.activeId);
   const setActive = useSteps((s) => s.setActive);
@@ -91,6 +122,16 @@ export function PhoneStepScreen() {
       el.animate([{ transform: `translate3d(${a.from * 56}px, 0, 0)`, opacity: 0.4 }, { transform: 'none', opacity: 1 }], { duration: 200, easing: EASE });
     }
   }, [activeId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (land) {
+    return (
+      <div style={{ position: 'absolute', inset: 0, background: 'var(--il-bg)' }}>
+        <LandscapeStep key={step.id} step={step} onJump={jump} />
+        <MoreSheet />
+        <StepSheet />
+      </div>
+    );
+  }
 
   const side = (s: -1 | 1): React.CSSProperties => ({ position: 'absolute', inset: 0, transform: `translateX(calc(${s} * (100% + ${PAGE_GAP}px)))` });
 
