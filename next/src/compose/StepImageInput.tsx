@@ -42,15 +42,16 @@ function ChainedPicture({ url, name, kind, badge, small }: { url: string; name: 
   const media: React.CSSProperties = { maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', display: 'block' };
   return (
     <>
-      <div style={{ ...checker, width: '100%', aspectRatio: small ? '16 / 7' : '4 / 3', maxHeight: small ? 140 : 260, borderRadius: T.radius.lg, overflow: 'hidden', display: 'grid', placeItems: 'center' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, minHeight: 24 }}>
+        <span style={{ flex: 'none', height: 22, padding: '0 8px', borderRadius: 999, background: 'var(--il-ember-soft)', color: 'var(--il-ember-hi)', fontSize: 10, fontWeight: 800, letterSpacing: .3, textTransform: 'uppercase', display: 'inline-flex', alignItems: 'center' }}>{badge}</span>
+      </div>
+      <div style={{ ...checker, position: 'relative', width: '100%', aspectRatio: small ? '16 / 7' : '4 / 3', maxHeight: small ? 140 : 260, borderRadius: T.radius.lg, overflow: 'hidden', display: 'grid', placeItems: 'center' }}>
         {kind === 'video'
           ? <video key={url} src={url} muted playsInline preload="metadata" onLoadedMetadata={(e) => setDims({ w: e.currentTarget.videoWidth, h: e.currentTarget.videoHeight })} style={media} />
           : <img key={url} src={url} alt="" {...drag} onLoad={(e) => setDims({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight })} style={{ ...media, cursor: 'grab' }} />}
-      </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-        <span style={{ flex: 'none', height: 22, padding: '0 8px', borderRadius: 999, background: 'var(--il-ember-soft)', color: 'var(--il-ember-hi)', fontSize: 10, fontWeight: 800, letterSpacing: .3, textTransform: 'uppercase', display: 'inline-flex', alignItems: 'center' }}>{badge}</span>
-        <span title={displayName(name)} style={{ flex: 1, minWidth: 0, fontSize: 11, fontWeight: 700, color: 'var(--il-fg2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayName(name)}</span>
-        {dims && <span style={{ flex: 'none', fontSize: 11, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>{fmtDims(dims.w, dims.h)}</span>}
+        {dims && (
+          <span style={{ position: 'absolute', left: 8, bottom: 8, height: 22, padding: '0 8px', borderRadius: 999, background: 'var(--il-panel)', color: 'var(--il-fg)', boxShadow: '0 0 0 1px var(--il-line-strong)', fontSize: 11, fontWeight: 800, fontVariantNumeric: 'tabular-nums', display: 'inline-flex', alignItems: 'center', pointerEvents: 'none' }}>{fmtDims(dims.w, dims.h)}</span>
+        )}
       </div>
     </>
   );

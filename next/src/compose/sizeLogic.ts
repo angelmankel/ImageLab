@@ -100,3 +100,50 @@ export const nativeLongSide = (w: number, h: number, area: number): number => {
 
 /** img2img Picture size: its own long side, capped. */
 export const pictureLongSide = (w: number, h: number): number => Math.min(MAX_SIDE, Math.max(64, Math.max(w, h)));
+
+// ---- fix list 2 item 34: shape chips, S / M / L, Custom with a ratio lock, a picture's crop ----
+
+/** The shape chips, in Donny's order (both modes). */
+export const SHAPES: readonly string[] = ['1:1', '4:5', '3:4', '2:3', '9:16', '16:9', '3:2', '4:3'];
+
+/** Size presets: S / M (= the model's default) / L / Custom. */
+export type SizePreset = 's' | 'model' | 'l' | 'custom';
+/** Linear scale of each preset against the model's native size. */
+export const PRESET_SCALE: Record<Exclude<SizePreset, 'custom'>, number> = { s: 0.75, model: 1, l: 1.25 };
+
+/** The pixel count a preset aims at. */
+export const presetArea = (area: number, p: Exclude<SizePreset, 'custom'>): number => area * PRESET_SCALE[p] * PRESET_SCALE[p];
+
+/** Snap to 8 (a typed number) inside the side limits. */
+export const snap8 = (n: number): number => Math.min(MAX_SIDE, Math.max(64, Math.round((Number.isFinite(n) ? n : 1024) / 8) * 8));
+
+/**
+ * Custom with the ratio locked: the other side for a changed one, snapped to 8.
+ * `changed` = which side moved; ratio = w / h.
+ */
+export function lockedPair(changed: 'width' | 'height', value: number, ratio: number): { width: number; height: number } {
+  const v = snap8(value);
+  return changed === 'width' ? { width: v, height: snap8(v / ratio) } : { width: snap8(v * ratio), height: v };
+}
+
+/** "1.0 MP" (one decimal). */
+export const megapixels = (w: number, h: number): string => `${((w * h) / 1e6).toFixed(1)} MP`;
+
+/** The centred crop of a w × h picture to the shape rw : rh (whole pixels). */
+export function cropRect(w: number, h: number, rw: number, rh: number): { x: number; y: number; width: number; height: number } {
+  if (!(w > 0) || !(h > 0) || !(rw > 0) || !(rh > 0)) return { x: 0, y: 0, width: Math.max(0, w), height: Math.max(0, h) };
+  const r = rw / rh;
+  if (w / h > r) { const cw = Math.round(h * r); return { x: Math.floor((w - cw) / 2), y: 0, width: cw, height: h }; }
+  const ch = Math.round(w / r);
+  return { x: 0, y: Math.floor((h - ch) / 2), width: w, height: ch };
+}
+
+/** An input picture's output for a long side (what the graph does: the picture scaled, its shape kept). */
+export const outputForLong = (w: number, h: number, long: number): { width: number; height: number } => scaledInput(w, h, long, long);
+
+/** The long side giving a w × h picture the width (or height) asked for (the From image W / H sliders). */
+export function longForSide(w: number, h: number, side: 'width' | 'height', value: number): number {
+  const v = snap8(value);
+  const k = side === 'width' ? v / w : v / h;
+  return snap8(Math.max(w, h) * k);
+}

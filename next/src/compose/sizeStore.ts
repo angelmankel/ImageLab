@@ -1,7 +1,7 @@
 /**
- * The Composition tab's choices (fix list 2), persisted: the output shape (a ratio id), whether
- * the size is the model's default or Custom (the same switch sits on the Settings page), and
- * for an input picture Model default / Picture size / Custom. `useCompositionSync` (mounted once
+ * The Composition tab's choices (fix list 2, items 2 + 34), persisted: New image / From image,
+ * the output shape (a ratio id), the size preset — S / M (the model's default) / L / Custom — for
+ * a new image and for an input picture, and Custom's ratio lock. `useCompositionSync` (mounted once
  * in App) keeps the main store's `workflow.width/height` (or `inputMaxSize/inputMinSize`) on the
  * model default while that is chosen — also when the model changes on the Model tab.
  */
@@ -10,29 +10,42 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { useStore } from '@/lib/store';
 import { profileById } from '@/lib/modelProfiles';
-import { nativeArea, nativeLongSide, nearestRatio, pictureLongSide, ratioById, sizeForArea } from './sizeLogic';
+import { nativeArea, nativeLongSide, nearestRatio, presetArea, ratioById, sizeForArea, type SizePreset } from './sizeLogic';
 
-export type SizeMode = 'model' | 'custom';
-export type InputSizeMode = 'model' | 'picture' | 'custom';
+export type SizeMode = SizePreset;
+export type InputSizeMode = SizePreset;
+export type CompositionMode = 'new' | 'from';
 
 interface CompositionState {
+  /** New image (empty latent) or From image (img2img); an input picture always means From image. */
+  mode: CompositionMode;
   ratio: string;
   sizeMode: SizeMode;
   inputSize: InputSizeMode;
+  /** Custom (new image): W and H keep their ratio. */
+  lock: boolean;
+  setMode: (m: CompositionMode) => void;
   setRatio: (id: string) => void;
   setSizeMode: (m: SizeMode) => void;
   setInputSize: (m: InputSizeMode) => void;
+  setLock: (on: boolean) => void;
 }
+
+const PRESETS: readonly string[] = ['s', 'model', 'l', 'custom'];
 
 export const useComposition = create<CompositionState>()(
   persist(
     (set) => ({
+      mode: 'new',
       ratio: '1:1',
       sizeMode: 'model',
       inputSize: 'model',
+      lock: true,
+      setMode: (mode) => set({ mode }),
       setRatio: (ratio) => set({ ratio }),
       setSizeMode: (sizeMode) => set({ sizeMode }),
       setInputSize: (inputSize) => set({ inputSize }),
+      setLock: (lock) => set({ lock }),
     }),
     {
       name: 'imagelab.next.composition.v1',
@@ -48,6 +61,9 @@ export const useComposition = create<CompositionState>()(
           if (!s.sizeMode) s.sizeMode = t.width === w.width && t.height === w.height ? 'model' : 'custom';
           if (!s.inputSize) s.inputSize = 'custom';
         }
+        // Item 34: "Picture size" is gone; its long side stays as Custom (nothing jumps).
+        if (s.inputSize && !PRESETS.includes(s.inputSize)) s.inputSize = 'custom';
+        if (s.sizeMode && !PRESETS.includes(s.sizeMode)) s.sizeMode = 'custom';
         return { ...cur, ...s };
       },
     },
@@ -75,14 +91,14 @@ export function useCompositionSync(): void {
   const iw = input?.width ?? 0;
   const ih = input?.height ?? 0;
   useEffect(() => {
-    if (sizeMode !== 'model') return;
+    if (sizeMode === 'custom') return;
     const r = ratioById(ratio);
-    const t = sizeForArea(area, r.w, r.h);
+    const t = sizeForArea(presetArea(area, sizeMode), r.w, r.h);
     if (t.width !== width || t.height !== height) setWorkflow(t);
   }, [sizeMode, ratio, area, width, height, setWorkflow]);
   useEffect(() => {
     if (!iw || !ih || inputSize === 'custom') return;
-    const l = inputSize === 'model' ? nativeLongSide(iw, ih, area) : pictureLongSide(iw, ih);
+    const l = nativeLongSide(iw, ih, presetArea(area, inputSize));
     if (maxSize !== l || minSize !== l) setWorkflow({ inputMaxSize: l, inputMinSize: l });
   }, [iw, ih, inputSize, area, maxSize, minSize, setWorkflow]);
 }

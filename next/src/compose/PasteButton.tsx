@@ -6,12 +6,12 @@
 import { IconClipboard, IconInfoCircle } from '@tabler/icons-react';
 import { Button, Tip, type ButtonSize } from '~/ui';
 
-export function PasteButton({ onPaste, size = 'sm', disabled, iconOnly, grow, style }: {
-  onPaste: () => void; size?: ButtonSize; disabled?: boolean; iconOnly?: boolean; grow?: boolean; style?: React.CSSProperties;
+export function PasteButton({ onPaste, size = 'sm', h, disabled, iconOnly, grow, style }: {
+  onPaste: () => void; size?: ButtonSize; h?: number; disabled?: boolean; iconOnly?: boolean; grow?: boolean; style?: React.CSSProperties;
 }) {
   return (
-    <Tip label="Paste a picture" keys="Ctrl+V">
-      <Button size={size} icon={<IconClipboard size={14} />} onClick={onPaste} disabled={disabled} grow={grow} style={style} aria-label="Paste a picture" data-paste-button="">
+    <Tip label="Paste a picture" keys="Ctrl+V" position={iconOnly ? 'left' : undefined}>
+      <Button size={size} h={h} icon={<IconClipboard size={14} />} onClick={onPaste} disabled={disabled} grow={grow} style={style} aria-label="Paste a picture" data-paste-button="">
         {iconOnly ? undefined : 'Paste'}
       </Button>
     </Tip>

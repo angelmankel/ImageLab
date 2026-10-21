@@ -80,3 +80,23 @@ test('steps of 64, snaps, img2img sizes', () => {
   assert.equal(S.nativeLongSide(800, 1200, 1024 * 1024), 1216);
   assert.equal(S.pictureLongSide(6000, 4000), 4096);
 });
+
+test('item 34: shape chips, S / M / L, lock, crop', () => {
+  assert.deepEqual([...S.SHAPES], ['1:1', '4:5', '3:4', '2:3', '9:16', '16:9', '3:2', '4:3']);
+  for (const id of S.SHAPES) assert.equal(S.ratioById(id).id, id);
+  const xl = 1024 * 1024;
+  assert.equal(S.presetArea(xl, 'model'), xl);
+  const r = S.ratioById('2:3');
+  const s = S.sizeForArea(S.presetArea(xl, 's'), r.w, r.h); const l = S.sizeForArea(S.presetArea(xl, 'l'), r.w, r.h);
+  assert.ok(s.width * s.height < xl && l.width * l.height > xl, 'S smaller, L larger than the model default');
+  assert.equal(s.width % 64, 0); assert.equal(l.height % 64, 0);
+  assert.deepEqual(S.lockedPair('width', 900, 2 / 3), { width: 904, height: 1360 });
+  assert.deepEqual(S.lockedPair('height', 1024, 16 / 9), { width: 1824, height: 1024 });
+  assert.equal(S.snap8(1001), 1000);
+  assert.equal(S.megapixels(832, 1216), '1.0 MP');
+  assert.deepEqual(S.cropRect(952, 1024, 3, 4), { x: 92, y: 0, width: 768, height: 1024 });
+  assert.deepEqual(S.cropRect(1000, 500, 1, 1), { x: 250, y: 0, width: 500, height: 500 });
+  assert.deepEqual(S.cropRect(1000, 1000, 16, 9), { x: 0, y: 218, width: 1000, height: 563 });
+  assert.equal(S.longForSide(952, 1024, 'width', 800), 864);
+  assert.equal(S.longForSide(952, 1024, 'height', 1200), 1200);
+});
