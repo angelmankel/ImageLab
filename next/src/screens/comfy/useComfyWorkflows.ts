@@ -103,7 +103,7 @@ export function useComfyWorkflows(server: Server | null, kind: ComfyKind) {
     try { await del(); } catch (err) { errorNote('Could not delete this workflow', err); return; }
     if (saved !== undefined) {
       pushUndo({
-        label: `Delete workflow ${w.name}`,
+        label: 'Delete workflow',
         undo: () => { void restoreWorkflowFile(host, w.path, saved).then(() => { library.refresh(); return syncFrame(); }).catch((err) => errorNote('Could not bring the workflow back', err)); },
         redo: () => { void del().catch((err) => errorNote('Could not delete this workflow', err)); },
       });
@@ -139,7 +139,7 @@ export function useComfyWorkflows(server: Server | null, kind: ComfyKind) {
       return;
     }
     pushUndo({
-      label: `Rename workflow to ${name}`,
+      label: 'Rename workflow',
       undo: () => { void move(to, w.path).catch((err) => errorNote('Could not undo the rename', err)); },
       redo: () => { void move(w.path, to).catch((err) => errorNote('Could not rename this workflow', err)); },
     });
@@ -165,7 +165,7 @@ export function useComfyWorkflows(server: Server | null, kind: ComfyKind) {
     await syncFrame();
     const path = made;
     pushUndo({
-      label: `Copy workflow ${w.name}`,
+      label: 'Copy workflow',
       undo: () => { void deleteWorkflowFile(host, path).then(() => { library.refresh(); return syncFrame(); }).catch((err) => errorNote('Could not undo the copy', err)); },
       redo: () => { void loadSavedWorkflow(host, w.path).then((wf) => restoreWorkflowFile(host, path, wf)).then(() => { library.refresh(); return syncFrame(); }).catch((err) => errorNote('Could not copy this workflow', err)); },
     });

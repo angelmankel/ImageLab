@@ -227,9 +227,13 @@ button[style*="border-radius: 999px"]:not(:disabled):not([style*="transform"]):a
 .il-slider[data-disabled] { opacity: .45; }
 
 /* ---- Tooltip (item 26): dark card, quick. */
-.il-tip { background: var(--il-bg-deep); color: var(--il-fg); border: 1px solid var(--il-line-strong); border-radius: 8px; padding: 6px 9px; font-size: 11px; font-weight: 700; line-height: 1.4; box-shadow: var(--il-shadow-md, 0 8px 24px rgba(0, 0, 0, .4)); max-width: 280px; }
-.il-tip-hint { display: block; margin-top: 2px; color: var(--il-muted); font-weight: 600; }
-.il-tip-key { margin-left: 6px; display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 5px; background: var(--il-elev); border: 1px solid var(--il-line-strong); font-size: 10px; line-height: 1; vertical-align: -3px; }
+/* The tooltip card. Fixed 16px lines and equal padding, so a one-line tip is 5 + 16 + 5 (+ border)
+   tall and its text sits dead centre; the label + key chip are one flex row (item: tooltips off-centre —
+   the 18px key chip with vertical-align: -3px used to grow the line box below the text). */
+.il-tip { background: var(--il-bg-deep); color: var(--il-fg); border: 1px solid var(--il-line-strong); border-radius: 8px; padding: 5px 8px; font-size: 11px; font-weight: 700; line-height: 16px; box-shadow: var(--il-shadow-md, 0 8px 24px rgba(0, 0, 0, .4)); max-width: 280px; }
+.il-tip-row { display: flex; align-items: center; gap: 6px; min-height: 16px; }
+.il-tip-hint { display: block; margin-top: 3px; color: var(--il-muted); font-weight: 600; line-height: 15px; }
+.il-tip-key { flex: none; display: inline-grid; place-items: center; box-sizing: border-box; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 4px; background: var(--il-elev); border: 1px solid var(--il-line-strong); font-family: inherit; font-size: 10px; font-weight: 800; line-height: 1; vertical-align: middle; }
 
 /* ---- Dropdowns (items 38): Mantine Combobox / Menu / Popover in the Ember look. */
 .il-dd { background: var(--il-panel); border: 1px solid var(--il-line-soft); border-radius: calc(12px * var(--il-corners, 1)); box-shadow: var(--il-shadow-lg, 0 14px 40px rgba(0, 0, 0, .45)); }

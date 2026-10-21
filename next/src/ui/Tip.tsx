@@ -26,7 +26,7 @@ export function Tip({ label, hint, keys, children, position, disabled, multiline
   return (
     <Tooltip
       label={<>
-        {head}{keys && <kbd className="il-tip-key">{keys}</kbd>}
+        {(head != null || keys) && <span className="il-tip-row">{head}{keys && <kbd className="il-tip-key">{keys}</kbd>}</span>}
         {body && <span className="il-tip-hint">{body}</span>}
       </>}
       position={position}

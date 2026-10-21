@@ -201,7 +201,7 @@ export function SmartPromptBox({ value, onChange, onBlur, kind, snippets, catego
     const ed = movePart(value, parts, from, to, mode);
     if (!ed) return;
     ta.current?.focus({ preventScroll: true });
-    applyUndoable(ed, 'Move prompt part');
+    applyUndoable(ed, 'Move part');
   };
 
   const pick = (s: TileSnippet) => {
@@ -267,7 +267,7 @@ export function SmartPromptBox({ value, onChange, onBlur, kind, snippets, catego
           isSnippet={(p) => !!p.snippetId && byId.has(p.snippetId)}
           drag={drag} setDrag={setDrag} onHover={setHoverPart}
           onMove={movePartTo}
-          onRemove={(p) => applyUndoable(removeRange(value, p.start, p.end), 'Take out snippet')}
+          onRemove={(p) => applyUndoable(removeRange(value, p.start, p.end), 'Remove snippet')}
           onPick={(p) => { const el = ta.current; if (!el) return; el.focus({ preventScroll: true }); el.setSelectionRange(p.innerStart, p.innerEnd); setFocused(true); setSel([p.innerStart, p.innerEnd], el.value); }} />
         {pickOpen && (
           <div ref={pickRef} className="il-sp-pick il-scroll" role="listbox" aria-label="Snippets" onMouseDown={keep} style={{ top: 'calc(100% + 6px)' }}>
@@ -314,7 +314,7 @@ export function SmartPromptBox({ value, onChange, onBlur, kind, snippets, catego
             {!activeSnip && onSaveAsSnippet && (
               <Tip label="Save as a tile"><button type="button" aria-label="Save as a tile" onMouseDown={keep} onClick={() => onSaveAsSnippet(value.slice(active.innerStart, active.innerEnd))} style={{ ...barBtn(phone), color: 'var(--il-muted)' }}><IconStar size={14} stroke={2.2} /></button></Tip>
             )}
-            <Tip label="Take it out"><button type="button" aria-label="Take this part out" onMouseDown={keep} onClick={() => applyUndoable(removeRange(value, active.start, active.end), 'Take out prompt part')} style={{ ...barBtn(phone), color: 'var(--il-muted)' }}><IconX size={14} stroke={2.4} /></button></Tip>
+            <Tip label="Take it out"><button type="button" aria-label="Take this part out" onMouseDown={keep} onClick={() => applyUndoable(removeRange(value, active.start, active.end), 'Remove part')} style={{ ...barBtn(phone), color: 'var(--il-muted)' }}><IconX size={14} stroke={2.4} /></button></Tip>
           </>
         ) : (
           <span style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 11, fontWeight: 700, color: 'var(--il-dim)', whiteSpace: 'nowrap', overflow: 'hidden' }}>

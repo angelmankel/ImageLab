@@ -65,7 +65,7 @@ export function moveItem(collectionId: string, itemId: string): void {
 
 /** Back to "no collection". */
 export function removeFromCollections(itemId: string): void {
-  withUndo('Take out of collection', () => setCollections(removeEverywhere(useStore.getState().collections, itemId)));
+  withUndo('Remove from collection', () => setCollections(removeEverywhere(useStore.getState().collections, itemId)));
 }
 
 async function sizeOf(blob: Blob): Promise<{ width: number; height: number }> {

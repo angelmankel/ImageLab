@@ -125,7 +125,7 @@ export function HistoryPanel({ columns = 2, phone = false }: { columns?: number;
   const takeOut = (key: string) => {
     const from = activeCollection;
     removeFromCollections(key);
-    if (from) pushUndo({ label: 'Take out of collection', undo: () => moveItem(from, key), redo: () => removeFromCollections(key) });
+    if (from) pushUndo({ label: 'Remove from collection', undo: () => moveItem(from, key), redo: () => removeFromCollections(key) });
   };
   // What the stage shows: the pick when it is this session's, else the session's newest picture (as `useStageMedia`).
   const currentKey = runKey ?? (selected && mine.some((t) => t.key === selected.id) ? selected.id : mine.find((t) => t.entry)?.key ?? null);

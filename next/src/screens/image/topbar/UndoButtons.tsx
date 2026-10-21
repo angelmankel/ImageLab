@@ -1,6 +1,7 @@
 /**
  * Undo / Redo next to the logo, before the session tabs (fix list 2, item 12). Disabled when the
- * current session has nothing to undo / redo; the tooltip names the action ("Undo delete image").
+ * current session has nothing to undo / redo; the tooltip names the action in a few words:
+ * "Undo: delete image" (labels are pushUndo's `label`, kept short).
  */
 import { IconArrowBackUp, IconArrowForwardUp } from '@tabler/icons-react';
 import { IconBtn } from '~/ui';
@@ -13,8 +14,8 @@ export function UndoButtons({ size = 36 }: { size?: number }) {
   const r = useRedoLabel();
   return (
     <>
-      <IconBtn icon={<IconArrowBackUp size={19} stroke={2.2} />} label={u ? `Undo ${lower(u)}` : 'Undo'} keys="Ctrl+Z" size={size} disabled={!u} onClick={() => undo()} />
-      <IconBtn icon={<IconArrowForwardUp size={19} stroke={2.2} />} label={r ? `Redo ${lower(r)}` : 'Redo'} keys="Ctrl+Shift+Z" size={size} disabled={!r} onClick={() => redo()} />
+      <IconBtn icon={<IconArrowBackUp size={19} stroke={2.2} />} label={u ? `Undo: ${lower(u)}` : 'Undo'} keys="Ctrl+Z" size={size} disabled={!u} onClick={() => undo()} />
+      <IconBtn icon={<IconArrowForwardUp size={19} stroke={2.2} />} label={r ? `Redo: ${lower(r)}` : 'Redo'} keys="Ctrl+Shift+Z" size={size} disabled={!r} onClick={() => redo()} />
     </>
   );
 }

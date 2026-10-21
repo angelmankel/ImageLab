@@ -54,7 +54,7 @@ export function applyRecommended(rec: Recommended, weight?: WeightTarget): void 
   };
   doIt();
   pushUndo({
-    label: 'Apply recommended settings',
+    label: 'Apply recommended',
     undo: () => {
       if (keys.length) useStore.getState().setWorkflow(prev);
       if (weight && prevWeight != null) weight.set(prevWeight);
