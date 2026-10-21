@@ -15,12 +15,13 @@ export interface ViewerMenuTarget { item: ViewerItem; onClose: () => void }
 
 const img = (t: ViewerMenuTarget) => t.item.kind === 'image';
 const hasEntry = (t: ViewerMenuTarget) => !!t.item.entry;
+const own = (t: ViewerMenuTarget) => !t.item.external;
 
 registerMenu<ViewerMenuTarget>('viewer-image', [
   { id: 'send', label: 'Send to', icon: IconSend, group: 'send', visible: img, submenu: (t) => sendSubmenu(t.item.url, t.item.entry ?? null, t.item.filename)().map((e): MenuEntry<ViewerMenuTarget> => ({ ...e, action: (_x, ctx) => { t.onClose(); e.action?.(undefined, ctx); } })) },
-  { id: 'session', label: 'New session from it', icon: IconCopyPlus, group: 'send', action: (t) => { t.onClose(); newSessionFromImage({ url: t.item.url, key: t.item.key, entryId: t.item.entry?.id, entry: t.item.entry ?? null, name: t.item.filename }); } },
+  { id: 'session', label: 'New session from it', icon: IconCopyPlus, group: 'send', visible: own, action: (t) => { t.onClose(); newSessionFromImage({ url: t.item.url, key: t.item.key, entryId: t.item.entry?.id, entry: t.item.entry ?? null, name: t.item.filename }); } },
   {
-    id: 'removebg', label: 'Remove background', icon: IconBackground, group: 'edit', visible: img,
+    id: 'removebg', label: 'Remove background', icon: IconBackground, group: 'edit', visible: (t) => img(t) && own(t),
     enabled: (t) => !useRemoveBg.getState().busy[t.item.url] || 'Already running',
     action: (t) => void removeBgFrom({ url: t.item.url, filename: t.item.filename, entry: t.item.entry ?? null }),
   },
@@ -28,5 +29,5 @@ registerMenu<ViewerMenuTarget>('viewer-image', [
   { id: 'prompt', label: 'Use its prompt', icon: IconTextCaption, group: 'reuse', visible: hasEntry, action: (t) => usePromptFrom(t.item.entry!) },
   { id: 'settings', label: 'Use its settings', icon: IconSettings, group: 'reuse', visible: hasEntry, action: (t) => reuseSettingsFrom(t.item.entry!) },
   { id: 'download', label: 'Download', icon: IconDownload, group: 'file', action: (t) => downloadUrl(t.item.url, t.item.filename) },
-  { id: 'delete', label: 'Delete', icon: IconTrash, danger: true, group: 'danger', order: 100, shortcut: 'Del', action: (t) => deleteOutput({ entry: t.item.entry ?? null, url: t.item.url }) },
+  { id: 'delete', label: 'Delete', icon: IconTrash, danger: true, group: 'danger', order: 100, visible: own, shortcut: 'Del', action: (t) => deleteOutput({ entry: t.item.entry ?? null, url: t.item.url }) },
 ]);

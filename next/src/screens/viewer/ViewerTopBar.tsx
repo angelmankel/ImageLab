@@ -47,7 +47,7 @@ export function ViewerTopBar({ item, index, count, live, natural, playing, setPl
   const liked = useStore((s) => (item?.entry ? !!s.history.find((h) => h.id === item.entry!.id)?.liked : false));
   const removing = useRemovingBg(item?.url);
   const entry = item?.entry ?? null;
-  const isImage = item?.kind === 'image' && !live;
+  const isImage = item?.kind === 'image' && !live && !item.external;
   const ext = item?.filename.split('.').pop()?.toUpperCase();
   const took = formatDuration(item?.durationMs ?? entry?.durationMs);
   const facts = [natural ? `${natural.w} × ${natural.h}` : null, ext, item?.createdAt || entry?.createdAt ? ago((item?.createdAt || entry?.createdAt)!) : null, took].filter(Boolean).join(' · ');
@@ -124,7 +124,7 @@ export function ViewerTopBar({ item, index, count, live, natural, playing, setPl
         <IconBtn icon={removing ? <Loader size={14} color="var(--il-ember)" /> : <IconBackground size={17} stroke={2.2} />} label={removing ? 'Removing the background…' : 'Remove BG — cut the subject out'} disabled={removing} onClick={() => item && void removeBgFrom({ url: item.url, filename: item.filename, entry })} size={sz} style={round} />
       )}
       {!phone && item && !live && <IconBtn icon={<IconDownload size={17} stroke={2.2} />} label="Download" onClick={() => downloadUrl(item.url, item.filename)} size={sz} style={round} />}
-      {!phone && item && !live && <IconBtn icon={<IconTrash size={17} stroke={2.2} />} label="Delete (Undo in the note)" keys="Del" onClick={del} size={sz} style={round} />}
+      {!phone && item && !live && !item.external && <IconBtn icon={<IconTrash size={17} stroke={2.2} />} label="Delete (Undo in the note)" keys="Del" onClick={del} size={sz} style={round} />}
       {!phone && (
         <IconBtn icon={panel ? <IconLayoutSidebarRightFilled size={17} /> : <IconLayoutSidebarRight size={17} stroke={2.2} />} label={panel ? 'Hide the panel' : 'Show the panel'} keys="I" on={panel} onClick={() => setPanel(!panel)} size={sz} style={round} />
       )}

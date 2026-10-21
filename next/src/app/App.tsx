@@ -14,6 +14,7 @@ import { useIsPhone } from './useIsPhone';
 import { DesktopShell } from '~/screens/image/DesktopShell';
 import { PhoneShell } from '~/screens/phone/PhoneShell';
 import { ModelViewerHost } from '~/screens/modelViewer';
+import { ExternalViewerHost } from '~/screens/viewer/ExternalViewerHost';
 import { useCreditNewResults } from '~/screens/image/resultSteps';
 import { ContextMenuHost } from './contextMenu';
 import { DragLayer, SendToSheet } from '~/dnd';
@@ -34,6 +35,7 @@ export function App() {
     <ErrorBoundary label="ImageLab">
       {phone ? <PhoneShell /> : <DesktopShell />}
       <ModelViewerHost />
+      <ExternalViewerHost />
       <ContextMenuHost />
       <DragLayer />
       <CompositionSync />

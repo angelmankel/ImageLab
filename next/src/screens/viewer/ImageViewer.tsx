@@ -10,7 +10,7 @@
  * Keys: Esc close (focus first) · ←/→ previous / next (wrap) · S slideshow · I panel · F favourite
  * · Del delete. The controller drives it through `registerViewer`.
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { IconChevronLeft, IconChevronRight } from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
@@ -27,6 +27,7 @@ import { ViewerTopBar } from './ViewerTopBar';
 import { ViewerStrip } from './ViewerStrip';
 import { SendPanel } from './SendPanel';
 import { DetailsPanel } from './DetailsPanel';
+import { ExternalDetails } from './ExternalDetails';
 import { useViewerStore, type ViewerTab } from './viewerStore';
 import type { ViewerItem } from './types';
 import './viewerMenu';
@@ -44,8 +45,17 @@ function Tabs({ tab, setTab }: { tab: ViewerTab; setTab: (t: ViewerTab) => void 
   return <div role="tablist" style={{ display: 'flex', gap: 2, padding: '0 10px', borderBottom: '1px solid var(--il-line)', flex: 'none' }}>{one('send', 'Send')}{one('details', 'Details')}</div>;
 }
 
-export function ImageViewer({ items, index, onIndexChange, onClose, liveUrl = null }: {
+/**
+ * Mantine's Modal (a picker under the viewer) closes on Escape unless the key's target carries
+ * this attribute: the root has it and every element that takes focus inside is stamped.
+ */
+const STOP = { 'data-mantine-stop-propagation': 'true' } as const;
+const stamp = (e: React.FocusEvent) => (e.target as HTMLElement).setAttribute?.('data-mantine-stop-propagation', 'true');
+
+export function ImageViewer({ items, index, onIndexChange, onClose, liveUrl = null, z = T.z.viewer }: {
   items: readonly ViewerItem[]; index: number; onIndexChange: (i: number) => void; onClose: () => void; liveUrl?: string | null;
+  /** The layer (the external viewer sits above the model viewer modal). */
+  z?: number;
 }) {
   const phone = useIsPhone();
   const panel = useViewerStore((s) => s.panel);
@@ -58,6 +68,11 @@ export function ImageViewer({ items, index, onIndexChange, onClose, liveUrl = nu
   const setPlaying = useStore((s) => s.setSlideshowPlaying);
   const [focus, setFocus] = useState(false);
   const [natural, setNatural] = useState<{ w: number; h: number } | null>(null);
+  /** External NSFW pictures shown after a tap (item 31 / 27), for as long as the viewer is open. */
+  const [revealed, setRevealed] = useState<ReadonlySet<string>>(() => new Set());
+
+  const rootRef = useRef<HTMLDivElement>(null);
+  useEffect(() => { rootRef.current?.focus({ preventScroll: true }); }, []);
 
   const len = items.length;
   const i = Math.min(Math.max(0, index), Math.max(0, len - 1));
@@ -82,7 +97,7 @@ export function ImageViewer({ items, index, onIndexChange, onClose, liveUrl = nu
   useShortcut(['s', 'S'], () => { if (canPlay) setPlaying(!playing); }, { priority: P });
   useShortcut(['i', 'I'], () => setPanel(!panel), { priority: P, when: () => !phone });
   useShortcut(['f', 'F'], () => { if (item?.entry) useStore.getState().toggleHistoryLiked(item.entry.id); }, { priority: P });
-  useShortcut('Delete', () => { if (item && !live) deleteOutput({ entry: item.entry ?? null, url: item.url }); }, { priority: P });
+  useShortcut('Delete', () => { if (item && !live && !item.external) deleteOutput({ entry: item.entry ?? null, url: item.url }); }, { priority: P });
 
   const drag = useImageDrag(() => (item && !live ? makePayload({ url: item.url, name: item.filename, kind: item.kind, key: item.key, entryId: item.entry?.id, source: 'viewer' }) : null), { disabled: !item || live || phone });
 
@@ -94,7 +109,16 @@ export function ImageViewer({ items, index, onIndexChange, onClose, liveUrl = nu
   ) : (
     <PagerPicture items={items} index={i} onIndexChange={onIndexChange} liveUrl={liveUrl} onClose={close} onTap={tapPicture} onNatural={onNatural} phone={phone} dragProps={phone || !('onDragStart' in drag) ? undefined : drag} />
   );
-  const pictureBox = (
+  const covered = !!item?.external?.nsfw && !revealed.has(item.key);
+  const pictureBox = covered ? (
+    <div style={{ flex: 1, minWidth: 0, minHeight: 0, position: 'relative', overflow: 'hidden', display: 'grid', placeItems: 'center' }}>
+      <img src={item!.url} alt="" draggable={false} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', filter: 'blur(48px) brightness(.6)' }} />
+      <button type="button" className="il-btn" onClick={() => setRevealed((r) => new Set(r).add(item!.key))}
+        style={{ position: 'relative', height: 44, padding: '0 18px', borderRadius: 999, border: 0, background: 'var(--il-elev)', color: 'var(--il-fg)', fontWeight: 800, fontSize: 13, cursor: 'pointer' }}>
+        NSFW · tap to show
+      </button>
+    </div>
+  ) : (
     <div {...(item && !live ? menuProps('viewer-image', { item, onClose: close }) : {})}
       style={{ flex: 1, minWidth: 0, minHeight: 0, position: 'relative' }}>
       <div style={{ position: 'absolute', inset: 0 }}>{picture}</div>
@@ -108,18 +132,18 @@ export function ImageViewer({ items, index, onIndexChange, onClose, liveUrl = nu
       )}
     </div>
   );
-  const panelBody = item && !live ? (tab === 'send' ? <SendPanel item={item} onClose={close} /> : <DetailsPanel item={item} natural={natural} />) : (
+  const panelBody = item?.external ? <ExternalDetails item={item} natural={natural} /> : item && !live ? (tab === 'send' ? <SendPanel item={item} onClose={close} /> : <DetailsPanel item={item} natural={natural} />) : (
     <div style={{ padding: 24, color: 'var(--il-muted)', fontWeight: 600, fontSize: 12, textAlign: 'center' }}>Live preview — the details show when the job is done.</div>
   );
 
-  const root: React.CSSProperties = { position: 'fixed', inset: 0, zIndex: T.z.viewer, background: '#0B0B0D', color: 'var(--il-fg)', display: 'flex', flexDirection: 'column', fontFamily: T.font };
+  const root: React.CSSProperties = { position: 'fixed', inset: 0, zIndex: z, outline: 'none', background: '#0B0B0D', color: 'var(--il-fg)', display: 'flex', flexDirection: 'column', fontFamily: T.font };
   const bar = !focus && (
     <ViewerTopBar item={item} index={i} count={len} live={live} natural={natural} playing={showing} setPlaying={setPlaying} onClose={close} phone={phone} canPlay={canPlay} />
   );
 
   if (phone) {
     return createPortal(
-      <div role="dialog" aria-label="Viewer" data-no-swipe data-pad-layer="viewer" style={root}>
+      <div ref={rootRef} tabIndex={-1} role="dialog" aria-label="Viewer" data-no-swipe data-pad-layer="viewer" {...STOP} onFocusCapture={stamp} style={root}>
         {bar}
         <div style={{ flex: focus ? 1 : 'none', height: focus ? undefined : '58dvh', display: 'flex', minHeight: 0 }}>{pictureBox}</div>
         {!focus && canPage && (
@@ -131,7 +155,7 @@ export function ImageViewer({ items, index, onIndexChange, onClose, liveUrl = nu
         )}
         {!focus && (
           <div style={{ flex: 1, minHeight: 0, background: 'var(--il-panel)', borderRadius: '20px 20px 0 0', display: 'flex', flexDirection: 'column' }}>
-            <Tabs tab={tab} setTab={setTab} />
+            {!item?.external && <Tabs tab={tab} setTab={setTab} />}
             <div className="il-scroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 12, paddingBottom: 'calc(12px + env(safe-area-inset-bottom, 0px))', touchAction: 'pan-y' }}>{panelBody}</div>
           </div>
         )}
@@ -141,7 +165,7 @@ export function ImageViewer({ items, index, onIndexChange, onClose, liveUrl = nu
   }
 
   return createPortal(
-    <div role="dialog" aria-label="Viewer" data-no-swipe data-pad-layer="viewer" style={root}>
+    <div ref={rootRef} tabIndex={-1} role="dialog" aria-label="Viewer" data-no-swipe data-pad-layer="viewer" {...STOP} onFocusCapture={stamp} style={root}>
       {bar}
       <div style={{ flex: 1, minHeight: 0, display: 'flex' }}>
         {!focus && len > 1 && !live && <ViewerStrip items={items} index={i} onPick={onIndexChange} />}
@@ -150,7 +174,7 @@ export function ImageViewer({ items, index, onIndexChange, onClose, liveUrl = nu
         {!focus && gutter(1)}
         {!focus && panel && (
           <aside style={{ width: 380, flex: 'none', borderLeft: '1px solid var(--il-line)', background: 'var(--il-panel)', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-            <Tabs tab={tab} setTab={setTab} />
+            {!item?.external && <Tabs tab={tab} setTab={setTab} />}
             <div className="il-scroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 12 }}>{panelBody}</div>
           </aside>
         )}
