@@ -25,7 +25,7 @@ import { T } from '~/theme/tokens';
 import { useStepOutput } from './useStepOutput';
 import { useStepProblem } from './useStepProblem';
 import { useLayout } from './layoutStore';
-import { removeStepWithUndo } from './stepActions';
+import { moveStepTo, removeStepWithUndo } from './stepActions';
 import './stepMenuEntries';
 import { useChainFreshness, type StepFresh } from '~/app/stepFingerprint';
 import { StepBadge } from './rail/StepBadge';
@@ -182,7 +182,7 @@ function StepChain() {
       grab.current = null;
       if (g?.moved) {
         dragEndedAt = Date.now();
-        setDrag((d) => { if (d && d.to !== g.from) useSteps.getState().moveStep(g.id, d.to); return null; });
+        setDrag((d) => { if (d && d.to !== g.from) moveStepTo(g.id, d.to); return null; });
       }
     };
     window.addEventListener('pointermove', move);

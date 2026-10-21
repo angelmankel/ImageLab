@@ -6,7 +6,6 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { Modal } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
 import { IconX } from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
 import { aiNotReadyHint, aiReady, generateVideoPrompt, videoPromptFromImage, type GenerateLayerSource } from '@/lib/ai';
@@ -20,6 +19,7 @@ import { Tabs, Spinner } from '~/ui';
 import { T } from '~/theme/tokens';
 import { usePrevStepOutput } from '../useStepOutput';
 import { muted } from './bits';
+import { pushUndo } from '~/app/undo';
 
 const COMMIT_MS = 250;
 const btn = (accent: boolean): React.CSSProperties => ({ height: 34, padding: '0 12px', border: 0, borderRadius: 999, background: 'var(--il-card-on)', color: accent ? 'var(--il-ember-hi)' : 'var(--il-fg2)', fontWeight: 700, fontSize: 12, cursor: 'pointer' });
@@ -78,8 +78,8 @@ function WriteItModal({ opened, onClose, step }: { opened: boolean; onClose: () 
       if (!text.trim()) { setError('The AI returned nothing usable — try rephrasing.'); return; }
       const before = useVideo.getState().positive;
       useVideo.getState().set({ positive: text.trim() });
-      const id = `write-video-${Date.now()}`;
-      notifications.show({ id, color: 'teal', autoClose: 3000, title: 'Motion prompt written', message: <button type="button" onClick={() => { useVideo.getState().set({ positive: before }); notifications.hide(id); }} style={btn(false)}>Undo</button> });
+      const after = text.trim();
+      pushUndo({ label: 'Write motion prompt', undo: () => useVideo.getState().set({ positive: before }), redo: () => useVideo.getState().set({ positive: after }) });
       onClose();
     } catch (e) { if (!ctrl.signal.aborted) setError(e instanceof Error ? e.message : 'Generation failed'); }
     finally { if (!ctrl.signal.aborted) setBusy(false); }

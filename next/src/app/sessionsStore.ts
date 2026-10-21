@@ -356,10 +356,10 @@ export function newSessionFromImage(image: ImageLike | HistoryEntry): string {
 /** The title a tab / tile shows. */
 export const sessionLabel = (s: Pick<Session, 'name'>): string => displayName(s.name);
 
-/** Delete a session with a 3 s "Session deleted · Undo" note (Home ⋯, tab menu). Its pictures stay in History. */
+/** Delete a session (Home ⋯, tab menu); Ctrl+Z brings it back (list 2 #12). Its pictures stay in History. */
 export async function deleteSession(id: string): Promise<void> {
   const gone = useSessions.getState().remove(id);
   if (!gone) return;
-  const { undoNote } = await import('./undoNote');
-  undoNote('Session deleted', () => useSessions.getState().restore(gone));
+  const { pushUndo } = await import('./undo');
+  pushUndo({ label: 'Delete session', undo: () => useSessions.getState().restore(gone), redo: () => { useSessions.getState().remove(id); } });
 }

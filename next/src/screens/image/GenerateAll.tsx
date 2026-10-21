@@ -15,7 +15,6 @@
  */
 import { useEffect, useState } from 'react';
 import { create } from 'zustand';
-import { notifications } from '@mantine/notifications';
 import { IconPlayerPlay, IconPlayerStop } from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
 import { comfyHttpFor } from '@/lib/comfy';
@@ -38,6 +37,7 @@ import { IMAGE_STEP_ONLY } from './kinds/imageStepOnly';
 import { trackRun } from './kinds/trackRun';
 import { runVideoStep } from './video/videoChain';
 import { startWorkflowStepRun } from './workflow';
+import { notifyError, say } from '~/app/notify';
 
 interface AllState {
   running: boolean;
@@ -52,7 +52,7 @@ interface AllState {
 }
 const useAll = create<AllState>(() => ({ running: false, at: 0, total: 0, stop: false, currentId: null, upToDateAt: 0 }));
 
-const note = (title: string, message: string, color = 'red') => notifications.show({ title, message, color, autoClose: 3000 });
+const note = (title: string, message: string) => notifyError(title, undefined, { hint: message });
 
 /** Wait until the image jobs queued since `before` have all left the queue; their error if one failed. */
 function waitImageJobs(before: Set<string>): Promise<string | null> {
@@ -139,7 +139,7 @@ export async function generateAll(): Promise<void> {
   let ran = 0;
   try {
     for (let i = 0; i < steps.length; i++) {
-      if (useAll.getState().stop) { note('Generate all stopped', `After step ${i}`, 'gray'); return; }
+      if (useAll.getState().stop) { say(`Generate all stopped after step ${i}`); return; }
       if (useSessions.getState().currentId !== sessionId) { note(`Generate all stopped before step ${i + 1}`, SWITCHED); return; }
       // The step as it is now (an earlier step's run does not change it, but the user may have).
       const step = useSteps.getState().steps.find((s) => s.id === steps[i].id);
@@ -151,7 +151,7 @@ export async function generateAll(): Promise<void> {
       if (err) { note(`Generate all stopped at step ${i + 1} · ${STEP_LABEL[step.kind]}`, err); return; }
       ran++;
     }
-    note('Generate all', ran === steps.length ? `All ${steps.length} steps done` : `${ran} out-of-date step${ran === 1 ? '' : 's'} re-run, ${steps.length - ran} reused`, 'teal');
+    say(ran === steps.length ? `All ${steps.length} steps done` : `${ran} out-of-date step${ran === 1 ? '' : 's'} re-run, ${steps.length - ran} reused`);
   } finally {
     useAll.setState({ running: false, at: 0, total: 0, stop: false, currentId: null });
   }

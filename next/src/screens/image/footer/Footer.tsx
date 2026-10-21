@@ -9,6 +9,7 @@ import type { ReactNode } from 'react';
 import { Menu } from '@mantine/core';
 import { IconCheck, IconDots, IconKeyboard } from '@tabler/icons-react';
 import { useJobProgress } from '~/app/jobProgress';
+import { useSaid } from '~/app/notify';
 import { HintsToggle } from '~/ui/HintsToggle';
 import { Tip } from '~/ui/Tip';
 import { T } from '~/theme/tokens';
@@ -59,6 +60,19 @@ function DownloadsPart() {
   return <Part label="Model downloads">↓ {n}{pct != null ? ` · ${Math.round(pct)}%` : ''}</Part>;
 }
 
+/** The status line (`say()`, list 2 #12): routine confirmations live here instead of toasts. */
+function SaidPart() {
+  const text = useSaid((s) => s.text);
+  const tone = useSaid((s) => s.tone);
+  if (!text) return null;
+  const color = tone === 'warn' ? 'var(--il-warn)' : tone === 'busy' ? 'var(--il-fg2)' : 'var(--il-ok)';
+  return (
+    <span role="status" aria-live="polite" className="il-foot-part" style={{ ...PART, color, maxWidth: 360, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+      {tone === 'ok' ? <IconCheck size={13} stroke={2.6} /> : tone === 'warn' ? '⚠' : '…'} {text}
+    </span>
+  );
+}
+
 const RENDER: Record<FooterPart, () => ReactNode> = { hints: () => <HintsPart />, job: () => <JobPart />, downloads: () => <DownloadsPart /> };
 
 export function Footer() {
@@ -75,6 +89,7 @@ export function Footer() {
         </button>
       )} />
       {FOOTER_PARTS.filter((p) => shown[p.id]).map((p) => <span key={p.id} style={{ display: 'contents' }}>{RENDER[p.id]()}</span>)}
+      <SaidPart />
       <span style={{ flex: 1 }} />
       <Menu position="top-end" shadow="lg" width={220} withinPortal zIndex={T.z.popover}>
         <Menu.Target>

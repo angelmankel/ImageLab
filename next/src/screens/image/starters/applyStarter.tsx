@@ -1,13 +1,13 @@
 /**
  * Item 9: using a starter. The prompt (and the negative when it has one) replace the Image step's
- * texts; a CivitAI picture also brings its steps / CFG / seed. One toast with Undo (3 s) puts the
+ * texts; a CivitAI picture also brings its steps / CFG / seed. Ctrl+Z (list 2 #12) puts the
  * prompt layers and those settings back. "As input" makes a picture the input image.
  */
-import { Button } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
 import { useStore } from '@/lib/store';
 import type { LayerKind } from '@/lib/types';
 import { urlToImageState } from '@/features/inputImage/imageOps';
+import { pushUndo } from '~/app/undo';
+import { notifyError, say } from '~/app/notify';
 
 function setMainText(kind: LayerKind, text: string) {
   const st = useStore.getState();
@@ -30,26 +30,31 @@ export function applyStarter(p: StarterUse, name: string) {
   if (typeof p.cfg === 'number') patch.cfg = p.cfg;
   if (typeof p.seed === 'number') { patch.seed = p.seed; patch.randomizeSeed = false; }
   if (Object.keys(patch).length) st.setWorkflow(patch);
-  const id = `starter-${Date.now()}`;
-  notifications.show({
-    id, autoClose: 3000, title: `Started from “${name}”`,
-    message: (
-      <Button size="compact-xs" variant="light" mt={4} onClick={() => {
-        const now = useStore.getState();
-        now.setPromptLayers(layers);
-        if (Object.keys(patch).length) now.setWorkflow(before);
-        notifications.hide(id);
-      }}>Undo</Button>
-    ),
+  const after = useStore.getState().layers;
+  pushUndo({
+    label: 'Use starter',
+    undo: () => {
+      const now = useStore.getState();
+      now.setPromptLayers(layers);
+      if (Object.keys(patch).length) now.setWorkflow(before);
+    },
+    redo: () => {
+      const now = useStore.getState();
+      now.setPromptLayers(after);
+      if (Object.keys(patch).length) now.setWorkflow(patch);
+    },
   });
+  say(`Started from “${name}”`);
 }
 
 export async function setAsInput(url: string, name: string) {
   try {
     const state = await urlToImageState(url, name);
+    const prev = useStore.getState().workflow.inputImage;
     useStore.getState().setWorkflow({ inputImage: state });
-    notifications.show({ autoClose: 3000, title: 'Input image set', message: `${state.width}×${state.height}` });
+    pushUndo({ label: 'Set input image', undo: () => useStore.getState().setWorkflow({ inputImage: prev }), redo: () => useStore.getState().setWorkflow({ inputImage: state }) });
+    say(`Input image set · ${state.width}×${state.height}`);
   } catch (e) {
-    notifications.show({ autoClose: 3000, color: 'red', title: 'Could not load the picture', message: e instanceof Error ? e.message : String(e) });
+    notifyError('Could not load the picture', e);
   }
 }

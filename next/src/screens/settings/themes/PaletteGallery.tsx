@@ -6,7 +6,7 @@
  */
 import { useState } from 'react';
 import { IconCheck, IconPlus, IconX } from '@tabler/icons-react';
-import { undoNote } from '~/app/undoNote';
+import { pushUndo } from '~/app/undo';
 import { useTheme } from '~/theme/themeStore';
 import { PRESETS, type NamedPalette, type Palette } from '~/theme/themeModel';
 import { Button } from '~/ui';
@@ -79,7 +79,7 @@ export function PaletteGallery() {
   const del = (p: NamedPalette) => {
     const before = { theme: useTheme.getState().theme, saved: useTheme.getState().saved };
     remove(p.id);
-    undoNote(`Deleted “${p.name}”`, () => { useTheme.setState({ saved: before.saved }); replace(before.theme); });
+    pushUndo({ label: 'Delete palette', undo: () => { useTheme.setState({ saved: before.saved }); replace(before.theme); }, redo: () => useTheme.getState().deletePalette(p.id) });
   };
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(104px, 1fr))', gap: 8, width: '100%' }}>

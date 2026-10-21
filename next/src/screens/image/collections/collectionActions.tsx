@@ -5,12 +5,12 @@
  * workflow result (by its key), or anything else by URL / file, which is imported (bytes kept in
  * the browser, so it survives a pod wipe) — and MOVES it into the collection.
  */
-import { notifications } from '@mantine/notifications';
 import { create } from 'zustand';
 import { useStore } from '@/lib/store';
 import type { Collection } from '@/lib/types';
 import { runStoreOf } from '~/app/deleteResult';
 import { pushUndo } from '~/app/undo';
+import { notifyError, say } from '~/app/notify';
 import { dropToBlob, type DropItem } from '~/dnd';
 import { moveInto, nextName, removeEverywhere, restoreAt } from './collectionsLogic';
 
@@ -25,6 +25,15 @@ export const setActiveCollection = (id: string | null) => useCollectionsUi.setSt
 export const startRename = (id: string | null) => useCollectionsUi.setState({ renaming: id });
 
 const setCollections = (collections: Collection[]) => useStore.setState({ collections });
+
+/** Run a change to the collections list and put it on the undo stack (whole-list snapshots: cheap, exact). */
+function withUndo(label: string, change: () => void): void {
+  const before = useStore.getState().collections;
+  change();
+  const after = useStore.getState().collections;
+  if (after === before) return;
+  pushUndo({ label, undo: () => setCollections(before), redo: () => setCollections(after) });
+}
 const nameOf = (id: string) => useStore.getState().collections.find((c) => c.id === id)?.name ?? 'the collection';
 
 /** "+": a new collection with a free name ("Collection 3"); its name is open for typing, not required. */
@@ -35,7 +44,7 @@ export function newCollection(opts: { rename?: boolean } = {}): string {
 }
 
 export function renameCollection(id: string, name: string): void {
-  useStore.getState().renameCollection(id, name);
+  withUndo('Rename collection', () => useStore.getState().renameCollection(id, name));
 }
 
 /** ×: the collection goes, its pictures stay (back to "no collection"). Ctrl+Z brings it back (app undo stack). */
@@ -51,12 +60,12 @@ export function deleteCollection(id: string): void {
 
 /** Move an item id (history entry id, run key or imported id) into a collection. */
 export function moveItem(collectionId: string, itemId: string): void {
-  setCollections(moveInto(useStore.getState().collections, collectionId, itemId));
+  withUndo('Move to collection', () => setCollections(moveInto(useStore.getState().collections, collectionId, itemId)));
 }
 
 /** Back to "no collection". */
 export function removeFromCollections(itemId: string): void {
-  setCollections(removeEverywhere(useStore.getState().collections, itemId));
+  withUndo('Take out of collection', () => setCollections(removeEverywhere(useStore.getState().collections, itemId)));
 }
 
 async function sizeOf(blob: Blob): Promise<{ width: number; height: number }> {
@@ -91,7 +100,7 @@ function knownId(img: CollectableImage): string | null {
 
 /**
  * Put any picture into a collection (moved out of any other). Pictures from outside the app's
- * results are imported first. Shows a short note; returns false when it failed.
+ * results are imported first. Says so in the footer; returns false when it failed.
  */
 export async function addImageToCollection(collectionId: string, img: CollectableImage | DropItem): Promise<boolean> {
   const name = nameOf(collectionId);
@@ -115,10 +124,10 @@ export async function addImageToCollection(collectionId: string, img: Collectabl
     }
     if (!useStore.getState().collections.some((c) => c.id === collectionId)) return false;
     moveItem(collectionId, id);
-    notifications.show({ message: `Moved to ${name}`, autoClose: 2000 });
+    say(`Moved to ${name}`);
     return true;
   } catch (err) {
-    notifications.show({ color: 'red', title: `Could not add it to ${name}`, message: err instanceof Error ? err.message : String(err), autoClose: 3000 });
+    notifyError(`Could not add it to ${name}`, err);
     return false;
   }
 }

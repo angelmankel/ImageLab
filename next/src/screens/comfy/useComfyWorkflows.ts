@@ -9,7 +9,6 @@
  * Duplicate, Save as and New; Delete goes on the app-wide undo stack instead of a toast.
  */
 import { useCallback, useEffect, useMemo } from 'react';
-import { notifications } from '@mantine/notifications';
 import { loadSavedWorkflow, type SavedWorkflow } from '@/lib/comfy';
 import { useWorkflowLibrary } from '@/features/studio/useWorkflowLibrary';
 import { useObjectInfo } from '@/features/studio/useStudioRun';
@@ -26,6 +25,7 @@ import { errorNote } from './errorNote';
 import { editorNodeCount, epochMs, workflowFileName, workflowKind } from './comfyHelpers';
 import { useWorkflowStore, workflowKey, type ComfyKind } from './workflowStore';
 import { ensureStepWorkflowOpen } from './ensureStepWorkflow';
+import { notifyError } from '~/app/notify';
 
 export interface ComfyWorkflowRow extends SavedWorkflow {
   key: string;
@@ -182,16 +182,16 @@ export function useComfyWorkflows(server: Server | null, kind: ComfyKind) {
     if (!host) return;
     let json: unknown;
     try { json = JSON.parse(await file.text()); } catch {
-      notifications.show({ color: 'red', title: 'Not a workflow', message: `${file.name} is not JSON.` });
+      notifyError('Not a workflow', undefined, { hint: `${file.name} is not a JSON file.` });
       return;
     }
     const kindOf = workflowKind(json);
     if (!kindOf) {
-      notifications.show({ color: 'red', title: 'Not a workflow', message: `${file.name} has no ComfyUI nodes in it.` });
+      notifyError('Not a workflow', undefined, { hint: `${file.name} has no ComfyUI nodes in it.` });
       return;
     }
     if (kindOf === 'api' && !info) {
-      notifications.show({ color: 'red', title: 'Server not ready', message: 'This server has not sent its node list yet. Try again in a moment.' });
+      notifyError('Server not ready', undefined, { hint: 'It has not sent its node list yet. Try again in a moment.' });
       return;
     }
     const wf = kindOf === 'api' ? apiToEditor(json as ApiGraph, info!) : json;

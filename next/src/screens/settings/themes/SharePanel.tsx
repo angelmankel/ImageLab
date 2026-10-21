@@ -5,14 +5,14 @@
  * reset offer Undo (3 s).
  */
 import { useRef, useState } from 'react';
-import { notifications } from '@mantine/notifications';
 import { IconClipboard, IconDownload, IconFileImport, IconRestore } from '@tabler/icons-react';
-import { undoNote } from '~/app/undoNote';
+import { pushUndo } from '~/app/undo';
+import { notifyError, say } from '~/app/notify';
 import { useTheme } from '~/theme/themeStore';
 import { DEFAULT_THEME, exportTheme, parseThemeFile, PRESETS } from '~/theme/themeModel';
 import { Button } from '~/ui';
 
-const note = (message: string, err = false) => notifications.show({ message, autoClose: 3000, color: err ? 'red' : undefined });
+const note = (message: string, err = false) => (err ? notifyError('Theme', undefined, { hint: message }) : say(message));
 
 function currentName(): string {
   const { theme, saved } = useTheme.getState();
@@ -42,7 +42,13 @@ function load(text: string): boolean {
   const st = useTheme.getState();
   st.replace(r.theme);
   st.savePalette(r.name);
-  undoNote(`Theme “${r.name}” applied`, () => { useTheme.setState({ saved: before.saved }); useTheme.getState().replace(before.theme); });
+  const after = { theme: useTheme.getState().theme, saved: useTheme.getState().saved };
+  pushUndo({
+    label: 'Apply theme',
+    undo: () => { useTheme.setState({ saved: before.saved }); useTheme.getState().replace(before.theme); },
+    redo: () => { useTheme.setState({ saved: after.saved }); useTheme.getState().replace(after.theme); },
+  });
+  say(`Theme “${r.name}” applied`);
   return true;
 }
 
@@ -53,7 +59,7 @@ export function SharePanel() {
   const reset = () => {
     const before = useTheme.getState().theme;
     replace(DEFAULT_THEME);
-    undoNote('Theme reset to Ember', () => replace(before));
+    pushUndo({ label: 'Reset theme', undo: () => replace(before), redo: () => replace(DEFAULT_THEME) });
   };
   return (
     <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 8 }}>
