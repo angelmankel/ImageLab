@@ -81,20 +81,29 @@ function refreshSoon(host: string) {
 
 const isForeign = (host: string, promptId: string) => !!useComfyJobs.getState().hosts[host]?.items.some((i) => i.promptId === promptId);
 
+/** Prompts already looked up once: our own jobs' progress ticks must not refetch /queue each step. */
+const checked = new Set<string>();
+function checkOnce(host: string, promptId: string) {
+  if (!promptId || checked.has(promptId)) return;
+  if (checked.size > 500) checked.clear();
+  checked.add(promptId);
+  refreshSoon(host);
+}
+
 /** One event about `host` (from the bus, or the embedded ComfyUI's own socket). */
 export function onHostEvent(host: string, ev: ComfyEvent): void {
   if (!watches.has(host)) return;
   switch (ev.type) {
     case 'progress':
       if (isForeign(host, ev.promptId)) patchHost(host, { live: { promptId: ev.promptId, node: ev.node, value: ev.value, max: ev.max } });
-      else refreshSoon(host);
+      else checkOnce(host, ev.promptId);
       break;
     case 'executing':
       if (!ev.node) { refreshSoon(host); break; }
       if (isForeign(host, ev.promptId)) {
         const cur = useComfyJobs.getState().hosts[host]?.live;
         if (cur?.promptId !== ev.promptId || cur.node !== ev.node) patchHost(host, { live: { promptId: ev.promptId, node: ev.node, value: 0, max: 0 } });
-      } else refreshSoon(host);
+      } else checkOnce(host, ev.promptId);
       break;
     case 'status':
     case 'execution_start':
