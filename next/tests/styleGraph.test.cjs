@@ -241,6 +241,7 @@ test('defaults come from the packs\' examples (one click = these values)', () =>
   const co = G.newStyleRef('a', 'composition', 'sdxl');
   assert.deepEqual([co.weight, co.weightType, co.embedsScaling], [0.8, 'composition precise', 'K+mean(V) w/ C penalty']);
   assert.equal(G.newStyleRef('a', 'composition', 'sd15').weightType, 'linear');
+  assert.equal(G.newStyleRef('a', 'composition', 'sd15').weight, 0.6);
   assert.equal(G.newStyleRef('a', 'subject', 'sdxl').weight, 0.8);
   const fa = G.newStyleRef('a', 'face', 'sdxl');
   assert.deepEqual([fa.method, fa.weight, fa.faceV2Weight, fa.loraStrength], ['faceid', 0.8, 2, 0.6]);

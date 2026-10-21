@@ -116,7 +116,7 @@ export const COMBINE = ['concat', 'add', 'subtract', 'average', 'norm average'] 
  * PuLID_ComfyUI PuLID_simple):
  *   style        PLUS adapter, weight 1, "style transfer", V only
  *   composition  SDXL: PLUS adapter, weight 0.8, "composition precise", K+mean(V) w/ C penalty
- *                SD 1.5: ostris' composition adapter, weight 1, linear (the precise types are SDXL's)
+ *                SD 1.5: ostris' composition adapter, weight 0.6, linear (at 1 it leaks the subject; checked on winold)
  *   subject      PLUS adapter, weight 0.8, linear
  *   FaceID v2    weight 0.8, faceidv2 2, its LoRA at 0.6
  *   Portrait     weight 0.65, no LoRA
@@ -139,7 +139,7 @@ export function newStyleRef(id: string, type: StyleRefType, fam: StyleFamily | n
   switch (type) {
     case 'style': return { ...base, weight: 1, weightType: 'style transfer', embedsScaling: 'V only' };
     case 'composition': return fam === 'sd15'
-      ? { ...base, weight: 1, weightType: 'linear', embedsScaling: 'V only' }
+      ? { ...base, weight: 0.6, weightType: 'linear', embedsScaling: 'V only' }
       : { ...base, weight: 0.8, weightType: 'composition precise', embedsScaling: 'K+mean(V) w/ C penalty' };
     case 'subject': return { ...base, weight: 0.8, weightType: 'linear', embedsScaling: 'V only' };
     case 'face': return { ...base, method: 'faceid', ...methodDefaults('faceid') };

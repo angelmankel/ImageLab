@@ -15,7 +15,7 @@ import { useMemo, useState } from 'react';
 import { IconAlertTriangle, IconInfoCircle, IconX } from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
 import {
-  COMBINE, FACE_INFO, TYPE_INFO, WEIGHT_TYPES, activeRefs, faceMethodsFor, featureOf, methodDefaults, methodOf, modelChoices, pickModel,
+  COMBINE, FACE_INFO, TYPE_INFO, WEIGHT_TYPES, activeRefs, newStyleRef, faceMethodsFor, featureOf, methodDefaults, methodOf, modelChoices, pickModel,
   refMissing, samplerAdvice, stackFactor, type FaceMethod, type StyleFamily, type StyleRef, type StyleRefImage,
 } from '@/lib/styleRefs';
 import { ImageDropZone, Seg } from '~/compose';
@@ -151,7 +151,7 @@ export function RefCard({ r, refs, fam }: { r: StyleRef; refs: readonly StyleRef
       )}
 
       <SliderRow label="Strength" value={r.weight} min={0} max={feature === 'redux' ? 2 : 1.5} step={0.05} format={fmt2}
-        defaultValue={(method ? methodDefaults(method).weight : undefined) ?? (r.type === 'subject' || (r.type === 'composition' && fam !== 'sd15') ? 0.8 : 1)}
+        defaultValue={(method ? methodDefaults(method).weight : undefined) ?? newStyleRef(r.id, r.type, fam).weight}
         hint={feature === 'redux' ? '← a hint · all of it →' : '← faint · strong →'} onChange={(weight) => update({ weight }, 'Strength')} />
       {k !== 1 && <Note tone="info">Runs at {fmt2(r.weight * k)} with the other references</Note>}
 
