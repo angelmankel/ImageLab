@@ -51,8 +51,14 @@ export function useKindApi(kind: ModelKind): KindApi {
     };
     switch (kind) {
       case 'checkpoint': {
-        const real = checkpoints.map((c, i) => ({ id: c.id, name: c.name, on: true, weight: c.ratio, isBase: i === 0, badge: i === 0 && checkpoints.length > 1 ? 'Base' : undefined }));
-        const pending = Object.values(records).filter((r) => r.kind === 'checkpoint' && !r.scope).map((r) => ({ id: PENDING_ID + r.key, name: r.file, on: r.userOn, weight: r.weight, pending: r }));
+        const ckRecords = Object.values(records).filter((r) => r.kind === 'checkpoint' && !r.scope);
+        const replacing = new Map(ckRecords.filter((r) => r.entryId && checkpoints.some((c) => c.id === r.entryId)).map((r) => [r.entryId!, r]));
+        // A Change to a model still downloading shows on the slot it replaces (dimmed, its strip).
+        const real = checkpoints.map((c, i) => {
+          const r = replacing.get(c.id);
+          return { id: c.id, name: r ? r.file : c.name, on: true, weight: c.ratio, isBase: i === 0, badge: i === 0 && checkpoints.length > 1 ? 'Base' : undefined, ...(r ? { pending: r } : {}) };
+        });
+        const pending = ckRecords.filter((r) => !replacing.has(r.entryId ?? '')).map((r) => ({ id: PENDING_ID + r.key, name: r.file, on: r.userOn, weight: r.weight, pending: r }));
         return [...real, ...pending];
       }
       case 'lora':
@@ -126,7 +132,17 @@ export function useKindApi(kind: ModelKind): KindApi {
   }, [kind, entries, add, storeSetOn, pm]);
 
   const changeToPending = useCallback((id: string, pick: PickLike) => {
-    if (kind === 'checkpoint' || id.startsWith(PENDING_ID)) return addPending(pick);
+    if (id.startsWith(PENDING_ID)) return addPending(pick);
+    if (kind === 'checkpoint') {
+      // Change, not Add (fix list 2, added item): the record names the checkpoint it replaces; the
+      // old file keeps generating until the new one lands, then that slot is renamed in place.
+      const file = expectedFileName(kind, pick);
+      if (!file) return undefined;
+      const was = checkpoints.find((c) => c.id === id);
+      const key = pendingKey(kind, file);
+      if (!pm.getState().records[key]) pm.getState().add(recordFromPick(kind, pick, Date.now(), id, true, was?.ratio ?? 0.5));
+      return id;
+    }
     const file = expectedFileName(kind, pick);
     if (!file) return undefined;
     const was = entries.find((e) => e.id === id);
@@ -135,7 +151,7 @@ export function useKindApi(kind: ModelKind): KindApi {
     storeSetOn(id, false);
     pm.getState().add(recordFromPick(kind, pick, Date.now(), id, was?.on ?? true));
     return id;
-  }, [kind, entries, addPending, rename, storeSetOn, pm]);
+  }, [kind, entries, checkpoints, addPending, rename, storeSetOn, pm]);
 
   const remove = useCallback((id: string) => {
     if (id.startsWith(PENDING_ID)) { pm.getState().remove(id.slice(PENDING_ID.length)); return; }
@@ -190,6 +206,8 @@ registerPendingScope(IMAGE_SCOPE, {
     switch (r.kind) {
       case 'checkpoint': {
         if (r.scope) return; // another step's slot, not a merge checkpoint
+        // A Change: rename the slot it replaces, in place (fix list 2, added item).
+        if (r.entryId && w.checkpoints.some((c) => c.id === r.entryId)) { st.updateCheckpoint(r.entryId, { name: file }); return; }
         st.addCheckpoint(file);
         const id = useStore.getState().workflow.checkpoints.at(-1)?.id;
         if (id) st.updateCheckpoint(id, { ratio: r.weight });

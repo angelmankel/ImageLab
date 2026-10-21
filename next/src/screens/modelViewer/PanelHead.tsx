@@ -34,10 +34,12 @@ export function PanelHead({ model, version, onVersion, phone, onClose }: {
 
   const act = () => {
     if (!version) return;
+    // Opened from a step's picker (Change / + Add): the pick goes to that slot, never an extra add.
+    if (actions.picking) { if (actions.pick(model, version)) onClose(); return; }
     if (!installedFile) { if (!busy) void download(version, model.type); return; }
     if (actions.useInStep(version, model.type)) onClose();
   };
-  const label = installedFile ? `Use in ${actions.stepName}` : busy ? 'Downloading…' : offline ? 'No server online' : `Download${main?.sizeKB ? ` · ${fmtSizeKB(main.sizeKB)}` : ''}`;
+  const label = actions.picking ? (installedFile ? 'Use this model' : 'Download and use') : installedFile ? `Use in ${actions.stepName}` : busy ? 'Downloading…' : offline ? 'No server online' : `Download${main?.sizeKB ? ` · ${fmtSizeKB(main.sizeKB)}` : ''}`;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -57,7 +59,7 @@ export function PanelHead({ model, version, onVersion, phone, onClose }: {
         <SearchSelect label="Version" value={String(version.id)} onChange={(v) => onVersion(Number(v))} searchable={model.modelVersions.length > 8}
           options={model.modelVersions.map((v) => ({ value: String(v.id), label: `${v.name}${v.baseModel ? ` · ${baseModelShort(v.baseModel)}` : ''}` }))} />
       )}
-      <EmberBtn h={phone ? 44 : 38} style={{ width: '100%', fontSize: 13, borderRadius: 12 }} onClick={act} disabled={!version || busy || (!installedFile && offline)}>{label}</EmberBtn>
+      <EmberBtn h={phone ? 44 : 38} style={{ width: '100%', fontSize: 13, borderRadius: 12 }} onClick={act} disabled={!version || (!actions.picking && (busy || (!installedFile && offline)))}>{label}</EmberBtn>
     </div>
   );
 }

@@ -11,7 +11,7 @@
  * un-links just that one (the rest keeps following). The live sync itself is the step's own
  * (`workflow/followWorkflow.ts` for a Workflow step).
  */
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useResourceAvailability } from '@/hooks/useResourceAvailability';
 import type { ResourceKind } from '@/lib/routing';
 import { Tabs } from '~/ui';
@@ -31,6 +31,9 @@ import { useFollowStore, useStepFollow } from './followStore';
 import { useStep1Source } from './step1Source';
 import { FollowBar, LinkStrip, type LinkState } from './FollowBar';
 import { notifyError, say } from '~/app/notify';
+import { pushUndo } from '~/app/undo';
+import { planPick } from './pickPlan';
+import { setOpenPicker } from '~/screens/models/pickContext';
 
 /** A step after step 1 that can follow its models: its id and how its slots behave. */
 export interface FollowLink { stepId: string; caps: (kind: ModelKind) => FollowCaps }
@@ -114,19 +117,43 @@ export function ModelList({ kinds = IMAGE_KINDS, initialKind, useApi = useKindAp
       id = own;
       if (!id) notifyError('No file to use', undefined, { hint: 'That version has no file.' });
       else if (!pick.installed) say(`${pick.model.name} added: download it from the card`);
-    } else if (pick.installed && pick.file) {
-      if (picker.mode === 'change') { api.rename(picker.id, pick.file); id = picker.id; }
-      else id = entries.find((e) => e.name === pick.file)?.id ?? api.add?.(pick.file);
     } else {
-      id = picker.mode === 'change' ? api.changeToPending?.(picker.id, pick) : api.addPending?.(pick);
-      if (!id) notifyError('No file to download', undefined, { hint: 'That version has no file.' });
-      else say(`${pick.model.name} added: download it from the card`);
+      // Change replaces the target entry in place and never appends; only + Add adds (pickPlan).
+      const plan = planPick(picker, pick, entries);
+      const was = picker.mode === 'change' ? entries.find((e) => e.id === picker.id) : undefined;
+      switch (plan.op) {
+        case 'rename': {
+          const before = was?.name ?? '';
+          api.rename(plan.id, plan.file);
+          id = plan.id;
+          if (before && before !== plan.file) pushUndo({ label: `Change ${api.spec.one}`, undo: () => api.rename(plan.id, before), redo: () => api.rename(plan.id, plan.file) });
+          break;
+        }
+        case 'select': id = plan.id; break;
+        case 'add': id = api.add?.(plan.file); break;
+        case 'change-pending':
+        case 'add-pending':
+          id = plan.op === 'change-pending' ? api.changeToPending?.(plan.id, pick) : api.addPending?.(pick);
+          if (!id) notifyError('No file to download', undefined, { hint: 'That version has no file.' });
+          else say(plan.op === 'change-pending' ? `${pick.model.name}: download it from the card` : `${pick.model.name} added: download it from the card`);
+          break;
+        default: break;
+      }
     }
     if (id) select(id);
     setPicker(null);
   };
 
   const { spec } = api;
+  // While this list's picker is open, the model viewer (a layer outside the picker's tree) hands
+  // its "Use" to the same onPick, so a Change from there replaces too.
+  const pickRef = useRef(onPick);
+  pickRef.current = onPick;
+  useEffect(() => {
+    if (!picker) return;
+    setOpenPicker({ kind: spec.pick as never, onPick: (p) => pickRef.current(p), close: () => setPicker(null) });
+    return () => setOpenPicker(null);
+  }, [picker, spec.pick]);
   const canAdd = !!api.add;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: T.gap.md }}>

@@ -14,4 +14,17 @@ export interface PickCtx {
 }
 
 export const PickContext = createContext<PickCtx>({ kind: null, onPick: null, close: null });
-export const usePick = () => useContext(PickContext);
+
+/**
+ * The picker that is open right now, for layers rendered outside its tree — the model viewer
+ * opened from a picker tile (fix list 2, added item: its "Use" must hand the pick to the slot
+ * being changed, not add a new model to the step). Set by the step's model list while its picker
+ * is open.
+ */
+let openPicker: PickCtx | null = null;
+export function setOpenPicker(ctx: PickCtx | null): void { openPicker = ctx; }
+
+export const usePick = (): PickCtx => {
+  const ctx = useContext(PickContext);
+  return ctx.onPick ? ctx : openPicker ?? ctx;
+};
