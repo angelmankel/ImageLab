@@ -151,3 +151,30 @@ export function durationLabel(sec: number): string {
   const s = Math.round(sec);
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }
+
+/** The History page's column limits (list-2 item 18): the side columns' smallest sizes and the preview's. */
+export const COLS = { gridMin: 260, panelMin: 300, centerMin: 280 } as const;
+
+/**
+ * The widths the two side columns get in a row `avail` px wide (the user's widths, `grid` and
+ * `panel`, are what they asked for): each at most its share (grid 42 %, panel 34 %), then both
+ * shrunk together (never under their minimum) until the preview keeps `centerMin`. 0 = folded.
+ * The row never overflows while it is at least gridMin + panelMin + centerMin wide.
+ */
+export function fitColumns(avail: number, grid: number, panel: number): { grid: number; panel: number } {
+  if (!(avail > 0)) return { grid, panel };
+  let g = grid > 0 ? Math.max(COLS.gridMin, Math.min(grid, avail * 0.42)) : 0;
+  let p = panel > 0 ? Math.max(COLS.panelMin, Math.min(panel, avail * 0.34)) : 0;
+  const over = g + p + COLS.centerMin - avail;
+  if (over > 0) {
+    const gRoom = g ? g - COLS.gridMin : 0;
+    const pRoom = p ? p - COLS.panelMin : 0;
+    const room = gRoom + pRoom;
+    if (room > 0) {
+      const cut = Math.min(over, room);
+      g -= cut * (gRoom / room);
+      p -= cut * (pRoom / room);
+    }
+  }
+  return { grid: Math.round(g), panel: Math.round(p) };
+}

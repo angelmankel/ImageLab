@@ -18,7 +18,7 @@ import { Panel } from '~/ui';
 import { T } from '~/theme/tokens';
 import { GRID_W, useLibrary } from './libraryStore';
 import { useAllItems, useVisibleItems } from './useLibraryItems';
-import type { LibItem } from './libraryLogic';
+import { COLS, fitColumns, type LibItem } from './libraryLogic';
 import { confirmDelete } from './libraryActions';
 import { SearchBox } from './SearchBox';
 import { CollectionPicker } from './CollectionPicker';
@@ -61,8 +61,24 @@ export function LibraryScreen() {
   const gridRef = useRef<HTMLDivElement>(null);
   useScrollIntoView(gridRef, current?.key, { selector: '[data-lib-key][aria-pressed="true"]', axis: 'y' });
 
+  // The three columns always fit the row: the side columns give way (never under their
+  // minimum) so the preview keeps room and nothing runs past the window (any UI scale).
+  const rowRef = useRef<HTMLDivElement>(null);
+  const [rowW, setRowW] = useState(0);
+  useEffect(() => {
+    const el = rowRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([e]) => setRowW(e.contentRect.width));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const tabs = (gridOpen ? 0 : T.size.collapsedTab) + (panelOpen ? 0 : T.size.collapsedTab) + 2;
+  const fitted = fitColumns(rowW - tabs, gridOpen ? gridWidth : 0, panelOpen ? panelWidth : 0);
+  const gridW = gridOpen ? fitted.grid : gridWidth;
+  const panelW = panelOpen ? fitted.panel : panelWidth;
+
   // A narrow grid column: the sort pill and Select drop their words.
-  const narrow = gridWidth < 480;
+  const narrow = gridW < 480;
 
   const onClick = useCallback((it: LibItem) => {
     if (useLibrary.getState().selecting) togglePick(it.key);
@@ -106,8 +122,8 @@ export function LibraryScreen() {
   }, [viewer, selecting, setSelecting, current, currentIndex, visible, select]);
 
   return (
-    <div style={{ flex: 1, minWidth: 0, display: 'flex' }}>
-      <Panel side="left" width={gridWidth} min={300} max={900} defaultWidth={GRID_W} open={gridOpen} onToggle={() => setGridOpen(!gridOpen)} onResize={setGridWidth} tabLabel="Grid">
+    <div ref={rowRef} style={{ flex: 1, minWidth: 0, display: 'flex', overflow: 'hidden' }}>
+      <Panel side="left" width={gridW} min={COLS.gridMin} max={900} defaultWidth={GRID_W} open={gridOpen} onToggle={() => setGridOpen(!gridOpen)} onResize={setGridWidth} tabLabel="Grid">
         <div style={{ flex: 'none', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6, padding: 10 }}>
           <SearchBox style={{ flex: '1 1 100%', minWidth: 0 }} />
           <CollectionPicker all={all} />
@@ -131,7 +147,7 @@ export function LibraryScreen() {
 
       <LibraryStage items={visible} index={Math.max(0, currentIndex)} onPick={(i) => { const it = visible[i]; if (it) select(it.key); }} onOpen={() => { if (currentIndex >= 0) setViewer(currentIndex); }} />
 
-      <Panel side="right" width={panelWidth} min={320} max={560} open={panelOpen} onToggle={() => setPanelOpen(!panelOpen)} onResize={setPanelWidth} tabLabel="Item">
+      <Panel side="right" width={panelW} min={COLS.panelMin} max={560} open={panelOpen} onToggle={() => setPanelOpen(!panelOpen)} onResize={setPanelWidth} tabLabel="Item">
         <div className="il-scroll" style={{ flex: 1, minHeight: 0, padding: T.pad.panel, touchAction: 'pan-y' }}>
           {current
             ? <ItemDetail item={current} hidePicture onOpen={() => setViewer(currentIndex)} pager={`${currentIndex + 1} / ${visible.length}`} />

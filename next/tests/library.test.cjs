@@ -109,3 +109,15 @@ test('labels', () => {
   assert.equal(L.whenLabel(new Date(2026, 9, 18, 9, 5).getTime(), now), 'Yesterday · 9:05 AM');
   assert.match(L.whenLabel(new Date(2026, 9, 12, 18, 40).getTime(), now), /^12 Oct · 6:40 PM$/);
 });
+
+test('fitColumns: the side columns fit the row, the preview keeps its minimum (list-2 item 18)', () => {
+
+  const W = (a, g, p) => { const r = L.fitColumns(a, g, p); return r.grid + r.panel; };
+  assert.deepEqual(L.fitColumns(1800, 420, 380), { grid: 420, panel: 380 }, 'room: as asked');
+  for (const avail of [900, 1000, 1100, 1240]) {
+    assert.ok(W(avail, 900, 560) + L.COLS.centerMin <= avail, `no overflow at ${avail}`);
+    const r = L.fitColumns(avail, 900, 560);
+    assert.ok(r.grid >= L.COLS.gridMin && r.panel >= L.COLS.panelMin);
+  }
+  assert.equal(L.fitColumns(1000, 0, 380).grid, 0, 'folded stays folded');
+});

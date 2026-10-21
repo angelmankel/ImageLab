@@ -6,6 +6,7 @@
  * viewer). Nothing over the picture but the edge arrows (on hover).
  */
 import { useRef, useState } from 'react';
+import { useMediaQuery } from '@mantine/hooks';
 import { IconArrowsMaximize, IconZoomReset } from '@tabler/icons-react';
 import { usePanZoom } from '@/hooks/usePanZoom';
 import { usePreloadAround } from '@/hooks/usePreload';
@@ -23,7 +24,10 @@ export function LibraryStage({ items, index, onPick, onOpen }: {
   const item = items[index] as LibItem | undefined;
   const box = useRef<HTMLDivElement>(null);
   const [fitN, setFitN] = useState(0);
-  const pz = usePanZoom(box, { resetKey: `${item?.key ?? ''}:${fitN}` });
+  // A click / tap that did not move (< 5 px; not on the arrows, not a pan) opens the full-screen
+  // viewer at this picture. A mouse opens at once (the wheel zooms); touch keeps double-tap zoom.
+  const fine = useMediaQuery('(hover: hover) and (pointer: fine)', true, { getInitialValueInEffect: false });
+  const pz = usePanZoom(box, { resetKey: `${item?.key ?? ''}:${fitN}`, onTap: onOpen, instantTap: fine });
   usePreloadAround(items.map((i) => i.url), index);
   const len = items.length;
   const go = (dir: 1 | -1) => { if (len > 1) onPick((index + dir + len) % len); };
@@ -43,7 +47,7 @@ export function LibraryStage({ items, index, onPick, onOpen }: {
         ref={box}
         {...(item && !isVideo ? pz.handlers : {})}
         {...(item ? menuProps('viewer-image', { item: libToViewer(item), onClose: () => undefined }) : {})}
-        style={{ flex: 1, minHeight: 0, position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', touchAction: 'none', userSelect: 'none', cursor: zoomed ? 'grab' : 'default' }}
+        style={{ flex: 1, minHeight: 0, position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', touchAction: 'none', userSelect: 'none', cursor: zoomed ? 'grab' : item ? 'zoom-in' : 'default' }}
       >
         {!item ? (
           <span style={{ color: 'var(--il-muted)', fontWeight: 600, fontSize: 13 }}>Nothing here yet.</span>
