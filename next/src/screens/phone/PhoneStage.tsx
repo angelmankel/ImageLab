@@ -18,7 +18,7 @@ import { ImageViewer } from '~/screens/viewer/ImageViewer';
 import { enterEdit } from '~/canvas/edit/editStore';
 import { editSourceOf } from '~/canvas/edit/useStageEdit';
 import { PhoneEdit } from '~/canvas/edit/PhoneEdit';
-import { useRoute } from '~/app/routeStore';
+import { openPhoneHistory } from '~/screens/image/history/PhoneHistorySheet';
 import { menuProps } from '~/app/contextMenu';
 import type { Step } from '~/app/stepsStore';
 import { useStageMedia } from '~/screens/image/useStageMedia';
@@ -88,7 +88,6 @@ export function PhoneStage({ step, stage, fill = false }: {
   fill?: boolean;
 }) {
   const { media, pick, open, viewer } = stage;
-  const go = useRoute((s) => s.go);
   const width = useStore((s) => s.workflow.width);
   const height = useStore((s) => s.workflow.height);
   const items = media.items;
@@ -123,7 +122,7 @@ export function PhoneStage({ step, stage, fill = false }: {
       <div style={{ display: 'flex', flexDirection: 'column', gap: T.gap.md, paddingTop: T.gap.md }}>
         {media.busy && <ProgressLine status={media.statusLine} progress={media.progress} />}
         {actions}
-        <ResultThumbs items={items} currentKey={current?.key ?? null} onPick={pick} onOpen={(k) => open(k)} onMore={() => go('library')} />
+        <ResultThumbs items={items} currentKey={current?.key ?? null} onPick={pick} onOpen={(k) => open(k)} onMore={openPhoneHistory} />
         {caption && (
           <p style={{ margin: `0 ${T.pad.panel}px`, fontSize: 13, color: 'var(--il-fg2)', lineHeight: 1.45, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{caption}</p>
         )}
@@ -138,11 +137,10 @@ export function PhoneStage({ step, stage, fill = false }: {
 /** Landscape side pane, Output tab: the results, the prompt line and Send to the next step (the picture is in the main pane). */
 export function StageExtras({ step, stage }: { step: Step; stage: PhoneStageApi }) {
   const { media, pick, open } = stage;
-  const go = useRoute((s) => s.go);
   const caption = media.entry?.positive ?? null;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: T.gap.md, padding: `${T.gap.md}px 0` }}>
-      <ResultThumbs items={media.items} currentKey={media.item?.key ?? null} onPick={pick} onOpen={(k) => open(k)} onMore={() => go('library')} />
+      <ResultThumbs items={media.items} currentKey={media.item?.key ?? null} onPick={pick} onOpen={(k) => open(k)} onMore={openPhoneHistory} />
       {caption && <p style={{ margin: `0 ${T.pad.panel}px`, fontSize: 13, color: 'var(--il-fg2)', lineHeight: 1.45, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{caption}</p>}
       <SendNext step={step} current={media.item} />
     </div>

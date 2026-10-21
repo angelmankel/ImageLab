@@ -1,7 +1,8 @@
 /**
  * The Output page's results strip: square thumbnails under the picture, the current one outlined
  * in ember and kept centred. A tap shows it (the picture slides to it); a tap on the current one
- * opens it full screen. Ends with a "Library" tile for everything older.
+ * opens it full screen. Ends with a "History ›" tile: the session's whole history (the phone's
+ * history sheet, `openPhoneHistory`).
  */
 import { useEffect, useRef } from 'react';
 import { IconChevronRight } from '@tabler/icons-react';
@@ -53,10 +54,10 @@ export function ResultThumbs({ items, currentKey, onPick, onOpen, onMore }: {
           </button>
         );
       })}
-      {onMore && items.length > MAX && (
-        <button type="button" onClick={onMore} aria-label="All results in the Library"
+      {onMore && (
+        <button type="button" onClick={onMore} aria-label="History"
           style={{ width: SIZE, height: SIZE, flex: 'none', border: '1px solid var(--il-line-soft)', borderRadius: T.radius.sm, background: 'transparent', color: 'var(--il-muted)', fontSize: 10, fontWeight: 800, display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
-          <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}><IconChevronRight size={16} />Library</span>
+          <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}><IconChevronRight size={16} />History</span>
         </button>
       )}
     </div>
