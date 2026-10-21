@@ -46,9 +46,25 @@ button, input, select, textarea { font-family: inherit; }
 a { color: var(--il-ember); } a:hover { color: var(--il-ember-hi); }
 
 /* Every scroll container in the app: thin bars, Ember greys. */
-.il-scroll { overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--il-line-strong) transparent; }
-.il-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
-.il-scroll::-webkit-scrollbar-thumb { background: var(--il-line-strong); border-radius: 3px; }
+.il-scroll { overflow-y: auto; }
+/* Thin Ember scrollbars on every scroller we own and every Mantine dropdown / combobox list.
+   Chrome (121+) drops ALL ::-webkit-scrollbar styling once `scrollbar-width` is set, and on Windows
+   that brings back the native ▲▼ buttons — so the standard properties only apply where
+   ::-webkit-scrollbar does not exist (Firefox), and the arrow buttons are hidden. */
+:is(.il-scroll, .il-dd, .il-sp-pick, [data-il-ctxmenu], .mantine-Menu-dropdown, .mantine-Popover-dropdown,
+  .mantine-Combobox-dropdown, .mantine-Combobox-options, .mantine-Modal-body, .scroll-y)::-webkit-scrollbar { width: 6px; height: 6px; background: transparent; }
+:is(.il-scroll, .il-dd, .il-sp-pick, [data-il-ctxmenu], .mantine-Menu-dropdown, .mantine-Popover-dropdown,
+  .mantine-Combobox-dropdown, .mantine-Combobox-options, .mantine-Modal-body, .scroll-y)::-webkit-scrollbar-thumb { background: var(--il-line-strong); border-radius: 3px; }
+:is(.il-scroll, .il-dd, .il-sp-pick, [data-il-ctxmenu], .mantine-Menu-dropdown, .mantine-Popover-dropdown,
+  .mantine-Combobox-dropdown, .mantine-Combobox-options, .mantine-Modal-body, .scroll-y)::-webkit-scrollbar-thumb:hover { background: var(--il-dim); }
+:is(.il-scroll, .il-dd, .il-sp-pick, [data-il-ctxmenu], .mantine-Menu-dropdown, .mantine-Popover-dropdown,
+  .mantine-Combobox-dropdown, .mantine-Combobox-options, .mantine-Modal-body, .scroll-y)::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-corner { background: transparent; }
+::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
+@supports not selector(::-webkit-scrollbar) {
+  :is(.il-scroll, .il-dd, .il-sp-pick, [data-il-ctxmenu], .mantine-Menu-dropdown, .mantine-Popover-dropdown,
+    .mantine-Combobox-dropdown, .mantine-Combobox-options, .mantine-Modal-body, .scroll-y) { scrollbar-width: thin; scrollbar-color: var(--il-line-strong) transparent; }
+}
 .il-scroll-x { overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
 .il-scroll-x::-webkit-scrollbar { display: none; }
 
