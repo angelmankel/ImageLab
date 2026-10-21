@@ -28,6 +28,7 @@ import { objectInfoNow } from '@/features/studio/useStudioRun';
 import { modeHostNow } from '@/features/workspace/modeHost';
 import { useSteps, brokenChainMessage, STEP_LABEL, type Step } from '~/app/stepsStore';
 import { enqueueRun } from '~/app/runQueue';
+import { useSessions } from '~/app/sessionsStore';
 import { stepWorkflowNow } from '~/screens/comfy';
 import { Tip } from '~/ui/Tip';
 import { stepProblemNow } from './useStepProblem';
@@ -75,12 +76,22 @@ async function infoFor(host: string): Promise<ObjectInfo | null> {
   try { const r = await fetch(`${comfyHttpFor(host)}/object_info`); return r.ok ? ((await r.json()) as ObjectInfo) : null; } catch { return null; }
 }
 
+/** Why Generate all stops when the session it started in is no longer the open one. */
+const SWITCHED = 'Another session was opened — the steps read their settings from the open session, so it stopped here';
+
 /** Run one step and wait for it to finish. null = done, else why it failed. */
-async function runStepToEnd(step: Step): Promise<string | null> {
+async function runStepToEnd(step: Step, sessionId?: string): Promise<string | null> {
   if (step.kind === 'image') {
     const before = new Set(useStore.getState().jobs.map((j) => j.id));
     const owner = ownerOfStep(step.id);
-    await enqueueRun(() => (owner ? runAsOwner(owner, () => fireFromStore(false, IMAGE_STEP_ONLY)) : fireFromStore(false, IMAGE_STEP_ONLY)));
+    // The press waits its turn in the run queue: by then the user may have opened another session,
+    // whose parameters the main store now holds — never queue those for this one.
+    let moved = false;
+    await enqueueRun(() => {
+      if (sessionId && useSessions.getState().currentId !== sessionId) { moved = true; return undefined; }
+      return owner ? runAsOwner(owner, () => fireFromStore(false, IMAGE_STEP_ONLY)) : fireFromStore(false, IMAGE_STEP_ONLY);
+    });
+    if (moved) return SWITCHED;
     const queued = useStore.getState().jobs.some((j) => !before.has(j.id));
     if (!queued) { const st = useStore.getState().status; return st.kind === 'error' ? st.text : 'The picture was not queued'; }
     return waitImageJobs(before);
@@ -122,17 +133,21 @@ export async function generateAll(): Promise<void> {
   // Item 17: only the steps that are not up to date run; an up-to-date step's output is reused as it is.
   if (steps.every((s) => stepFreshnessNow(s.id)?.state === 'fresh')) { useAll.setState({ upToDateAt: Date.now() }); return; }
   useAll.setState({ running: true, at: 0, total: steps.length, stop: false, currentId: null });
+  // Pinned to the session it started in: every step reads its settings from the OPEN session's
+  // stores, so after a tab switch the rest would run with the other session's settings.
+  const sessionId = useSessions.getState().currentId;
   let ran = 0;
   try {
     for (let i = 0; i < steps.length; i++) {
       if (useAll.getState().stop) { note('Generate all stopped', `After step ${i}`, 'gray'); return; }
+      if (useSessions.getState().currentId !== sessionId) { note(`Generate all stopped before step ${i + 1}`, SWITCHED); return; }
       // The step as it is now (an earlier step's run does not change it, but the user may have).
       const step = useSteps.getState().steps.find((s) => s.id === steps[i].id);
       if (!step) continue;
       // Judged now: a step above that just re-ran gave this one a new input, so it is stale by then.
       if (stepFreshnessNow(step.id)?.state === 'fresh') continue;
       useAll.setState({ at: i + 1, currentId: step.id });
-      const err = await runStepToEnd(step);
+      const err = await runStepToEnd(step, sessionId);
       if (err) { note(`Generate all stopped at step ${i + 1} · ${STEP_LABEL[step.kind]}`, err); return; }
       ran++;
     }
