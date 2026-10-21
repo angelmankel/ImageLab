@@ -283,3 +283,39 @@ export function foldLayers<L extends { id: string; kind: string; on: boolean; te
   }
   return changed ? out : null;
 }
+
+/**
+ * Item 44: reorder parts. The parts' texts move; the separators between them (", " / ". " / new
+ * lines) stay where they were, so commas and periods are always right. `to` = the index of the part
+ * to swap with (`swap`), or the slot to move into (`move`: 0 = before the first, parts.length =
+ * after the last). Returns the edit (the smallest changed range, for the browser's undo) with the
+ * moved part selected-at-end, or null when nothing changes.
+ */
+export function movePart(text: string, parts: Array<Pick<Part, 'start' | 'end'>>, from: number, to: number, mode: 'swap' | 'move'): Edit | null {
+  const n = parts.length;
+  if (from < 0 || from >= n) return null;
+  const pieces = parts.map((p) => text.slice(p.start, p.end));
+  const order = pieces.map((_, i) => i);
+  if (mode === 'swap') {
+    if (to < 0 || to >= n || to === from) return null;
+    [order[from], order[to]] = [order[to], order[from]];
+  } else {
+    const slot = Math.max(0, Math.min(n, to));
+    if (slot === from || slot === from + 1) return null;
+    order.splice(from, 1);
+    order.splice(slot > from ? slot - 1 : slot, 0, from);
+  }
+  let out = text.slice(0, parts[0].start);
+  let caret = 0;
+  for (let k = 0; k < n; k++) {
+    out += pieces[order[k]];
+    if (order[k] === from) caret = out.length;
+    out += k < n - 1 ? text.slice(parts[k].end, parts[k + 1].start) : text.slice(parts[n - 1].end);
+  }
+  if (out === text) return null;
+  let a = 0;
+  while (a < text.length && a < out.length && text[a] === out[a]) a++;
+  let b = 0;
+  while (b < text.length - a && b < out.length - a && text[text.length - 1 - b] === out[out.length - 1 - b]) b++;
+  return { start: a, end: text.length - b, insert: out.slice(a, out.length - b), selStart: caret, selEnd: caret };
+}

@@ -154,3 +154,16 @@ test('item 46: prompt words skip trigger tags and junk stems', () => {
   assert.ok(!w.includes('dram') && !w.includes('illu') && !w.includes('ur4'));
   assert.ok(w.includes('run') && w.includes('cat') && w.includes('close'));
 });
+
+test('item 44: movePart swaps / moves part texts, separators stay put', () => {
+  const t = 'a cat, (neon:1.2). dog\nend';
+  const parts = P.parseSections(t);
+  const run = (e) => (e ? edit(t, e) : t);
+  assert.equal(run(P.movePart(t, parts, 0, 2, 'swap')), 'dog, (neon:1.2). a cat\nend');
+  assert.equal(run(P.movePart(t, parts, 3, 0, 'move')), 'end, a cat. (neon:1.2)\ndog');
+  assert.equal(run(P.movePart(t, parts, 0, 4, 'move')), '(neon:1.2), dog. end\na cat');
+  assert.equal(P.movePart(t, parts, 1, 1, 'move'), null);
+  assert.equal(P.movePart(t, parts, 1, 2, 'move'), null);
+  const e = P.movePart(t, parts, 0, 1, 'swap');
+  assert.equal(run(e).slice(0, e.selStart).endsWith('a cat'), true, 'caret at the end of the moved part');
+});

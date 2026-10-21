@@ -12,8 +12,10 @@ import { flushSync } from 'react-dom';
 import { IconMinus, IconPlus, IconStar, IconX } from '@tabler/icons-react';
 import { useIsPhone } from '~/app/useIsPhone';
 import { Tip } from '~/ui';
+import { pushUndo } from '~/app/undo';
+import { PartHandles, type PartDrag } from './PartHandles';
 import {
-  applyEdit, formatWeight, nudgeWeight, partAt, promptParts, replaceSlash, setPartWeight, removeRange, slashQuery, snippetTextFor,
+  applyEdit, formatWeight, movePart, nudgeWeight, partAt, promptParts, replaceSlash, setPartWeight, removeRange, slashQuery, snippetTextFor,
   type Edit, type Part,
 } from './promptSections';
 import { fuzzy, relatedTiles, searchTiles, tileBackground, tileHue, tileName, type TileSnippet } from './promptSearch';
@@ -53,7 +55,7 @@ function Highlight({ text, hits }: { text: string; hits: number[] }) {
   return <>{Array.from(text).map((ch, i) => (set.has(i) ? <mark key={i}>{ch}</mark> : ch))}</>;
 }
 
-function Backdrop({ text, parts, active, byId }: { text: string; parts: Part[]; active: Part | null; byId: Map<string, TileSnippet> }) {
+function Backdrop({ text, parts, active, byId, drag }: { text: string; parts: Part[]; active: Part | null; byId: Map<string, TileSnippet>; drag: PartDrag | null }) {
   const out: ReactNode[] = [];
   let at = 0;
   parts.forEach((p, i) => {
@@ -62,11 +64,13 @@ function Backdrop({ text, parts, active, byId }: { text: string; parts: Part[]; 
     const cls = ['il-sp-part'];
     if (snip) cls.push('il-sp-snip');
     if (p.weight > 1.001) cls.push('il-sp-up'); else if (p.weight < 0.999) cls.push('il-sp-dn');
-    if (active && active.start === p.start && active.end === p.end) cls.push('il-sp-on');
+    if (active && active.start === p.start && active.end === p.end && !drag) cls.push('il-sp-on');
+    if (drag && drag.from === i) cls.push('il-sp-lift');
+    if (drag && drag.mode === 'swap' && drag.to === i) cls.push('il-sp-drop');
     const style = snip ? ({ '--h': tileHue(snip) } as React.CSSProperties) : undefined;
     const post = text.slice(p.innerEnd, p.end);
     out.push(
-      <span key={`p${i}`} className={cls.join(' ')} style={style}>
+      <span key={`p${i}`} data-pi={i} className={cls.join(' ')} style={style}>
         {p.innerStart > p.start && <span className="il-sp-syn">{text.slice(p.start, p.innerStart)}</span>}
         {text.slice(p.innerStart, p.innerEnd)}
         {post && post.split(/(-?\d*\.?\d+)/).map((bit, k) => (bit ? <span key={k} className={/\d/.test(bit) ? 'il-sp-num' : 'il-sp-syn'}>{bit}</span> : null))}
@@ -89,6 +93,10 @@ export function SmartPromptBox({ value, onChange, onBlur, kind, snippets, catego
   const phone = useIsPhone();
   const ta = useRef<HTMLTextAreaElement>(null);
   const back = useRef<HTMLDivElement>(null);
+  const wrap = useRef<HTMLDivElement>(null);
+  const [drag, setDrag] = useState<PartDrag | null>(null);
+  const valueRef = useRef(value);
+  valueRef.current = value;
   // Item 40: the selection is stored WITH the text it was read from; a selection read from another
   // text is never used (that was the stale "two flycatchers" frame), so the part bar can only show
   // a part of the current text.
@@ -168,6 +176,28 @@ export function SmartPromptBox({ value, onChange, onBlur, kind, snippets, catego
     onChange(applyEdit(value, e));
   };
 
+  /**
+   * An edit made from outside the keyboard (drag, ×): through the browser when the box has focus
+   * (so its own Ctrl+Z works), and on the app's undo stack too — guarded, so an entry whose text
+   * has moved on since does nothing.
+   */
+  const applyUndoable = (e: Edit, label: string) => {
+    const before = valueRef.current;
+    const after = applyEdit(before, e);
+    apply(e);
+    pushUndo({
+      label,
+      undo: () => { if (valueRef.current === after) onChange(before); },
+      redo: () => { if (valueRef.current === before) onChange(after); },
+    });
+  };
+  const movePartTo = (from: number, to: number, mode: 'swap' | 'move') => {
+    const ed = movePart(value, parts, from, to, mode);
+    if (!ed) return;
+    ta.current?.focus({ preventScroll: true });
+    applyUndoable(ed, 'Move prompt part');
+  };
+
   const pick = (s: TileSnippet) => {
     if (!slash) return;
     apply(replaceSlash(value, slash.start, sel[0], snippetTextFor(s, kind)));
@@ -181,6 +211,13 @@ export function SmartPromptBox({ value, onChange, onBlur, kind, snippets, catego
       if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); pick(options[Math.min(hl, options.length - 1)].s); return; }
     }
     if (pickOpen && e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setDismissed(slash!.start); return; }
+    if (e.altKey && !e.ctrlKey && !e.metaKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight') && active) {
+      e.preventDefault();
+      const i = parts.indexOf(active);
+      const j = i + (e.key === 'ArrowLeft' ? -1 : 1);
+      if (i >= 0 && j >= 0 && j < parts.length) movePartTo(i, j, 'swap');
+      return;
+    }
     if ((e.ctrlKey || e.metaKey) && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
       e.preventDefault();
       const el = e.currentTarget;
@@ -197,8 +234,8 @@ export function SmartPromptBox({ value, onChange, onBlur, kind, snippets, catego
 
   return (
     <div className={`il-sp${kind === 'negative' ? ' is-neg' : ''}${large ? ' is-large' : ''}`}>
-      <div className="il-sp-wrap">
-        <div ref={back} className="il-sp-back" aria-hidden><Backdrop text={value} parts={parts} active={active} byId={byId} /></div>
+      <div ref={wrap} className="il-sp-wrap">
+        <div ref={back} className="il-sp-back" aria-hidden><Backdrop text={value} parts={parts} active={active} byId={byId} drag={drag} /></div>
         <textarea
           ref={ta}
           className="il-sp-ta"
@@ -218,6 +255,13 @@ export function SmartPromptBox({ value, onChange, onBlur, kind, snippets, catego
           onKeyDown={onKeyDown}
           style={{ minHeight: minRows * (large ? 16 : 15) * 1.55 }}
         />
+        <PartHandles wrap={wrap} back={back} ta={ta} parts={parts} value={value} off={pickOpen}
+          caretPart={focused && active ? parts.indexOf(active) : -1}
+          isSnippet={(p) => !!p.snippetId && byId.has(p.snippetId)}
+          drag={drag} setDrag={setDrag}
+          onMove={movePartTo}
+          onRemove={(p) => applyUndoable(removeRange(value, p.start, p.end), 'Take out snippet')}
+          onPick={(p) => { const el = ta.current; if (!el) return; el.focus({ preventScroll: true }); el.setSelectionRange(p.innerStart, p.innerEnd); setFocused(true); setSel([p.innerStart, p.innerEnd], el.value); }} />
         {pickOpen && (
           <div className="il-sp-pick il-scroll" role="listbox" aria-label="Snippets" onMouseDown={keep} style={{ top: 'calc(100% + 6px)' }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--il-muted)', padding: '4px 8px 6px' }}>
@@ -263,7 +307,7 @@ export function SmartPromptBox({ value, onChange, onBlur, kind, snippets, catego
             {!activeSnip && onSaveAsSnippet && (
               <Tip label="Save as a tile"><button type="button" aria-label="Save as a tile" onMouseDown={keep} onClick={() => onSaveAsSnippet(value.slice(active.innerStart, active.innerEnd))} style={{ ...barBtn(phone), color: 'var(--il-muted)' }}><IconStar size={14} stroke={2.2} /></button></Tip>
             )}
-            <Tip label="Take it out"><button type="button" aria-label="Take this part out" onMouseDown={keep} onClick={() => apply(removeRange(value, active.start, active.end))} style={{ ...barBtn(phone), color: 'var(--il-muted)' }}><IconX size={14} stroke={2.4} /></button></Tip>
+            <Tip label="Take it out"><button type="button" aria-label="Take this part out" onMouseDown={keep} onClick={() => applyUndoable(removeRange(value, active.start, active.end), 'Take out prompt part')} style={{ ...barBtn(phone), color: 'var(--il-muted)' }}><IconX size={14} stroke={2.4} /></button></Tip>
           </>
         ) : (
           <span style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 11, fontWeight: 700, color: 'var(--il-dim)', whiteSpace: 'nowrap', overflow: 'hidden' }}>

@@ -34,7 +34,9 @@
 
 .il-sp-sep { color: var(--il-muted); }
 .il-sp-part { border-radius: 5px; -webkit-box-decoration-break: clone; box-decoration-break: clone; transition: box-shadow .12s ease, background-color .12s ease; }
-.il-sp-snip { background: hsl(var(--h) 55% 55% / 0.17); box-shadow: 0 0 0 2px hsl(var(--h) 55% 55% / 0.17); }
+/* Item 47: a snippet part reads as text, with a faint tint and a dotted underline in its colour. */
+.il-sp-snip { background: hsl(var(--h) 55% 55% / 0.08); box-shadow: 0 0 0 2px hsl(var(--h) 55% 55% / 0.08);
+  text-decoration: underline dotted hsl(var(--h) 60% 62% / 0.75); text-decoration-thickness: 1.5px; text-underline-offset: 3px; }
 .il-sp-up { background: color-mix(in srgb, var(--sp-accent) 14%, transparent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--sp-accent) 14%, transparent); }
 .il-sp-dn { background: color-mix(in srgb, var(--il-info) 13%, transparent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--il-info) 13%, transparent); }
 /* Item 38: the part under the caret — a soft tinted background whose spread (box-shadow, never
@@ -70,3 +72,17 @@
   color: var(--il-bg); display: grid; place-items: center; }
 .il-tile-w { position: absolute; top: 6px; left: 6px; z-index: 1; font-size: 10px; font-weight: 800; padding: 1px 6px; border-radius: 999px;
   background: rgba(0, 0, 0, .55); color: var(--il-ember-hi); font-variant-numeric: tabular-nums; }
+
+/* Item 44: the floating part handles + drag feedback. Overlays only: never part of the text's layout. */
+.il-sp-handles { position: absolute; z-index: 25; display: flex; gap: 2px; padding: 2px; border-radius: 8px; transform: translate(-70%, -78%);
+  background: var(--il-elev); border: 1px solid var(--il-line-strong); box-shadow: 0 6px 16px rgba(0, 0, 0, .45); }
+.il-sp-hbtn { display: grid; place-items: center; border: 0; border-radius: 6px; background: transparent; color: var(--il-fg2); padding: 0; cursor: pointer; }
+.il-sp-hbtn:hover { background: var(--il-card-on); color: var(--il-fg); }
+.il-sp-hbtn.is-grip { cursor: grab; }
+.il-sp-hbtn.is-x:hover { color: var(--il-err); }
+.il-sp-lift { opacity: .35; }
+.il-sp-drop { background: color-mix(in srgb, var(--sp-accent) 22%, transparent) !important; box-shadow: 0 0 0 3px color-mix(in srgb, var(--sp-accent) 22%, transparent), 0 0 0 4px var(--sp-accent) !important; }
+.il-sp-dropline { position: absolute; z-index: 24; width: 2px; border-radius: 2px; background: var(--sp-accent); pointer-events: none; box-shadow: 0 0 6px var(--sp-accent); }
+.il-sp-ghost { position: absolute; z-index: 26; pointer-events: none; transform: translate(8px, -120%); max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 800; background: var(--il-elev); color: var(--il-fg);
+  border: 1px solid var(--sp-accent); box-shadow: 0 10px 22px rgba(0, 0, 0, .5); }
