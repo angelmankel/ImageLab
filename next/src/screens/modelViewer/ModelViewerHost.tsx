@@ -5,7 +5,7 @@
  * that opened it exactly as it was.
  *
  * Desktop (fix list item 32): a BIG MODAL, not full screen — a dimmed, blurred backdrop and a
- * centred window (96vw × 94vh, capped) with the viewer inside; a tap on the backdrop closes it.
+ * centred window (the window minus a 20px margin, capped; no viewport units, item 26) with the viewer inside; a tap on the backdrop closes it.
  * Phone: the window IS the screen (the Back pill closes).
  */
 import { useEffect, useRef } from 'react';
@@ -25,9 +25,16 @@ import { ModelViewer } from './ModelViewer';
  */
 const STOP = 'data-mantine-stop-propagation';
 
-/** The window's size on desktop: as big as the screen allows, with a margin that says "modal". */
-const WINDOW_W = 'min(96vw, 1720px)';
-const WINDOW_H = 'min(94vh, 1120px)';
+/**
+ * The window's size on desktop: as big as the screen allows, with a margin that says "modal".
+ * No vw / vh (fix list 2 item 26): under the UI scale's CSS `zoom` a viewport unit is zoomed too
+ * (110% scale → 94vh became 103% of the window and the modal ran off the bottom and right). The
+ * fixed layer (`inset: 0`) IS the real window at every scale, so the window is 100% of it minus
+ * the layer's padding, capped.
+ */
+const WINDOW_PAD = 20;
+const WINDOW_MAX_W = 1720;
+const WINDOW_MAX_H = 1120;
 
 export function ModelViewerHost(): JSX.Element | null {
   const opened = useModelViewer((s) => s.opened);
@@ -55,8 +62,8 @@ export function ModelViewerHost(): JSX.Element | null {
       <div ref={root} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Model" data-no-swipe data-pad-layer {...{ [STOP]: 'true' }}
         onFocusCapture={(e) => (e.target as HTMLElement).setAttribute?.(STOP, 'true')}
         onPointerDown={(e) => { if (e.target === e.currentTarget) close(); }}
-        style={{ ...layer, background: 'rgba(8, 8, 10, .62)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)', display: 'grid', placeItems: 'center' }}>
-        <div style={{ position: 'relative', width: WINDOW_W, height: WINDOW_H, borderRadius: T.radius.xl, border: '1px solid var(--il-line-soft)', background: 'var(--il-bg)', overflow: 'hidden', boxShadow: '0 24px 80px rgba(0,0,0,.55)' }}>
+        style={{ ...layer, background: 'rgba(8, 8, 10, .62)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: WINDOW_PAD, boxSizing: 'border-box' }}>
+        <div style={{ position: 'relative', width: '100%', height: '100%', maxWidth: WINDOW_MAX_W, maxHeight: WINDOW_MAX_H, minWidth: 0, minHeight: 0, boxSizing: 'border-box', borderRadius: T.radius.xl, border: '1px solid var(--il-line-soft)', background: 'var(--il-bg)', overflow: 'hidden', boxShadow: '0 24px 80px rgba(0,0,0,.55)' }}>
           <ErrorBoundary label="Model viewer"><ModelViewer /></ErrorBoundary>
         </div>
       </div>

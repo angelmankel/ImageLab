@@ -1,6 +1,6 @@
 /**
  * The models picker as a modal (models-picker brief, item 1): one big window every picker opens —
- * ≈ 94vw × 92vh on desktop (Ember look, glass backdrop), full screen on the phone with a top Back.
+ * the window minus a 20px margin on desktop (no viewport units: item 26) (Ember look, glass backdrop), full screen on the phone with a top Back.
  * `kind` locks the type filter to the step's kind and makes "Use" / "Add & download" call `onPick`;
  * without `kind` it is the free browser (the rail's Models entry).
  */
@@ -28,14 +28,18 @@ export function ModelsModal({ opened, onClose, kind, onPick, title }: {
       withCloseButton={false}
       fullScreen={phone}
       centered
-      size={phone ? undefined : '94vw'}
+      // No vw / vh (fix list 2 item 26): the UI scale's CSS zoom scales viewport units too, so the
+      // window ran off the screen. Percentages of Mantine's fixed, full-window inner always fit.
+      size={phone ? undefined : 'calc(100% - 8px)'}
+      xOffset={phone ? 0 : 20}
+      yOffset={phone ? 0 : 20}
       zIndex={T.z.modal}
       radius={phone ? 0 : T.radius.xl}
       padding={0}
       overlayProps={{ backgroundOpacity: 0.55, blur: 6 }}
       transitionProps={{ transition: 'pop', duration: 160 }}
       styles={{
-        content: { background: 'var(--il-bg)', border: phone ? 0 : '1px solid var(--il-line-soft)', height: phone ? '100dvh' : '92vh', maxHeight: phone ? '100dvh' : '92vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' },
+        content: { background: 'var(--il-bg)', border: phone ? 0 : '1px solid var(--il-line-soft)', height: '100%', maxHeight: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' },
         body: { padding: 0, flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', height: '100%' },
       }}
     >
