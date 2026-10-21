@@ -238,6 +238,9 @@ function remember(promptId: string, stepId: string): void {
   if (byPrompt.size > 400) for (const k of [...byPrompt.keys()].slice(0, byPrompt.size - 400)) byPrompt.delete(k);
 }
 
+/** The step a queued job was credited to (image jobs, and runs armed by `noteRunStart`), when known. */
+export const stepOfPrompt = (promptId: string): string | undefined => byPrompt.get(promptId)?.stepId;
+
 /** A run for `stepId` is about to queue on `store`: its job is credited to that step. */
 const armed = new Map<RunStore, string>();
 export function noteRunStart(store: RunStore, stepId: string): void { armed.set(store, stepId); }

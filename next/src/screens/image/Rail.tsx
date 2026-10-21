@@ -9,7 +9,9 @@
  * never starts one); the connecting lines follow the order live and the chain re-links itself by
  * the I/O standard. A step that cannot run gets a red ring and says why on hover (17). ONE badge
  * (list 2 #17, `rail/StepBadge`): ✓ up to date · ↻ amber out of date (hover: what changed) · red !
- * cannot run · none = no output; the line under a step shows what flows down (`rail/StepConnector`). "+ Add" opens THE step-kind picker (`~/app/stepKindPicker`).
+ * cannot run · none = no output; the line under a step shows what flows down (`rail/StepConnector`).
+ * A ring around the circle (list 2 #16, `rail/StepRing`) fills with the step's job progress; queued
+ * = faint dashed; Generate all fills each step in turn and the line below lights up when it is done. "+ Add" opens THE step-kind picker (`~/app/stepKindPicker`).
  */
 import { useRef, useState } from 'react';
 import { IconPlus, IconHistory, IconCube, IconTopologyStar3, IconSettings, IconX } from '@tabler/icons-react';
@@ -25,10 +27,12 @@ import { useStepProblem } from './useStepProblem';
 import { useLayout } from './layoutStore';
 import { removeStepWithUndo } from './stepActions';
 import './stepMenuEntries';
-import { GenerateAllButton } from './GenerateAll';
 import { useChainFreshness, type StepFresh } from '~/app/stepFingerprint';
 import { StepBadge } from './rail/StepBadge';
 import { StepConnector } from './rail/StepConnector';
+import { StepRing, type RingState } from './rail/StepRing';
+import { useQueue } from '~/app/queue';
+import { GenerateAllButton, useGenerateAllAt, useGenerateAllCurrent } from './GenerateAll';
 
 export { KIND_ICON } from '~/app/stepKindPicker';
 
@@ -54,7 +58,7 @@ function PlaceButton({ label, icon, on, onClick }: { label: string; icon: React.
   );
 }
 
-function StepNode({ step, index, lifted, onGrab, fresh }: { step: Step; index: number; lifted: boolean; onGrab: (e: React.PointerEvent, id: string) => void; fresh: StepFresh | undefined }) {
+function StepNode({ step, index, lifted, onGrab, fresh, ring }: { step: Step; index: number; lifted: boolean; onGrab: (e: React.PointerEvent, id: string) => void; fresh: StepFresh | undefined; ring: RingState }) {
   const screen = useRoute((s) => s.screen);
   const on = useSteps((s) => s.activeId === step.id) && screen === 'step';
   const problem = useStepProblem(step);
@@ -76,6 +80,8 @@ function StepNode({ step, index, lifted, onGrab, fresh }: { step: Step; index: n
   return (
     <div onPointerEnter={() => setHover(true)} onPointerLeave={() => setHover(false)} style={{ width: 72, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
       <span style={{ position: 'relative', width: 46, height: 46 }}>
+        {/* Item 16: the job's progress around the circle; a step that cannot run keeps only its red ring. */}
+        <StepRing ring={problem ? IDLE_RING : ring} ok={fresh?.state === 'fresh'} />
         <Tip label={tip} position="right">
           <button type="button" data-step-node={step.id} aria-current={on ? 'step' : undefined} aria-label={tip}
             onClick={() => { if (Date.now() - dragEndedAt < 250) return; open(); }}
@@ -99,7 +105,7 @@ function StepNode({ step, index, lifted, onGrab, fresh }: { step: Step; index: n
           <button type="button" aria-label={`Remove step ${index + 1}`} title="Remove this step (Undo in the note)"
             onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => { e.stopPropagation(); removeStepWithUndo(step.id); }}
-            style={{ position: 'absolute', top: -5, right: -5, width: 18, height: 18, borderRadius: '50%', padding: 0, border: '1px solid var(--il-line-strong)', background: 'var(--il-elev)', color: 'var(--il-fg2)', display: 'grid', placeItems: 'center', cursor: 'pointer', zIndex: 1 }}>
+            style={{ position: 'absolute', top: -5, right: -5, width: 18, height: 18, borderRadius: '50%', padding: 0, border: '1px solid var(--il-line-strong)', background: 'var(--il-elev)', color: 'var(--il-fg2)', display: 'grid', placeItems: 'center', cursor: 'pointer', zIndex: 3 }}>
             <IconX size={11} stroke={3} />
           </button>
         )}
@@ -110,10 +116,37 @@ function StepNode({ step, index, lifted, onGrab, fresh }: { step: Step; index: n
   );
 }
 
+const IDLE_RING: RingState = { kind: 'idle' };
+const QUEUED_RING: RingState = { kind: 'queued' };
+
+/**
+ * Item 16: each step's ring from the job queue — its running job's progress, a faint dashed ring
+ * while one of its jobs waits, and during Generate all the steps it will still re-run (not up to
+ * date, below the one running now) wait dashed too; the step it is preparing turns.
+ */
+function useRings(fresh: ReadonlyMap<string, StepFresh>): (id: string, index: number) => RingState {
+  const { rows } = useQueue();
+  const allAt = useGenerateAllAt();
+  const allCurrent = useGenerateAllCurrent();
+  return (id, index) => {
+    let queued = false;
+    for (const r of rows) {
+      if (r.stepId !== id) continue;
+      if (r.status === 'running') return { kind: 'running', progress: r.progress ?? null };
+      queued = true;
+    }
+    if (allCurrent === id) return { kind: 'running', progress: null };
+    if (queued) return QUEUED_RING;
+    if (allAt > 0 && index + 1 > allAt && fresh.get(id)?.state !== 'fresh') return QUEUED_RING;
+    return IDLE_RING;
+  };
+}
+
 /** The chain, with drag-to-reorder: the order shown follows the pointer live; the drop commits it. */
 function StepChain() {
   const steps = useSteps((s) => s.steps);
   const fresh = useChainFreshness();
+  const ringOf = useRings(fresh);
   const [drag, setDrag] = useState<{ id: string; to: number } | null>(null);
   const grab = useRef<{ id: string; y: number; top: number; from: number; el: HTMLElement; moved: boolean } | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -138,7 +171,7 @@ function StepChain() {
       if (!g.moved && Math.abs(ev.clientY - g.y) < DRAG_START) return;
       if (!g.moved) { g.moved = true; try { g.el.setPointerCapture(ev.pointerId); } catch { /* gone */ } }
       const scroll = listRef.current?.scrollTop ?? 0;
-      const to = Math.max(1, Math.min(steps.length - 1, Math.floor((ev.clientY - g.top + scroll) / SLOT)));
+      const to = Math.max(1, Math.min(steps.length - 1, Math.floor((ev.clientY - g.top - 6 + scroll) / SLOT)));
       setDrag((d) => (d && d.to === to ? d : { id: g.id, to }));
     };
     const up = () => {
@@ -158,10 +191,10 @@ function StepChain() {
   };
 
   return (
-    <div ref={listRef} className="il-scroll" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minHeight: 0, overflowX: 'hidden', flex: '0 1 auto' }}>
+    <div ref={listRef} className="il-scroll" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minHeight: 0, overflowX: 'hidden', flex: '0 1 auto', paddingTop: 6 }}>
       {order.map((st, i) => (
         <div key={st.id} style={{ height: SLOT, flex: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <div {...menuProps('step', st)}><StepNode step={st} index={i} lifted={drag?.id === st.id} onGrab={onGrab} fresh={fresh.get(st.id)} /></div>
+          <div {...menuProps('step', st)}><StepNode step={st} index={i} lifted={drag?.id === st.id} onGrab={onGrab} fresh={fresh.get(st.id)} ring={ringOf(st.id, steps.findIndex((x) => x.id === st.id))} /></div>
           <StepConnector flows={!!order[i + 1]?.chained && !order[i + 1]?.input} state={fresh.get(st.id)?.state ?? 'none'} />
         </div>
       ))}
@@ -183,7 +216,7 @@ export function Rail() {
   const drop = useRailDrop();
   return (
     <nav aria-label="Steps" {...drop.props} style={{ boxShadow: drop.over ? 'inset 0 0 0 2px var(--il-ember)' : drop.active ? 'inset 0 0 0 2px var(--il-ember-line)' : undefined, background: drop.over ? 'var(--il-ember-soft)' : undefined, width: T.size.rail, flex: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '14px 0 12px', borderRight: '1px solid var(--il-line)', zIndex: T.z.rail, overflow: 'hidden' }}>
-      <div className="il-eyebrow" style={{ marginBottom: 10 }}>Steps</div>
+      <div className="il-eyebrow" style={{ marginBottom: 4 }}>Steps</div>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minHeight: 0, maxHeight: '64%' }}>
         <StepChain />
         <Tip label="Add a step after the open one" position="right">

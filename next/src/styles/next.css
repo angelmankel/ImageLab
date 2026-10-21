@@ -264,6 +264,11 @@ button[style*="border-radius: 999px"]:not(:disabled):not([style*="transform"]):a
 /* An indeterminate progress sweep (the Generate group, the stage's progress line). */
 @keyframes il-sweep { from { transform: translateX(-100%); } to { transform: translateX(300%); } }
 .il-sweep { animation: il-sweep 1.2s linear infinite; }
+/* The steps rail's ring while a job has no progress number yet (list 2 item 16): a short arc that turns. */
+@keyframes il-ring-spin { to { transform: rotate(360deg); } }
+.il-ring-spin { animation: il-ring-spin 1.1s linear infinite; transform-box: fill-box; transform-origin: center; }
+html[data-motion="off"] .il-ring-spin { animation: none; }
+@media (prefers-reduced-motion: reduce) { .il-ring-spin { animation: none; } }
 /* History tiles: the favourite and delete buttons show on hover (or keyboard focus); the favourite always when liked. */
 .il-tile-like, .il-tile-del { opacity: 0; transition: opacity .12s; }
 *:hover > .il-tile-like, .il-tile-like[aria-pressed="true"], .il-tile-like:focus-visible,

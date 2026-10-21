@@ -6,7 +6,7 @@
  * and results go to the session that asked for it (fix list 2, item 15).
  */
 import type { RunStore } from '@/lib/comfyRunner';
-import { noteRunStart } from './stepFingerprint';
+import { noteRunStart, stepOfPrompt } from './stepFingerprint';
 import { ownerOfStep, recordJob } from './outputs';
 
 const tags = new Map<string, string>();
@@ -24,4 +24,5 @@ export async function runTagged(store: RunStore, stepId: string, fn: () => Promi
   if (tags.size > 500) for (const k of [...tags.keys()].slice(0, 250)) tags.delete(k);
 }
 
-export const runStepOf = (promptId: string): string | undefined => tags.get(promptId);
+/** The step that queued a run: tagged by `runTagged`, else the step its run was armed for (Generate all's `trackRun`). */
+export const runStepOf = (promptId: string): string | undefined => tags.get(promptId) ?? stepOfPrompt(promptId);

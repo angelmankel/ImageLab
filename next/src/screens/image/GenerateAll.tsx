@@ -166,3 +166,6 @@ export const useGenerateAll = () => useAll((s) => s.running);
 
 /** Which step Generate all is running now, and its 1-based index (the rail's rings). */
 export const useGenerateAllAt = () => useAll((s) => (s.running ? s.at : 0));
+
+/** The step Generate all is running now (null when it is not running). */
+export const useGenerateAllCurrent = () => useAll((s) => (s.running ? s.currentId : null));
