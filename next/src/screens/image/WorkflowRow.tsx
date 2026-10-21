@@ -13,6 +13,7 @@ import { SessionTitle } from './SessionTitle';
 import { saveSnapshot, revertSnapshot } from './workflowSnapshots';
 import { removeStepWithUndo } from './stepActions';
 import { say } from '~/app/notify';
+import { useIsPhone } from '~/app/useIsPhone';
 
 const THUMB: Record<Step['kind'], string> = {
   image: 'linear-gradient(135deg,#5A4A3E,#2A2420)',
@@ -30,6 +31,8 @@ export function WorkflowRow({ step }: { step: Step }) {
   const [draft, setDraft] = useState(step.name);
   const index = Math.max(0, steps.findIndex((s) => s.id === step.id));
   const first = index === 0;
+  /** Touch: the ▾ is a 44 px target. */
+  const menuSize = useIsPhone() ? 44 : 32;
 
   const save = () => { saveSnapshot(step.id); updateStep(step.id, { edited: false }); say(`Saved “${step.name}”`); };
   const revert = () => {
@@ -57,7 +60,7 @@ export function WorkflowRow({ step }: { step: Step }) {
       <Menu position="bottom-end" shadow="lg" width={220} withinPortal>
         <Menu.Target>
           <button type="button" aria-label="Workflow menu" title="Workflow menu" className="il-chev"
-            style={{ width: 32, height: 32, borderRadius: 10, border: 0, display: 'grid', placeItems: 'center', background: 'transparent', color: 'var(--il-muted)', cursor: 'pointer', flex: 'none' }}>
+            style={{ width: menuSize, height: menuSize, borderRadius: 10, border: 0, display: 'grid', placeItems: 'center', background: 'transparent', color: 'var(--il-muted)', cursor: 'pointer', flex: 'none' }}>
             <IconChevronDown size={18} stroke={2.4} />
           </button>
         </Menu.Target>

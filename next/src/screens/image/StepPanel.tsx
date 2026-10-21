@@ -62,7 +62,7 @@ function StepTabs({ tab, setTab, phone, keys }: { tab: StepTab; setTab: (t: Step
     key,
     label: full ? <><Icon size={15} stroke={2.2} />{title}</> : words ? (roomy ? title : short ?? title) : <Tip label={title}><span style={{ display: 'grid', placeItems: 'center' }} aria-label={title}><Icon size={17} stroke={2.2} /></span></Tip>,
   }));
-  return <div ref={ref}><Tabs<StepTab> items={items} value={tab} onChange={setTab} itemPad={full || words ? 9 : 12} hug={full || words} /></div>;
+  return <div ref={ref}><Tabs<StepTab> items={items} value={tab} onChange={setTab} itemPad={full || words ? 9 : 12} hug={full || words} h={phone ? 40 : undefined} /></div>;
 }
 
 type TabProps = { step: Step; phone?: boolean };
@@ -108,6 +108,21 @@ function ComingSoon({ step }: { step: Step }) {
   );
 }
 
+/** The tab defs (key, title, short, icon), in order — the phone's tab pages and section rows use them. */
+export const STEP_TAB_DEFS: ReadonlyArray<{ key: StepTab; title: string; short?: string; Icon: typeof IconAlignLeft }> = TAB_DEFS;
+
+/** The tabs a step shows, in order: the four base tabs on every step, Style only where the step has it. */
+export function stepTabKeys(step: Step): StepTab[] {
+  return TAB_DEFS.map((d) => d.key).filter((k) => k !== 'style' || !!TABS_BY_KIND[step.kind].style);
+}
+
+/** One tab's body on its own (the phone's tab page): the same component the panel shows, edits tracked the same way. */
+export function StepTabBody({ step, tab, phone = true }: { step: Step; tab: StepTab; phone?: boolean }) {
+  useEditedTracking(step);
+  const Body = TABS_BY_KIND[step.kind][tab];
+  return Body ? <Body key={`${step.id}:${tab}`} step={step} phone={phone} /> : <ComingSoon step={step} />;
+}
+
 export function StepPanel({ phone = false, stepId }: { phone?: boolean; stepId?: string }) {
   const steps = useSteps((s) => s.steps);
   const activeId = useSteps((s) => s.activeId);
@@ -116,7 +131,7 @@ export function StepPanel({ phone = false, stepId }: { phone?: boolean; stepId?:
   const setTab = useLayout((s) => s.setTab);
   useEditedTracking(step);
   // The four base tabs show on every step (a missing body = ComingSoon); Style only where a step has it.
-  const keys = TAB_DEFS.map((d) => d.key).filter((k) => k !== 'style' || !!TABS_BY_KIND[step.kind].style);
+  const keys = stepTabKeys(step);
   const tab: StepTab = keys.includes(savedTab) ? savedTab : 'prompt';
   const Body = TABS_BY_KIND[step.kind][tab];
 
