@@ -133,7 +133,7 @@ export function ModelList({ kinds = IMAGE_KINDS, initialKind, useApi = useKindAp
       {anyPending && <PendingPoller />}
       {follow && <FollowBar on={following} setHere={fstate.unlinked?.length ?? 0} onChange={(on) => useFollowStore.getState().setFollow(follow.stepId, on)} />}
       {kinds.length > 1 && <Tabs items={kinds.map((k) => ({ key: k, label: labels?.[k] ?? KINDS[k].label }))} value={kind} onChange={setKind} />}
-      <CircleRow entries={entries} selectedId={selected?.id} onSelect={select} onAdd={canAdd ? () => setPicker({ mode: 'add' }) : undefined} onRemove={api.remove} showWeight={!!spec.weight} linked={following ? linkedIds : undefined} kind={kind} />
+      <CircleRow entries={entries} selectedId={selected?.id} onSelect={select} onChange={(id) => setPicker({ mode: 'change', id })} onAdd={canAdd ? () => setPicker({ mode: 'add' }) : undefined} onRemove={api.remove} showWeight={!!spec.weight} linked={following ? linkedIds : undefined} kind={kind} />
       {selected ? (
         <EntryCard key={`${kind}:${selected.id}`} entry={selected} api={api} onChange={() => setPicker({ mode: 'change', id: selected.id })}
           link={follow && following ? (
