@@ -206,7 +206,7 @@ export function WriteItModal({ opened, onClose }: { opened: boolean; onClose: ()
         opened={picker === 'slash'} onClose={() => setPicker(null)} ownSearch={false} highlight={hl}
         tiles={tiles.positive} picked={picked} onToggle={pickFromSlash} query={pickQuery} onQuery={setPickQuery} categoryNames={tiles.categoryNames}
         target={
-          <textarea ref={box} className="il-wi-idea" value={idea} rows={phone ? 4 : 4} autoFocus={!phone} aria-label={mode === 'idea' ? 'Your idea' : 'What to change'}
+          <textarea ref={box} data-autofocus className="il-wi-idea" value={idea} rows={phone ? 4 : 4} autoFocus={!phone} aria-label={mode === 'idea' ? 'Your idea' : 'What to change'}
             placeholder={mode === 'idea' ? 'Describe the picture… (type / to add a snippet)' : 'What to change (optional): moodier, add rain, close-up…'}
             onChange={(e) => onIdea(e.target.value, e.target.selectionStart ?? e.target.value.length)} onKeyDown={onIdeaKey}
             onBlur={() => { if (picker === 'slash') setTimeout(() => setPicker((p) => (p === 'slash' ? null : p)), 120); }}

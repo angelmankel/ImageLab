@@ -49,9 +49,10 @@ export const emberTheme = createTheme({
     },
     // Item 38: every Mantine pick list wears the SearchSelect look (.il-dd / .il-opt in next.css),
     // opens with a soft pop, and never spell-checks or offers autofill on its search box.
+    // It opens on click, typing or ↓, never on focus (a modal's first focus must not pop it open).
     Select: {
       classNames: { dropdown: 'il-dd', option: 'il-opt', groupLabel: 'il-glabel', empty: 'il-empty' },
-      defaultProps: { spellCheck: false, autoComplete: 'off', 'data-1p-ignore': true, comboboxProps: { transitionProps: { transition: 'pop', duration: 120 } } },
+      defaultProps: { openOnFocus: false, spellCheck: false, autoComplete: 'off', 'data-1p-ignore': true, comboboxProps: { transitionProps: { transition: 'pop', duration: 120 } } },
     },
     Autocomplete: {
       classNames: { dropdown: 'il-dd', option: 'il-opt', groupLabel: 'il-glabel', empty: 'il-empty' },

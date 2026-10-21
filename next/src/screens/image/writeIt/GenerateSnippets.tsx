@@ -108,7 +108,7 @@ export function GenerateSnippetsModal({ categoryId, onClose }: { categoryId: str
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: phone ? '12px 14px' : '14px 18px', flex: phone ? 1 : undefined, overflowY: phone ? 'auto' : undefined, touchAction: 'pan-y' }} className={phone ? 'il-scroll' : undefined}>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: phone ? 'wrap' : 'nowrap' }}>
-            <input value={hint} onChange={(e) => setHint(e.target.value)} placeholder="Hint (optional): moody, for night scenes…" aria-label="Hint for the AI" autoFocus={!phone}
+            <input value={hint} onChange={(e) => setHint(e.target.value)} placeholder="Hint (optional): moody, for night scenes…" aria-label="Hint for the AI" autoFocus={!phone} data-autofocus
               onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void write(false); } }}
               style={{ ...field, flex: 1, minWidth: phone ? '100%' : 0, height: h, padding: '0 12px', fontSize: 13 }} />
             <div style={{ width: phone ? 150 : 140, flex: 'none' }}>

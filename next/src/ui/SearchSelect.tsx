@@ -148,7 +148,11 @@ export function SearchSelect({
               placeholder={open ? (current?.label ?? current?.value ?? placeholder) : placeholder}
               onChange={(e) => { setSearch(e.currentTarget.value); combobox.openDropdown(); combobox.updateSelectedOptionIndex(); }}
               onClick={() => combobox.openDropdown()}
-              onFocus={() => combobox.openDropdown()}
+              onKeyDown={(e) => {
+                // Opens on click, typing, ↓ / ↑ (Mantine) or Enter / Space — never on focus alone.
+                if (open || disabled) return;
+                if (e.key === 'Enter' || (!searchable && e.key === ' ')) { e.preventDefault(); combobox.openDropdown(); combobox.updateSelectedOptionIndex('active'); }
+              }}
               onBlur={() => combobox.closeDropdown()}
               style={{ cursor: searchable ? 'text' : 'pointer', textOverflow: 'ellipsis' }}
             />
