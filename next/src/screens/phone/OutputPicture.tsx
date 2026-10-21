@@ -17,9 +17,12 @@ import type { ResultItem } from '@/lib/workspace';
 import { StagePlayer } from '~/screens/image/player';
 import { LiveGrid, useLiveFrames } from '~/screens/image/jobs/LiveGrid';
 import { FrameImage } from '~/screens/image/frame/FrameImage';
-import { dvh } from '~/theme/uiScale';
+import { dvh, vw } from '~/theme/uiScale';
+import { CompareView } from '~/screens/image/CompareView';
+import { compareIndex } from '~/screens/image/compareLogic';
+import { useStage } from '~/screens/image/stageStore';
 
-export function OutputPicture({ items, currentKey, onPick, onOpen, live, busy, status, fallbackAspect, empty, liveGrid = false }: {
+export function OutputPicture({ items, currentKey, onPick, onOpen, live, busy, status, fallbackAspect, empty, liveGrid = false, compare = false, sourceKey = null }: {
   items: readonly ResultItem[];
   currentKey: string | null;
   onPick: (key: string) => void;
@@ -31,6 +34,10 @@ export function OutputPicture({ items, currentKey, onPick, onOpen, live, busy, s
   /** Image step: a batch's / several servers' live previews show as a grid (item 4). */
   liveGrid?: boolean;
   empty: string;
+  /** Compare may split the picture (the Output actions' Compare is on and 2+ pictures). */
+  compare?: boolean;
+  /** Compare's default Before: the picture a derived result came from. */
+  sourceKey?: string | null;
 }) {
   const current = items.find((i) => i.key === currentKey) ?? null;
   const shown = live ?? current?.url ?? null;
@@ -41,6 +48,19 @@ export function OutputPicture({ items, currentKey, onPick, onOpen, live, busy, s
   const [full, setFull] = useState<{ url: string; time: number } | null>(null);
   const [resume, setResume] = useState<{ time: number; nonce: number } | null>(null);
   const liveFrames = useLiveFrames(liveGrid && !!live);
+  const compareOn = useStage((st) => st.compare);
+  const compareKey = useStage((st) => st.compareKey);
+  const shownAt = current ? items.indexOf(current) : -1;
+  const other = compare && compareOn && !live && current?.kind === 'image' && shownAt >= 0 ? compareIndex(items, shownAt, compareKey, sourceKey) : -1;
+
+  // Compare (the desktop toolbar's split view, touch version): its own 48 px row on top, then the split.
+  if (other >= 0) {
+    return (
+      <div data-no-swipe style={{ width: '100%', flex: 'none', display: 'flex', flexDirection: 'column', height: `calc(min(${vw(100)} / ${aspect || 1}, ${dvh(68)}) + 48px)` }}>
+        <CompareView items={items} shown={shownAt} other={other} />
+      </div>
+    );
+  }
 
   if (liveFrames.length) {
     return (

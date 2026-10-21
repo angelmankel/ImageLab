@@ -16,6 +16,7 @@ import { useStore } from '@/lib/store';
 import { useShortcut, ShortcutPriority } from '@/hooks/useShortcut';
 import { registerViewer } from '@/components/viewerTransition';
 import { useIsPhone } from '~/app/useIsPhone';
+import { usePhoneLandscape } from '~/app/useFormFactor';
 import { menuProps } from '~/app/contextMenu';
 import { deleteOutput } from '~/app/deleteResult';
 import { makePayload, useImageDrag } from '~/dnd';
@@ -59,6 +60,8 @@ export function ImageViewer({ items, index, onIndexChange, onClose, liveUrl = nu
   z?: number;
 }) {
   const phone = useIsPhone();
+  /** A phone on its side: the picture and the details side by side (mobile pass), not a sheet under a short picture. */
+  const land = usePhoneLandscape();
   const meta = useViewerStore((s) => s.meta);
   const setMeta = useViewerStore((s) => s.setMeta);
   const tab = useViewerStore((s) => s.tab);
@@ -144,7 +147,7 @@ export function ImageViewer({ items, index, onIndexChange, onClose, liveUrl = nu
   );
   const tabs = !item?.external && <Tabs tab={tab} setTab={setTab} />;
 
-  const root: React.CSSProperties = { position: 'fixed', inset: 0, zIndex: z, outline: 'none', background: '#0B0B0D', color: 'var(--il-fg)', display: 'flex', flexDirection: 'column', fontFamily: T.font, cursor: idle && !phone ? 'none' : undefined };
+  const root: React.CSSProperties = { position: 'fixed', inset: 0, zIndex: z, ...(land ? { paddingLeft: 'env(safe-area-inset-left, 0px)', paddingRight: 'env(safe-area-inset-right, 0px)' } : {}), outline: 'none', background: '#0B0B0D', color: 'var(--il-fg)', display: 'flex', flexDirection: 'column', fontFamily: T.font, cursor: idle && !phone ? 'none' : undefined };
   const nav = (
     <ViewerNav item={item} index={i} count={len} live={live} natural={natural} playing={showing} setPlaying={setPlaying} onClose={close} phone={phone} canPlay={canPlay} idle={idle} onHold={setHold} />
   );
@@ -153,7 +156,7 @@ export function ImageViewer({ items, index, onIndexChange, onClose, liveUrl = nu
     onFocusCapture: stamp, onPointerMove: (e: React.PointerEvent) => { if (e.pointerType === 'mouse') wake(); }, style: root,
   } as const;
 
-  if (phone) {
+  if (phone && !land) {
     return createPortal(
       <div {...rootProps}>
         {nav}
@@ -180,12 +183,12 @@ export function ImageViewer({ items, index, onIndexChange, onClose, liveUrl = nu
     <div {...rootProps}>
       {nav}
       <div style={{ flex: 1, minHeight: 0, display: 'flex' }}>
-        {meta && len > 1 && !live && <ViewerStrip items={items} index={i} onPick={onIndexChange} />}
+        {meta && len > 1 && !live && !phone && <ViewerStrip items={items} index={i} onPick={onIndexChange} />}
         {pictureBox}
         {meta && (
-          <aside style={{ width: 380, flex: 'none', borderLeft: '1px solid var(--il-line)', background: 'var(--il-panel)', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+          <aside style={{ width: phone ? 'clamp(280px, 40%, 380px)' : 380, flex: 'none', borderLeft: '1px solid var(--il-line)', background: 'var(--il-panel)', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
             {tabs}
-            <div className="il-scroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 12 }}>{panelBody}</div>
+            <div className="il-scroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 12, paddingBottom: phone ? 'calc(12px + env(safe-area-inset-bottom, 0px))' : 12, touchAction: 'pan-y' }}>{panelBody}</div>
           </aside>
         )}
       </div>

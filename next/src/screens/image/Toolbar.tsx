@@ -26,7 +26,8 @@ import { notifyError } from '~/app/notify';
 
 const round: React.CSSProperties = { borderRadius: '50%', background: 'var(--il-elev)' };
 
-async function download(url: string, filename: string) {
+/** Fetch + save a result (a plain <a download> fails across origins). The phone Output page uses it too. */
+export async function downloadResult(url: string, filename: string) {
   try {
     const res = await fetch(url);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -78,7 +79,7 @@ export function Toolbar({ step, media, zoom, onFullscreen, canFullscreen, phone 
         <IconBtn icon={<IconHistory size={16} stroke={2.2} />} label="Recall settings" onClick={() => { if (entry) recallFrom(entry); }} style={round} disabled={!entry} />
         <IconBtn icon={<IconArrowRight size={16} stroke={2.2} />} label={hasNext ? 'Send to the next step' : 'Send to a new step'} onClick={(e) => { if (media.item) sendToNextStep({ url: media.item.url, entry: entry ?? undefined }, e.currentTarget); }} style={round} disabled={!has} />
         <IconBtn icon={liked ? <IconHeartFilled size={16} /> : <IconHeart size={16} stroke={2.2} />} label={liked ? 'Remove from favourites' : 'Favourite'} on={liked} onClick={() => { if (entry) toggleLiked(entry.id); }} style={{ ...round, color: liked ? 'var(--il-ember)' : undefined }} disabled={!entry} />
-        <IconBtn icon={<IconDownload size={16} stroke={2.2} />} label="Download" onClick={() => { if (media.item) void download(media.item.url, media.item.filename); }} style={round} disabled={!has} />
+        <IconBtn icon={<IconDownload size={16} stroke={2.2} />} label="Download" onClick={() => { if (media.item) void downloadResult(media.item.url, media.item.filename); }} style={round} disabled={!has} />
         <IconBtn icon={<IconTrash size={16} stroke={2.2} />} label="Delete" onClick={() => { if (media.item) deleteOutput({ entry: media.source === 'image' ? entry : null, url: media.item.url }); }} style={round} disabled={!has} />
         <IconBtn icon={<IconMaximize size={16} stroke={2.2} />} label="Fullscreen" onClick={onFullscreen} style={{ borderRadius: '50%', background: 'var(--il-fg)', color: 'var(--il-bg)' }} disabled={!canFullscreen} />
         <Sep />

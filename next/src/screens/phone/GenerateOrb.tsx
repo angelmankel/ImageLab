@@ -18,6 +18,7 @@ import { useSkipFlash } from '~/app/stepFingerprint';
 import { nextInCycle, useCycleList } from '~/app/batchCycle';
 import { useUndoableSetWorkflow } from '~/app/undoableWorkflow';
 import { say } from '~/app/notify';
+import { haptic } from '~/phone';
 import { useQueue } from '~/app/queue';
 import { useGenerate } from './imageBridge';
 import { usePhone } from './phoneStore';
@@ -62,7 +63,7 @@ export function GenerateOrb() {
       if (!p || pressOutcome(HOLD_MS, p.moved) !== 'hold') return;
       eat.current = true;
       setSeedMode(toggleSeedMode(usePhone.getState().seedMode));
-      try { navigator.vibrate?.(14); } catch { /* not every phone buzzes */ }
+      haptic('hold');
     }, HOLD_MS);
   };
   const onPointerMove = (e: React.PointerEvent) => {
@@ -120,7 +121,7 @@ export function GenerateOrb() {
       </button>
       {step.kind === 'image' && (
         // Images per run (the desktop's ×N): a tap cycles the list from Settings → Generate.
-        <button type="button" onClick={() => { setWorkflow({ batch: nextInCycle(cycle, batch) }); try { navigator.vibrate?.(8); } catch { /* no buzz */ } }} aria-label={`Images per run: ×${batch}`}
+        <button type="button" onClick={() => { setWorkflow({ batch: nextInCycle(cycle, batch) }); haptic(); }} aria-label={`Images per run: ×${batch}`}
           style={{ ...hit, left: -20, bottom: -14, alignItems: 'end', justifyItems: 'start' }}>
           <span style={{ ...bubble, minWidth: 26, height: 24, background: batch > 1 ? 'var(--il-fg)' : 'var(--il-card-on)', color: batch > 1 ? 'var(--il-bg)' : 'var(--il-fg2)' }}>×{batch}</span>
         </button>

@@ -44,9 +44,9 @@ function Tool({ icon, label, onClick, on, disabled, busy, phone, primary }: { ic
   return <IconBtn icon={busy ? <Spinner size={14} /> : icon} label={label} onClick={onClick} on={on} disabled={disabled} size={BTN} tipPos="right" tone={primary ? 'primary' : 'ghost'} />;
 }
 
-const Hr = ({ phone }: { phone: boolean }) => <span aria-hidden style={phone ? { width: 1, alignSelf: 'stretch', margin: '6px 2px', background: 'var(--il-line-strong)', flex: 'none' } : { width: 26, height: 1, background: 'var(--il-line-strong)', margin: '4px 0', flex: 'none' }} />;
+const Hr = ({ phone, side }: { phone: boolean; side?: boolean }) => <span aria-hidden style={side ? { gridColumn: '1 / -1', height: 1, background: 'var(--il-line-strong)', margin: '2px 0' } : phone ? { width: 1, alignSelf: 'stretch', margin: '6px 2px', background: 'var(--il-line-strong)', flex: 'none' } : { width: 26, height: 1, background: 'var(--il-line-strong)', margin: '4px 0', flex: 'none' }} />;
 
-export function EditBar({ phone }: { phone: boolean }) {
+export function EditBar({ phone, side = false }: { phone: boolean; /** Phone in landscape: the tools as a grid in a side column (canvas left), options above them. */ side?: boolean }) {
   const hist = useEdit((s) => s.hist);
   const tool = useEdit((s) => s.tool);
   const busy = useEdit((s) => s.busy);
@@ -64,16 +64,16 @@ export function EditBar({ phone }: { phone: boolean }) {
       <Tool phone={phone} icon={ico(<IconFlipHorizontal size={s} />)} label="Flip horizontally" onClick={() => void flipEdit('h')} disabled={!ready} busy={b('Flip')} />
       <Tool phone={phone} icon={ico(<IconFlipVertical size={s} />)} label="Flip vertically" onClick={() => void flipEdit('v')} disabled={!ready} />
       <Tool phone={phone} icon={ico(<IconCrop size={s} />)} label="Crop" on={tool === 'crop'} onClick={() => setTool('crop')} disabled={!ready} busy={b('Crop')} />
-      <Hr phone={phone} />
+      <Hr phone={phone} side={side} />
       <Tool phone={phone} icon={ico(<IconAdjustments size={s} />)} label="Adjust" on={tool === 'adjust' || (!isNeutralLook({ ...look, invert: false, gray: false }))} onClick={() => setTool('adjust')} disabled={!ready} />
       <Tool phone={phone} icon={ico(<IconContrast2 size={s} />)} label="Invert" on={look.invert} onClick={() => setLook({ invert: !look.invert })} disabled={!ready} />
       <Tool phone={phone} icon={ico(<IconColorFilter size={s} />)} label="Grayscale" on={look.gray} onClick={() => setLook({ gray: !look.gray })} disabled={!ready} />
-      {(tools.removebg || tools.upscale) && <Hr phone={phone} />}
+      {(tools.removebg || tools.upscale) && <Hr phone={phone} side={side} />}
       {tools.removebg && <Tool phone={phone} icon={ico(<IconBackground size={s} />)} label={`Remove BG · ${modelLabel(tools.removebg.model)}`} onClick={() => void removeBgEdit(tools.removebg!.model)} disabled={!ready} busy={b('Remove BG')} />}
       {tools.upscale && <Tool phone={phone} icon={ico(<IconArrowsDiagonal size={s} />)} label="Upscale" on={tool === 'upscale'} onClick={() => setTool('upscale')} disabled={!ready} busy={!!busy?.startsWith('Upscale')} />}
       {hasMore(tools) && <Tool phone={phone} icon={ico(<IconDots size={s} />)} label="More tools" on={MORE.includes(tool as EditToolId)} onClick={() => setTool(MORE.includes(tool as EditToolId) ? null : 'size')} disabled={!ready} busy={!!busy && MORE_LABELS.includes(busy)} />}
       {!phone && <span style={{ flex: 1, minHeight: 6 }} />}
-      <Hr phone={phone} />
+      <Hr phone={phone} side={side} />
       <Tool phone={phone} icon={ico(<IconArrowBackUp size={s} />)} label={`Undo${hist?.past.length ? ` · ${hist.present.label}` : ''}`} onClick={undoEdit} disabled={!ready || !hist?.past.length} />
       <Tool phone={phone} icon={ico(<IconArrowForwardUp size={s} />)} label="Redo" onClick={redoEdit} disabled={!ready || !hist?.future.length} />
       <Tool phone={phone} icon={ico(<IconRestore size={s} />)} label="Reset to original" onClick={resetEdit} disabled={!ready || !hist?.past.length} />
@@ -84,6 +84,30 @@ export function EditBar({ phone }: { phone: boolean }) {
 
   const flyout = tool && tool !== 'save' ? <Flyout tool={tool} tools={tools} phone={phone} /> : null;
 
+  if (phone && side) {
+    return (
+      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+        {askLeave && <LeaveAsk phone />}
+        {flyout && <div className="il-scroll" style={{ padding: '10px 12px', borderBottom: '1px solid var(--il-line)', maxHeight: '58%', overflowY: 'auto', touchAction: 'pan-y', flex: 'none' }}>{flyout}</div>}
+        <div className="il-scroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, 56px)', justifyContent: 'center', alignContent: 'start', gap: 6, padding: '8px 10px calc(8px + var(--il-safe-bottom, 0px))', touchAction: 'pan-y' }}>
+          <Tool phone icon={<IconX size={20} />} label="Close" onClick={() => exitEdit()} />
+          {items}
+        </div>
+      </div>
+    );
+  }
+  if (phone && side) {
+    return (
+      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+        {askLeave && <LeaveAsk phone />}
+        {flyout && <div className="il-scroll" style={{ padding: '10px 12px', borderBottom: '1px solid var(--il-line)', maxHeight: '58%', overflowY: 'auto', touchAction: 'pan-y', flex: 'none' }}>{flyout}</div>}
+        <div className="il-scroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, 56px)', justifyContent: 'center', alignContent: 'start', gap: 6, padding: '8px 10px calc(8px + var(--il-safe-bottom, 0px))', touchAction: 'pan-y' }}>
+          <Tool phone icon={<IconX size={20} />} label="Close" onClick={() => exitEdit()} />
+          {items}
+        </div>
+      </div>
+    );
+  }
   if (phone) {
     return (
       <div style={{ flex: 'none', borderTop: '1px solid var(--il-line)', background: 'var(--il-panel)' }}>

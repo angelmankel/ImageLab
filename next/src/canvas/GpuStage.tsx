@@ -41,7 +41,7 @@ export interface GpuViewProps {
 
 const NOOP_TAP = () => {};
 
-export function GpuStage({ editing, view, onZoom, fallback, children, phone = false, style }: {
+export function GpuStage({ editing, view, onZoom, fallback, children, phone = false, bar = true, style }: {
   editing: boolean;
   view: GpuViewProps;
   onZoom?: (z: ZoomControls | null) => void;
@@ -50,6 +50,8 @@ export function GpuStage({ editing, view, onZoom, fallback, children, phone = fa
   /** Over the canvas in view mode (the live grid, the empty text). */
   children?: ReactNode;
   phone?: boolean;
+  /** Phone: render the Edit tool bar under the canvas (false = the caller places `EditBar` itself, e.g. landscape). */
+  bar?: boolean;
   style?: CSSProperties;
 }) {
   const host = useRef<HTMLDivElement>(null);
@@ -144,7 +146,7 @@ export function GpuStage({ editing, view, onZoom, fallback, children, phone = fa
         )}
         {editing && !phone && <EditBar phone={false} />}
       </div>
-      {editing && phone && <EditBar phone />}
+      {editing && phone && bar && <EditBar phone />}
     </div>
   );
 }

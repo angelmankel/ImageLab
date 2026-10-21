@@ -10,7 +10,7 @@
  * desktop stage uses, item 30: `HistoryViewer`); video / workflow steps read their run store and open `ImageViewer`.
  */
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { IconChevronRight, IconDownload, IconMaximize, IconPencil, IconStar, IconStarFilled, IconTrash } from '@tabler/icons-react';
+import { IconMaximize } from '@tabler/icons-react';
 import { enterEdit } from '~/canvas/edit/editStore';
 import { PhoneEdit } from '~/canvas/edit/PhoneEdit';
 import { HistoryViewer } from '~/screens/viewer/HistoryViewer';
@@ -25,15 +25,15 @@ import { useWorkflowRun } from '@/features/studio/studioRun';
 import { jobActivity } from '@/lib/jobActivity';
 import { useStore } from '@/lib/store';
 import type { ResultItem } from '@/lib/workspace';
-import { sendToStep } from '~/app/actions';
 import { deleteImage, deleteRun } from '~/app/deleteResult';
 import { useRoute } from '~/app/routeStore';
-import { useSteps, STEP_LABEL, type Step } from '~/app/stepsStore';
+import { STEP_LABEL, type Step } from '~/app/stepsStore';
 import { T } from '~/theme/tokens';
 import { DOCK_SPACE } from './PhoneDock';
 import { OutputPicture } from './OutputPicture';
 import { QueueCard } from './QueueCard';
 import { ResultThumbs } from './ResultThumbs';
+import { LiveToggle, OutputActions, SendNext } from './OutputActions';
 import { usePhone } from './phoneStore';
 
 export function OutputPage({ step, index }: { step: Step; index: number }) {
@@ -54,7 +54,6 @@ function ImageOutput({ step, index }: { step: Step; index: number }) {
   const openViewer = useStore((s) => s.openViewer);
   const closeViewer = useStore((s) => s.closeViewer);
   const viewerOpen = useStore((s) => s.viewerOpen);
-  const toggleLiked = useStore((s) => s.toggleHistoryLiked);
   const allJobs = useStore((s) => s.jobs);
   const jobs = useMemo(() => allJobs.filter((j) => isJobOfSession(j.id, sessionId, owners)), [allJobs, sessionId, owners]);
   const submitting = useStore((s) => s.isSubmitting);
@@ -90,8 +89,7 @@ function ImageOutput({ step, index }: { step: Step; index: number }) {
       fallbackAspect={width / height}
       caption={current?.positive ?? null}
       current={item}
-      liked={!!current?.liked}
-      onLike={current ? () => toggleLiked(current.id) : undefined}
+      sourceKey={current?.derivedFrom?.id ?? null}
       onDelete={current ? () => deleteImage(current) : undefined}
       onEdit={item && item.kind === 'image' && !live ? () => enterEdit({ url: item.url, filename: item.filename, entry: current }, false) : undefined}
       viewer={viewerOpen && (history.length > 0 || !!liveFrame) ? (
@@ -162,7 +160,7 @@ function RunOutput({ mode, step, index }: { mode: 'video' | 'workflow'; step: St
 
 // ── Layout ──────────────────────────────────────────────────────────────────
 
-function OutputLayout({ step, index, items, currentKey, onPick, onOpen, live, busy, progress, status, fallbackAspect, caption, current, liked, onLike, onDelete, onEdit, viewer }: {
+function OutputLayout({ step, index, items, currentKey, onPick, onOpen, live, busy, progress, status, fallbackAspect, caption, current, sourceKey, onDelete, onEdit, viewer }: {
   step: Step;
   index: number;
   items: readonly ResultItem[];
@@ -176,8 +174,8 @@ function OutputLayout({ step, index, items, currentKey, onPick, onOpen, live, bu
   fallbackAspect: number;
   caption: string | null;
   current: (ResultItem & { entry?: unknown }) | null;
-  liked?: boolean;
-  onLike?: () => void;
+  /** The picture a derived result came from (Compare's default Before). */
+  sourceKey?: string | null;
   onDelete?: () => void;
   /** Item 13: open the picture in Edit mode (`~/canvas/edit/PhoneEdit`). */
   onEdit?: () => void;
@@ -194,6 +192,7 @@ function OutputLayout({ step, index, items, currentKey, onPick, onOpen, live, bu
   }, [queueAsk]);
 
   const canFull = items.length > 0 || !!live;
+  const comparable = !live && current?.kind === 'image' && items.filter((i) => i.kind === 'image').length > 1;
   const noun = step.kind === 'video' ? 'video' : step.kind === 'workflow' ? 'result' : 'image';
 
   return (
@@ -203,22 +202,24 @@ function OutputLayout({ step, index, items, currentKey, onPick, onOpen, live, bu
         <span style={{ height: 30, padding: '0 10px', borderRadius: 999, background: 'var(--il-elev)', color: 'var(--il-ember)', fontSize: 11, fontWeight: 800, display: 'inline-flex', alignItems: 'center', whiteSpace: 'nowrap' }}>
           Step {index + 1} · {STEP_LABEL[step.kind]}
         </span>
+        <LiveToggle />
         <button type="button" aria-label="Fullscreen" disabled={!canFull} onClick={() => onOpen()}
-          style={{ width: 32, height: 32, border: 0, borderRadius: '50%', background: 'var(--il-fg)', color: 'var(--il-bg)', display: 'grid', placeItems: 'center', opacity: canFull ? 1 : 0.4, cursor: 'pointer' }}>
+          style={{ width: 40, height: 40, border: 0, borderRadius: '50%', background: 'var(--il-fg)', color: 'var(--il-bg)', display: 'grid', placeItems: 'center', opacity: canFull ? 1 : 0.4, cursor: 'pointer' }}>
           <IconMaximize size={15} stroke={2.4} />
         </button>
       </div>
 
       <OutputPicture items={items} currentKey={currentKey} onPick={onPick} onOpen={onOpen} live={live} busy={busy} status={status} liveGrid={step.kind === 'image'}
-        fallbackAspect={fallbackAspect} empty={`No ${noun} yet — press Generate.`} />
+        fallbackAspect={fallbackAspect} empty={`No ${noun} yet — press Generate.`} compare={comparable} sourceKey={sourceKey ?? null} />
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: T.gap.md, paddingTop: T.gap.md }}>
         {busy && <ProgressLine status={status} progress={progress} />}
+        <OutputActions step={step} current={current} comparable={comparable} onEdit={onEdit} onDelete={onDelete} />
         <ResultThumbs items={items} currentKey={currentKey} onPick={onPick} onOpen={(k) => onOpen(k)} onMore={() => go('library')} />
         {caption && (
           <p style={{ margin: `0 ${T.pad.panel}px`, fontSize: 13, color: 'var(--il-fg2)', lineHeight: 1.45, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{caption}</p>
         )}
-        {current && <Actions step={step} current={current} liked={liked} onLike={onLike} onDelete={onDelete} onEdit={onEdit} />}
+        <SendNext step={step} current={current} />
         <div style={{ padding: `0 ${T.pad.panel}px` }}><QueueCard ref={queueRef} /></div>
       </div>
       {viewer}
@@ -237,42 +238,6 @@ function ProgressLine({ status, progress }: { status: string | null; progress: n
       <div style={{ height: 4, borderRadius: 2, background: 'var(--il-line-strong)', overflow: 'hidden' }}>
         <div style={{ height: '100%', width: `${Math.max(4, (progress ?? 0.08) * 100)}%`, background: 'var(--il-ember)', borderRadius: 2, transition: 'width 200ms linear' }} />
       </div>
-    </div>
-  );
-}
-
-function Actions({ step, current, liked, onLike, onDelete, onEdit }: { step: Step; current: ResultItem & { entry?: unknown }; liked?: boolean; onLike?: () => void; onDelete?: () => void; onEdit?: () => void }) {
-  const steps = useSteps((s) => s.steps);
-  const at = steps.findIndex((s) => s.id === step.id);
-  const next = at >= 0 ? steps[at + 1] : undefined;
-  const entry = current.entry as Parameters<typeof sendToStep>[0]['entry'];
-  const btn: React.CSSProperties = { height: 44, border: 0, borderRadius: T.radius.lg, background: 'var(--il-card)', color: 'var(--il-fg)', fontWeight: 700, fontSize: 12, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 4 };
-  return (
-    <div style={{ display: 'flex', gap: T.gap.md, padding: `0 ${T.pad.panel}px` }}>
-      {next && (
-        <button type="button" style={{ ...btn, flex: 1 }} onClick={() => sendToStep({ url: current.url, entry }, next.id)}>
-          Send to step {at + 2} · {STEP_LABEL[next.kind]}<IconChevronRight size={14} />
-        </button>
-      )}
-      {!next && <div style={{ flex: 1 }} />}
-      {onEdit && (
-        <button type="button" aria-label="Edit" onClick={onEdit} style={{ ...btn, width: 44 }}>
-          <IconPencil size={18} />
-        </button>
-      )}
-      {onLike && (
-        <button type="button" aria-label={liked ? 'Unfavourite' : 'Favourite'} aria-pressed={liked} onClick={onLike} style={{ ...btn, width: 44, color: liked ? 'var(--il-ember-hi)' : 'var(--il-fg)' }}>
-          {liked ? <IconStarFilled size={18} /> : <IconStar size={18} />}
-        </button>
-      )}
-      <a href={current.url} download={current.filename} target="_blank" rel="noreferrer" aria-label="Download" style={{ ...btn, width: 44, textDecoration: 'none' }}>
-        <IconDownload size={18} />
-      </a>
-      {onDelete && (
-        <button type="button" aria-label="Delete" onClick={onDelete} style={{ ...btn, width: 44 }}>
-          <IconTrash size={18} />
-        </button>
-      )}
     </div>
   );
 }

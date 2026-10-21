@@ -4,7 +4,7 @@
  * run with Re-run / Revert to last run (`StepBadgeDetails`, the same component), then Open the
  * step and More (the step's context menu: add after, run, rename, duplicate, move, remove).
  */
-import { Drawer } from '@mantine/core';
+import { BottomSheet } from '~/phone';
 import { IconDots, IconArrowRight } from '@tabler/icons-react';
 import { useSteps, STEP_LABEL } from '~/app/stepsStore';
 import { KIND_ICON } from '~/app/stepKindPicker';
@@ -49,22 +49,8 @@ export function StepSheet() {
   const index = stepId ? steps.findIndex((s) => s.id === stepId) : -1;
   const step = index >= 0 ? steps[index] : null;
   return (
-    <Drawer
-      opened={!!step}
-      onClose={closeStepSheet}
-      position="bottom"
-      size="auto"
-      withCloseButton={false}
-      zIndex={T.z.sheet}
-      radius={22}
-      overlayProps={{ backgroundOpacity: 0.5, blur: 2 }}
-      styles={{
-        content: { background: 'var(--il-panel)', borderTop: '1px solid var(--il-line-soft)', maxWidth: 560, margin: '0 auto' },
-        body: { padding: `8px ${T.pad.panel + 4}px calc(14px + var(--il-safe-bottom))` },
-      }}
-    >
-      <div aria-hidden style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--il-line-strong)', margin: '0 auto 12px' }} />
+    <BottomSheet opened={!!step} onClose={closeStepSheet} aria-label="Step">
       {step && <Body step={step} index={index} />}
-    </Drawer>
+    </BottomSheet>
   );
 }
