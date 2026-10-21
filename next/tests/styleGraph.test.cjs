@@ -9,7 +9,7 @@ const esbuild = require('esbuild');
 
 const root = path.join(__dirname, '..', '..');
 const out = esbuild.buildSync({
-  stdin: { contents: "export { buildGraph } from '@/lib/graphs'; export * from '@/lib/styleRefs';", resolveDir: root, loader: 'ts' },
+  stdin: { contents: "export { buildGraph } from '@/lib/graphs'; export * from '@/lib/styleRefs'; export { profileTransition } from '@/lib/modelProfiles';", resolveDir: root, loader: 'ts' },
   bundle: true, platform: 'node', format: 'cjs', write: false, logLevel: 'silent',
   alias: { '@': path.join(root, 'src') },
   define: { 'import.meta.env': '{"DEV":false}' },
@@ -196,4 +196,40 @@ test('a reference that does not fit the family never reaches the graph', () => {
   const wf = withRefs(flux, refs, 'flux');
   assert.equal(wf.styleRefs[0].use, undefined);
   assert.equal(JSON.stringify(G.buildGraph(wf, flux.layers, null, null, { styleImages: { k1: 'a.png' } }).graph), JSON.stringify(flux.graph));
+});
+
+test('Flux + Redux: the VAE is the Flux model\'s own, never an SDXL default (all-in-one and bare model)', () => {
+  const flux = cases.find((c) => c.name === 'flux lora');
+  const refs = [{ ...G.newStyleRef('r', 'redux', 'flux'), images: [img('k1')] }];
+  const sdxlVae = 'sdxl_vae-fp16fix-blessed.safetensors';
+  // All-in-one checkpoint at the type's own VAE (what the profile sync sets): the checkpoint's VAE.
+  const aio = withRefs({ workflow: { ...flux.workflow, baseFile: 'checkpoint', vae: 'ae.safetensors' } }, refs, 'flux');
+  let g = G.buildGraph(aio, flux.layers, null, null, { styleImages: { k1: 'a.png' } }).graph;
+  assert.deepEqual(g['8'].inputs.vae, ['4', 2]);
+  assert.equal(g['4v'], undefined);
+  // Bare diffusion model, no VAE picked: the Flux type's ae.safetensors.
+  const bare = withRefs({ workflow: { ...flux.workflow, baseFile: 'diffusion', vae: '' } }, refs, 'flux');
+  g = G.buildGraph(bare, flux.layers, null, null, { styleImages: { k1: 'a.png' } }).graph;
+  assert.equal(g['4v'].inputs.vae_name, 'ae.safetensors');
+  assert.deepEqual(g['8'].inputs.vae, ['4v', 0]);
+  // The stage never touches the VAE: with or without the reference, the same VAE nodes.
+  for (const wf of [aio, bare]) {
+    const plain = G.buildGraph({ ...wf, styleRefs: undefined }, flux.layers, null, null).graph;
+    const styled = G.buildGraph(wf, flux.layers, null, null, { styleImages: { k1: 'a.png' } }).graph;
+    assert.deepEqual(styled['8'], plain['8']);
+    assert.deepEqual(styled['4v'], plain['4v']);
+    for (const n of Object.values(styled)) assert.notEqual(n.inputs.vae_name, sdxlVae);
+  }
+});
+
+test('switching an SDXL workflow (SDXL VAE) to a Flux model puts the Flux VAE in (what the app does before Redux runs)', () => {
+  const sdxlWf = { ...sdxl.workflow, modelProfile: 'SDXL', vae: 'sdxl_vae-fp16fix-blessed.safetensors' };
+  for (const to of ['Flux', 'Flux Schnell']) {
+    const patch = G.profileTransition(sdxlWf, 'SDXL', to);
+    assert.equal(patch.vae, 'ae.safetensors', to);
+    const wf = { ...sdxlWf, ...patch, baseFile: 'checkpoint', checkpoints: [{ id: 'c', name: 'flux1-schnell-fp8.safetensors', ratio: 0.5 }] };
+    const g = G.buildGraph(withRefs({ workflow: wf }, [{ ...G.newStyleRef('r', 'redux', 'flux'), images: [img('k1')] }], 'flux'), sdxl.layers, null, null, { styleImages: { k1: 'a.png' } }).graph;
+    assert.deepEqual(g['8'].inputs.vae, ['4', 2], to);
+    assert.ok(g.sr0a0, 'Redux is in');
+  }
 });
