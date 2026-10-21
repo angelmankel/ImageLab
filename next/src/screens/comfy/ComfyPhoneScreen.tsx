@@ -1,13 +1,17 @@
 /**
  * Rule 14 on the phone (rule 11: no dock here, one centred Back pill). Header: "ComfyUI" + the
  * server picker pill (FIXLIST-2 #52); a segmented row Servers · Workflows · Queue; one list per segment.
- * No iframe on a phone: "Open ComfyUI" opens the server's page in a new tab.
+ * No iframe on a phone: "Open ComfyUI" opens the server's page in a new tab (the node editor needs
+ * a mouse and room). Landscape (mobile pass): workflows left, Queue · Log · Servers right.
  */
 import { useState } from 'react';
 import { IconExternalLink } from '@tabler/icons-react';
 import { useVideoServerProbe } from '@/hooks/useVideoServerProbe';
 import { serverRole } from '@/lib/serverRoles';
 import { useRoute } from '~/app/routeStore';
+import { usePhoneLandscape } from '~/app/useIsPhone';
+import { PhoneTwoPane } from '~/phone';
+import { LandBack } from '~/screens/browseKit/LandBack';
 import { BackPill, Count, Dot, Tabs } from '~/ui';
 import { comfyPageUrl } from './comfyApi';
 import { LogBox } from './LogBox';
@@ -65,6 +69,57 @@ export function ComfyPhoneScreen() {
   const wf = useComfyWorkflows(pick.server, pick.kind);
   const up = useServersUp(pick.servers);
   const [seg, setSeg] = useState<Seg>('servers');
+  const land = usePhoneLandscape();
+  const [side, setSide] = useState<'queue' | 'log' | 'servers'>('queue');
+  const openBtn = host && (
+    <a href={comfyPageUrl(host)} target="_blank" rel="noreferrer"
+      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, width: '100%', height: land ? 44 : 54, flex: 'none', borderRadius: 999, background: 'var(--il-ember)', color: 'var(--il-bg)', fontSize: land ? 14 : 16, fontWeight: 800, textDecoration: 'none' }}>
+      Open ComfyUI<IconExternalLink size={16} stroke={2.6} />
+    </a>
+  );
+
+  if (land) {
+    // Phone landscape (mobile pass, mockup mobile-m-browse.html §6): the workflows on the left,
+    // Queue · Log · Servers on the right with "Open ComfyUI ↗" pinned under them.
+    return (
+      <div style={{ position: 'relative', height: '100%' }}>
+        <PhoneTwoPane
+          mainBackground="var(--il-bg)"
+          main={(
+            <div className="il-scroll" style={{ position: 'absolute', inset: 0, padding: `calc(8px + env(safe-area-inset-top, 0px)) 12px calc(16px + var(--il-safe-bottom))`, display: 'flex', flexDirection: 'column', gap: 10, touchAction: 'pan-y' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <LandBack onClick={() => go('step')} />
+                <span style={{ fontWeight: 800, fontSize: 16, flex: 1, minWidth: 0 }}>ComfyUI</span>
+                <ServerPicker pick={pick} online={live.online} stats={live.stats} queued={live.rows.length} up={up} compact />
+              </div>
+              <WorkflowList wf={wf} large scroll={false} />
+            </div>
+          )}
+          sideHeader={(
+            <Tabs<'queue' | 'log' | 'servers'> value={side} onChange={setSide} items={[
+              { key: 'queue', label: <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>Queue{live.rows.length > 0 && <Count n={live.rows.length} />}</span> },
+              { key: 'log', label: 'Log' },
+              { key: 'servers', label: 'Servers' },
+            ]} />
+          )}
+          side={(
+            <div style={{ padding: '4px 12px 12px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {side === 'queue' && <QueueList host={host} rows={live.rows} live={live.live} radius={20} />}
+              {side === 'log' && <LogBox host={host} fill={false} maxHeight={600} />}
+              {side === 'servers' && (
+                <>
+                  <ServerStatus server={pick.server} online={live.online} stats={live.stats} queued={live.rows.length} />
+                  <ServerList pick={pick} online={live.online} up={up} />
+                </>
+              )}
+            </div>
+          )}
+          sideFooter={openBtn || undefined}
+        />
+        <ParamMapModal />
+      </div>
+    );
+  }
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--il-bg)' }}>
@@ -88,12 +143,7 @@ export function ComfyPhoneScreen() {
         {seg === 'servers' && (
           <>
             <ServerStatus server={pick.server} online={live.online} stats={live.stats} queued={live.rows.length} />
-            {host && (
-              <a href={comfyPageUrl(host)} target="_blank" rel="noreferrer"
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, width: '100%', height: 54, flex: 'none', borderRadius: 999, background: 'var(--il-ember)', color: 'var(--il-bg)', fontSize: 16, fontWeight: 800, textDecoration: 'none' }}>
-                Open ComfyUI<IconExternalLink size={16} stroke={2.6} />
-              </a>
-            )}
+            {openBtn}
             {host && <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--il-muted)', textAlign: 'center', marginTop: -4 }}>opens the node editor in a new tab</div>}
             <ServerList pick={pick} online={live.online} up={up} />
           </>

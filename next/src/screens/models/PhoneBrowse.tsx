@@ -23,10 +23,15 @@ import { SearchCivitaiRow } from './SearchCivitaiRow';
 import { PhoneFilters } from './PhoneFilters';
 import { SelectedTagChips } from './TagsRow';
 import { useKeepScroll, modelsListKey } from './useKeepScroll';
+import { LandBack } from '~/screens/browseKit/LandBack';
 
 const ROW_TYPES = MODEL_TYPES.filter((t) => ['Checkpoint', 'LORA', 'LoCon', 'TextualInversion', 'Controlnet', 'VAE', 'Upscaler', 'MotionModule', 'Workflows'].includes(t));
 
-export function PhoneBrowse() {
+/**
+ * `land` (mobile pass): the browse pane of the landscape two panes — no title row, the Back pill
+ * becomes a pill before the search (the route only), 3 columns, the opened model stays outlined.
+ */
+export function PhoneBrowse({ land = false }: { land?: boolean }) {
   const go = useRoute((s) => s.go);
   const { close, kind } = usePick();
   const f = useModels((s) => s.filters);
@@ -44,6 +49,7 @@ export function PhoneBrowse() {
   // No key until the store has taken the picker's kind (its effect runs after the first render).
   const keepScroll = useKeepScroll(storeKind === (kind ?? null) ? modelsListKey(source, storeKind, f.query, true) : null);
   const shown = useShown();
+  const selectedId = useModels((s) => s.selectedId);
   const installed = useInstalled();
   const actions = useModelActions();
   const active = activeFilters(f).filter((a) => !(kind && a.key === 'types')).length + tagCount;
@@ -58,13 +64,15 @@ export function PhoneBrowse() {
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--il-bg)' }}>
-      {!close && (
+      {!close && !land && (
         <div style={{ height: 56, flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px 0' }}>
           <span style={{ fontWeight: 800, fontSize: 18 }}>Models</span>
         </div>
       )}
-      <div ref={keepScroll} className="il-scroll" style={{ flex: 1, minHeight: 0, padding: `10px 16px ${close ? 24 : 100}px`, display: 'flex', flexDirection: 'column', gap: 8, touchAction: 'pan-y' }}>
-        <SearchBox height={44} fontSize={13} />
+      <div ref={keepScroll} className="il-scroll" style={{ flex: 1, minHeight: 0, padding: land ? `calc(8px + env(safe-area-inset-top, 0px)) 12px calc(16px + var(--il-safe-bottom))` : `10px 16px ${close ? 24 : 100}px`, display: 'flex', flexDirection: 'column', gap: 8, touchAction: 'pan-y' }}>
+        {land && !close
+          ? <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}><LandBack onClick={() => go('step')} /><div style={{ flex: 1, minWidth: 0 }}><SearchBox height={44} fontSize={13} /></div></div>
+          : <SearchBox height={44} fontSize={13} />}
         <div style={{ display: 'flex', gap: 6 }}>
           <MenuPill<Sort> size="phone" grow label="Sort" value={f.sort} onChange={(sort) => set({ sort })} options={SORTS.map((s) => ({ key: s, label: SORT_SHORT[s] }))} />
           <MenuPill<Period> size="phone" grow label="Period" value={f.period} onChange={(period) => set({ period })} options={PERIODS.map((p) => ({ key: p, label: PERIOD_LABEL[p] }))} />
@@ -84,12 +92,12 @@ export function PhoneBrowse() {
         <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--il-muted)', padding: '0 2px' }}>{summary}</div>
         <HashProgressLine />
         <ModelList
-          items={shown.items} view="grid" columns={2} size="phone" selectedId={null} mask={f.nsfwMask} revealed={revealed} favourites={favourites} installed={installed} picking={actions.picking}
+          items={shown.items} view="grid" columns={land ? 3 : 2} size="phone" selectedId={land ? selectedId : null} mask={f.nsfwMask} revealed={revealed} favourites={favourites} installed={installed} picking={actions.picking}
           loading={shown.loading} loadingMore={shown.loadingMore} error={shown.error} hasMore={shown.hasMore} hidden={shown.hidden}
           onOpen={onOpen} onReveal={reveal} onUse={onUse} onLoadMore={onLoadMore} onRetry={() => void refresh()}
           emptyAction={<SearchCivitaiRow size="phone" />} />
       </div>
-      {!close && <BackPill onClick={() => go('step')} />}
+      {!close && !land && <BackPill onClick={() => go('step')} />}
       <PhoneFilters count={shown.total ?? shown.items.length} pool={shown.pool} />
     </div>
   );

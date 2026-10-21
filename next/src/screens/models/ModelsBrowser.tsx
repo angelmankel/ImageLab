@@ -21,7 +21,9 @@ import { FilterBar } from './FilterBar';
 import { ModelList } from './ModelList';
 import { Detail } from './Detail';
 import { PhoneBrowse } from './PhoneBrowse';
-import { PhoneModel } from './PhoneModel';
+import { ModelHead, PhoneModel, useBackClosesModel } from './PhoneModel';
+import { PhoneTwoPane } from '~/phone';
+import { usePhoneLandscape } from '~/app/useIsPhone';
 
 /** First page on first visit; the kind lock from the context; "downloaded once" from the manager. */
 function useBrowserSetup() {
@@ -96,6 +98,32 @@ export function DesktopBrowser() {
 
 export function PhoneBrowser() {
   useBrowserSetup();
+  const land = usePhoneLandscape();
   const selectedId = useModels((s) => s.selectedId);
+  if (land) return <LandBrowser selectedId={selectedId} />;
   return selectedId != null ? <PhoneModel modelId={selectedId} /> : <PhoneBrowse />;
+}
+
+/**
+ * Phone landscape (mobile pass; mockup agent-handoffs/fixlist2-mockups/mobile-m-browse.html §3):
+ * the browse grid on the left, the opened model on the right — the desktop's detail panel, no
+ * full-screen jump. A rotation keeps the opened model (`selectedId` is the store's).
+ */
+function LandBrowser({ selectedId }: { selectedId: number | null }) {
+  const close = useModels((s) => s.close);
+  const keepDetail = useKeepScroll(selectedId != null ? `detail:${selectedId}` : null);
+  useBackClosesModel(selectedId);
+  return (
+    <div style={{ position: 'relative', height: '100%' }}>
+      <PhoneTwoPane
+        mainBackground="var(--il-bg)"
+        main={<div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column' }}><PhoneBrowse land /></div>}
+        sideHeader={selectedId != null ? <ModelHead modelId={selectedId} onClose={close} /> : undefined}
+        sideScrollRef={keepDetail}
+        side={selectedId != null
+          ? <Detail modelId={selectedId} size="phone" />
+          : <div style={{ padding: '40px 16px', textAlign: 'center', color: 'var(--il-muted)', fontSize: 12, fontWeight: 700 }}>Open a model to see its versions, files, trigger words and samples</div>}
+      />
+    </div>
+  );
 }

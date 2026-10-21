@@ -7,7 +7,7 @@
 import { useEffect, useRef, type RefObject } from 'react';
 import { swipeAxis, swipeCommits } from '@/lib/swipe';
 
-export function useHorizontalSwipe(ref: RefObject<HTMLElement | null>, opts: { enabled: boolean; onLeft: () => void; onRight: () => void }) {
+export function useHorizontalSwipe(ref: RefObject<HTMLElement | null>, opts: { enabled: boolean; onLeft: () => void; onRight: () => void; /** Re-bind when the element behind `ref` changes (a layout swap). */ rebind?: unknown }) {
   const latest = useRef(opts);
   latest.current = opts;
 
@@ -50,5 +50,5 @@ export function useHorizontalSwipe(ref: RefObject<HTMLElement | null>, opts: { e
       root.removeEventListener('pointerup', up);
       root.removeEventListener('pointercancel', up);
     };
-  }, [ref, opts.enabled]);
+  }, [ref, opts.enabled, opts.rebind]);
 }

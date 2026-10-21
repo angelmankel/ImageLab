@@ -17,7 +17,8 @@ import type { CivitaiImage } from '@/lib/civitai';
 import { civitaiVideoUrl, isCivitaiVideo } from '@/lib/civitai';
 import { civitaiFullUrl } from '~/lib/civitaiSize';
 import { openExternalViewer, updateExternalViewer, useExternalViewer, type ExternalImage } from '~/screens/viewer/externalViewer';
-import { useIsPhone } from '~/app/useIsPhone';
+import { useIsPhone, usePhoneLandscape } from '~/app/useIsPhone';
+import { PhoneTwoPane } from '~/phone';
 import { BackPill } from '~/ui';
 import { useNsfwCover } from '~/screens/models/nsfwCover';
 import { useKeepScroll } from '~/screens/models/useKeepScroll';
@@ -39,6 +40,7 @@ const FULL_W = 2200;
 
 export function ModelViewer() {
   const phone = useIsPhone();
+  const land = usePhoneLandscape();
   const target = useModelViewer((s) => s.target);
   const close = useModelViewer((s) => s.close);
   const setVersion = useModelViewer((s) => s.setVersion);
@@ -103,13 +105,40 @@ export function ModelViewer() {
   useEffect(() => { if (hasMore && nearEnd(index, images.length)) void loadMore(); }, [hasMore, loadMore, index, images.length]);
 
   const pictureRef = useRef<HTMLDivElement>(null);
-  useHorizontalSwipe(pictureRef, { enabled: phone, onLeft: next, onRight: prev });
+  // In landscape the picture box is a different element: the hook re-binds on `land`.
+  useHorizontalSwipe(pictureRef, { enabled: phone, onLeft: next, onRight: prev, rebind: land });
 
   const onMore = useCallback(() => void loadMore(), [loadMore]);
   const title = model?.name ?? local?.meta.name ?? local?.meta.label ?? (loading ? 'Loading…' : 'Model');
   const empty = local && local.state !== 'found' ? 'No preview' : 'No sample images';
   const strip = <ThumbStrip images={images} index={index} onSelect={setImage} onOpen={openFull} isHidden={isHidden} hasMore={hasMore} onMore={onMore} loading={gallery.loading} loadingMore={gallery.loadingMore} scrollKey={stripKey} />;
   const top = <TopRow model={model} version={version} title={title} counter={counterText(index, images.length, hasMore)} phone={phone} onClose={close} />;
+
+  if (land) {
+    // Phone landscape (mobile pass, mockup mobile-m-browse.html §3): the picture + strip on the
+    // left at full height, the top row + info on the right; sideways swipe on the picture pages.
+    return (
+      <PhoneTwoPane
+        sideScroll={false}
+        main={(
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column' }}>
+            <div ref={pictureRef} style={{ flex: 1, minHeight: 0, position: 'relative', touchAction: 'pan-y' }}>
+              <Picture image={image} hidden={!!image && isHidden(image)} onReveal={reveal} loading={gallery.loading} empty={empty} onOpen={() => openFull(index)} edges canPrev={canPrev} canNext={canNext} onPrev={prev} onNext={next} />
+            </div>
+            {strip}
+          </div>
+        )}
+        side={(
+          <>
+            {top}
+            <div ref={keepMeta} className="il-scroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto', touchAction: 'pan-y', paddingBottom: 'var(--il-safe-bottom)' }}>
+              <MetaColumn data={data} onVersion={setVersion} phone onClose={close} onOpen={() => openFull(index)} style={{ overflow: 'visible' }} />
+            </div>
+          </>
+        )}
+      />
+    );
+  }
 
   if (phone) {
     const ratio = image && image.width && image.height ? `${image.width} / ${image.height}` : '4 / 5';
