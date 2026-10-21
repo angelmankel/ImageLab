@@ -26,7 +26,9 @@ import { profileById } from '@/lib/modelProfiles';
 import { useMine } from '@/features/next/mineStore';
 import { menuProps, registerMenu } from '~/app/contextMenu';
 import { makePayload, useImageDrag } from '~/dnd';
-import { useIsPhone } from '~/app/useIsPhone';
+import { useIsPhone, usePhoneLandscape } from '~/app/useIsPhone';
+import { BottomSheet, haptic } from '~/phone';
+import { StarterPreview } from './StarterPreview';
 import { T } from '~/theme/tokens';
 import { Button, LoadingImage, SearchSelect, SkeletonTiles, useEdgeFade } from '~/ui';
 import { PERIODS, type Period } from '~/screens/models/civitaiQuery';
@@ -154,7 +156,12 @@ const Tile = memo(function Tile({ it, onUse: pick }: { it: StarterItem; onUse: (
 
 function Body({ onClose }: { onClose: () => void }) {
   const phone = useIsPhone();
+  const land = usePhoneLandscape();
   const h = phone ? 40 : 34;
+  // Phone (mobile pass): a tap shows the starter first (desktop shows its prompt on hover), the
+  // filters live in a sheet instead of wrapping into 3-4 toolbar rows.
+  const [preview, setPreview] = useState<StarterItem | null>(null);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [prefs, setPrefs] = useState<Prefs>(loadPrefs);
   const set = (patch: Partial<Prefs>) => setPrefs((p) => { const n = { ...p, ...patch }; savePrefs(n); return n; });
   const { source, ours, sort, period, shape } = prefs;
@@ -195,6 +202,8 @@ function Body({ onClose }: { onClose: () => void }) {
     return PROMPT_PRESETS.map((p) => { const t = presetPrompt(p, fam); return { key: p.id, name: p.name, prompt: p.positive, use: { positive: t.positive, negative: t.negative } }; });
   }, [civitai, byModel, source, gallery.items, model, mine, checkpoint, typeHasTags, covered]);
 
+  /** Filters away from their defaults (the phone's Filters badge). */
+  const filterCount = (ours ? 1 : 0) + (nsfw !== 'all' ? 1 : 0) + (shape !== 'any' ? 1 : 0) + (sort !== DEFAULT_PREFS.sort ? 1 : 0) + (!byModel && period !== DEFAULT_PREFS.period ? 1 : 0);
   const tagList = useMemo(() => topTags(items.map((i) => i.prompt)), [items]);
   const shown = useMemo(() => items.filter((it) => passes({ prompt: it.prompt, width: it.img?.width, height: it.img?.height }, { tags, query, shape: it.img ? shape : 'any' })), [items, tags, query, shape]);
 
@@ -210,6 +219,7 @@ function Body({ onClose }: { onClose: () => void }) {
   }, [civitai, hasMore, loading, more]);
 
   const use = useCallback((it: StarterItem) => { applyStarter(it.use, it.name); onClose(); }, [onClose]);
+  const show = useCallback((it: StarterItem) => { haptic(); setPreview(it); }, []);
   const toggleTag = (t: string) => setTags((cur) => (cur.includes(t) ? cur.filter((x) => x !== t) : [...cur, t]));
 
   const empty: ReactNode = civitai
@@ -221,7 +231,24 @@ function Body({ onClose }: { onClose: () => void }) {
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
       <div style={{ flex: 'none', padding: phone ? '8px 10px' : '8px 16px', borderBottom: '1px solid var(--il-line)', display: 'flex', flexDirection: 'column', gap: 6, background: 'linear-gradient(var(--il-panel), var(--il-bg))' }}>
-        {/* ONE toolbar row (added item, 1): source · search · Your models (+ its picker) · content · shape · sort · window · reload. Wraps only when it must. */}
+        {/* ONE toolbar row (added item, 1): source · search · Your models (+ its picker) · content · shape · sort · window · reload. Wraps only when it must.
+            Phone: source · search · Filters (the rest in a sheet). */}
+        {phone ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: land ? 'nowrap' : 'wrap' }}>
+            <Seg<Source> h={h} value={source} onChange={(v) => set({ source: v })} items={[{ key: 'civitai', label: 'CivitAI' }, { key: 'mine', label: 'Mine' }, { key: 'builtin', label: 'Built-in' }]} />
+            {civitai && (
+              <Button tone="outline" on={filterCount > 0} h={h} icon={<IconFilter size={14} stroke={2.4} />} onClick={() => setFiltersOpen(true)} style={{ marginLeft: land ? undefined : 'auto', order: land ? 2 : undefined }}>
+                Filters{filterCount > 0 ? ` ${filterCount}` : ''}
+              </Button>
+            )}
+          <label style={{ flex: land ? '1 1 0' : '1 1 100%', minWidth: 0, order: land ? 1 : undefined, height: h, borderRadius: 12, background: 'var(--il-bg-deep)', border: '1px solid var(--il-line-soft)', display: 'flex', alignItems: 'center', gap: 8, padding: '0 8px 0 12px' }}>
+            <IconSearch size={14} stroke={2.4} style={{ color: 'var(--il-dim)', flex: 'none' }} />
+            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search the prompts…" aria-label="Search the prompts"
+              style={{ flex: 1, minWidth: 0, border: 0, background: 'transparent', color: 'var(--il-fg)', fontSize: 13, fontWeight: 600, outline: 'none', fontFamily: 'inherit' }} />
+            {query && <button type="button" aria-label="Clear search" onClick={() => setQuery('')} style={{ width: 24, height: 24, border: 0, background: 'transparent', color: 'var(--il-muted)', display: 'grid', placeItems: 'center', cursor: 'pointer' }}><IconX size={12} stroke={2.6} /></button>}
+          </label>
+          </div>
+        ) : (
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
           <Seg<Source> h={h} value={source} onChange={(v) => set({ source: v })} items={[{ key: 'civitai', label: 'CivitAI' }, { key: 'mine', label: 'Mine' }, { key: 'builtin', label: 'Built-in' }]} />
           <label style={{ flex: '2 1 180px', minWidth: 140, height: h, borderRadius: 12, background: 'var(--il-bg-deep)', border: '1px solid var(--il-line-soft)', display: 'flex', alignItems: 'center', gap: 8, padding: '0 8px 0 12px' }}>
@@ -249,6 +276,7 @@ function Body({ onClose }: { onClose: () => void }) {
           )}
           {civitai && <Button tone="card" h={h} icon={<IconRefresh size={15} stroke={2.2} />} tooltip="Reload" onClick={gallery.reload} disabled={gallery.loading} />}
         </div>
+        )}
         {tagList.length > 0 && (
           <div ref={fade.ref} className="il-scroll-x" data-no-swipe style={{ display: 'flex', alignItems: 'center', gap: 6, touchAction: 'pan-x pan-y', flexWrap: 'nowrap', ...fade.style }}>
             <span className="il-eyebrow" style={{ flex: 'none' }}>Tags</span>
@@ -267,15 +295,47 @@ function Body({ onClose }: { onClose: () => void }) {
         )}
       </div>
       <div className="il-scroll" style={{ flex: 1, minHeight: 0, padding: phone ? 8 : '12px 16px', touchAction: 'pan-y' }}>
-        <div style={{ columns: phone ? 2 : '5 220px', columnGap: phone ? 8 : 10 }}>
-          {shown.map((it) => <Tile key={it.key} it={it} onUse={use} />)}
+        <div style={{ columns: land ? 4 : phone ? 2 : '5 220px', columnGap: phone ? 8 : 10 }}>
+          {shown.map((it) => <Tile key={it.key} it={it} onUse={phone ? show : use} />)}
         </div>
         {shown.length === 0 && empty && <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--il-muted)', textAlign: 'center', padding: '40px 12px' }}>{empty}</div>}
         {civitai && gallery.loading && (
-          <SkeletonTiles masonry count={shown.length ? (phone ? 4 : 5) : (phone ? 6 : 15)} columns={phone ? 2 : undefined} min={220} gap={phone ? 8 : 10} radius={12} style={shown.length ? { marginTop: 4 } : undefined} />
+          <SkeletonTiles masonry count={shown.length ? (phone ? 4 : 5) : (phone ? 6 : 15)} columns={land ? 4 : phone ? 2 : undefined} min={220} gap={phone ? 8 : 10} radius={12} style={shown.length ? { marginTop: 4 } : undefined} />
         )}
         <div ref={sentinel} style={{ height: 1 }} />
       </div>
+      {phone && (
+        <BottomSheet opened={filtersOpen} onClose={() => setFiltersOpen(false)} title="Filters" zIndex={T.z.modal + 10}
+          footer={<Button tone="primary" size="lg" onClick={() => setFiltersOpen(false)} style={{ width: '100%' }}>Show {shown.length}{gallery.hasMore ? '+' : ''}</Button>}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <Field label="Pictures">
+              <Seg<'all' | 'ours'> h={44} value={ours ? 'ours' : 'all'} onChange={(v) => set({ ours: v === 'ours' })} items={[{ key: 'all', label: 'All of CivitAI' }, { key: 'ours', label: 'Your models' }]} />
+              {byModel && installed.length > 0 && <div style={{ marginTop: 8 }}><ModelAutocomplete models={installed} value={model?.versionId ?? null} onChange={setPicked} /></div>}
+            </Field>
+            <Field label="Content"><Seg<NsfwFilter> h={44} value={nsfw} onChange={setNsfw} items={NSFW} /></Field>
+            <Field label="Shape"><Seg<Shape> h={44} value={shape} onChange={(v) => set({ shape: v })} items={SHAPES} /></Field>
+            <Field label="Sort"><Seg<CivitaiImageSort> h={44} value={sort} onChange={(v) => set({ sort: v })} items={SORTS} /></Field>
+            {!byModel && (
+              <Field label="Time window">
+                <div className="il-scroll-x" data-no-swipe style={{ touchAction: 'pan-x' }}>
+                  <Seg<Period> h={44} value={period} onChange={(v) => set({ period: v })} items={PERIOD_ITEMS.map((p) => ({ key: p.value as Period, label: p.label }))} />
+                </div>
+              </Field>
+            )}
+            <Button tone="card" size="lg" icon={<IconRefresh size={15} stroke={2.2} />} onClick={gallery.reload} disabled={gallery.loading}>Reload</Button>
+          </div>
+        </BottomSheet>
+      )}
+      {phone && <StarterPreview item={preview} onClose={() => setPreview(null)} onUse={(it) => { setPreview(null); use(it); }} />}
+    </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <span className="il-eyebrow">{label}</span>
+      <div>{children}</div>
     </div>
   );
 }

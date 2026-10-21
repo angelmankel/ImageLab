@@ -21,6 +21,7 @@ import { ContextMenuHost } from './contextMenu';
 import { SnippetsFromImageHost } from '~/screens/image/writeIt/SnippetsFromImage';
 import { DragLayer, SendToSheet } from '~/dnd';
 import { CollectionTargets } from '~/screens/image/collections/CollectionTargets';
+import { PhoneHistorySheet } from '~/screens/image/history/PhoneHistorySheet';
 import { CompositionSync } from '~/compose/sizeStore';
 import { UiEffects } from '~/ui/UiEffects';
 import { CursorEffects } from '~/app/cursors';
@@ -46,6 +47,7 @@ export function App() {
       <CompositionSync />
       <SendToSheet />
       <CollectionTargets />
+      {phone && <PhoneHistorySheet />}
       <UiEffects />
       <CursorEffects />
     </ErrorBoundary>

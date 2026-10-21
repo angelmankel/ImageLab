@@ -4,6 +4,7 @@
  */
 import { IconCopy, IconDeviceFloppy, IconPencil, IconPlayerPlay, IconPlus, IconTrash } from '@tabler/icons-react';
 import { registerMenu } from '~/app/contextMenu';
+import { getFormFactor } from '~/app/useFormFactor';
 import type { ComfyWorkflowRow } from './useComfyWorkflows';
 
 export interface ComfyWorkflowTarget {
@@ -17,7 +18,8 @@ export interface ComfyWorkflowTarget {
 }
 
 registerMenu<ComfyWorkflowTarget>('comfy-workflow', [
-  { id: 'open', label: 'Open in ComfyUI', icon: IconPlayerPlay, group: 'open', action: (t) => t.open() },
+  // The phone has no embedded ComfyUI to open it in (mobile pass): Use as step leads there.
+  { id: 'open', label: 'Open in ComfyUI', icon: IconPlayerPlay, group: 'open', visible: () => !getFormFactor().phone, action: (t) => t.open() },
   { id: 'use', label: 'Use as step', icon: IconPlus, group: 'open', action: (t) => t.use() },
   { id: 'rename', label: 'Rename…', icon: IconPencil, group: 'file', visible: (t) => !!t.rename, action: (t) => t.rename?.() },
   { id: 'duplicate', label: 'Duplicate', icon: IconCopy, group: 'file', visible: (t) => !!t.duplicate, action: (t) => t.duplicate?.() },

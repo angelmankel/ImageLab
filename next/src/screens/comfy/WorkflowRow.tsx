@@ -4,7 +4,7 @@
  * in ComfyUI is highlighted (ember bar + tint). Hover / keyboard focus swaps the meta for
  * "Use as step" + "⋯"; "⋯", right-click and long-press open the 'comfy-workflow' menu
  * (./workflowMenu). Click = open it in the embedded ComfyUI. `large` = the phone's 52px rows,
- * where "⋯" always shows (no hover).
+ * where "⋯" always shows (no hover) and a tap opens the menu (mobile pass: no embedded editor there).
  */
 import { useRef } from 'react';
 import { IconArrowsMaximize, IconDots, IconMovie, IconPhoto, IconTopologyStar3 } from '@tabler/icons-react';
@@ -35,7 +35,8 @@ export function WorkflowRow({ row, selected, now, target, large }: {
       aria-selected={selected}
       className={`il-wf-row${selected ? ' is-on' : ''}${large ? ' is-large' : ''}`}
       {...menuProps<ComfyWorkflowTarget>('comfy-workflow', target)}
-      onClick={target.open}
+      // Phone (`large`): there is no embedded ComfyUI to open it in, so a tap opens the row's menu (Use as step first).
+      onClick={large ? (e) => openMenu('comfy-workflow', target, e.currentTarget, { keyboard: false }) : target.open}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); target.open(); } }}
       title={row.path}
     >

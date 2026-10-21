@@ -6,13 +6,15 @@
 import { useState } from 'react';
 import { IconX } from '@tabler/icons-react';
 import { Count } from '~/ui';
+import { useIsPhone } from '~/app/useIsPhone';
 import { pendingDetail, progressFraction, progressText, type LiveProgress, type QueueRow } from './comfyHelpers';
 import { cancelRow, clearPending } from './queueActions';
 
 function XBtn({ label, onClick, busy }: { label: string; onClick: () => void; busy: boolean }) {
+  const phone = useIsPhone();
   return (
     <button type="button" aria-label={label} title={label} onClick={onClick} disabled={busy}
-      style={{ width: 32, height: 32, flex: 'none', border: 0, borderRadius: '50%', background: 'transparent', color: 'var(--il-muted)', display: 'grid', placeItems: 'center', cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.4 : 1 }}>
+      style={{ width: phone ? 44 : 32, height: phone ? 44 : 32, flex: 'none', border: 0, borderRadius: '50%', background: 'transparent', color: 'var(--il-muted)', display: 'grid', placeItems: 'center', cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.4 : 1 }}>
       <IconX size={16} stroke={2.4} />
     </button>
   );

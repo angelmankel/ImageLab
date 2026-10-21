@@ -12,6 +12,7 @@ import { menuProps } from '~/app/contextMenu';
 import { useImageDrop } from '~/dnd';
 import { addImageToCollection, deleteCollection, renameCollection, startRename, useCollectionsUi } from './collectionActions';
 import { VideoThumb } from '~/ui/VideoThumb';
+import { useIsPhone } from '~/app/useIsPhone';
 
 /** Item 23: about a quarter bigger than before (68), room for the cover and the name. */
 export const TILE = 86;
@@ -20,6 +21,8 @@ export function CollectionTile({ c, count, cover, coverIsVideo, active, onPick }
   c: Collection; count: number; cover: string; coverIsVideo: boolean; active: boolean; onPick: () => void;
 }) {
   const renaming = useCollectionsUi((s) => s.renaming === c.id);
+  const phone = useIsPhone();
+  const x = phone ? 30 : 22;
   const drop = useImageDrop({ onDrop: (item) => void addImageToCollection(c.id, item) });
   // The Send-to sheet's collection rows are registered app-wide by `CollectionTargets` (mobile pass).
   const ring = drop.over ? '2px solid var(--il-ember)' : active ? '2px solid var(--il-ember)' : drop.active ? '2px dashed var(--il-ember-line)' : '1px solid var(--il-line-soft)';
@@ -48,8 +51,8 @@ export function CollectionTile({ c, count, cover, coverIsVideo, active, onPick }
       {renaming && <RenameBox c={c} />}
       {!renaming && <button type="button" onClick={(e) => { e.stopPropagation(); deleteCollection(c.id); }} aria-label={`Delete ${c.name} (its pictures stay)`}
         title="Delete collection"
-        style={{ position: 'absolute', top: 4, right: 4, width: 22, height: 22, padding: 0, border: '2px solid var(--il-panel)', borderRadius: '50%', background: 'var(--il-err)', color: '#fff', display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
-        <IconX size={11} stroke={3} />
+        style={{ position: 'absolute', top: phone ? 2 : 4, right: phone ? 2 : 4, width: x, height: x, padding: 0, border: '2px solid var(--il-panel)', borderRadius: '50%', background: 'var(--il-err)', color: '#fff', display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
+        <IconX size={phone ? 14 : 11} stroke={3} />
       </button>}
     </div>
   );

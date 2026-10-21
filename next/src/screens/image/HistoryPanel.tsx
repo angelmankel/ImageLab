@@ -84,7 +84,11 @@ function TileView({ tile, selected, phone, onPick, onOpen, onLike, onDelete }: {
   );
 }
 
-export function HistoryPanel({ columns = 2, phone = false }: { columns?: number; phone?: boolean }) {
+export function HistoryPanel({ columns = 2, phone = false, onPicked }: {
+  columns?: number; phone?: boolean;
+  /** After a tap showed a result (the phone's history sheet closes so the Output page shows it). */
+  onPicked?: () => void;
+}) {
   const images = useImageResults();
   const videos = useVideoResults();
   const runs = useWorkflowResults();
@@ -169,7 +173,7 @@ export function HistoryPanel({ columns = 2, phone = false }: { columns?: number;
               onDelete={() => takeOut(t.key)} />
           ) : (
             <TileView key={t.key} tile={t} selected={t.key === currentKey} phone={phone}
-              onPick={() => { if (t.entry) { select(t.entry); showRun(null); } else showRun(t.key); }}
+              onPick={() => { if (t.entry) { select(t.entry); showRun(null); } else showRun(t.key); onPicked?.(); }}
               onOpen={() => { if (t.entry) { select(t.entry); showRun(null); openViewer(); } else { showRun(t.key); setViewing(i); } }}
               onLike={t.entry ? () => toggleLiked(t.entry!.id) : undefined}
               onDelete={() => deleteOutput(t)} />
