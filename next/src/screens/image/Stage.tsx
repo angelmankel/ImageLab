@@ -16,8 +16,11 @@
  * carry alpha sits on a checkerboard; the picture is a drag source (`~/dnd`, at fit size, so a
  * drag on a zoomed picture still pans) and has its own right-click menu ('canvas-image',
  * `./canvasMenu`).
+ * Item 13: Edit mode (toolbar Edit / E) swaps the picture for the GPU edit canvas
+ * (`~/canvas/edit/EditCanvas`, lazy-loaded PixiJS) with its left tool bar; the toolbar's zoom
+ * buttons then drive that canvas, Delete is off while editing.
  */
-import { useRef, useState } from 'react';
+import { lazy, Suspense, useRef, useState } from 'react';
 import { useStore } from '@/lib/store';
 import { useShortcut, ShortcutPriority } from '@/hooks/useShortcut';
 import { HistoryViewer } from '~/screens/viewer/HistoryViewer';
@@ -40,6 +43,10 @@ import { compareIndex } from './compareLogic';
 import { CHECKER, mayHaveAlpha } from './checker';
 import { canvasTarget } from './canvasMenu';
 import { FrameImage } from './frame/FrameImage';
+import { useStageEdit } from '~/canvas/edit/useStageEdit';
+
+/** Item 13: the GPU edit canvas (PixiJS) loads on first use. */
+const EditCanvas = lazy(() => import('~/canvas/edit/EditCanvas').then((m) => ({ default: m.EditCanvas })));
 
 export function StageColumn({ step, phone = false }: { step: Step; phone?: boolean }) {
   const media = useStageMedia(step);
@@ -70,6 +77,9 @@ export function StageColumn({ step, phone = false }: { step: Step; phone?: boole
   const canOpen = !!media.item || !!media.live;
 
   const noOverlay = () => !viewerOpen && runFull === null;
+  /** Item 13: Edit mode (E / the toolbar's Edit) swaps the picture for the GPU edit canvas. */
+  const edit = useStageEdit(media, () => !phone && noOverlay());
+  const editing = edit.editing && !player;
   const pageKeys = () => noOverlay() && !isVideo;
   // Fix list 2, item 1: the same direction as the history grid and the viewer — ← newer, → older (the list is newest first).
   useShortcut('ArrowLeft', () => media.pick(media.index - 1), { priority: ShortcutPriority.Panel + 10, when: pageKeys });
@@ -80,7 +90,7 @@ export function StageColumn({ step, phone = false }: { step: Step; phone?: boole
     e.preventDefault();
     if (e.repeat) return;
     deleteOutput({ entry: media.source === 'image' ? media.entry : null, url: item.url });
-  }, { priority: ShortcutPriority.Panel + 10, when: () => !phone && noOverlay() });
+  }, { priority: ShortcutPriority.Panel + 10, when: () => !phone && noOverlay() && !editing });
 
   useShortcut('Escape', () => useStage.getState().setCompare(false), { priority: ShortcutPriority.Panel + 10, when: () => comparing && noOverlay() });
 
@@ -89,7 +99,7 @@ export function StageColumn({ step, phone = false }: { step: Step; phone?: boole
   return (
     <main style={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
       <div style={{ position: 'relative', flex: 'none' }}>
-        <Toolbar step={step} media={media} zoom={zoom} onFullscreen={open} canFullscreen={canOpen} phone={phone} />
+        <Toolbar step={step} media={media} zoom={edit.gpuZoom ?? zoom} onFullscreen={open} canFullscreen={canOpen} phone={phone} />
         {media.busy && (
           <div aria-hidden style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 2, background: 'var(--il-line)', overflow: 'hidden' }}>
             {pct != null ? <div style={{ height: '100%', width: `${pct}%`, background: 'var(--il-ember)', transition: 'width .2s' }} /> : <div className="il-sweep" style={{ height: '100%', width: '33%', background: 'linear-gradient(90deg, transparent, var(--il-ember), transparent)' }} />}
@@ -97,7 +107,9 @@ export function StageColumn({ step, phone = false }: { step: Step; phone?: boole
         )}
       </div>
       <JobRow />
-      {player ? (
+      {editing ? (
+        <Suspense fallback={<div style={{ flex: 1, background: 'var(--il-bg-deep)' }} />}><EditCanvas onZoom={edit.setGpuZoom} /></Suspense>
+      ) : player ? (
         <StagePlayer
           src={isVideo ? media.item!.url : null}
           name={isVideo ? media.item!.filename : null}
