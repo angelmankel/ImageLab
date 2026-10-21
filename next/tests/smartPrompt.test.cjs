@@ -195,3 +195,47 @@ test('item 44 fix: drop target — swap in the middle, move at the edges / gaps,
   assert.deepEqual([gap.mode, gap.to], ['move', 3], 'below / past the end: nearest box → after it');
   assert.equal(D.dropTarget(parts, 2, -20, 9).to, 0, 'left of the first part = to the front');
 });
+
+test('d805039 follow-up: the part under the pointer lights up (thin move bands), at any UI zoom', () => {
+  const D = load('src/screens/image/prompt/partDrag.ts');
+  const box = (left, right, row, z = 1) => ({ left: left * z, right: right * z, top: row * 20 * z, bottom: (row * 20 + 18) * z });
+  for (const z of [1, 1.1, 1.25]) {
+    // A long part on one line: "Emphasize the dense texture of the bones" = [100, 400]
+    const parts = [{ i: 0, boxes: [box(0, 90, 0, z)] }, { i: 1, boxes: [box(100, 400, 0, z)] }];
+    // Pointer over "Emphasize the" (well inside the first quarter): it is the target to swap with.
+    assert.deepEqual(D.dropTarget(parts, 0, 140 * z, 9 * z), { mode: 'swap', to: 1, line: null }, `zoom ${z}`);
+    assert.equal(D.dropTarget(parts, 0, (100 + 4) * z, 9 * z).mode, 'move', 'only the very start is the move band');
+  }
+});
+
+test('placeGrip: picks the spot covering the least text; stays in bounds', () => {
+  const D = load('src/screens/image/prompt/partDrag.ts');
+  const b = (left, right, top, bottom) => ({ left, right, top, bottom });
+  const bounds = b(-12, 312, -8, 200);
+  // Part starts a line: left of it is the box padding — free.
+  let g = D.placeGrip(b(0, 80, 23, 41), b(0, 80, 23, 41), [b(0, 300, 0, 18), b(90, 300, 23, 41)], 20, 24, b(-24, 312, -8, 200));
+  assert.equal(g.at, 'left', 'room in the padding: left of the part');
+  g = D.placeGrip(b(0, 80, 23, 41), b(0, 80, 23, 41), [b(0, 300, 0, 18), b(90, 300, 23, 41)], 20, 24, bounds);
+  assert.notEqual(g.at, 'left', 'no room on the left: somewhere else');
+  // Part mid-line with text left of it and above it; free space after its end.
+  g = D.placeGrip(b(120, 200, 23, 41), b(120, 200, 23, 41), [b(0, 110, 23, 41), b(0, 300, 0, 18)], 20, 24, bounds);
+  assert.equal(g.at, 'after');
+  // Nothing in bounds → the first candidate, never throws.
+  g = D.placeGrip(b(0, 10, 0, 18), b(0, 10, 0, 18), [], 20, 24, b(0, 1, 0, 1));
+  assert.equal(g.at, 'left');
+});
+
+test('no-op drags leave the text byte-identical; a swap back restores it', () => {
+  const t = 'A colossal wyvern, (bones:1.2). Emphasize the dense texture\nlast';
+  const parts = P.parseSections(t);
+  for (let i = 0; i < parts.length; i++) {
+    assert.equal(P.movePart(t, parts, i, i, 'swap'), null);
+    assert.equal(P.movePart(t, parts, i, i, 'move'), null);
+    assert.equal(P.movePart(t, parts, i, i + 1, 'move'), null);
+  }
+  const once = edit(t, P.movePart(t, parts, 0, 2, 'swap'));
+  const back = edit(once, P.movePart(once, P.parseSections(once), 0, 2, 'swap'));
+  assert.equal(back, t);
+  assert.ok(!/w yvern/.test(once) && once.includes('A colossal wyvern'), 'words are never split');
+  assert.equal([...once].sort().join(''), [...t].sort().join(''), 'same characters, only reordered');
+});

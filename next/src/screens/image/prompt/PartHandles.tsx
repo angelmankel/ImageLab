@@ -12,7 +12,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { IconGripVertical, IconX } from '@tabler/icons-react';
 import { toCssPx } from '~/theme/uiScale';
 import type { Part } from './promptSections';
-import { dropTarget, hitBox, type PartBoxes } from './partDrag';
+import { dropTarget, hitBox, placeGrip, type Box, type PartBoxes } from './partDrag';
 
 export interface PartDrag {
   from: number;
@@ -57,7 +57,7 @@ function measure(back: HTMLElement): PartBoxes[] {
 
 const noHover = () => typeof window !== 'undefined' && !!window.matchMedia?.('(hover: none)').matches;
 
-interface Spot { x: number; y: number; h: number; endX: number; endY: number; endH: number; isLast: boolean }
+interface Spot { x: number; y: number; at: string; endX: number; endY: number; endH: number; isLast: boolean }
 
 export function PartHandles({ wrap, back, ta, parts, value, caretPart, activePart, isSnippet, drag, setDrag, onHover, onMove, onRemove, onPick, off }: Props) {
   const [hover, setHoverState] = useState(-1);
@@ -104,23 +104,31 @@ export function PartHandles({ wrap, back, ta, parts, value, caretPart, activePar
     return () => { t.removeEventListener('scroll', on); window.removeEventListener('resize', on); };
   }, [ta]);
 
-  // Where the grip (before the first line box) and the × (after the last) go, in wrap CSS px.
+  // Where the grip goes (option 2: floating over the text, no gutter): measured — the spot around
+  // the part's first / last line that covers the least of the OTHER parts (`placeGrip`). Wrap CSS px.
+  const pillW = coarse ? 26 : 20;
+  const pillH = coarse ? 32 : 24;
   useLayoutEffect(() => {
     const w = wrap.current; const b = back.current; const t = ta.current;
     if (!w || !b || !t || shown < 0) { setSpot(null); return; }
-    const rects = Array.from(b.querySelector<HTMLElement>(`[data-pi="${shown}"]`)?.getClientRects() ?? []).filter((r) => r.width > 0);
-    if (!rects.length) { setSpot(null); return; }
-    const first = rects[0];
-    const last = rects[rects.length - 1];
     const wr = w.getBoundingClientRect();
     const tr = t.getBoundingClientRect();
-    if (first.bottom < tr.top + 2 || first.top > tr.bottom - 2) { setSpot(null); return; }
-    setSpot({
-      x: toCssPx(first.left - wr.left), y: toCssPx(first.top - wr.top), h: toCssPx(first.height),
-      endX: toCssPx(last.right - wr.left), endY: toCssPx(last.top - wr.top), endH: toCssPx(last.height),
-      isLast: last.bottom >= tr.top && last.top <= tr.bottom,
+    const toBox = (r: { left: number; top: number; right: number; bottom: number }): Box => ({
+      left: toCssPx(r.left - wr.left), top: toCssPx(r.top - wr.top), right: toCssPx(r.right - wr.left), bottom: toCssPx(r.bottom - wr.top),
     });
-  }, [shown, value, tick, wrap, back, ta]);
+    const all = measure(b);
+    const mine = all.find((p) => p.i === shown)?.boxes ?? [];
+    if (!mine.length) { setSpot(null); return; }
+    const first = mine[0];
+    const last = mine[mine.length - 1];
+    if (first.bottom < tr.top + 2 || first.top > tr.bottom - 2) { setSpot(null); return; }
+    const others = all.filter((p) => p.i !== shown).flatMap((p) => p.boxes.map(toBox));
+    const width = toCssPx(wr.width);
+    const height = toCssPx(tr.bottom - wr.top);
+    const g = placeGrip(toBox(first), toBox(last), others, pillW, pillH, { left: -12, top: -8, right: width + 12, bottom: height + 4 });
+    const lb = toBox(last);
+    setSpot({ x: g.x, y: g.y, at: g.at, endX: lb.right, endY: lb.top, endH: lb.bottom - lb.top, isLast: last.bottom >= tr.top && last.top <= tr.bottom });
+  }, [shown, value, tick, wrap, back, ta, pillW, pillH]);
 
   // The selected part's highlight: one box per line box, widened 6 px each side, behind the text.
   useLayoutEffect(() => {
@@ -195,10 +203,10 @@ export function PartHandles({ wrap, back, ta, parts, value, caretPart, activePar
 
   // Grip hit area: wide enough to grab (it may lie over the ", " before the part, never over the
   // part's own letters); the visible grip is a slim bar in the gap itself.
-  // The grip lives in the box's left gutter (`--sp-gutter`, no text there), on the part's first
-  // line: a 24 px handle; on a touch screen a 44 px hit area that also takes the card's padding.
-  const hitW = coarse ? 44 : 26;
-  const hitH = coarse ? 44 : 28;
+  // A 24 px pill (32 px on a touch screen) with a 44 px hit area on touch, centred on the pill.
+  const hitW = coarse ? 44 : pillW + 4;
+  const hitH = coarse ? 44 : pillH + 4;
+  const xSize = touch ? 28 : 16;
   return (
     <>
       <div className="il-sp-hl-layer" aria-hidden>
@@ -207,15 +215,17 @@ export function PartHandles({ wrap, back, ta, parts, value, caretPart, activePar
       {part && spot && (
         <div data-part-handles className={`il-sp-grip${drag ? ' is-dragging' : ''}${coarse ? ' is-coarse' : ''}`} role="button" aria-label="Drag to move this part" title={touch ? undefined : 'Move part'}
           onPointerDown={(e) => startDrag(e, shown)} onMouseDown={(e) => e.preventDefault()}
-          style={{ left: -hitW - 2, top: spot.y + spot.h / 2 - hitH / 2, width: hitW, height: hitH, touchAction: 'none' }}>
+          style={{ left: spot.x + pillW / 2 - hitW / 2, top: spot.y + pillH / 2 - hitH / 2, width: hitW, height: hitH, touchAction: 'none' }}>
           <span className="il-sp-grip-pill"><IconGripVertical size={coarse ? 16 : 14} stroke={2.4} /></span>
         </div>
       )}
       {part && spot && spot.isLast && !drag && isSnippet(part) && (
         <button type="button" data-part-handles className="il-sp-x" aria-label="Take this snippet out" title="Take it out"
           onMouseDown={(e) => e.preventDefault()} onClick={() => { setHover(-1); onRemove(part); }}
-          style={{ left: spot.endX + 1, top: spot.endY + spot.endH / 2 - (touch ? 14 : 7), width: touch ? 28 : 14, height: touch ? 28 : 14 }}>
-          <IconX size={touch ? 13 : 9} stroke={3} />
+          style={spot.at === 'after'
+            ? { left: spot.x + pillW + 3, top: spot.y + pillH / 2 - xSize / 2, width: xSize, height: xSize }
+            : { left: spot.endX + 2, top: spot.endY + spot.endH / 2 - xSize / 2, width: xSize, height: xSize }}>
+          <IconX size={touch ? 13 : 10} stroke={3} />
         </button>
       )}
       {drag && drag.to >= 0 && drag.line && <div className="il-sp-dropline" style={{ left: drag.line.x, top: drag.line.y, height: drag.line.h }} />}

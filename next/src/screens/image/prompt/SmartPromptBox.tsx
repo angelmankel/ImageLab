@@ -239,7 +239,7 @@ export function SmartPromptBox({ value, onChange, onBlur, kind, snippets, catego
   const dotColor = activeSnip ? `hsl(${tileHue(activeSnip)} 55% 55%)` : weightOf > 1.001 ? 'var(--sp-accent)' : weightOf < 0.999 ? 'var(--il-info)' : 'var(--il-fg2)';
 
   return (
-    <div className={`il-sp${kind === 'negative' ? ' is-neg' : ''}${large ? ' is-large' : ''}`}>
+    <div className={`il-sp${kind === 'negative' ? ' is-neg' : ''}${large ? ' is-large' : ''}${drag ? ' is-dragging' : ''}`}>
       <div ref={wrap} className="il-sp-wrap">
         <div ref={back} className="il-sp-back" aria-hidden><Backdrop text={value} parts={parts} active={active} byId={byId} drag={drag} hover={hoverPart} /></div>
         <textarea

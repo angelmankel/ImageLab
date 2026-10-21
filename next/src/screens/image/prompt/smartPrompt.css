@@ -11,10 +11,8 @@
   --sp-accent-hi: color-mix(in srgb, var(--il-err) 70%, white);
   --sp-sel: color-mix(in srgb, var(--il-err) 38%, transparent);
 }
-.il-sp { --sp-gutter: 26px; }
-@media (any-pointer: coarse) { .il-sp { --sp-gutter: 32px; } }
-/* The left gutter holds the part grip (item 44): fixed width, so nothing moves when it shows. */
-.il-sp-wrap { position: relative; isolation: isolate; margin-left: var(--sp-gutter); }
+/* The part grip floats over the text (item 44, option 2): no gutter, the box keeps its full width. */
+.il-sp-wrap { position: relative; isolation: isolate; }
 .il-sp-back,
 .il-sp-ta {
   font-family: inherit; font-size: 15px; line-height: 1.55; font-weight: 500; letter-spacing: normal;
@@ -83,11 +81,12 @@
 
 /* Item 44: the part grip (in the gap before the part), the snippet ×, and the drag feedback.
    Overlays only: never part of the text's layout. */
-.il-sp-grip { position: absolute; z-index: 25; display: flex; align-items: center; justify-content: flex-end; cursor: grab; touch-action: none; }
+.il-sp-grip { position: absolute; z-index: 25; display: grid; place-items: center; cursor: grab; touch-action: none; }
 .il-sp-grip-pill { width: 20px; height: 24px; border-radius: 7px; display: grid; place-items: center; color: var(--il-fg2);
-  background: var(--il-card-on); box-shadow: inset 0 0 0 1px var(--il-line-strong); transition: background-color .12s ease, color .12s ease; }
+  background: var(--il-card-on); box-shadow: inset 0 0 0 1px var(--il-line-strong), 0 4px 10px rgba(0, 0, 0, .35); opacity: .62;
+  transition: background-color .12s ease, color .12s ease, opacity .12s ease; }
 .il-sp-grip.is-coarse .il-sp-grip-pill { width: 26px; height: 32px; }
-.il-sp-grip:hover .il-sp-grip-pill, .il-sp-grip.is-dragging .il-sp-grip-pill { color: var(--il-fg); background: color-mix(in srgb, var(--sp-accent) 28%, var(--il-card-on)); }
+.il-sp-grip:hover .il-sp-grip-pill, .il-sp-grip.is-dragging .il-sp-grip-pill { opacity: 1; color: var(--il-fg); background: color-mix(in srgb, var(--sp-accent) 28%, var(--il-card-on)); }
 .il-sp-grip.is-dragging { cursor: grabbing; }
 .il-sp-x { position: absolute; z-index: 25; display: grid; place-items: center; padding: 0; border: 0; border-radius: 50%; cursor: pointer;
   background: var(--il-elev); color: var(--il-fg2); box-shadow: 0 0 0 1px var(--il-line-strong); }
@@ -96,6 +95,10 @@
 .il-sp-drop { --sp-drop: color-mix(in srgb, var(--sp-accent) 26%, transparent);
   background: var(--sp-drop) !important; box-shadow: -6px 0 0 0 var(--sp-drop), 6px 0 0 0 var(--sp-drop), 0 0 0 1px var(--sp-accent) !important; }
 .il-sp-dropline { position: absolute; z-index: 24; width: 2px; border-radius: 2px; background: var(--sp-accent); pointer-events: none; box-shadow: 0 0 6px var(--sp-accent); }
-.il-sp-ghost { position: absolute; z-index: 26; pointer-events: none; transform: translate(10px, -130%); max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+/* The lifted chip sits ABOVE-LEFT of the pointer, so it never covers the target under it. */
+.il-sp-ghost { position: absolute; z-index: 26; pointer-events: none; transform: translate(calc(-100% - 10px), calc(-100% - 8px)); opacity: .92; max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 800; background: var(--il-elev); color: var(--il-fg);
   border: 1px solid var(--sp-accent); box-shadow: 0 10px 22px rgba(0, 0, 0, .5); }
+
+/* While a part is dragged, no caret blinks in the text. */
+.il-sp.is-dragging .il-sp-ta { caret-color: transparent; }
