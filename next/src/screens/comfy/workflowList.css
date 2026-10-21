@@ -1,0 +1,52 @@
+/* FIXLIST-2 #53: the ComfyUI screen's workflows list rows (hover actions need :hover). */
+.il-wf-row {
+  position: relative; display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 4px 0 8px;
+  border-radius: 10px; color: var(--il-fg); cursor: pointer; outline: none;
+}
+.il-wf-row:hover, .il-wf-row:focus-visible { background: var(--il-card); }
+.il-wf-row:focus-visible { box-shadow: inset 0 0 0 2px var(--il-ember-line, var(--il-ember)); }
+.il-wf-row.is-on { background: var(--il-card-on); }
+.il-wf-row.is-on::before {
+  content: ""; position: absolute; left: 0; top: 8px; bottom: 8px; width: 3px; border-radius: 3px; background: var(--il-ember);
+}
+.il-wf-badge { width: 22px; height: 22px; flex: none; border-radius: 7px; display: grid; place-items: center; }
+.il-wf-name {
+  flex: 1; min-width: 0; font-size: 12.5px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.il-wf-row.is-on .il-wf-name { color: var(--il-ember-hi); font-weight: 800; }
+.il-wf-folder { color: var(--il-dim); font-weight: 600; }
+.il-wf-meta { flex: none; font-size: 11px; font-weight: 600; color: var(--il-dim); white-space: nowrap; padding-right: 4px; }
+.il-wf-acts { flex: none; display: none; align-items: center; gap: 2px; }
+.il-wf-row:hover .il-wf-acts, .il-wf-row:focus-within .il-wf-acts { display: flex; }
+.il-wf-row:hover .il-wf-meta, .il-wf-row:focus-within .il-wf-meta { display: none; }
+.il-wf-use {
+  height: 24px; padding: 0 9px; border: 0; border-radius: 999px; font-size: 11px; font-weight: 800; cursor: pointer;
+  background: var(--il-ember); color: var(--il-on-accent, var(--il-bg));
+}
+.il-wf-more {
+  width: 26px; height: 26px; border: 0; border-radius: 999px; padding: 0; display: grid; place-items: center; cursor: pointer;
+  background: transparent; color: var(--il-fg2);
+}
+.il-wf-more:hover { background: var(--il-card-on); color: var(--il-fg); }
+
+/* Phone rows: taller, "⋯" always there (no hover). */
+.il-wf-row.is-large { height: 52px; border-radius: 14px; gap: 10px; padding: 0 2px 0 10px; }
+.il-wf-row.is-large .il-wf-badge { width: 30px; height: 30px; border-radius: 9px; }
+.il-wf-row.is-large .il-wf-name { font-size: 13px; }
+.il-wf-row.is-large .il-wf-acts { display: flex; }
+.il-wf-row.is-large .il-wf-meta { display: inline; }
+.il-wf-row.is-large .il-wf-more { width: 40px; height: 40px; }
+@media (hover: none) {
+  .il-wf-acts { display: flex; }
+  .il-wf-use { display: none; }
+  .il-wf-row .il-wf-meta { display: inline; }
+}
+
+/* Header tools. */
+.il-wf-tool {
+  height: 28px; padding: 0 10px; border: 0; border-radius: 999px; background: var(--il-card); color: var(--il-fg2);
+  font-size: 11px; font-weight: 800; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; white-space: nowrap;
+}
+.il-wf-tool:hover:not(:disabled) { background: var(--il-card-on); color: var(--il-fg); }
+.il-wf-tool:disabled { opacity: 0.5; cursor: default; }
+.il-wf-tool.is-large { height: 40px; padding: 0 14px; font-size: 12px; }

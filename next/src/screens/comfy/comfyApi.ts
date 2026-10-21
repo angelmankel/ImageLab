@@ -57,3 +57,15 @@ export async function restoreWorkflowFile(host: string, path: string, workflow: 
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
 }
+
+/**
+ * Rename / move a saved workflow (paths under `workflows/`): ComfyUI's own
+ * `POST /userdata/{file}/move/{dest}`. Refuses to overwrite: a 409 throws "exists".
+ */
+export async function moveWorkflowFile(host: string, from: string, to: string): Promise<void> {
+  const a = encodeURIComponent(`workflows/${from}`);
+  const b = encodeURIComponent(`workflows/${to}`);
+  const res = await fetch(`${comfyHttpFor(host)}/api/userdata/${a}/move/${b}?overwrite=false&full_info=true`, { method: 'POST' });
+  if (res.status === 409) throw new Error('exists');
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+}

@@ -8,6 +8,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { useSteps } from '~/app/stepsStore';
+import type { WorkflowSort, WorkflowType } from './workflowListLogic';
 
 export type ComfyKind = 'image' | 'video';
 
@@ -24,7 +25,7 @@ export interface StepWorkflowRef {
   kind: ComfyKind;
 }
 
-export interface WorkflowMeta { nodes: number; modified: number }
+export interface WorkflowMeta { nodes: number; modified: number; type?: WorkflowType }
 
 interface WorkflowStoreState {
   byStep: Record<string, StepWorkflowRef>;
@@ -40,6 +41,11 @@ interface WorkflowStoreState {
   markUsed: (key: string) => void;
   setMeta: (key: string, meta: WorkflowMeta) => void;
   setServer: (kind: ComfyKind, serverId: string | null) => void;
+  /** The workflows list's order (FIXLIST-2 #53). */
+  sort: WorkflowSort;
+  setSort: (sort: WorkflowSort) => void;
+  /** A file was renamed on `host`: move its memory (last used, meta) and the steps that run it. */
+  renamePath: (host: string, from: string, to: string, name: string) => void;
 }
 
 export const workflowKey = (host: string, path: string) => `${host}|${path}`;
@@ -62,6 +68,18 @@ export const useWorkflowStore = create<WorkflowStoreState>()(
       markUsed: (key) => set((s) => ({ lastUsed: { ...s.lastUsed, [key]: Date.now() } })),
       setMeta: (key, meta) => set((s) => ({ meta: { ...s.meta, [key]: meta } })),
       setServer: (kind, serverId) => set({ kind, serverId }),
+      sort: 'recent',
+      setSort: (sort) => set({ sort }),
+      renamePath: (host, from, to, name) => set((s) => {
+        const a = workflowKey(host, from);
+        const b = workflowKey(host, to);
+        const lastUsed = { ...s.lastUsed };
+        const meta = { ...s.meta };
+        if (a in lastUsed) { lastUsed[b] = lastUsed[a]; delete lastUsed[a]; }
+        if (a in meta) { meta[b] = meta[a]; delete meta[a]; }
+        const byStep = Object.fromEntries(Object.entries(s.byStep).map(([id, r]) => [id, r.host === host && r.path === from ? { ...r, path: to, name } : r]));
+        return { lastUsed, meta, byStep };
+      }),
     }),
     { name: 'imagelab.next.comfy.v1' },
   ),

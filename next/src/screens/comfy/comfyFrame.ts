@@ -29,6 +29,7 @@ interface Workspace {
     isActive: (w: FrameWorkflow) => boolean;
     closeWorkflow: (w: FrameWorkflow) => Promise<unknown>;
     deleteWorkflow: (w: FrameWorkflow) => Promise<void>;
+    renameWorkflow?: (w: FrameWorkflow, newPath: string) => Promise<void>;
   };
 }
 interface FrameApp { loadGraphData: (...args: any[]) => Promise<unknown>; extensionManager?: Workspace }
@@ -171,6 +172,22 @@ export async function deleteInFrame(path: string): Promise<boolean> {
   if (a.ws.workflow.isOpen(wf)) throw new Error('It is still open in ComfyUI');
   await a.ws.workflow.deleteWorkflow(wf);
   if (useComfyFrame.getState().openPath === path) useComfyFrame.setState({ openPath: null });
+  return true;
+}
+
+/**
+ * Rename through the frame (FIXLIST-2 #53), so an open tab follows the file. Returns false when
+ * the frame cannot do it (the caller then moves the file through the API). Throws when ComfyUI refused.
+ */
+export async function renameInFrame(from: string, to: string): Promise<boolean> {
+  const a = ready();
+  if (!a || typeof a.ws.workflow.renameWorkflow !== 'function') return false;
+  const key = `workflows/${from}`;
+  let wf = a.ws.workflow.getWorkflowByPath(key);
+  if (!wf) { await a.ws.workflow.syncWorkflows(); wf = a.ws.workflow.getWorkflowByPath(key); }
+  if (!wf) return false;
+  await a.ws.workflow.renameWorkflow(wf, `workflows/${to}`);
+  if (useComfyFrame.getState().openPath === from) useComfyFrame.setState({ openPath: to });
   return true;
 }
 

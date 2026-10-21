@@ -1,63 +1,65 @@
 /**
- * One saved workflow (rule 14): graph icon, name, "12 nodes · used 2 min ago", delete, and
- * "Use as step". Click = open it in the embedded ComfyUI (FIXLIST 34). Selected = the one open
- * there (else the one in the shared Studio store). `large` = the phone's 56px thumb rows.
- * Right-click / long-press: the 'comfy-workflow' menu (./workflowMenu).
+ * One saved workflow, one line (FIXLIST-2 #53; mockup agent-handoffs/fixlist2-mockups/53-workflows-list.html):
+ * type badge (image / video / upscale / other), name, short meta ("9 nodes · 4m"). The one open
+ * in ComfyUI is highlighted (ember bar + tint). Hover / keyboard focus swaps the meta for
+ * "Use as step" + "⋯"; "⋯", right-click and long-press open the 'comfy-workflow' menu
+ * (./workflowMenu). Click = open it in the embedded ComfyUI. `large` = the phone's 52px rows,
+ * where "⋯" always shows (no hover).
  */
-import { IconTopologyStar3, IconTrash } from '@tabler/icons-react';
-import { menuProps } from '~/app/contextMenu';
+import { useRef } from 'react';
+import { IconArrowsMaximize, IconDots, IconMovie, IconPhoto, IconTopologyStar3 } from '@tabler/icons-react';
+import { menuProps, openMenu } from '~/app/contextMenu';
 import type { ComfyWorkflowTarget } from './workflowMenu';
-import { workflowDetail } from './comfyHelpers';
+import { rowMeta, type WorkflowType } from './workflowListLogic';
 import type { ComfyWorkflowRow } from './useComfyWorkflows';
 
-export function WorkflowRow({ row, selected, now, onSelect, onUse, onDelete, large }: {
-  row: ComfyWorkflowRow; selected: boolean; now: number; onSelect: () => void; onUse: () => void; onDelete?: () => void; large?: boolean;
+const TYPE: Record<WorkflowType, { icon: typeof IconPhoto; color: string; label: string }> = {
+  image: { icon: IconPhoto, color: 'var(--il-ember)', label: 'Image workflow' },
+  video: { icon: IconMovie, color: 'var(--il-info)', label: 'Video workflow' },
+  upscale: { icon: IconArrowsMaximize, color: 'var(--il-ok)', label: 'Upscale workflow' },
+  other: { icon: IconTopologyStar3, color: 'var(--il-muted)', label: 'Workflow' },
+};
+
+export function WorkflowRow({ row, selected, now, target, large }: {
+  row: ComfyWorkflowRow; selected: boolean; now: number; target: ComfyWorkflowTarget; large?: boolean;
 }) {
-  const detail = workflowDetail(row.nodes, row.usedAt, row.savedAt, now);
+  const more = useRef<HTMLButtonElement>(null);
+  const t = TYPE[row.type ?? 'other'];
+  const Icon = t.icon;
+  const meta = rowMeta(row.nodes, row.usedAt, row.savedAt, now, large);
+  const folder = row.path.includes('/') ? row.path.slice(0, row.path.lastIndexOf('/')) : '';
   return (
     <div
-      role="button"
+      role="option"
       tabIndex={0}
-      {...menuProps<ComfyWorkflowTarget>('comfy-workflow', { row, open: onSelect, use: onUse, remove: onDelete ?? null })}
-      aria-pressed={selected}
-      onClick={onSelect}
-      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(); } }}
-      style={{
-        display: 'flex', alignItems: 'center', gap: 10, width: '100%', minHeight: large ? 56 : 52, padding: large ? '8px 8px 8px 10px' : '7px 8px 7px 10px',
-        borderRadius: 14, background: selected ? 'var(--il-card-on)' : 'transparent', color: 'var(--il-fg)', cursor: 'pointer',
-      }}
+      aria-selected={selected}
+      className={`il-wf-row${selected ? ' is-on' : ''}${large ? ' is-large' : ''}`}
+      {...menuProps<ComfyWorkflowTarget>('comfy-workflow', target)}
+      onClick={target.open}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); target.open(); } }}
+      title={row.path}
     >
-      <span aria-hidden style={{ width: large ? 32 : 30, height: large ? 32 : 30, flex: 'none', borderRadius: 10, background: large ? 'var(--il-panel)' : 'var(--il-card)', color: selected ? 'var(--il-ember-hi)' : 'var(--il-muted)', display: 'grid', placeItems: 'center' }}>
-        <IconTopologyStar3 size={16} stroke={2} />
+      <span aria-label={t.label} className="il-wf-badge" style={{ color: t.color, background: `color-mix(in srgb, ${t.color} 16%, transparent)` }}>
+        <Icon size={large ? 16 : 13} stroke={2.2} />
       </span>
-      <span style={{ flex: 1, minWidth: 0 }}>
-        <span style={{ display: 'block', fontSize: 13, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={row.path}>{row.name}</span>
-        {detail && <span style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--il-muted)' }}>{detail}</span>}
+      <span className="il-wf-name">
+        {row.name}
+        {folder && <span className="il-wf-folder"> · {folder}</span>}
       </span>
-      {onDelete && (
-        <button
-          type="button"
-          onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--il-err)'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--il-dim)'; }}
-          onClick={(e) => { e.stopPropagation(); onDelete(); }}
-          onKeyDown={(e) => e.stopPropagation()}
-          aria-label={`Delete ${row.name}`} title="Delete this workflow from ComfyUI (Undo in the note)"
-          style={{ flex: 'none', width: large ? 40 : 28, height: large ? 40 : 28, border: 0, borderRadius: 999, background: 'transparent', color: 'var(--il-dim)', display: 'grid', placeItems: 'center', cursor: 'pointer', padding: 0 }}
-        >
-          <IconTrash size={15} stroke={2.2} />
+      {meta && <span className="il-wf-meta">{meta}</span>}
+      <span className="il-wf-acts">
+        {!large && (
+          <button type="button" className="il-wf-use" onClick={(e) => { e.stopPropagation(); target.use(); }} onKeyDown={(e) => e.stopPropagation()}
+            title="Add a step that runs this workflow">
+            Use as step
+          </button>
+        )}
+        <button type="button" ref={more} className="il-wf-more" aria-label={`More for ${row.name}`} aria-haspopup="menu"
+          onClick={(e) => { e.stopPropagation(); if (more.current) openMenu('comfy-workflow', target, more.current, { keyboard: e.detail === 0 }); }}
+          onKeyDown={(e) => e.stopPropagation()}>
+          <IconDots size={large ? 18 : 15} stroke={2.4} />
         </button>
-      )}
-      <button
-        type="button"
-        onClick={(e) => { e.stopPropagation(); onUse(); }}
-        title="Add a step that runs this workflow"
-        style={{
-          flex: 'none', border: 0, borderRadius: 999, padding: large ? '8px 10px' : '6px 10px', fontSize: 11, fontWeight: 800, cursor: 'pointer',
-          background: selected ? 'var(--il-ember)' : 'var(--il-card-on)', color: selected ? 'var(--il-bg)' : 'var(--il-fg2)',
-        }}
-      >
-        Use as step
-      </button>
+      </span>
     </div>
   );
 }
