@@ -317,3 +317,9 @@ export function matchCategory(name: string, cats: Array<{ id: string; name: stri
   const part = cats.find((c) => { const cn = norm(c.name); return cn.split(' ').includes(n.split(' ')[0]) || n.split(' ').includes(cn.split(' ')[0]); });
   return part?.id ?? null;
 }
+
+/** One snippet from a picture (the snippet editor's "✦ From image"). */
+export function oneSnippetFromImageUser(o: { category?: string; negative?: boolean }): string {
+  if (o.negative) return 'Write 1 NEGATIVE prompt snippet for pictures like this one: the flaws and unwanted elements that would spoil this look. Use the line format, category "Negative".';
+  return `Write 1 snippet that captures this picture${o.category ? ` for the category "${o.category}"` : "'s most distinctive look"}. Use the line format.`;
+}

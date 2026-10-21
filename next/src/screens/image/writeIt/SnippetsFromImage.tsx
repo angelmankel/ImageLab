@@ -30,7 +30,7 @@ const field: React.CSSProperties = { width: '100%', border: '1px solid var(--il-
 const COUNTS = ['4', '6', '8'] as const;
 
 /** Why the active provider cannot look at pictures, or null when it (probably) can. */
-function useVisionNote(): string | null {
+export function useVisionNote(): string | null {
   const ai = useStore((s) => s.ai);
   const entry = activeEntry(ai);
   const { models } = useProviderModels(entry);
