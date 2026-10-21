@@ -24,12 +24,12 @@ function Divider() {
   return <span aria-hidden style={{ width: 1, height: 26, background: 'var(--il-line-strong)', margin: '0 6px', flex: 'none' }} />;
 }
 
-/** The chosen logo's wordmark (fix list 47: Settings → Appearance → Logo). */
+/** The IMAGELAB wordmark (logo D "Monolith", `~/app/logo`). */
 export function Wordmark({ size = 17 }: { size?: number }) {
   return <LogoWordmark size={size} />;
 }
 
-/** The chosen logo's mark. */
+/** The Monolith mark. */
 export function Logo({ size = 32 }: { size?: number }) {
   return <LogoMark size={size} />;
 }

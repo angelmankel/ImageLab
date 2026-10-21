@@ -6,6 +6,7 @@
  * State order: running beats queued beats a latched done / error beats offline beats idle.
  */
 import type { QueueRow } from './queueLogic';
+import { LOGO_BLUE, markPath, viewBoxFor } from './monolith';
 
 export type JobState = 'idle' | 'queued' | 'running' | 'done' | 'error' | 'offline';
 
@@ -79,11 +80,11 @@ export function tabTitleOf(p: JobProgress, base = 'ImageLab'): string {
 }
 
 const COLOR: Record<JobState, string> = {
-  idle: '#F0863A', running: '#F0863A', queued: '#8A8A94', done: '#3DD68C', error: '#C96A6A', offline: '#C96A6A',
+  idle: LOGO_BLUE, running: LOGO_BLUE, queued: '#8A8A94', done: '#3DD68C', error: '#C96A6A', offline: '#C96A6A',
 };
 
 /**
- * The favicon for a live state: a dark tile with a dot in the state's colour, and around it a ring
+ * The favicon for a live state: a dark disc with the logo mark in the state's colour, and around it a ring
  * that fills clockwise with the running job's percent (or the download's while only that runs).
  * Idle with nothing downloading returns null: keep the app's own icon.
  */
@@ -97,7 +98,9 @@ export function faviconSvgOf(p: JobProgress): string | null {
     ? `<circle cx="32" cy="32" r="${r}" fill="none" stroke="${color}" stroke-opacity=".28" stroke-width="9"/>`
       + (ringPct ? `<circle cx="32" cy="32" r="${r}" fill="none" stroke="${color}" stroke-width="9" stroke-linecap="round" stroke-dasharray="${((ringPct / 100) * len).toFixed(1)} ${len.toFixed(1)}" transform="rotate(-90 32 32)"/>` : '')
     : `<circle cx="32" cy="32" r="${r}" fill="none" stroke="${color}" stroke-width="9"/>`;
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><circle cx="32" cy="32" r="21" fill="#141416"/>${ring}<circle cx="32" cy="32" r="10" fill="${color}"/></svg>`;
+  // The logo's mark (Monolith, cut 11 for a tab-icon size) in the state's colour, inside the ring.
+  const mark = `<svg x="18" y="18" width="28" height="28" viewBox="${viewBoxFor(11)}"><path d="${markPath(11)}" fill="${color}"/></svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><circle cx="32" cy="32" r="21" fill="#0c0e11"/>${ring}${mark}</svg>`;
 }
 
 export function faviconHrefOf(p: JobProgress): string | null {
