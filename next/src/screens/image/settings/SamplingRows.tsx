@@ -14,6 +14,7 @@ import { IconBtn, NumberField, SearchSelect, Tip, samplerFamily, SAMPLER_NOTES, 
 import { useIsPhone } from '~/app/useIsPhone';
 import { T } from '~/theme/tokens';
 import { nextInCycle, useCycleList } from '~/app/batchCycle';
+import { useUndoableSetWorkflow } from '~/app/undoableWorkflow';
 
 const MAX_SEED = 0xFFFFFFFF;
 const newSeed = () => Math.floor(Math.random() * MAX_SEED);
@@ -44,7 +45,7 @@ function Pick({ label, value, options, onChange, searchable = true }: { label: s
 /** Phone only: the batch as one tap-to-cycle pill (the desktop has it on Generate). */
 function BatchRow() {
   const batch = useStore((s) => s.workflow.batch);
-  const set = useStore((s) => s.setWorkflow);
+  const set = useUndoableSetWorkflow();
   const list = useCycleList();
   return (
     <Row label="Images per run">
@@ -60,7 +61,7 @@ export function SamplingRows() {
   const w = useStore((s) => s.workflow);
   const samplers = useStore((s) => s.server.samplers);
   const schedulers = useStore((s) => s.server.schedulers);
-  const set = useStore((s) => s.setWorkflow);
+  const set = useUndoableSetWorkflow();
   const clip = w.clipSkip ?? DEFAULT_CLIP_SKIP;
 
   const phone = useIsPhone();

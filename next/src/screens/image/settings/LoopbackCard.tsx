@@ -23,6 +23,7 @@ import {
   clampRounds, defaultRamp, denoiseRange, fmtNum, growLabel, loopbackSummary,
   setCfg, setDenoise, setDenoiseRange, setEnabled, setFrameEnabled, setGrow, setNoise, setRamp, setRounds, setSameEveryRound, setSteps,
 } from './loopback';
+import { useUndoableSetWorkflow } from '~/app/undoableWorkflow';
 
 const label11 = { fontSize: 11, fontWeight: 700, color: 'var(--il-muted)' } as const;
 const fmtGrow = (v: number) => `×${fmtNum(v)}`;
@@ -41,7 +42,7 @@ export function LoopbackCard({ value, onChange, always = false, title = 'Loopbac
   const wfHeight = useStore((s) => s.workflow.height);
   const width = size?.width ?? wfWidth;
   const height = size?.height ?? wfHeight;
-  const setWorkflow = useStore((s) => s.setWorkflow);
+  const setWorkflow = useUndoableSetWorkflow();
   const own = value ?? saved ?? DEFAULT_LOOPBACK;
   const lb: LoopbackSettings = always ? { ...own, enabled: true } : own;
   const save = (next: LoopbackSettings) => (onChange ? onChange(next) : setWorkflow({ loopback: next }));

@@ -2,13 +2,14 @@
 import { useStore } from '@/lib/store';
 import { SliderRow } from '~/ui';
 import { T } from '~/theme/tokens';
+import { useUndoableSetWorkflow } from '~/app/undoableWorkflow';
 
 const fmtCfg = (v: number) => String(Number(v.toFixed(1)));
 
 export function DetailCard() {
   const steps = useStore((s) => s.workflow.steps);
   const cfg = useStore((s) => s.workflow.cfg);
-  const setWorkflow = useStore((s) => s.setWorkflow);
+  const setWorkflow = useUndoableSetWorkflow();
   return (
     <div style={{ background: 'var(--il-card)', borderRadius: T.radius.xl, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, fontWeight: 700, color: 'var(--il-muted)' }}>

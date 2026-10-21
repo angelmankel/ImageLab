@@ -30,6 +30,7 @@ import { useStepProblem } from './useStepProblem';
 import { skipIfUpToDate } from './upToDate';
 import { useSkipFlash } from '~/app/stepFingerprint';
 import { notifyError, say } from '~/app/notify';
+import { useUndoableSetWorkflow } from '~/app/undoableWorkflow';
 
 /** What the step's Generate does and whether it is running. Pure of look; the phone dock uses it too. */
 export function useStepRun(step: Step): { run: (newSeed?: boolean) => void; stop: () => void; busy: boolean; busyLabel: string; progress: number | null; disabled: string | null } {
@@ -87,7 +88,7 @@ export function useStepRun(step: Step): { run: (newSeed?: boolean) => void; stop
  */
 function BatchCycle({ h }: { h: number }) {
   const batch = useStore((s) => s.workflow.batch);
-  const set = useStore((s) => s.setWorkflow);
+  const set = useUndoableSetWorkflow();
   const list = useCycleList();
   return (
     <>

@@ -13,11 +13,12 @@ import { DimRow } from './DimRow';
 import {
   ASPECTS, LONGEST_SIDES, SLIDER_STEP, aspectById, aspectOf, fmtSize, isPresetSize, longestChip, longestOf, megapixels, roundTo, scaleToLongest, sizeFor, type AspectId,
 } from './size';
+import { useUndoableSetWorkflow } from '~/app/undoableWorkflow';
 
 export function SizeControl() {
   const width = useStore((s) => s.workflow.width);
   const height = useStore((s) => s.workflow.height);
-  const setWorkflow = useStore((s) => s.setWorkflow);
+  const setWorkflow = useUndoableSetWorkflow();
   const [manual, setManual] = useState(() => !isPresetSize(width, height));
   const aspect: AspectId = manual && !isPresetSize(width, height) ? 'custom' : aspectOf(width, height);
   const chip = longestChip(width, height);
