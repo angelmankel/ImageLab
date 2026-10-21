@@ -21,6 +21,8 @@ interface LibraryState {
   /** Multi-select mode and its picks. */
   selecting: boolean;
   picked: readonly string[];
+  /** Phone: the selected item's details are open (portrait: the item sheet; landscape: the Item pane). Kept across a rotation. */
+  detail: boolean;
   panelOpen: boolean;
   panelWidth: number;
   /** The desktop page's left column (filter bar + grid, list-2 item 18). */
@@ -40,6 +42,7 @@ interface LibraryState {
   setSelecting: (on: boolean) => void;
   togglePick: (key: string) => void;
   setPicked: (keys: readonly string[]) => void;
+  setDetail: (on: boolean) => void;
   setPanelOpen: (on: boolean) => void;
   setPanelWidth: (w: number) => void;
   setGridOpen: (on: boolean) => void;
@@ -63,6 +66,7 @@ export const useLibrary = create<LibraryState>()(
       selectedKey: null,
       selecting: false,
       picked: NONE,
+      detail: false,
       panelOpen: true,
       panelWidth: T.size.libraryPanel,
       gridOpen: true,
@@ -79,6 +83,7 @@ export const useLibrary = create<LibraryState>()(
       setSelecting: (selecting) => set({ selecting, picked: NONE }),
       togglePick: (key) => set((s) => ({ picked: toggleKey(s.picked, key) })),
       setPicked: (picked) => set({ picked: picked.length ? picked : NONE }),
+      setDetail: (detail) => set({ detail }),
       setPanelOpen: (panelOpen) => set({ panelOpen }),
       setPanelWidth: (panelWidth) => set({ panelWidth }),
       setGridOpen: (gridOpen) => set({ gridOpen }),

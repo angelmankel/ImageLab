@@ -9,7 +9,7 @@ import { useEffect, useRef, useState } from 'react';
 import { IconFolder, IconX } from '@tabler/icons-react';
 import type { Collection } from '@/lib/types';
 import { menuProps } from '~/app/contextMenu';
-import { useImageDrop, useRegisterDropTarget } from '~/dnd';
+import { useImageDrop } from '~/dnd';
 import { addImageToCollection, deleteCollection, renameCollection, startRename, useCollectionsUi } from './collectionActions';
 import { VideoThumb } from '~/ui/VideoThumb';
 
@@ -21,8 +21,7 @@ export function CollectionTile({ c, count, cover, coverIsVideo, active, onPick }
 }) {
   const renaming = useCollectionsUi((s) => s.renaming === c.id);
   const drop = useImageDrop({ onDrop: (item) => void addImageToCollection(c.id, item) });
-  // The phone's Send-to sheet (long-press a picture) lists every collection on screen.
-  useRegisterDropTarget({ id: `collection:${c.id}`, label: `Collection · ${c.name}`, group: 'collection', onDrop: (item) => void addImageToCollection(c.id, item) }, [c.name]);
+  // The Send-to sheet's collection rows are registered app-wide by `CollectionTargets` (mobile pass).
   const ring = drop.over ? '2px solid var(--il-ember)' : active ? '2px solid var(--il-ember)' : drop.active ? '2px dashed var(--il-ember-line)' : '1px solid var(--il-line-soft)';
   return (
     <div {...drop.props} {...menuProps('collection', c)}

@@ -3,7 +3,8 @@
  * for videos; 🗑 top-left and ♥ top-right on hover (♥ always when liked; on touch on the selected
  * tile) — the shared `TileActions`, as in the history panel. Hover: the model · time along the
  * bottom. Selected = 3px ember ring inside; in Select mode a round check top-left. Click = select
- * (or pick); a click on the selected tile = fullscreen (`tileClick`).
+ * (or pick); a click on the selected tile = fullscreen (`tileClick`). Right-click / long-press = the
+ * 'history-image' menu (`libraryMenu.ts`).
  * Videos autoplay muted while on screen; the grid's controller (useVideoAutoplay) owns src/play/pause.
  */
 import { memo, useState } from 'react';
@@ -15,6 +16,8 @@ import { TileActions, tileClick } from '~/ui';
 import { durationLabel, prettyModel, whenLabel, type LibItem } from './libraryLogic';
 import { useAutoplayVideo } from './useVideoAutoplay';
 import { makePayload, nameFromUrl, useImageDrag } from '~/dnd';
+import { menuProps } from '~/app/contextMenu';
+import { libMenuTarget } from './libraryMenu';
 
 export const Tile = memo(function Tile({ item, selected, selecting, picked, radius, onClick, onOpen }: {
   item: LibItem; selected: boolean; selecting: boolean; picked: boolean; radius: number;
@@ -34,7 +37,8 @@ export const Tile = memo(function Tile({ item, selected, selecting, picked, radi
   const click = selecting ? () => onClick(item) : tileClick(selected, () => onClick(item), () => onOpen(item));
   const entry = item.entry;
   return (
-    <div data-tile-selected={selected && !selecting} style={{ position: 'relative' }}>
+    // Right-click / a phone long-press: the app's picture menu (+ "Select"); none in Select mode (a tap picks).
+    <div data-tile-selected={selected && !selecting} style={{ position: 'relative' }} {...(selecting ? {} : menuProps('history-image', libMenuTarget(item)))}>
     <button
       type="button"
       className="lib-tile"

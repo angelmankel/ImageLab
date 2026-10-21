@@ -7,7 +7,7 @@ import { useCallback } from 'react';
 import { IconPlus } from '@tabler/icons-react';
 import { useEdgeFade, useWheelSideways } from '~/ui';
 import { useStore } from '@/lib/store';
-import { useImageDrop, useRegisterDropTarget } from '~/dnd';
+import { useImageDrop } from '~/dnd';
 import { CollectionTile, TILE } from './CollectionTile';
 import { newCollection, newCollectionWith, setActiveCollection, useCollectionsUi } from './collectionActions';
 import { coverId, shownIds } from './collectionsLogic';
@@ -20,7 +20,6 @@ export interface ItemLookup {
 
 function PlusTile() {
   const drop = useImageDrop({ onDrop: (item) => void newCollectionWith(item) });
-  useRegisterDropTarget({ id: 'collection:new', label: 'New collection', group: 'collection', order: 99, onDrop: (item) => void newCollectionWith(item) });
   return (
     <button type="button" {...drop.props} onClick={() => newCollection()} aria-label="New collection" title="New collection"
       style={{

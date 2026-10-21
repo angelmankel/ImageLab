@@ -20,6 +20,7 @@ import './sessionPick'; // per-session current picture + a finished job's pictur
 import { ContextMenuHost } from './contextMenu';
 import { SnippetsFromImageHost } from '~/screens/image/writeIt/SnippetsFromImage';
 import { DragLayer, SendToSheet } from '~/dnd';
+import { CollectionTargets } from '~/screens/image/collections/CollectionTargets';
 import { CompositionSync } from '~/compose/sizeStore';
 import { UiEffects } from '~/ui/UiEffects';
 import { CursorEffects } from '~/app/cursors';
@@ -44,6 +45,7 @@ export function App() {
       <DragLayer />
       <CompositionSync />
       <SendToSheet />
+      <CollectionTargets />
       <UiEffects />
       <CursorEffects />
     </ErrorBoundary>

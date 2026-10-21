@@ -5,7 +5,7 @@
  * in its order. Its own 44px row on top: the counter, the zoom with Fit, and ⤢ (the full-screen
  * viewer). Nothing over the picture but the edge arrows (on hover).
  */
-import { useRef, useState } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { useMediaQuery } from '@mantine/hooks';
 import { IconArrowsMaximize, IconZoomReset } from '@tabler/icons-react';
 import { usePanZoom } from '@/hooks/usePanZoom';
@@ -18,8 +18,10 @@ import type { LibItem } from './libraryLogic';
 import { libToViewer } from './LibraryViewer';
 import '~/screens/viewer/viewerMenu';
 
-export function LibraryStage({ items, index, onPick, onOpen }: {
+export function LibraryStage({ items, index, onPick, onOpen, lead }: {
   items: readonly LibItem[]; index: number; onPick: (i: number) => void; onOpen: () => void;
+  /** Phone landscape: the Back button at the start of the top row. */
+  lead?: ReactNode;
 }) {
   const item = items[index] as LibItem | undefined;
   const box = useRef<HTMLDivElement>(null);
@@ -37,6 +39,7 @@ export function LibraryStage({ items, index, onPick, onOpen }: {
   return (
     <section aria-label="Preview" style={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', background: 'var(--il-bg-deep)' }}>
       <div style={{ height: 44, flex: 'none', display: 'flex', alignItems: 'center', gap: 6, padding: '0 10px' }}>
+        {lead}
         {len > 0 && <span style={{ fontWeight: 800, fontSize: 12, color: 'var(--il-fg2)', fontVariantNumeric: 'tabular-nums' }}>{index + 1} / {len}</span>}
         <div style={{ flex: 1 }} />
         {zoomed && <span style={{ fontWeight: 800, fontSize: 12, color: 'var(--il-muted)', fontVariantNumeric: 'tabular-nums' }}>{Math.round(pz.zoom * 100)}%</span>}
