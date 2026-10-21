@@ -88,18 +88,29 @@ export function PagerPicture({ items, index, onIndexChange, liveUrl, onClose, on
     }
     s.axis = null;
   };
-  const pz = usePanZoom(box, { resetKey: item?.key ?? index, onDrag, onTap });
+  // A tap while zoomed in does nothing (list-2: a tap closes the viewer only at fit size).
+  const zoomRef = useRef(1);
+  const pz = usePanZoom(box, { resetKey: item?.key ?? index, onDrag, onTap: () => { if (zoomRef.current <= 1.05) onTap(); } });
+  zoomRef.current = pz.zoom;
   const isVideo = item?.kind === 'video' && !live;
   // A mouse at fit size: the press is the drag source's (native drag needs no pointer capture), a
   // click toggles focus; the wheel still zooms. Touch, pen and a zoomed picture go to pan / zoom.
   const mouseFit = (e: React.PointerEvent | React.MouseEvent) => !!dragProps && pz.zoom <= 1.05 && (e as React.PointerEvent).pointerType !== 'touch' && (e as React.PointerEvent).pointerType !== 'pen' && !isVideo;
   const mouseFitDown = useRef(false);
+  const mouseAt = useRef<{ x: number; y: number } | null>(null);
   const handlers = {
     ...pz.handlers,
-    onPointerDown: (e: React.PointerEvent) => { mouseFitDown.current = mouseFit(e); if (!mouseFitDown.current) pz.handlers.onPointerDown(e); },
+    onPointerDown: (e: React.PointerEvent) => { mouseFitDown.current = mouseFit(e); mouseAt.current = { x: e.clientX, y: e.clientY }; if (!mouseFitDown.current) pz.handlers.onPointerDown(e); },
     onPointerMove: (e: React.PointerEvent) => { if (!mouseFitDown.current) pz.handlers.onPointerMove(e); },
     onPointerUp: (e: React.PointerEvent) => { if (!mouseFitDown.current) pz.handlers.onPointerUp(e); },
-    onClick: (e: React.MouseEvent) => { if (mouseFitDown.current) { mouseFitDown.current = false; onTap(); } else pz.handlers.onClick(e); },
+    // A mouse click at fit size is a tap at once (no double-click zoom there; the wheel zooms), unless it moved ≥ 5 px.
+    onClick: (e: React.MouseEvent) => {
+      if (!mouseFitDown.current) { pz.handlers.onClick(e); return; }
+      mouseFitDown.current = false;
+      const d = mouseAt.current;
+      if ((e.target as HTMLElement).closest('button') || (d && Math.hypot(e.clientX - d.x, e.clientY - d.y) >= 5)) return;
+      onTap();
+    },
   };
   const pan = { transform: `translate(${pz.offset.x}px, ${pz.offset.y}px) scale(${pz.zoom})`, transition: pz.reframing ? 'transform 250ms cubic-bezier(.22, 1, .36, 1)' : undefined };
 

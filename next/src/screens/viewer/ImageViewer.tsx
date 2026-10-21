@@ -72,7 +72,7 @@ export function ImageViewer({ items, index, onIndexChange, onClose, liveUrl = nu
   const [revealed, setRevealed] = useState<ReadonlySet<string>>(() => new Set());
   /** The nav is held awake: a popover of it is open or the pointer is on it. */
   const [hold, setHold] = useState(false);
-  const { idle, wake, sleep } = useIdle(2500, !meta || phone, hold);
+  const { idle, wake } = useIdle(2500, !meta && !phone, hold);
 
   const rootRef = useRef<HTMLDivElement>(null);
   useEffect(() => { rootRef.current?.focus({ preventScroll: true }); }, []);
@@ -106,8 +106,11 @@ export function ImageViewer({ items, index, onIndexChange, onClose, liveUrl = nu
 
   if (!item && !live) return null;
 
-  // A tap on the picture: stops a slideshow; on a phone it shows / hides the nav.
-  const tapPicture = () => { if (showing) setPlaying(false); else if (phone) { if (idle) wake(); else sleep(); } };
+  // A tap / click on the picture closes the viewer (list-2: open and close are a toggle with the
+  // canvas click). Not on the nav, the arrows or the panel (they are outside the picture or
+  // buttons), not after a drag / swipe / pan, not while zoomed in (ViewerPicture), not on a clip
+  // (its controls). A running slideshow stops first.
+  const tapPicture = () => { if (showing) setPlaying(false); else if (item?.kind !== 'video' || live) close(); };
   const picture = showing ? (
     <ShowPicture items={items} index={i} onIndexChange={onIndexChange} transition={transition} speedMs={speedMs} onTap={tapPicture} onNatural={onNatural} />
   ) : (
