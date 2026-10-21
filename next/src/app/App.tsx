@@ -20,6 +20,7 @@ import { ContextMenuHost } from './contextMenu';
 import { DragLayer, SendToSheet } from '~/dnd';
 import { CompositionSync } from '~/compose/sizeStore';
 import { UiEffects } from '~/ui/UiEffects';
+import { CursorEffects } from '~/app/cursors';
 import './sessionMenus'; // boots the sessions store (fix list 20 / 36) + its right-click entries
 import { useFullscreenHotkey } from './fullscreen';
 import { useLogoFavicon } from './logo';
@@ -41,6 +42,7 @@ export function App() {
       <CompositionSync />
       <SendToSheet />
       <UiEffects />
+      <CursorEffects />
     </ErrorBoundary>
   );
 }

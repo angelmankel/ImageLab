@@ -12,9 +12,10 @@ import { SERVERS_ROWS } from './serversRows';
 import { SOUNDS_ROWS } from './soundsRows';
 import { HINTS_ROWS } from './hintsRows';
 import { GENERATE_ROWS } from './generateRows';
+import { CURSOR_ROWS } from './cursorRows';
 import { THEMES_ROWS } from './themesRows';
 
-export const ALL_ROWS: readonly SettingDef[] = [...SERVERS_ROWS, ...GENERATE_ROWS, ...AI_ROWS, ...MODELS_ROWS, ...COMPOSITION_ROWS, ...APPEARANCE_ROWS, ...THEMES_ROWS, ...SOUNDS_ROWS, ...HINTS_ROWS, ...ABOUT_ROWS];
+export const ALL_ROWS: readonly SettingDef[] = [...SERVERS_ROWS, ...GENERATE_ROWS, ...AI_ROWS, ...MODELS_ROWS, ...COMPOSITION_ROWS, ...APPEARANCE_ROWS, ...THEMES_ROWS, ...CURSOR_ROWS, ...SOUNDS_ROWS, ...HINTS_ROWS, ...ABOUT_ROWS];
 
 export const rowsOf = (category: CategoryId): SettingDef[] => ALL_ROWS.filter((r) => r.category === category);
 

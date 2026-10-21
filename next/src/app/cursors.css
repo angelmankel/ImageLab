@@ -1,0 +1,37 @@
+/* Fix list 2 #21: the app cursors (see cursors.ts). Only while <html> has .il-cursors.
+   Inline `cursor: x` styles (React and imperative el.style.cursor) are matched by attribute, so a
+   later rule wins for look-alikes (grab → grabbing). Text / default / none / copy / help stay native.
+   The broad pointer rule (links, buttons, tabs…) has no !important: an inline cursor still wins. */
+html.il-cursors [style*="cursor: pointer"],
+html.il-cursors .cursor-pointer { cursor: var(--il-cur-pointer) !important; }
+html.il-cursors .il-btn:not(:disabled) { cursor: var(--il-cur-pointer); }
+html.il-cursors .il-switch .mantine-Switch-track { cursor: var(--il-cur-pointer); }
+html.il-cursors .il-search .il-x { cursor: var(--il-cur-pointer); }
+html.il-cursors :is(a[href], button, [role="button"], [role="tab"], [role="menuitem"], [role="option"], [role="radio"], [role="checkbox"], [role="switch"], summary, label[for]):not(:disabled):not([data-disabled]):not([aria-disabled="true"]) { cursor: var(--il-cur-pointer); }
+html.il-cursors [style*="cursor: zoom-in"],
+html.il-cursors .cursor-zoom-in { cursor: var(--il-cur-zoom-in) !important; }
+html.il-cursors [style*="cursor: zoom-out"],
+html.il-cursors .cursor-zoom-out { cursor: var(--il-cur-zoom-out) !important; }
+html.il-cursors [style*="cursor: grab"],
+html.il-cursors .cursor-grab { cursor: var(--il-cur-grab) !important; }
+html.il-cursors [style*="cursor: grabbing"],
+html.il-cursors .cursor-grabbing { cursor: var(--il-cur-grabbing) !important; }
+html.il-cursors .active\:cursor-grabbing:active { cursor: var(--il-cur-grabbing) !important; }
+html.il-cursors [style*="cursor: move"],
+html.il-cursors .cursor-move { cursor: var(--il-cur-move) !important; }
+html.il-cursors [style*="cursor: crosshair"],
+html.il-cursors .cursor-crosshair { cursor: var(--il-cur-crosshair) !important; }
+html.il-cursors [style*="cursor: not-allowed"],
+html.il-cursors .cursor-not-allowed { cursor: var(--il-cur-not-allowed) !important; }
+html.il-cursors [style*="cursor: ew-resize"],
+html.il-cursors .cursor-ew-resize { cursor: var(--il-cur-ew-resize) !important; }
+html.il-cursors [style*="cursor: ns-resize"],
+html.il-cursors .cursor-ns-resize { cursor: var(--il-cur-ns-resize) !important; }
+html.il-cursors [style*="cursor: nwse-resize"],
+html.il-cursors .cursor-nwse-resize { cursor: var(--il-cur-nwse-resize) !important; }
+html.il-cursors [style*="cursor: nesw-resize"],
+html.il-cursors .cursor-nesw-resize { cursor: var(--il-cur-nesw-resize) !important; }
+html.il-cursors [style*="cursor: col-resize"],
+html.il-cursors .cursor-col-resize { cursor: var(--il-cur-col-resize) !important; }
+html.il-cursors [style*="cursor: row-resize"],
+html.il-cursors .cursor-row-resize { cursor: var(--il-cur-row-resize) !important; }

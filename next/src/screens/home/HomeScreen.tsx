@@ -18,6 +18,7 @@ import { ago, byName, byRecent, displayName } from '~/app/sessionsLogic';
 import { colorOf } from '~/app/sessionColor';
 import { formatWhen } from '~/lib/time';
 import { columnsFor, deal, ghostsFor } from './homeLayout';
+import { toCssPx } from '~/theme/uiScale';
 import { menuProps, openMenu } from '~/app/contextMenu';
 import { useSteps } from '~/app/stepsStore';
 import { SessionThumb } from './SessionThumb';
@@ -148,7 +149,7 @@ function Masonry({ tiles, phone, scroller }: { tiles: Array<{ key: string; node:
     if (!el || !sc) return;
     const measure = () => {
       setWidth(el.clientWidth);
-      const top = el.getBoundingClientRect().top - sc.getBoundingClientRect().top + sc.scrollTop;
+      const top = toCssPx(el.getBoundingClientRect().top - sc.getBoundingClientRect().top) + sc.scrollTop;
       const padBottom = parseFloat(getComputedStyle(sc).paddingBottom) || 0;
       setRoom(Math.max(0, sc.clientHeight - top - padBottom));
       setHeights(colRefs.current.slice(0, cols).map((c) => c?.offsetHeight ?? 0));
