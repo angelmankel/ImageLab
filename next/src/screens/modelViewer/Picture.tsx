@@ -10,16 +10,15 @@
  * cropped — twice). An absolute child resolves against the box itself, always: the longest edge
  * is capped by the free space, the aspect is kept, nothing crops, stretches or overflows.
  */
-import { IconChevronLeft, IconChevronRight, IconEyeOff } from '@tabler/icons-react';
+import { IconEyeOff } from '@tabler/icons-react';
 import { useEffect, useState, type CSSProperties } from 'react';
 import type { CivitaiImage } from '@/lib/civitai';
 import { civitaiThumbUrl, civitaiVideoUrl, isCivitaiVideo, previewStill } from '@/lib/civitai';
-import { IconBtn } from '~/ui';
+import { NavArrows } from '~/ui';
 import { whenReady } from './preload';
 import { makePayload, nameFromUrl, useImageDrag } from '~/dnd';
 
 export const PICTURE_WIDTH = 1600;
-export const EDGE_COL = 44;
 /** How long a page swap waits for the new picture to decode before showing it anyway. */
 const SWAP_CAP_MS = 150;
 
@@ -76,19 +75,11 @@ export function Picture({ image, hidden, onReveal, onOpen, loading, empty, edges
     <img src={shown} alt="" decoding="async" {...drag} onClick={onOpen} style={{ ...MEDIA, cursor: onOpen ? 'zoom-in' : undefined }} />
   );
 
-  const area = (
+  // Item 30: previous / next float over the picture's edges (the shared NavArrows), no side strips.
+  return (
     <div style={{ position: 'relative', minWidth: 0, minHeight: 0, width: '100%', height: '100%', background: 'var(--il-bg-deep)', overflow: 'hidden', ...style }}>
       {body}
-    </div>
-  );
-
-  if (!edges) return area;
-  return (
-    // Explicit single tracks both ways: an implicit (auto) track would grow to the picture's natural size.
-    <div style={{ display: 'grid', gridTemplateColumns: `${EDGE_COL}px minmax(0, 1fr) ${EDGE_COL}px`, gridTemplateRows: 'minmax(0, 1fr)', minHeight: 0, minWidth: 0, height: '100%', overflow: 'hidden' }}>
-      <div style={{ display: 'grid', placeItems: 'center' }}><IconBtn icon={<IconChevronLeft size={20} stroke={2.2} />} label="Previous image" onClick={onPrev} disabled={!canPrev} tooltip={false} /></div>
-      {area}
-      <div style={{ display: 'grid', placeItems: 'center' }}><IconBtn icon={<IconChevronRight size={20} stroke={2.2} />} label="Next image" onClick={onNext} disabled={!canNext} tooltip={false} /></div>
+      {edges && (canPrev || canNext) && <NavArrows onPrev={onPrev} onNext={onNext} canPrev={canPrev} canNext={canNext} />}
     </div>
   );
 }

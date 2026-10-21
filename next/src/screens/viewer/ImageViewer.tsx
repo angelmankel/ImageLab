@@ -26,7 +26,7 @@ import { ViewerStrip } from './ViewerStrip';
 import { SendPanel } from './SendPanel';
 import { DetailsPanel } from './DetailsPanel';
 import { ExternalDetails } from './ExternalDetails';
-import { EdgeArrows } from './EdgeArrows';
+import { NavArrows } from '~/ui/NavArrows';
 import { useIdle } from './useIdle';
 import { useViewerStore, type ViewerTab } from './viewerStore';
 import type { ViewerItem } from './types';
@@ -126,7 +126,7 @@ export function ImageViewer({ items, index, onIndexChange, onClose, liveUrl = nu
           </button>
         </div>
       ) : <div style={{ position: 'absolute', inset: 0 }}>{picture}</div>}
-      {canPage && !showing && !phone && <EdgeArrows onPrev={() => go(-1)} onNext={() => go(1)} show={!idle} />}
+      {canPage && !showing && !phone && <NavArrows onPrev={() => go(-1)} onNext={() => go(1)} show={!idle} size={44} inset={14} />}
     </div>
   );
   const panelBody = item?.external ? <ExternalDetails item={item} natural={natural} /> : item && !live ? (tab === 'send' ? <SendPanel item={item} onClose={close} /> : <DetailsPanel item={item} natural={natural} />) : (

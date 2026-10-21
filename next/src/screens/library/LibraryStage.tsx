@@ -12,7 +12,7 @@ import { usePreloadAround } from '@/hooks/usePreload';
 import { menuProps } from '~/app/contextMenu';
 import { IconBtn } from '~/ui';
 import { CHECKER, mayHaveAlpha } from '~/screens/image/checker';
-import { EdgeArrows } from '~/screens/viewer/EdgeArrows';
+import { NavArrows } from '~/ui/NavArrows';
 import type { LibItem } from './libraryLogic';
 import { libToViewer } from './LibraryViewer';
 import '~/screens/viewer/viewerMenu';
@@ -23,7 +23,6 @@ export function LibraryStage({ items, index, onPick, onOpen }: {
   const item = items[index] as LibItem | undefined;
   const box = useRef<HTMLDivElement>(null);
   const [fitN, setFitN] = useState(0);
-  const [hover, setHover] = useState(false);
   const pz = usePanZoom(box, { resetKey: `${item?.key ?? ''}:${fitN}` });
   usePreloadAround(items.map((i) => i.url), index);
   const len = items.length;
@@ -42,8 +41,6 @@ export function LibraryStage({ items, index, onPick, onOpen }: {
       </div>
       <div
         ref={box}
-        onPointerEnter={() => setHover(true)}
-        onPointerLeave={() => setHover(false)}
         {...(item && !isVideo ? pz.handlers : {})}
         {...(item ? menuProps('viewer-image', { item: libToViewer(item), onClose: () => undefined }) : {})}
         style={{ flex: 1, minHeight: 0, position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', touchAction: 'none', userSelect: 'none', cursor: zoomed ? 'grab' : 'default' }}
@@ -57,7 +54,7 @@ export function LibraryStage({ items, index, onPick, onOpen }: {
             style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', display: 'block', ...(mayHaveAlpha(item.filename) ? CHECKER : {}),
               transform: `translate(${pz.offset.x}px, ${pz.offset.y}px) scale(${pz.zoom})`, transition: pz.reframing ? 'transform 250ms cubic-bezier(.22, 1, .36, 1)' : undefined, willChange: 'transform' }} />
         )}
-        {len > 1 && <EdgeArrows onPrev={() => go(-1)} onNext={() => go(1)} show={hover} />}
+        {len > 1 && <NavArrows onPrev={() => go(-1)} onNext={() => go(1)} />}
       </div>
     </section>
   );

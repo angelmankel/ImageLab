@@ -35,3 +35,4 @@ export { Skeleton, SkeletonText, SkeletonTiles, Spinner, LoadingState } from './
 export { LoadingImage } from './LoadingImage';
 export type { LoadingImageProps } from './LoadingImage';
 export { ResetButton, resetWithUndo, sameValue } from './ResetButton';
+export { NavArrows } from './NavArrows';

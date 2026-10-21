@@ -291,3 +291,18 @@ html[data-motion="off"] .il-ring-spin { animation: none; }
 /* Reset to default (FIXLIST-2 item 8): a quiet ↺ that fades in when a value leaves its default. */
 .il-reset { animation: il-pop calc(.14s * var(--il-motion)) ease both; transition: color .12s ease, background-color .12s ease; }
 .il-reset:hover { color: var(--il-ember-hi) !important; background: var(--il-card-on) !important; }
+
+/* ---- Previous / next arrows (FIXLIST-2 item 30, ui/NavArrows): compact round frosted buttons over
+   the picture's edges. Hidden until the pointer is over their box; always shown on touch screens. */
+.il-nav {
+  display: grid; place-items: center; padding: 0; border: 0; border-radius: 50%; cursor: pointer; color: var(--il-fg);
+  background: color-mix(in srgb, var(--il-elev) 62%, transparent); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, .35), inset 0 0 0 1px color-mix(in srgb, var(--il-fg) 8%, transparent);
+  opacity: 0; pointer-events: none;
+  transition: opacity calc(.18s * var(--il-motion)) ease, background-color .12s ease, transform calc(.12s * var(--il-motion)) ease;
+}
+*:hover > .il-nav:not(:disabled), .il-nav:focus-visible, .il-nav[data-show="true"]:not(:disabled) { opacity: 1; pointer-events: auto; }
+@media (hover: none) { .il-nav:not(:disabled) { opacity: 1; pointer-events: auto; } }
+.il-nav[data-show="false"] { opacity: 0 !important; pointer-events: none !important; }
+.il-nav:hover { background: color-mix(in srgb, var(--il-card-on) 88%, transparent); transform: scale(calc(1 + .06 * var(--il-motion))); }
+.il-nav:active { transform: scale(calc(1 - .06 * var(--il-motion))); }
