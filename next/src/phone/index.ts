@@ -18,3 +18,11 @@ export type { HapticKind } from './haptic';
 export { useKeyboardInset, useKeyboardOpen, revealFocused } from './keyboard';
 export { PhoneEffects } from './PhoneEffects';
 export { useKeepScroll } from '~/screens/models/useKeepScroll';
+// The phone map (Donny 10-21): stacked cards for depth, sideways swipes between siblings, the band + circle HUD.
+export { phoneNav, usePhoneNav } from './nav/navStore';
+export { registerPhonePage, setScreenPath, phonePageDef, siblingsOf, pageTitle } from './nav/pages';
+export type { PhonePageDef, PhonePageProps, PageRef, SiblingSet } from './nav/pages';
+export { usePhoneBand, usePhonePage } from './nav/band';
+export type { BandAction, BandSpec } from './nav/band';
+export type { NavPage } from './nav/navLogic';
+export { flashMap } from './nav/MapDots';

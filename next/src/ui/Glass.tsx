@@ -1,5 +1,6 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { T, btnRadius } from '~/theme/tokens';
+import { useNavFrame } from '~/phone/nav/frameFlag';
 
 /**
  * The phone's glass surfaces (rule 11). `GlassBar` sits at the bottom edge above the safe area;
@@ -20,6 +21,8 @@ export function GlassBar({ children, style }: { children: ReactNode; style?: CSS
 }
 
 export function BackPill({ onClick, label = 'Back' }: { onClick: () => void; label?: string }) {
+  // The phone's nav frame has its own way out (pull the card down, the band's "‹ parent").
+  if (useNavFrame((s) => s.on)) return null;
   return (
     <button
       type="button"

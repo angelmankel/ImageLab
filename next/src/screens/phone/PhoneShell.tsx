@@ -1,36 +1,20 @@
 /**
- * The phone shell (rule 11). The step screen is a sideways pager of the steps, each with a Create
- * and an Output page, under the glass dock (steps strip + Create · Output · Generate · Library ·
- * More). Library, Models, ComfyUI and Settings render their own `<Name>PhoneScreen` full screen
- * with no dock (each shows the lone "‹ Back" pill). The root effects (connection, jobs) run on
- * every screen.
+ * The phone shell (rule 11; mobile pass, Donny 10-21): the phone map — stacked cards for depth,
+ * sideways swipes between siblings, the bottom band with the circle HUD (`~/phone/nav`). Each
+ * owner registers its page kinds (`registerPhonePage`); this file mounts the frame and the
+ * root effects (connection, jobs, keyboard) that run on every screen.
  */
-import { useRoute } from '~/app/routeStore';
-import { LibraryPhoneScreen } from '~/screens/library';
-import { ModelsPhoneScreen } from '~/screens/models';
-import { ComfyPhoneScreen } from '~/screens/comfy';
-import { SettingsPhoneScreen } from '~/screens/settings';
-import { HomePhoneScreen } from '~/screens/home/HomePhoneScreen';
 import { AppEffects } from './imageBridge';
-import { PhoneStepScreen } from './PhoneStepScreen';
 import { PhoneEffects } from '~/phone/PhoneEffects';
-
-function Screen() {
-  const screen = useRoute((s) => s.screen);
-  if (screen === 'home') return <HomePhoneScreen />;
-  if (screen === 'library') return <LibraryPhoneScreen />;
-  if (screen === 'models') return <ModelsPhoneScreen />;
-  if (screen === 'comfy') return <ComfyPhoneScreen />;
-  if (screen === 'settings') return <SettingsPhoneScreen />;
-  return <PhoneStepScreen />;
-}
+import { NavHost } from '~/phone/nav/NavHost';
+import '~/phone/nav/shellPages';
 
 export function PhoneShell() {
   return (
     <div style={{ position: 'relative', height: '100%', overflow: 'hidden', background: 'var(--il-bg)', overscrollBehavior: 'none' }}>
       <AppEffects />
       <PhoneEffects />
-      <Screen />
+      <NavHost />
     </div>
   );
 }

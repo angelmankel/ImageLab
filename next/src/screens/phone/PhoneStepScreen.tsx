@@ -36,7 +36,7 @@ const EASE = 'cubic-bezier(0.22, 1, 0.36, 1)';
  * (`PhoneRail`, Generate in the right thumb's reach). The step, tab and Create / Output choice live in
  * stores, so a rotation keeps them.
  */
-function LandscapeStep({ step, onJump }: { step: Step; onJump: (id: string) => void }) {
+function LandscapeStep({ step, onJump, framed }: { step: Step; onJump: (id: string) => void; framed?: boolean }) {
   const page = usePhone((s) => s.page);
   const stage = usePhoneStage(step);
   return (
@@ -46,12 +46,13 @@ function LandscapeStep({ step, onJump }: { step: Step; onJump: (id: string) => v
       side={page === 'create'
         ? <StepPanel phone stepId={step.id} />
         : <><StageExtras step={step} stage={stage} /><div style={{ padding: `0 10px 12px` }}><QueueCard /></div></>}
-      rail={<PhoneRail />}
+      rail={framed ? undefined : <PhoneRail />}
     />
   );
 }
 
-export function PhoneStepScreen() {
+/** `framed`: inside the phone nav frame (its band has Generate and the HUD), so no dock / rail / More sheet here. */
+export function PhoneStepScreen({ framed = false }: { framed?: boolean } = {}) {
   const land = usePhoneLandscape();
   const steps = useSteps((s) => s.steps);
   const activeId = useSteps((s) => s.activeId);
@@ -126,8 +127,8 @@ export function PhoneStepScreen() {
   if (land) {
     return (
       <div style={{ position: 'absolute', inset: 0, background: 'var(--il-bg)' }}>
-        <LandscapeStep key={step.id} step={step} onJump={jump} />
-        <MoreSheet />
+        <LandscapeStep key={step.id} step={step} onJump={jump} framed={framed} />
+        {!framed && <MoreSheet />}
         <StepSheet />
       </div>
     );
@@ -151,8 +152,8 @@ export function PhoneStepScreen() {
           {next && <div style={side(1)}><StepPeek step={next} index={index + 1} page={page} /></div>}
         </div>
       </div>
-      <PhoneDock onJump={jump} />
-      <MoreSheet />
+      {!framed && <PhoneDock onJump={jump} />}
+      {!framed && <MoreSheet />}
       <StepSheet />
     </div>
   );

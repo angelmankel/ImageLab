@@ -17,6 +17,7 @@ import { toCssPx, vh } from '~/theme/uiScale';
 import { useScrollIntoView } from '~/ui/scrollIntoNearest';
 import { useIsPhone } from '~/app/useIsPhone';
 import { haptic } from '~/phone/haptic';
+import { MenuSheet } from '~/phone/MenuSheet';
 import {
   firstIndex, isTextField, lastIndex, letterIndex, placeAtPoint, placeBeside, stepIndex, type MenuRow,
 } from './menuLogic';
@@ -326,7 +327,8 @@ export function ContextMenuHost() {
   return (
     <>
       <style>{CSS}</style>
-      {menu && createPortal(<MenuRoot key={menu.seq} menu={menu} phone={phone} />, document.body)}
+      {/* phone: menus come from the bottom (mobile pass) */}
+      {menu && (phone ? <MenuSheet key={menu.seq} menu={menu} zIndex={Z} /> : createPortal(<MenuRoot key={menu.seq} menu={menu} phone={phone} />, document.body))}
     </>
   );
 }

@@ -1,4 +1,5 @@
 /**
+ * DEPRECATED (10-21): the phone map's band (`~/phone/nav/Band`) replaces the dock in both orientations.
  * The dock in landscape (mobile pass, m-shell): the same five places as the portrait dock —
  * Create · Output · Generate · Library · More — stacked in a slim column at the right edge, where
  * the thumb is when a phone is held sideways. Its own column of `PhoneTwoPane` (`rail`), so it never
