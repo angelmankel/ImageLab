@@ -18,6 +18,7 @@ import { usePlayerPrefs } from './playerPrefs';
 import { useClipFps } from './useClipFps';
 import { usePlayerKeys } from './usePlayerKeys';
 import { PlayerRow } from './PlayerRow';
+import { FrameImage } from '../frame/FrameImage';
 
 export interface StagePlayerProps {
   /** The clip's URL; null while nothing is rendered yet. */
@@ -165,7 +166,7 @@ export function StagePlayer({ src, name, live = null, busy = false, progress = n
         style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--il-bg-deep)', overflow: 'hidden', position: 'relative', userSelect: 'none', touchAction: phone ? 'pan-y' : 'auto', cursor: src && !live ? 'pointer' : 'default', ...clipStyle }}
       >
         {live ? (
-          <img key={live} src={live} alt="Live preview" draggable={false} style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
+          <FrameImage src={live} fade imgProps={{ draggable: false, alt: 'Live preview' }} imgStyle={{ width: '100%', height: '100%' }} />
         ) : src ? (
           <video
             key={src}

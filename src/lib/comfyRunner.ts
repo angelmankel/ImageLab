@@ -167,7 +167,7 @@ export function createRunStore(keep: KeepResult = keepAll, hideKey?: string): Ru
 
   const store = create<RunState>()((set, get) => {
     const clearPreview = () => {
-      if (previewUrl) { URL.revokeObjectURL(previewUrl); previewUrl = null; }
+      if (previewUrl) { const old = previewUrl; setTimeout(() => URL.revokeObjectURL(old), 3000); previewUrl = null; }
       set({ preview: null });
     };
     const jobsNow = (patch?: (j: RunJob) => RunJob): RunJob[] => {
@@ -228,7 +228,9 @@ export function createRunStore(keep: KeepResult = keepAll, hideKey?: string): Ru
         case 'binary': {
           if (!get().busy) return;
           const url = URL.createObjectURL(new Blob([ev.bytes as BlobPart], { type: ev.mime }));
-          if (previewUrl) URL.revokeObjectURL(previewUrl);
+          // Revoke the old frame a little later: it stays on screen until this one decoded (next/ item 41).
+          const old = previewUrl;
+          if (old) setTimeout(() => URL.revokeObjectURL(old), 3000);
           previewUrl = url;
           return set({ preview: url });
         }

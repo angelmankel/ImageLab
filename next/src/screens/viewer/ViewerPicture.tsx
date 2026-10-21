@@ -18,6 +18,7 @@ import { createVelocityTracker } from '@/lib/momentum';
 import { SLIDE_GAP, closeCommits, closeProgress, closeScale, lockAxis, rubberBand } from '@/lib/pager';
 import { playOrMute, videoHasAudio } from '@/lib/videoAudio';
 import { CHECKER, mayHaveAlpha } from '~/screens/image/checker';
+import { FrameImage } from '~/screens/image/frame/FrameImage';
 import { kenBurnsFrames, nextShowIndex, transitionFrames, type ShowTransition } from './slideshowLogic';
 import type { ViewerItem } from './types';
 
@@ -32,6 +33,8 @@ function Media({ item, url, natural, live, style, current }: { item?: ViewerItem
           onLoadedMetadata={(e) => { natural?.(e.currentTarget.videoWidth, e.currentTarget.videoHeight); playOrMute(e.currentTarget); }} />
       : <video src={url} muted playsInline preload="metadata" style={{ ...box, width: '100%', height: '100%' }} />;
   }
+  // Item 41: a live preview never flashes between frames (the old one stays until the next decoded, then a quick cross-fade).
+  if (live) return <FrameImage src={url} fade onNatural={natural} style={{ position: 'relative', width: '100%', height: '100%' }} imgProps={{ draggable: false }} imgStyle={{ userSelect: 'none', ...style }} />;
   return (
     <img src={url} alt="" draggable={false} decoding="async"
       onLoad={(e) => natural?.(e.currentTarget.naturalWidth, e.currentTarget.naturalHeight)}

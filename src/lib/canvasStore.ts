@@ -764,8 +764,10 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
   setLivePreview: (serverId, url) => {
     const map = get().livePreviews;
     const prev = map[serverId];
+    // Revoke a little later, not now: the next frame is still decoding while the old one is on
+    // screen (next/ item 41 swaps only once the new frame decoded, then cross-fades).
     if (prev && prev !== url && prev.startsWith('blob:')) {
-      URL.revokeObjectURL(prev);
+      setTimeout(() => URL.revokeObjectURL(prev), 3000);
     }
     if (url) {
       set({ livePreviews: { ...map, [serverId]: url } });

@@ -6,10 +6,11 @@
  * (`liveGridLogic.bestGrid`). Used by the stage only when there is more than one picture to show;
  * one picture keeps the stage's own zoomable image.
  */
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '@/lib/store';
 import { useCanvasStore } from '@/lib/canvasStore';
 import { bestGrid, stripBackground, stripCount } from './liveGridLogic';
+import { useArrive, useFrameLayers } from '../frame/FrameImage';
 
 export interface LiveFrame { key: string; url: string; n: number; aspect: number }
 
@@ -47,28 +48,38 @@ export function LiveGrid({ frames }: { frames: LiveFrame[] }) {
     return () => ro.disconnect();
   }, []);
 
-  const tiles = frames.flatMap((f) => {
-    const n = counts[f.key] ?? 1;
-    return Array.from({ length: n }, (_, i) => ({ key: `${f.key}:${i}`, url: f.url, i, n, aspect: f.aspect }));
-  });
+  const total = frames.reduce((n, f) => n + (counts[f.key] ?? 1), 0);
   const aspect = frames[0]?.aspect ?? 1;
-  const grid = bestGrid(tiles.length, aspect, size.w, size.h, 6);
+  const grid = bestGrid(total, aspect, size.w, size.h, 6);
+  const onCount = useCallback((key: string, c: number) => setCounts((m) => (m[key] === c ? m : { ...m, [key]: c })), []);
 
   return (
-    <div ref={box} aria-label={`${tiles.length} live previews`} style={{ position: 'absolute', inset: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      {frames.map((f) => (
-        <img key={f.key} src={f.url} alt="" hidden onLoad={(e) => {
-          const c = stripCount(e.currentTarget.naturalWidth, e.currentTarget.naturalHeight, f.n, f.aspect);
-          setCounts((m) => (m[f.key] === c ? m : { ...m, [f.key]: c }));
-        }} />
-      ))}
-      {grid.tileW > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${grid.cols}, ${Math.floor(grid.tileW)}px)`, gap: 6 }}>
-          {tiles.map((t) => (
-            <div key={t.key} style={{ width: Math.floor(grid.tileW), height: Math.floor(grid.tileW / t.aspect), borderRadius: 6, backgroundColor: 'var(--il-card)', backgroundImage: `url("${t.url}")`, backgroundRepeat: 'no-repeat', ...stripBackground(t.i, t.n) }} />
+    <div ref={box} aria-label={`${total} live previews`} style={{ position: 'absolute', inset: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ display: grid.tileW > 0 ? 'grid' : 'none', gridTemplateColumns: `repeat(${grid.cols}, ${Math.floor(grid.tileW)}px)`, gap: 6 }}>
+        {frames.map((f) => <FrameTiles key={f.key} frame={f} n={counts[f.key] ?? 1} tileW={Math.floor(grid.tileW)} onCount={onCount} />)}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Item 41: one server's tiles. A new frame decodes off screen first, then cross-fades in over the
+ * old one on every tile at once (`useFrameLayers` / `useArrive`); never an empty tile in between.
+ */
+function FrameTiles({ frame: f, n, tileW, onCount }: { frame: LiveFrame; n: number; tileW: number; onCount: (key: string, c: number) => void }) {
+  const layers = useFrameLayers(f.url, (w, h) => onCount(f.key, stripCount(w, h, f.n, f.aspect)));
+  const arrive = useArrive(layers, true);
+  const top = layers.shown[layers.shown.length - 1];
+  return (
+    <>
+      {Array.from({ length: n }, (_, i) => (
+        <div key={i} style={{ position: 'relative', width: tileW, height: Math.floor(tileW / f.aspect), borderRadius: 6, overflow: 'hidden', backgroundColor: 'var(--il-card)' }}>
+          {layers.shown.map((l) => (
+            <div key={l.id} ref={l === top ? arrive : undefined}
+              style={{ position: 'absolute', inset: 0, backgroundImage: `url("${l.url}")`, backgroundRepeat: 'no-repeat', ...stripBackground(i, n) }} />
           ))}
         </div>
-      )}
-    </div>
+      ))}
+    </>
   );
 }

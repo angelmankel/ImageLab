@@ -9,7 +9,9 @@
  * box, its controls are their own 44px row under it (rule 1), ←/→ seek there instead of paging.
  * Delete / Backspace (desktop, no overlay, not in a text box) deletes the shown result with Undo.
  * No animation anywhere (Donny, 10-20): the viewers open, close and seek on the spot (`instant`),
- * a finished image replaces the picture at once (a keyed `<img>`, no slide).
+ * a finished image replaces the picture at once (no slide). Item 41: the picture is a
+ * `frame/FrameImage`: the old one stays until the next has decoded (never a blank frame), live
+ * preview frames cross-fade in ~150 ms (a cut when motion is off), everything else cuts.
  * Item 23 / 43: Compare swaps the picture for the split view (`CompareView`); a picture that may
  * carry alpha sits on a checkerboard; the picture is a drag source (`~/dnd`, at fit size, so a
  * drag on a zoomed picture still pans) and has its own right-click menu ('canvas-image',
@@ -37,6 +39,7 @@ import { CompareView } from './CompareView';
 import { compareIndex } from './compareLogic';
 import { CHECKER, mayHaveAlpha } from './checker';
 import { canvasTarget } from './canvasMenu';
+import { FrameImage } from './frame/FrameImage';
 
 export function StageColumn({ step, phone = false }: { step: Step; phone?: boolean }) {
   const media = useStageMedia(step);
@@ -62,7 +65,7 @@ export function StageColumn({ step, phone = false }: { step: Step; phone?: boole
   const compareKey = useStage((s) => s.compareKey);
   const other = compareOn && !player && !media.live && media.index >= 0 && media.item?.kind === 'image' ? compareIndex(media.items, media.index, compareKey, media.entry?.derivedFrom?.id ?? null) : -1;
   const comparing = other >= 0;
-  const zoom = useStageZoom(ref, shown, player ? undefined : open, !player && !comparing);
+  const zoom = useStageZoom(ref, media.live ? 'live' : shown, player ? undefined : open, !player && !comparing);
   const drag = useImageDrag(() => (media.item && !media.live ? makePayload({ url: media.item.url, name: media.item.filename, kind: media.item.kind, key: media.item.key, entryId: media.entry?.id, source: 'canvas' }) : null), { disabled: !media.item || !!media.live || zoom.state.zoom !== 1 });
   const canOpen = !!media.item || !!media.live;
 
@@ -115,8 +118,9 @@ export function StageColumn({ step, phone = false }: { step: Step; phone?: boole
         {liveFrames.length ? (
           <LiveGrid frames={liveFrames} />
         ) : shown ? (
-          <img key={shown} src={shown} alt="" {...(media.live ? { draggable: false } : drag)} data-viewer-origin={media.entry?.id}
-            style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', display: 'block', ...(!media.live && mayHaveAlpha(media.item?.filename) ? CHECKER : {}), transform: transformOf(zoom.state), transformOrigin: 'center', transition: zoom.state.zoom === 1 ? 'transform .15s' : undefined, willChange: 'transform' }} />
+          <FrameImage src={shown} fade={!!media.live} imgProps={{ ...(media.live ? { draggable: false } : drag), 'data-viewer-origin': media.entry?.id }}
+            layerStyle={(u) => (!media.live && u === media.item?.url && mayHaveAlpha(media.item?.filename) ? CHECKER : undefined)}
+            imgStyle={{ transform: transformOf(zoom.state), transformOrigin: 'center', transition: zoom.state.zoom === 1 ? 'transform .15s' : undefined, willChange: 'transform' }} />
         ) : (
           <div style={{ textAlign: 'center', color: 'var(--il-muted)', fontSize: 13, fontWeight: 600, padding: 24 }}>
             {media.busy ? (media.statusLine ?? 'Working…') : 'No image yet — press Generate.'}
