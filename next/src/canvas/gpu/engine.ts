@@ -241,7 +241,7 @@ export function createGpuCanvas(host: HTMLElement, opts: GpuCanvasOptions = {}):
 
   // ---- Input -----------------------------------------------------------------
   const pointers = new Map<number, Pt>();
-  let drag: { id: number; x: number; y: number; moved: boolean; start: Pt } | null = null;
+  let drag: { id: number; x: number; y: number; moved: boolean; start: Pt; primary?: boolean } | null = null;
   let pinch: { d: number; v: View; mid: Pt } | null = null;
   let pinched = false;
   const vel = createVelocityTracker();
@@ -270,7 +270,7 @@ export function createGpuCanvas(host: HTMLElement, opts: GpuCanvasOptions = {}):
     pointers.set(e.pointerId, p);
     if (pointers.size === 1) {
       pinched = false;
-      drag = { id: e.pointerId, x: p.x, y: p.y, moved: false, start: p };
+      drag = { id: e.pointerId, x: p.x, y: p.y, moved: false, start: p, primary: e.pointerType !== 'mouse' || e.button === 0 };
       vel.reset(p.x, p.y);
     } else if (pointers.size === 2) {
       pinched = true; drag = null;
@@ -315,7 +315,9 @@ export function createGpuCanvas(host: HTMLElement, opts: GpuCanvasOptions = {}):
     if (pointers.size > 1) return;
     const d = drag;
     drag = null; pinch = null;
-    const tap = e.type !== 'pointercancel' && !pinched && !!d && d.id === e.pointerId && !d.moved;
+    // One rule (fix list 2, consistent clicks): a primary press that moved < TAP_PX is a tap, at any zoom;
+    // a pan, a pinch, the middle button (pans) and a right click (the menu) never are.
+    const tap = e.type !== 'pointercancel' && !pinched && !!d && d.id === e.pointerId && !d.moved && !!d.primary;
     pinched = false;
     if (tap) { opts.onTap?.(e); return; }
     if (d?.moved && panEnabled && !(mode === 'view' && isFitted(view, fitNow()))) {
