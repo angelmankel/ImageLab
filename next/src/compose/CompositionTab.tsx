@@ -20,9 +20,10 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { IconLock, IconLockOpen } from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
 import { blobToImageState } from '@/features/inputImage/imageOps';
-import { EditImageModal } from '@/features/inputImage/EditImageModal';
 import { useSteps, stepTitle, type Step } from '~/app/stepsStore';
 import { useIsPhone } from '~/app/useIsPhone';
+import { editInputImage } from '~/canvas/edit/editStore';
+import { usePhone } from '~/screens/phone/phoneStore';
 import { Button, SliderRow, Tip } from '~/ui';
 import { T, btnRadius } from '~/theme/tokens';
 import { dropToBlob, useRegisterDropTarget, type DropItem } from '~/dnd';
@@ -346,7 +347,7 @@ export function CompositionTab({ step }: { step: Step; phone?: boolean }) {
   const setWorkflow = useUndoableSetWorkflow();
   const storedMode = useComposition((s) => s.mode);
   const setMode = useComposition((s) => s.setMode);
-  const [editing, setEditing] = useState(false);
+  const phone = useIsPhone();
   const slot = first ? 'image:1' : `step:${step.id}`;
   const url = first ? inputImage?.dataUrl ?? null : step.input?.url ?? null;
   const origin = useOrigin(slot, url);
@@ -374,7 +375,7 @@ export function CompositionTab({ step }: { step: Step; phone?: boolean }) {
         rememberOrigin(slot, from, st.dataUrl);
       }}
       onClear={() => (first ? setWorkflow({ inputImage: null }) : setStepInput(step.id, null))}
-      onEdit={first && inputImage ? () => setEditing(true) : undefined}
+      onEdit={first && inputImage ? () => editInputImage(inputImage, phone ? () => usePhone.getState().setPage('output') : undefined) : undefined}
     />
   );
 
@@ -407,10 +408,5 @@ export function CompositionTab({ step }: { step: Step; phone?: boolean }) {
     </>
   );
 
-  return (
-    <>
-      {body}
-      {editing && inputImage && <EditImageModal image={inputImage} onClose={() => setEditing(false)} />}
-    </>
-  );
+  return <>{body}</>;
 }

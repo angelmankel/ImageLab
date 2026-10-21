@@ -26,7 +26,11 @@ export interface EditFrame {
   saved?: { image: ComfyImageRef; host: string; serverId: string | null };
 }
 
-export interface EditSource { url: string; filename: string; entry: HistoryEntry | null }
+export interface EditSource {
+  url: string; filename: string; entry: HistoryEntry | null;
+  /** Pinned: the stage's picks never replace it (Composition's input picture, `editInputImage`). */
+  pinned?: boolean;
+}
 
 interface EditState {
   on: boolean;
@@ -88,7 +92,7 @@ export function enterEdit(source: EditSource, fold = true) {
 /** The stage shows another picture: follow it when nothing is edited yet. */
 export function followSource(source: EditSource | null) {
   const st = useEdit.getState();
-  if (!st.on || !source || st.source?.url === source.url || isDirty(st) || st.busy) return;
+  if (!st.on || !source || st.source?.pinned || st.source?.url === source.url || isDirty(st) || st.busy) return;
   void load(source);
 }
 
@@ -103,6 +107,16 @@ export function exitEdit(force = false) {
   const layout = useLayout.getState();
   if (st.panelWasOpen && !layout.stepOpen) layout.toggleStep();
   useEdit.setState({ on: false, source: null, hist: null, loading: false, tool: null, crop: null, busy: null, error: null, askLeave: false, panelWasOpen: null });
+}
+
+/**
+ * Composition's input card → Edit mode on the input picture (a data URL) instead of the old modal.
+ * Pinned, so the stage's picks do not replace it; "Use as input image" writes it back. The phone
+ * shows Edit mode from its Output page, so `onPhone` switches there first.
+ */
+export function editInputImage(img: { dataUrl: string; name: string }, onPhone?: () => void) {
+  onPhone?.();
+  enterEdit({ url: img.dataUrl, filename: img.name || 'input.png', entry: null, pinned: true }, !onPhone);
 }
 
 export function toggleEdit(source: EditSource | null) {
