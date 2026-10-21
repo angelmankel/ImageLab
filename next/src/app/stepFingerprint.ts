@@ -30,6 +30,7 @@ import { allResultsNow, useAllResults } from '~/screens/image/useStepOutput';
 import { resolveStepInput, resultsOfStep, type StepResult } from '~/screens/image/stepInputLogic';
 import { creditStep } from '~/screens/image/historyLogic';
 import { IMAGE_STEP_ONLY } from '~/screens/image/kinds/imageStepOnly';
+import { jobOwner } from './outputs';
 import { useSteps, DEFAULT_REFINE, DEFAULT_UPSCALE, DEFAULT_REMOVE_BG, type Step } from './stepsStore';
 import { chainFreshness, diffSnaps, fingerprintOf, flatten, withSeedsFrom, type Freshness, type Snap, type StepFact } from './fingerprintLogic';
 
@@ -245,7 +246,7 @@ export const stepOfPrompt = (promptId: string): string | undefined => byPrompt.g
 const armed = new Map<RunStore, string>();
 export function noteRunStart(store: RunStore, stepId: string): void { armed.set(store, stepId); }
 
-// Image jobs (the main store): the step that asked (a job's own `stepId` once jobs carry one, else the open step's rule).
+// Image jobs (the main store): the step that asked (its owner, `~/app/outputs`, else the open step's rule).
 let knownJobs = new Set(useStore.getState().jobs.map((j) => j.id));
 useStore.subscribe((st, prev) => {
   if (st.jobs === prev.jobs) return;
@@ -253,7 +254,8 @@ useStore.subscribe((st, prev) => {
   const { steps, activeId } = useSteps.getState();
   for (const j of st.jobs) {
     if (knownJobs.has(j.id)) continue;
-    const stepId = (j as { stepId?: string }).stepId ?? creditStep('image', activeId, steps);
+    // `outputs.ts` (imported first, so its listener ran first) has fixed the job's owner by now.
+    const stepId = jobOwner(j.id)?.stepId || (j as { stepId?: string }).stepId || creditStep('image', activeId, steps);
     if (stepId) remember(j.id, stepId);
   }
   for (const id of knownJobs) if (!ids.has(id)) live.delete(id);
