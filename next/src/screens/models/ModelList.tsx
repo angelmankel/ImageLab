@@ -16,11 +16,13 @@ import { GhostBtn, type Size } from './bits';
 import { Skeleton, Spinner } from '~/ui';
 import { useKeepScroll } from './useKeepScroll';
 
-export function ModelList({ items, view, selectedId, mask, revealed, favourites, installed, picking, size = 'desktop', loading, loadingMore, error, hasMore, hidden, onOpen, onReveal, onUse, onLoadMore, onRetry, scroll, scrollKey = null, minTile = 240, columns }: {
+export function ModelList({ items, view, selectedId, mask, revealed, favourites, installed, picking, size = 'desktop', loading, loadingMore, error, hasMore, hidden, onOpen, onReveal, onUse, onLoadMore, onRetry, scroll, scrollKey = null, minTile = 240, columns, emptyAction }: {
   items: CivitaiModel[]; view: View; selectedId: number | null; mask: number; revealed: number[]; favourites?: number[]; installed: Installed; picking?: boolean; size?: Size;
   loading: boolean; loadingMore: boolean; error: string | null; hasMore: boolean; hidden: number;
   onOpen: (m: CivitaiModel) => void; onReveal: (id: number) => void; onUse: (m: CivitaiModel, v?: CivitaiModelVersion) => void; onLoadMore: () => void; onRetry: () => void;
   scroll?: boolean; scrollKey?: string | null; minTile?: number; columns?: number;
+  /** Under the empty message (a Downloaded search with no hit: "Search CivitAI for …"). */
+  emptyAction?: React.ReactNode;
 }) {
   const sentinel = useRef<HTMLDivElement>(null);
   const keepScroll = useKeepScroll(scroll ? scrollKey : null);
@@ -41,6 +43,7 @@ export function ModelList({ items, view, selectedId, mask, revealed, favourites,
   ) : items.length === 0 ? (
     <div style={{ padding: 40, textAlign: 'center', color: 'var(--il-muted)', fontSize: 12, fontWeight: 700, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
       {error ? <>{error}<GhostBtn onClick={onRetry} h={32}>Try again</GhostBtn></> : hidden > 0 ? `${hidden} loaded model${hidden === 1 ? '' : 's'} hidden by the NSFW / early access / installed / precision filters` : 'Nothing matches — loosen the filters'}
+      {!error && emptyAction}
     </div>
   ) : (
     <>

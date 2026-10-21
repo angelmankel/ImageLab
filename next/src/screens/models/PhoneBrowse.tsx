@@ -19,6 +19,7 @@ import { FChip, MenuPill } from './bits';
 import { SearchBox, SourceChips } from './FilterBar';
 import { ModelList } from './ModelList';
 import { HashProgressLine } from './HashProgressLine';
+import { SearchCivitaiRow } from './SearchCivitaiRow';
 import { PhoneFilters } from './PhoneFilters';
 import { SelectedTagChips } from './TagsRow';
 import { useKeepScroll, modelsListKey } from './useKeepScroll';
@@ -86,7 +87,7 @@ export function PhoneBrowse() {
           items={shown.items} view="grid" columns={2} size="phone" selectedId={null} mask={f.nsfwMask} revealed={revealed} favourites={favourites} installed={installed} picking={actions.picking}
           loading={shown.loading} loadingMore={shown.loadingMore} error={shown.error} hasMore={shown.hasMore} hidden={shown.hidden}
           onOpen={onOpen} onReveal={reveal} onUse={onUse} onLoadMore={onLoadMore} onRetry={() => void refresh()}
-        />
+          emptyAction={<SearchCivitaiRow size="phone" />} />
       </div>
       {!close && <BackPill onClick={() => go('step')} />}
       <PhoneFilters count={shown.total ?? shown.items.length} pool={shown.pool} />

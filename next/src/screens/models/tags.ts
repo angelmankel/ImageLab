@@ -107,6 +107,19 @@ export function rankByTags<M extends TaggedModel>(models: readonly M[], selected
 }
 
 /** Does the model match free text in its name, a tag or its creator? */
+/**
+ * The local search of a source that is not CivitAI (Downloaded, Favourites, Account ★; fix list 2,
+ * added item: "the search runs INSIDE the chosen source"): name, creator, tags, version names,
+ * file names, base models.
+ */
+export function matchesLocal(m: TaggedModel & { modelVersions?: ReadonlyArray<{ name?: string; baseModel?: string; files?: ReadonlyArray<{ name?: string }> }> }, q: string): boolean {
+  const s = norm(q);
+  if (!s) return true;
+  if (matchesText(m, q)) return true;
+  return (m.modelVersions ?? []).some((v) => (v.name ?? '').toLowerCase().includes(s) || (v.baseModel ?? '').toLowerCase().includes(s)
+    || (v.files ?? []).some((f) => (f.name ?? '').toLowerCase().includes(s)));
+}
+
 export function matchesText(m: TaggedModel, q: string): boolean {
   const s = norm(q);
   if (!s) return true;

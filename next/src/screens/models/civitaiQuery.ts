@@ -548,7 +548,9 @@ export interface SearchPlan {
  * one, followed creators come from the local Follow list, one request per username.
  */
 export function planSearch(f: ModelFilters, ctx: { hasKey: boolean; favouriteIds: readonly number[]; followedUsers: readonly string[] }): SearchPlan {
-  let filters = f;
+  // Favourites / Account ★ are their own source: the typed search filters that list on the client
+  // (useShown), it never becomes a CivitAI-wide query (fix list 2, added item).
+  let filters = f.favorites || f.accountFavorites ? { ...f, query: '' } : f;
   if (f.favorites) {
     if (!ctx.favouriteIds.length) return { filters: { ...f, favorites: false }, empty: true };
     filters = { ...filters, favorites: false, ids: [...new Set([...f.ids, ...ctx.favouriteIds])] };

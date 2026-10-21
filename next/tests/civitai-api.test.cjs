@@ -274,3 +274,11 @@ test('image levels come as names: they map to bits for the mask checks', () => {
   assert.equal(Q.isBeyondMask('Soft', 7), false);
   assert.equal(Q.nsfwEnumForMask(63), 'X');
 });
+
+test('a search inside Favourites / Account ★ never becomes a CivitAI-wide query (fix list 2, added item)', () => {
+  const f = { ...Q.DEFAULT_FILTERS, query: 'pa', favorites: true };
+  const plan = Q.planSearch(f, { hasKey: true, favouriteIds: [5, 6], followedUsers: [] });
+  assert.equal(plan.filters.query, '');
+  assert.deepEqual(plan.filters.ids, [5, 6]);
+  assert.equal(Q.planSearch({ ...Q.DEFAULT_FILTERS, query: 'pa' }, { hasKey: true, favouriteIds: [], followedUsers: [] }).filters.query, 'pa');
+});

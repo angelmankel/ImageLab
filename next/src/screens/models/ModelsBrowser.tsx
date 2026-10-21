@@ -4,6 +4,7 @@
  * `ModelsModal` (every picker). `PickContext` says what it was opened for.
  */
 import { HashProgressLine } from './HashProgressLine';
+import { SearchCivitaiRow } from './SearchCivitaiRow';
 import { useCallback, useEffect } from 'react';
 import { Panel } from '~/ui';
 import { T } from '~/theme/tokens';
@@ -77,7 +78,7 @@ export function DesktopBrowser() {
           items={shown.items} view={view} selectedId={selectedId} mask={f.nsfwMask} revealed={revealed} favourites={favourites} installed={installed} picking={actions.picking}
           loading={shown.loading} loadingMore={shown.loadingMore} error={shown.error} hasMore={shown.hasMore} hidden={shown.hidden}
           onOpen={onOpen} onReveal={reveal} onUse={onUse} onLoadMore={onLoadMore} onRetry={() => void refresh()}
-          minTile={view === 'grid' ? 240 : 320}
+          minTile={view === 'grid' ? 240 : 320} emptyAction={<SearchCivitaiRow />}
         />
       </main>
       <Panel side="right" width={panelWidth} min={420} max={760} defaultWidth={PANEL_W} open={panelOpen} onResize={setPanelWidth} onToggle={() => setPanelOpen(!panelOpen)} tabLabel="Model">

@@ -4,11 +4,13 @@
  * lists carry its name (`useStore().serverInfo`). Also the Installed source: the servers' hashed
  * files that resolved to CivitAI (`useStore().civitaiByHash`) shaped as list items.
  */
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
+import { create } from 'zustand';
 import { useStore } from '@/lib/store';
 import type { ServerInfo } from '@/lib/types';
 import type { CivitaiModel, CivitaiVersionByHash } from '@/lib/civitai';
-import { buildInstalledIndex, modelInstalled, versionInstalled, fileInstalled, type InstalledIndex, type InstalledState, type FileLike, type VersionLike, type ModelLike } from './civitaiQuery';
+import { fetchModelsByIds } from './civitaiApi';
+import { DEFAULT_FILTERS, buildInstalledIndex, modelInstalled, versionInstalled, fileInstalled, type InstalledIndex, type InstalledState, type FileLike, type VersionLike, type ModelLike } from './civitaiQuery';
 import { LOCAL_LISTS, localModelsFor, type LocalKind } from './localModels';
 
 function* serverFiles(serverInfo: Record<string, ServerInfo>): Iterable<{ kind: LocalKind; name: string; type: string }> {
@@ -80,11 +82,32 @@ function buildInstalled(hashes: ReturnType<typeof useStore.getState>['modelHashe
  * PLUS a local item for every other server file (not hashed yet, lookup pending / failed, or not
  * on CivitAI at all), so the Downloaded list is really everything on the server.
  */
+/**
+ * What the by-hash lookup lacks (fix list 2, added item: downloaded models read "by unknown"):
+ * the model's creator and tags, from one `/models?ids=` request per 100 installed models, asked
+ * once per session per id (again after a failure). Feeds the Downloaded list and its search.
+ */
+type Extra = Pick<CivitaiModel, 'creator' | 'tags'>;
+const useExtras = create<{ byId: Record<number, Extra> }>(() => ({ byId: {} }));
+const asked = new Set<number>();
+function enrichInstalled(ids: number[]): void {
+  const want = ids.filter((id) => id > 0 && !asked.has(id));
+  if (!want.length) return;
+  for (const id of want) asked.add(id);
+  for (let i = 0; i < want.length; i += 100) {
+    const chunk = want.slice(i, i + 100);
+    void fetchModelsByIds(chunk, { ...DEFAULT_FILTERS, types: [], baseModels: [], query: '' })
+      .then((p) => useExtras.setState((s) => ({ byId: { ...s.byId, ...Object.fromEntries(p.items.map((m) => [m.id, { creator: m.creator, tags: m.tags ?? [] }])) } })))
+      .catch(() => { for (const id of chunk) asked.delete(id); });
+  }
+}
+
 export function useInstalledModels(): CivitaiModel[] {
   const hashes = useStore((s) => s.modelHashes);
   const byHash = useStore((s) => s.civitaiByHash);
   const serverInfo = useStore((s) => s.serverInfo);
-  return useMemo(() => {
+  const extras = useExtras((s) => s.byId);
+  const list = useMemo(() => {
     const out = new Map<number, CivitaiModel>();
     for (const h of hashes) {
       const entry = byHash[h.hash];
@@ -101,9 +124,9 @@ export function useInstalledModels(): CivitaiModel[] {
         description: null,
         type: v.model?.type ?? 'Other',
         nsfw: !!v.model?.nsfw,
-        tags: [],
+        tags: extras[v.modelId]?.tags ?? [],
         allowNoCredit: true, allowCommercialUse: [], allowDerivatives: true, allowDifferentLicense: true,
-        creator: { username: '', image: null },
+        creator: extras[v.modelId]?.creator ?? { username: '', image: null },
         stats: v.stats ?? { downloadCount: 0, thumbsUpCount: 0, thumbsDownCount: 0, commentCount: 0 },
         modelVersions: [v],
         nsfwLevel: Math.max(0, ...(v.images ?? []).map((i) => i.nsfwLevel ?? 0)),
@@ -114,5 +137,7 @@ export function useInstalledModels(): CivitaiModel[] {
     const hashOf = (name: string) => { const b = name.split('/').pop() ?? name; return hashes.find((h) => h.filename === b || h.key.endsWith('/' + b) || h.key === b)?.hash; };
     const local = localModelsFor(serverFiles(serverInfo), known, hashOf);
     return [...known, ...local].sort((a, b) => a.name.localeCompare(b.name));
-  }, [hashes, byHash, serverInfo]);
+  }, [hashes, byHash, serverInfo, extras]);
+  useEffect(() => { enrichInstalled(list.filter((m) => !m.creator?.username).map((m) => m.id)); }, [list]);
+  return list;
 }

@@ -6,7 +6,7 @@
 import { useMemo } from 'react';
 import type { CivitaiModel } from '@/lib/civitai';
 import { narrowPage, passesMask, kindTypes } from './civitaiQuery';
-import { rankByTags, matchesText } from './tags';
+import { rankByTags, matchesLocal } from './tags';
 import { useModels } from './modelsStore';
 import { useInstalled, useInstalledModels } from './useInstalled';
 
@@ -42,19 +42,10 @@ export function useShown(): Shown {
     let pool: CivitaiModel[];
     let hidden: number;
     const q = filters.query.trim();
-    if (source === 'installed' && q) {
-      // A typed search always searches CivitAI (Donny, 10-20: "the search is only searching what
-      // is loaded"): the installed matches lead, then the API's results that are not installed.
-      const mine = installedModels.filter((m) => (matchesText(m, q) || m.modelVersions.some((v) => v.files.some((f) => f.name.toLowerCase().includes(q.toLowerCase()))))
-        && (!types.length || types.includes(m.type as never)));
-      const seen = new Set(mine.map((m) => m.id));
-      const fromApi = narrowPage(items, filters, installed.known ? installed.model : undefined)
-        .filter((m) => (!kind || types.includes(m.type as never)) && !seen.has(m.id));
-      pool = [...mine, ...fromApi];
-      hidden = items.length - fromApi.length;
-    } else if (source === 'installed') {
-      pool = installedModels.filter((m) =>
-        matchesText(m, q) || (q && m.modelVersions.some((v) => v.files.some((f) => f.name.toLowerCase().includes(q.toLowerCase())))))
+    if (source === 'installed') {
+      // The search runs INSIDE the chosen source (fix list 2, added item — replaces "a typed search
+      // always searches CivitAI"): Downloaded filters the server's models locally, never the API.
+      pool = installedModels.filter((m) => matchesLocal(m, q))
         .filter((m) => (!types.length || types.includes(m.type as never))
           && (!filters.baseModels.length || m.modelVersions.some((v) => filters.baseModels.some((b) => v.baseModel === b || v.baseModel?.startsWith(b))))
           && (!filters.favorites || favourites.includes(m.id))
@@ -62,14 +53,17 @@ export function useShown(): Shown {
           && passesMask(m.nsfwLevel, filters.nsfwMask));
       hidden = installedModels.length - pool.length;
     } else {
+      // Favourites / Account ★ load their whole list (planSearch keeps the query off the API):
+      // the search filters it here.
+      const localSearch = (filters.favorites || filters.accountFavorites) && q;
       pool = narrowPage(items, filters, installed.known ? installed.model : undefined)
-        .filter((m) => !kind || types.includes(m.type as never));
+        .filter((m) => (!kind || types.includes(m.type as never)) && (!localSearch || matchesLocal(m, q)));
       hidden = items.length - pool.length;
     }
     const list = selectedTags.length ? rankByTags(pool, selectedTags).map((r) => r.model) : pool;
     return { items: list, hidden, pool };
   }, [source, filters, kind, selectedTags, items, installed, installedModels, favourites]);
 
-  if (source === 'installed' && !filters.query.trim()) return { ...shown, loading: false, loadingMore: false, error: null, hasMore: false, total: shown.items.length };
+  if (source === 'installed') return { ...shown, loading: false, loadingMore: false, error: null, hasMore: false, total: shown.items.length };
   return { ...shown, loading, loadingMore, error, hasMore: !!nextCursor, total: selectedTags.length > 1 ? null : totalItems };
 }
