@@ -11,7 +11,10 @@
   --sp-accent-hi: color-mix(in srgb, var(--il-err) 70%, white);
   --sp-sel: color-mix(in srgb, var(--il-err) 38%, transparent);
 }
-.il-sp-wrap { position: relative; }
+.il-sp { --sp-gutter: 26px; }
+@media (any-pointer: coarse) { .il-sp { --sp-gutter: 32px; } }
+/* The left gutter holds the part grip (item 44): fixed width, so nothing moves when it shows. */
+.il-sp-wrap { position: relative; isolation: isolate; margin-left: var(--sp-gutter); }
 .il-sp-back,
 .il-sp-ta {
   font-family: inherit; font-size: 15px; line-height: 1.55; font-weight: 500; letter-spacing: normal;
@@ -39,14 +42,11 @@
   text-decoration: underline dotted hsl(var(--h) 60% 62% / 0.75); text-decoration-thickness: 1.5px; text-underline-offset: 3px; }
 .il-sp-up { background: color-mix(in srgb, var(--sp-accent) 14%, transparent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--sp-accent) 14%, transparent); }
 .il-sp-dn { background: color-mix(in srgb, var(--il-info) 13%, transparent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--il-info) 13%, transparent); }
-/* Items 38 + fix: the part under the caret — a soft tinted background, widened 6 px left and right
-   by two offset box-shadows (drawn outside the text box only, so they never overlap the tint and
-   never touch layout); each wrapped line gets its own (box-decoration-break: clone). */
-.il-sp-on {
-  --sp-on: color-mix(in srgb, var(--sp-accent) 17%, transparent);
-  background: var(--sp-on) !important;
-  box-shadow: -6px 0 0 0 var(--sp-on), 6px 0 0 0 var(--sp-on) !important;
-}
+/* Items 38 + fixes: the selected part is drawn by PartHandles as boxes BEHIND the text (one per
+   line box, 6 px wider each side): a soft fill and a thin, low-contrast border. Overlay only. */
+.il-sp-hl-layer { position: absolute; inset: 0; z-index: -1; pointer-events: none; clip-path: inset(0 -12px); }
+.il-sp-hl { position: absolute; border-radius: 6px; background: color-mix(in srgb, var(--sp-accent) 14%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--sp-accent) 45%, transparent); }
 /* The hovered part (the grip's part), fainter. */
 .il-sp-hov {
   --sp-hov: color-mix(in srgb, var(--il-fg) 7%, transparent);
@@ -83,10 +83,12 @@
 
 /* Item 44: the part grip (in the gap before the part), the snippet ×, and the drag feedback.
    Overlays only: never part of the text's layout. */
-.il-sp-grip { position: absolute; z-index: 25; display: flex; align-items: center; justify-content: flex-end; padding-right: 2px; cursor: grab; }
-.il-sp-grip-bar { width: 4px; border-radius: 3px; background: radial-gradient(circle, var(--il-fg2) 1px, transparent 1.5px) center / 4px 4px repeat-y;
-  opacity: .75; transition: opacity .12s ease; }
-.il-sp-grip:hover .il-sp-grip-bar, .il-sp-grip.is-dragging .il-sp-grip-bar { opacity: 1; background-color: color-mix(in srgb, var(--sp-accent) 35%, transparent); }
+.il-sp-grip { position: absolute; z-index: 25; display: flex; align-items: center; justify-content: flex-end; cursor: grab; touch-action: none; }
+.il-sp-grip-pill { width: 20px; height: 24px; border-radius: 7px; display: grid; place-items: center; color: var(--il-fg2);
+  background: var(--il-card-on); box-shadow: inset 0 0 0 1px var(--il-line-strong); transition: background-color .12s ease, color .12s ease; }
+.il-sp-grip.is-coarse .il-sp-grip-pill { width: 26px; height: 32px; }
+.il-sp-grip:hover .il-sp-grip-pill, .il-sp-grip.is-dragging .il-sp-grip-pill { color: var(--il-fg); background: color-mix(in srgb, var(--sp-accent) 28%, var(--il-card-on)); }
+.il-sp-grip.is-dragging { cursor: grabbing; }
 .il-sp-x { position: absolute; z-index: 25; display: grid; place-items: center; padding: 0; border: 0; border-radius: 50%; cursor: pointer;
   background: var(--il-elev); color: var(--il-fg2); box-shadow: 0 0 0 1px var(--il-line-strong); }
 .il-sp-x:hover { color: var(--il-err); }

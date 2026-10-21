@@ -263,6 +263,7 @@ export function SmartPromptBox({ value, onChange, onBlur, kind, snippets, catego
         />
         <PartHandles wrap={wrap} back={back} ta={ta} parts={parts} value={value} off={pickOpen}
           caretPart={focused && active ? parts.indexOf(active) : -1}
+          activePart={active ? parts.indexOf(active) : -1}
           isSnippet={(p) => !!p.snippetId && byId.has(p.snippetId)}
           drag={drag} setDrag={setDrag} onHover={setHoverPart}
           onMove={movePartTo}

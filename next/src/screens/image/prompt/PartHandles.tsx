@@ -9,7 +9,7 @@
  * grip stays mounted for the whole drag (unmounting it was what killed the first version).
  */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { IconX } from '@tabler/icons-react';
+import { IconGripVertical, IconX } from '@tabler/icons-react';
 import { toCssPx } from '~/theme/uiScale';
 import type { Part } from './promptSections';
 import { dropTarget, hitBox, type PartBoxes } from './partDrag';
@@ -31,8 +31,10 @@ interface Props {
   ta: React.RefObject<HTMLTextAreaElement>;
   parts: Part[];
   value: string;
-  /** The part under the caret (touch devices show the handles there). */
+  /** The part under the caret: it owns the grip (stable while the pointer travels to the gutter). */
   caretPart: number;
+  /** The selected part: drawn as boxes (one per line) behind the text — soft fill + thin border. */
+  activePart: number;
   isSnippet: (p: Part) => boolean;
   drag: PartDrag | null;
   setDrag: (d: PartDrag | null) => void;
@@ -57,14 +59,18 @@ const noHover = () => typeof window !== 'undefined' && !!window.matchMedia?.('(h
 
 interface Spot { x: number; y: number; h: number; endX: number; endY: number; endH: number; isLast: boolean }
 
-export function PartHandles({ wrap, back, ta, parts, value, caretPart, isSnippet, drag, setDrag, onHover, onMove, onRemove, onPick, off }: Props) {
+export function PartHandles({ wrap, back, ta, parts, value, caretPart, activePart, isSnippet, drag, setDrag, onHover, onMove, onRemove, onPick, off }: Props) {
   const [hover, setHoverState] = useState(-1);
   const [tick, setTick] = useState(0);
   const [spot, setSpot] = useState<Spot | null>(null);
   const leave = useRef<ReturnType<typeof setTimeout> | null>(null);
   const touch = noHover();
+  // Any touch screen (a touchscreen laptop too): the big hit area.
+  const coarse = typeof window !== 'undefined' && !!window.matchMedia?.('(any-pointer: coarse)').matches;
+  const [hl, setHl] = useState<Array<{ x: number; y: number; w: number; h: number }>>([]);
   const setHover = (i: number) => { setHoverState(i); onHover(i); };
-  const shown = drag ? drag.from : off ? -1 : hover >= 0 ? hover : touch ? caretPart : -1;
+  // The grip belongs to the selected (caret) part when there is one, else to the hovered part.
+  const shown = drag ? drag.from : off ? -1 : caretPart >= 0 ? caretPart : hover;
   const part = shown >= 0 ? parts[shown] : undefined;
 
   // Hover: hit-test the backdrop (the textarea sits on top of it).
@@ -115,6 +121,15 @@ export function PartHandles({ wrap, back, ta, parts, value, caretPart, isSnippet
       isLast: last.bottom >= tr.top && last.top <= tr.bottom,
     });
   }, [shown, value, tick, wrap, back, ta]);
+
+  // The selected part's highlight: one box per line box, widened 6 px each side, behind the text.
+  useLayoutEffect(() => {
+    const w = wrap.current; const b = back.current;
+    if (!w || !b || activePart < 0 || drag) { setHl((h) => (h.length ? [] : h)); return; }
+    const wr = w.getBoundingClientRect();
+    const rects = Array.from(b.querySelector<HTMLElement>(`[data-pi="${activePart}"]`)?.getClientRects() ?? []).filter((r) => r.width > 0);
+    setHl(rects.map((r) => ({ x: toCssPx(r.left - wr.left), y: toCssPx(r.top - wr.top), w: toCssPx(r.width), h: toCssPx(r.height) })));
+  }, [activePart, value, tick, drag, wrap, back]);
 
   const startDrag = (e: React.PointerEvent<HTMLElement>, from: number) => {
     if (e.button !== 0) return;
@@ -180,15 +195,20 @@ export function PartHandles({ wrap, back, ta, parts, value, caretPart, isSnippet
 
   // Grip hit area: wide enough to grab (it may lie over the ", " before the part, never over the
   // part's own letters); the visible grip is a slim bar in the gap itself.
-  const hitW = touch ? 26 : 14;
-  const hitH = (h: number) => (touch ? Math.max(36, h + 10) : h);
+  // The grip lives in the box's left gutter (`--sp-gutter`, no text there), on the part's first
+  // line: a 24 px handle; on a touch screen a 44 px hit area that also takes the card's padding.
+  const hitW = coarse ? 44 : 26;
+  const hitH = coarse ? 44 : 28;
   return (
     <>
+      <div className="il-sp-hl-layer" aria-hidden>
+        {hl.map((r, k) => <div key={k} className="il-sp-hl" style={{ left: r.x - 6, top: r.y - 1, width: r.w + 12, height: r.h + 2 }} />)}
+      </div>
       {part && spot && (
-        <div data-part-handles className={`il-sp-grip${drag ? ' is-dragging' : ''}`} role="button" aria-label="Drag to move this part" title={touch ? undefined : 'Move part'}
+        <div data-part-handles className={`il-sp-grip${drag ? ' is-dragging' : ''}${coarse ? ' is-coarse' : ''}`} role="button" aria-label="Drag to move this part" title={touch ? undefined : 'Move part'}
           onPointerDown={(e) => startDrag(e, shown)} onMouseDown={(e) => e.preventDefault()}
-          style={{ left: spot.x - hitW + 1, top: spot.y + spot.h / 2 - hitH(spot.h) / 2, width: hitW, height: hitH(spot.h), touchAction: 'none' }}>
-          <span className="il-sp-grip-bar" style={{ height: Math.max(10, spot.h * 0.62) }} />
+          style={{ left: -hitW - 2, top: spot.y + spot.h / 2 - hitH / 2, width: hitW, height: hitH, touchAction: 'none' }}>
+          <span className="il-sp-grip-pill"><IconGripVertical size={coarse ? 16 : 14} stroke={2.4} /></span>
         </div>
       )}
       {part && spot && spot.isLast && !drag && isSnippet(part) && (
