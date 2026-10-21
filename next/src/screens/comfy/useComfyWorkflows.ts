@@ -18,6 +18,7 @@ import { useRoute } from '~/app/routeStore';
 import { deleteWorkflowFile, restoreWorkflowFile, saveWorkflowFile } from './comfyApi';
 import { deleteInFrame, openInFrame, syncFrame } from './comfyFrame';
 import { undoNote } from '~/app/undoNote';
+import { errorNote } from './errorNote';
 import { editorNodeCount, epochMs, workflowFileName, workflowKind } from './comfyHelpers';
 import { useWorkflowStore, workflowKey, type ComfyKind } from './workflowStore';
 import { ensureStepWorkflowOpen } from './ensureStepWorkflow';
@@ -72,14 +73,14 @@ export function useComfyWorkflows(server: Server | null, kind: ComfyKind) {
     store.markUsed(w.key);
     // Load it into the Studio store from the step's host, so the step's Generate runs it.
     try { await ensureStepWorkflowOpen(stepId); } catch (err) {
-      notifications.show({ color: 'red', title: 'Could not open the workflow', message: err instanceof Error ? err.message : String(err) });
+      errorNote('Could not open this workflow', err);
     }
     useRoute.getState().go('step');
   }, [host, server?.id, kind]);
 
   /** Open it in the embedded ComfyUI (FIXLIST 34) and in the shared Studio store (what a workflow step runs). */
   const select = useCallback(async (w: ComfyWorkflowRow) => {
-    void openInFrame(w.path).catch((err) => notifications.show({ color: 'red', title: 'ComfyUI could not open it', message: err instanceof Error ? err.message : String(err) }));
+    void openInFrame(w.path).catch((err) => errorNote('Could not open this workflow', err, `ComfyUI could not load ${w.name}.`));
     await open(w.path);
     useWorkflowStore.getState().markUsed(w.key);
   }, [open]);

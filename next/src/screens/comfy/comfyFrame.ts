@@ -13,6 +13,7 @@
  * menus, sidebars and tabs).
  */
 import { create } from 'zustand';
+import { plainCopy } from './frameCopy';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type FrameWorkflow = { path: string; isLoaded?: boolean; isModified?: boolean; activeState?: unknown; load: () => Promise<unknown> };
@@ -108,6 +109,11 @@ function ready(): { app: FrameApp; ws: Workspace } | null {
   return a;
 }
 
+/** The frame's workflow state as plain objects of the frame's own realm (FIXLIST-2 #50, ./frameCopy). */
+function frameCopy(state: unknown): unknown {
+  return plainCopy(state, (frame?.contentWindow as (Window & { JSON?: JSON }) | null)?.JSON ?? JSON);
+}
+
 /** Open a saved workflow (path under workflows/, e.g. `wip/portrait.json`) in the frame. */
 export async function openInFrame(path: string): Promise<boolean> {
   const a = ready();
@@ -121,10 +127,10 @@ export async function openInFrame(path: string): Promise<boolean> {
   if (!wf) return false;
   if (a.ws.workflow.isActive(wf)) { useComfyFrame.setState({ openPath: path }); return true; }
   const fresh = !wf.isLoaded;
-  if (fresh) await wf.load();
-  // Cloned in the frame's own realm: its code checks plain objects / arrays of its own window.
-  const clone = (frame?.contentWindow as (Window & { structuredClone?: typeof structuredClone }) | null)?.structuredClone ?? structuredClone;
-  await a.app.loadGraphData(clone(wf.activeState), true, true, wf, { checkForRerouteMigration: false, deferWarnings: true, skipAssetScans: !fresh });
+  if (fresh) { const loaded = await wf.load(); if (loaded && typeof loaded === 'object' && 'path' in loaded) wf = loaded as FrameWorkflow; }
+  const state = frameCopy(wf.activeState);
+  if (!state) throw new Error(`ComfyUI has no graph for ${path} (the file may be empty)`);
+  await a.app.loadGraphData(state, true, true, wf, { checkForRerouteMigration: false, deferWarnings: true, skipAssetScans: !fresh });
   useComfyFrame.setState({ openPath: path });
   return true;
 }
