@@ -3,8 +3,8 @@
  * the Generate button (its cycle list is in Settings → Generate, fix list 2 #25); the phone, whose
  * Generate is the dock orb, keeps one tap-to-cycle "Images per run" row here.
  * Sampler and scheduler from the servers' lists; the seed box with a dice (new seed now) and a
- * lock (keep this seed vs a new one every run = `randomizeSeed`); clip skip
- * as a pick.
+ * lock (keep this seed vs a new one every run = `randomizeSeed`); clip skip as a full-width − / + box
+ * (SD 1.5 / SDXL only).
  */
 import { useMemo, type ReactNode } from 'react';
 import { IconDice5, IconLock, IconLockOpen } from '@tabler/icons-react';
@@ -16,10 +16,14 @@ import { T } from '~/theme/tokens';
 import { nextInCycle, useCycleList } from '~/app/batchCycle';
 import { useUndoableSetWorkflow } from '~/app/undoableWorkflow';
 import { useImageDefaults } from '~/app/paramDefaults';
+import { useModelProfile } from '@/hooks/useModelProfileSync';
 
 const MAX_SEED = 0xFFFFFFFF;
 const newSeed = () => Math.floor(Math.random() * MAX_SEED);
-const CLIP_SKIPS = [-1, -2, -3, -4];
+/** Clip skip runs -1 (off) … -12; only the SD 1.5 / SDXL graphs have a CLIPSetLastLayer. */
+const CLIP_MIN = -12;
+const CLIP_MAX = -1;
+const CLIP_FAMILIES = new Set(['sd15', 'sdxl']);
 
 function Row({ label, hint, children, wide }: { label: string; hint?: string; children: ReactNode; wide?: boolean }) {
   const name = <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--il-muted)', flex: 'none', cursor: hint ? 'help' : undefined }}>{label}</span>;
@@ -65,6 +69,9 @@ export function SamplingRows() {
   const set = useUndoableSetWorkflow();
   const clip = w.clipSkip ?? DEFAULT_CLIP_SKIP;
   const d = useImageDefaults();
+  // Flux / Anima / Z-Image / Qwen load their own text encoder: no clip skip there (unknown type: shown).
+  const { profile } = useModelProfile();
+  const clipApplies = !profile || CLIP_FAMILIES.has(profile.family);
 
   const phone = useIsPhone();
   const samplerOptions = useMemo(() => samplers.map((s) => ({ value: s, group: samplerFamily(s), description: SAMPLER_NOTES[s] })), [samplers]);
@@ -82,9 +89,12 @@ export function SamplingRows() {
           label={w.randomizeSeed ? 'New seed every run' : 'Seed kept'} onClick={() => set({ randomizeSeed: !w.randomizeSeed })} />
       </Row>
       {phone && <BatchRow />}
-      <Row label="Clip skip" hint="clipSkip">
-        <Pick searchable={false} label="Clip skip" value={String(clip)} options={CLIP_SKIPS.map((n) => ({ value: String(n), label: n === -1 ? 'off' : String(n) }))} defaultValue={String(d.clipSkip)} onChange={(v) => set({ clipSkip: Number(v) })} />
-      </Row>
+      {clipApplies && (
+        <Row label="Clip skip" hint="clipSkip" wide>
+          <NumberField label="Clip skip" value={clip} min={CLIP_MIN} max={CLIP_MAX} step={1} size={phone ? 'lg' : 'sm'} width={phone ? 168 : 132}
+            format={(n) => (n === -1 ? 'off' : String(n))} defaultValue={d.clipSkip} onChange={(clipSkip) => set({ clipSkip })} />
+        </Row>
+      )}
     </div>
   );
 }
