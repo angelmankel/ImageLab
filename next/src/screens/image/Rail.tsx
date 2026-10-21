@@ -7,11 +7,12 @@
  * step panel (8). A small × at its top right removes it (not step 1), no confirm, 3 s Undo (24).
  * Drag it up / down to reorder (a 6 px move starts the drag, so a click stays a click and the ×
  * never starts one); the connecting lines follow the order live and the chain re-links itself by
- * the I/O standard. A step that cannot run gets a red ring and says why on hover (17). A check
- * badge = the step has output. "+ Add" opens THE step-kind picker (`~/app/stepKindPicker`).
+ * the I/O standard. A step that cannot run gets a red ring and says why on hover (17). ONE badge
+ * (list 2 #17, `rail/StepBadge`): ✓ up to date · ↻ amber out of date (hover: what changed) · red !
+ * cannot run · none = no output; the line under a step shows what flows down (`rail/StepConnector`). "+ Add" opens THE step-kind picker (`~/app/stepKindPicker`).
  */
 import { useRef, useState } from 'react';
-import { IconPlus, IconHistory, IconCube, IconTopologyStar3, IconSettings, IconCheck, IconX, IconExclamationMark } from '@tabler/icons-react';
+import { IconPlus, IconHistory, IconCube, IconTopologyStar3, IconSettings, IconX } from '@tabler/icons-react';
 import { useRoute, type Screen } from '~/app/routeStore';
 import { useSteps, STEP_LABEL, type Step } from '~/app/stepsStore';
 import { KIND_ICON, addStepWithPicker } from '~/app/stepKindPicker';
@@ -25,6 +26,9 @@ import { useLayout } from './layoutStore';
 import { removeStepWithUndo } from './stepActions';
 import './stepMenuEntries';
 import { GenerateAllButton } from './GenerateAll';
+import { useChainFreshness, type StepFresh } from '~/app/stepFingerprint';
+import { StepBadge } from './rail/StepBadge';
+import { StepConnector } from './rail/StepConnector';
 
 export { KIND_ICON } from '~/app/stepKindPicker';
 
@@ -50,16 +54,16 @@ function PlaceButton({ label, icon, on, onClick }: { label: string; icon: React.
   );
 }
 
-function StepNode({ step, index, lifted, onGrab }: { step: Step; index: number; lifted: boolean; onGrab: (e: React.PointerEvent, id: string) => void }) {
+function StepNode({ step, index, lifted, onGrab, fresh }: { step: Step; index: number; lifted: boolean; onGrab: (e: React.PointerEvent, id: string) => void; fresh: StepFresh | undefined }) {
   const screen = useRoute((s) => s.screen);
   const on = useSteps((s) => s.activeId === step.id) && screen === 'step';
-  const done = useStepHasOutput(step);
   const problem = useStepProblem(step);
   const [hover, setHover] = useState(false);
   const Icon = KIND_ICON[step.kind];
   const first = index === 0;
   const label = `${index + 1} · ${STEP_LABEL[step.kind]}`;
-  const tip = problem ? `${label} — ${problem}` : `${label} · ${step.name}${on ? ' (click to fold the panel)' : ''}`;
+  const stale = fresh?.state === 'stale' ? ` — out of date: ${fresh.changes.join(' · ')}` : '';
+  const tip = problem ? `${label} — ${problem}` : `${label} · ${step.name}${stale}${on && !stale ? ' (click to fold the panel)' : ''}`;
 
   const open = () => {
     const lay = useLayout.getState();
@@ -99,11 +103,7 @@ function StepNode({ step, index, lifted, onGrab }: { step: Step; index: number; 
             <IconX size={11} stroke={3} />
           </button>
         )}
-        {problem ? (
-          <span aria-hidden style={{ position: 'absolute', right: -3, bottom: -3, width: 16, height: 16, borderRadius: '50%', background: 'var(--il-err)', color: 'var(--il-bg)', display: 'grid', placeItems: 'center', pointerEvents: 'none' }}><IconExclamationMark size={11} stroke={3.5} /></span>
-        ) : done && (
-          <span aria-hidden style={{ position: 'absolute', right: -3, bottom: -3, width: 16, height: 16, borderRadius: '50%', background: 'var(--il-ok)', color: 'var(--il-bg)', display: 'grid', placeItems: 'center', pointerEvents: 'none' }}><IconCheck size={10} stroke={3.5} /></span>
-        )}
+        <StepBadge stepId={step.id} problem={problem} fresh={fresh} />
       </span>
       <span style={{ fontSize: 10, fontWeight: on ? 800 : 700, whiteSpace: 'nowrap', color: problem ? 'var(--il-err)' : on ? 'var(--il-fg)' : 'var(--il-fg2)' }}>{label}</span>
     </div>
@@ -113,6 +113,7 @@ function StepNode({ step, index, lifted, onGrab }: { step: Step; index: number; 
 /** The chain, with drag-to-reorder: the order shown follows the pointer live; the drop commits it. */
 function StepChain() {
   const steps = useSteps((s) => s.steps);
+  const fresh = useChainFreshness();
   const [drag, setDrag] = useState<{ id: string; to: number } | null>(null);
   const grab = useRef<{ id: string; y: number; top: number; from: number; el: HTMLElement; moved: boolean } | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -160,8 +161,8 @@ function StepChain() {
     <div ref={listRef} className="il-scroll" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minHeight: 0, overflowX: 'hidden', flex: '0 1 auto' }}>
       {order.map((st, i) => (
         <div key={st.id} style={{ height: SLOT, flex: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <div {...menuProps('step', st)}><StepNode step={st} index={i} lifted={drag?.id === st.id} onGrab={onGrab} /></div>
-          <span aria-hidden style={{ width: 2, flex: 1, minHeight: 0, background: order[i + 1]?.chained ? 'var(--il-ok)' : 'var(--il-line-strong)', margin: '4px 0' }} />
+          <div {...menuProps('step', st)}><StepNode step={st} index={i} lifted={drag?.id === st.id} onGrab={onGrab} fresh={fresh.get(st.id)} /></div>
+          <StepConnector flows={!!order[i + 1]?.chained && !order[i + 1]?.input} state={fresh.get(st.id)?.state ?? 'none'} />
         </div>
       ))}
     </div>

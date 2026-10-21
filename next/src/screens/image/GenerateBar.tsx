@@ -6,7 +6,7 @@
  * Ctrl/⌘+Enter generates, inside a text box too.
  */
 import { notifications } from '@mantine/notifications';
-import { IconDice5, IconSparkles } from '@tabler/icons-react';
+import { IconCheck, IconDice5, IconSparkles } from '@tabler/icons-react';
 import { useShallow } from 'zustand/react/shallow';
 import { useStore } from '@/lib/store';
 import { jobActivity } from '@/lib/jobActivity';
@@ -27,6 +27,8 @@ import { startWorkflowStepRun } from './workflow';
 import { IMAGE_STEP_ONLY } from './kinds/imageStepOnly';
 import { OWN_KINDS, runKindStep } from './kinds/kindRun';
 import { useStepProblem } from './useStepProblem';
+import { skipIfUpToDate } from './upToDate';
+import { useSkipFlash } from '~/app/stepFingerprint';
 
 /** What the step's Generate does and whether it is running. Pure of look; the phone dock uses it too. */
 export function useStepRun(step: Step): { run: (newSeed?: boolean) => void; stop: () => void; busy: boolean; busyLabel: string; progress: number | null; disabled: string | null } {
@@ -47,7 +49,7 @@ export function useStepRun(step: Step): { run: (newSeed?: boolean) => void; stop
     const activity = jobActivity(jobs, submitting, online);
     const running = jobs.find((j) => j.status === 'running') ?? jobs.find((j) => j.status === 'queued');
     return {
-      run: (newSeed = false) => { void enqueueRun(() => fireFromStore(newSeed, IMAGE_STEP_ONLY)).then(() => { const st = useStore.getState(); if (st.status.kind === 'error') notifications.show({ title: 'Could not generate', message: st.status.text, color: 'red', autoClose: 3000 }); }); },
+      run: (newSeed = false) => { void enqueueRun(() => (skipIfUpToDate(step, newSeed) ? undefined : fireFromStore(newSeed, IMAGE_STEP_ONLY))).then(() => { const st = useStore.getState(); if (st.status.kind === 'error') notifications.show({ title: 'Could not generate', message: st.status.text, color: 'red', autoClose: 3000 }); }); },
       stop: () => { if (running) cancelQueueRow(running.id); },
       busy: !!running || submitting,
       busyLabel: submitting ? 'Queueing…' : running?.status === 'queued' ? 'Queued' : 'Generating',
@@ -58,18 +60,18 @@ export function useStepRun(step: Step): { run: (newSeed?: boolean) => void; stop
   if (OWN_KINDS.has(step.kind)) {
     // Refine / Upscale / Remove BG (`./kinds`): the step's input through its own graph on the workflow runner.
     return {
-      run: (newSeed = false) => { void enqueueRun(() => runTagged(useWorkflowRun, step.id, () => runKindStep(step, newSeed))); },
+      run: (newSeed = false) => { void enqueueRun(() => (skipIfUpToDate(step, newSeed) ? undefined : runTagged(useWorkflowRun, step.id, () => runKindStep(step, newSeed)))); },
       stop: () => cancelQueueRow('workflow-run'),
       busy: workflow.busy, busyLabel: workflow.status ?? 'Running', progress: workflow.progress,
       disabled: problem,
     };
   }
-  if (step.kind === 'video') return video;
+  if (step.kind === 'video') return { ...video, run: (newSeed = false) => { if (!skipIfUpToDate(step, newSeed)) video.run(newSeed); } };
   if (step.kind === 'workflow') {
     // The step's own runner opens its workflow, uploads the chained picture, re-rolls the seeds
     // (dice = every seed; Generate = only the unlocked ones) and queues the run.
     return {
-      run: (newSeed = false) => { if (wfHost) void enqueueRun(() => runTagged(useWorkflowRun, step.id, () => startWorkflowStepRun(step, wfHost, info, newSeed))); },
+      run: (newSeed = false) => { if (wfHost) void enqueueRun(() => (skipIfUpToDate(step, newSeed) ? undefined : runTagged(useWorkflowRun, step.id, () => startWorkflowStepRun(step, wfHost, info, newSeed)))); },
       stop: () => cancelQueueRow('workflow-run'),
       busy: workflow.busy, busyLabel: workflow.status ?? 'Running', progress: workflow.progress,
       disabled: !wfHost ? 'No server' : !info ? 'Reading the server…' : !stepWf ? 'Pick a workflow in the step' : null,
@@ -107,6 +109,8 @@ function BatchCycle({ h }: { h: number }) {
  */
 export function GenerateBar({ step, large = false }: { step: Step; large?: boolean }) {
   const { run, busy, progress, disabled } = useStepRun(step);
+  // Item 17: a press that would only repeat the current output was skipped — say so on the button for a moment.
+  const upToDate = useSkipFlash((s) => s.stepId === step.id);
   const pending = useQueue().rows.filter((r) => r.stepId === step.id).length;
   useShortcut('cmd+Enter', (e) => { e.preventDefault(); if (!disabled) run(); }, { priority: ShortcutPriority.Global, skipTyping: false });
   const h = large ? 58 : 54;
@@ -120,7 +124,7 @@ export function GenerateBar({ step, large = false }: { step: Step; large?: boole
         <Tip label={disabled ?? (pending ? `Queue one more (${pending} on the way) · ⌘/Ctrl + Enter` : 'Generate · ⌘/Ctrl + Enter')}>
           <button type="button" className="il-btn" onClick={() => { if (!off) run(false); }} aria-label="Generate"
             style={{ ...seg, flex: 1, minWidth: 0, fontSize: 16, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
-            <IconSparkles size={18} stroke={2.4} />Generate
+            {upToDate ? <><IconCheck size={18} stroke={2.6} />Up to date</> : <><IconSparkles size={18} stroke={2.4} />Generate</>}
             {pending > 0 && (
               <span aria-label={`${pending} on the way`} style={{ minWidth: 22, height: 22, padding: '0 7px', borderRadius: 999, background: 'color-mix(in srgb, var(--il-bg) 82%, transparent)', color: 'var(--il-ember-hi)', fontSize: 12, fontWeight: 800, display: 'grid', placeItems: 'center', fontVariantNumeric: 'tabular-nums' }}>{pending}</span>
             )}

@@ -8,6 +8,7 @@
  * so the tag is there before `useCreditNewResults` (an effect) would credit the open step.
  */
 import type { RunStore } from '@/lib/comfyRunner';
+import { noteRunStart } from '~/app/stepFingerprint';
 import { useResultSteps } from '../resultSteps';
 
 /** Longest a step may take before Generate all gives up waiting on it. */
@@ -22,6 +23,7 @@ export interface TrackedRun {
 }
 
 export function trackRun(store: RunStore, stepId: string): TrackedRun {
+  noteRunStart(store, stepId);
   const known = new Set(store.getState().results.map((r) => r.url));
   let started = store.getState().busy;
   let unsub: () => void = () => {};

@@ -4,11 +4,13 @@
  * tab title's "step 2") read them back with `runStepOf`. Session memory only.
  */
 import type { RunStore } from '@/lib/comfyRunner';
+import { noteRunStart } from './stepFingerprint';
 
 const tags = new Map<string, string>();
 
 export async function runTagged(store: RunStore, stepId: string, fn: () => Promise<unknown>): Promise<void> {
   const before = new Set(store.getState().jobs.map((j) => j.promptId));
+  noteRunStart(store, stepId);
   await fn();
   for (const j of store.getState().jobs) if (!before.has(j.promptId)) tags.set(j.promptId, stepId);
   if (tags.size > 500) for (const k of [...tags.keys()].slice(0, 250)) tags.delete(k);
