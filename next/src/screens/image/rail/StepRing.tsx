@@ -14,14 +14,15 @@ import { useEffect, useRef, useState } from 'react';
 export type RingState = { kind: 'idle' } | { kind: 'queued' } | { kind: 'running'; progress: number | null };
 
 /** Circle 46 px + a 3 px gap each side: the ring sits just outside the circle and its red error ring. */
-const SIZE = 56;
+const CIRCLE = 46;
 const STROKE = 2.5;
-const R = (SIZE - STROKE) / 2;
-const C = 2 * Math.PI * R;
 const SETTLE_MS = 900;
 
 /** `ok`: the step's newest output is up to date — a finished run closes the ring only then (a failed one just fades). */
-export function StepRing({ ring, ok }: { ring: RingState; ok: boolean }) {
+export function StepRing({ ring, ok, circle = CIRCLE }: { ring: RingState; ok: boolean; /** The circle it wraps (the phone steps strip: 32). */ circle?: number }) {
+  const SIZE = circle + 10;
+  const R = (SIZE - STROKE) / 2;
+  const C = 2 * Math.PI * R;
   // Done = it was running and is not any more: close the ring, hold it, fade it.
   const wasRunning = useRef(false);
   const last = useRef(0);
@@ -41,7 +42,7 @@ export function StepRing({ ring, ok }: { ring: RingState; ok: boolean }) {
   // The result is credited a moment after the job leaves the queue: the ring closes as soon as it is.
   const progress = settling ? (ok ? 1 : last.current) : ring.kind === 'running' ? ring.progress : null;
   const spinning = ring.kind === 'running' && ring.progress == null;
-  const off = (SIZE - 46) / 2;
+  const off = (SIZE - circle) / 2;
   return (
     <svg aria-hidden width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}
       style={{

@@ -118,7 +118,7 @@ function StepNode({ step, index, lifted, onGrab, fresh, ring }: { step: Step; in
   );
 }
 
-const IDLE_RING: RingState = { kind: 'idle' };
+export const IDLE_RING: RingState = { kind: 'idle' };
 const QUEUED_RING: RingState = { kind: 'queued' };
 
 /**
@@ -126,7 +126,7 @@ const QUEUED_RING: RingState = { kind: 'queued' };
  * while one of its jobs waits, and during Generate all the steps it will still re-run (not up to
  * date, below the one running now) wait dashed too; the step it is preparing turns.
  */
-function useRings(fresh: ReadonlyMap<string, StepFresh>): (id: string, index: number) => RingState {
+export function useRings(fresh: ReadonlyMap<string, StepFresh>): (id: string, index: number) => RingState {
   const { rows } = useQueue();
   const allAt = useGenerateAllAt();
   const allCurrent = useGenerateAllCurrent();

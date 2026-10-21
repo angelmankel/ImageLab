@@ -50,51 +50,84 @@ function BadgePopover({ tip, dot, children }: { tip: string; dot: React.ReactNod
   );
 }
 
-export function StepBadge({ step, problem, fresh }: { step: Step; problem: string | null; fresh: StepFresh | undefined }) {
-  const flash = useSkipFlash((s) => s.stepId === step.id);
+/** What a badge's details say (the desktop popover, the phone's step sheet): why it cannot run, or what changed + Re-run / Revert. */
+export function StepBadgeDetails({ step, problem, fresh, close, large = false }: { step: Step; problem: string | null; fresh: StepFresh | undefined; close: () => void; large?: boolean }) {
   if (problem) {
     return (
-      <BadgePopover tip="Can't run" dot={<span style={{ ...DOT, background: 'var(--il-err)' }}><IconExclamationMark size={11} stroke={3.5} /></span>}>
-        {() => (
-          <>
-            <div className="il-eyebrow" style={{ marginBottom: 6, color: 'var(--il-err)' }}>Can't run</div>
-            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--il-fg2)', lineHeight: 1.45 }}>{problem}</div>
-          </>
-        )}
+      <>
+        <div className="il-eyebrow" style={{ marginBottom: 6, color: 'var(--il-err)' }}>Can't run</div>
+        <div style={{ fontSize: large ? 13 : 12, fontWeight: 600, color: 'var(--il-fg2)', lineHeight: 1.45 }}>{problem}</div>
+      </>
+    );
+  }
+  if (fresh?.state !== 'stale') return null;
+  const blocked = revertBlocked(step.id);
+  const size = large ? 'lg' : 'sm';
+  return (
+    <>
+      <div className="il-eyebrow" style={{ marginBottom: 6, color: 'var(--il-warn)' }}>{fresh.reason === 'above' ? 'Out of date' : 'Changed since last run'}</div>
+      <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 3 }}>
+        {fresh.changes.map((c) => (
+          <li key={c} style={{ fontSize: large ? 13 : 12, fontWeight: 600, color: 'var(--il-fg2)', fontVariantNumeric: 'tabular-nums', overflowWrap: 'anywhere' }}>{c}</li>
+        ))}
+      </ul>
+      <div style={{ display: 'flex', gap: large ? 8 : 6, marginTop: large ? 14 : 10, flexWrap: large ? 'nowrap' : 'wrap' }}>
+        <Button size={size} tone="primary" grow={large} icon={<IconPlayerPlay size={13} />} onClick={() => { close(); void runStepNow(step); }}>Re-run</Button>
+        <Button size={size} tone="card" grow={large} icon={<IconArrowBackUp size={13} />} disabled={!!blocked} tooltip={blocked ?? undefined}
+          onClick={() => { if (revertStep(step.id)) close(); }}>Revert to last run</Button>
+      </div>
+    </>
+  );
+}
+
+/** The phone steps strip's badge: the same dot, a 44 px hit area, a tap calls `onTap` (the step sheet) instead of a popover. */
+function TapBadge({ tip, dot, onTap, at }: { tip: string; dot: React.ReactNode; onTap: () => void; at: React.CSSProperties }) {
+  return (
+    <button type="button" aria-label={tip} aria-haspopup="dialog" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onTap(); }}
+      style={{ position: 'absolute', width: 44, height: 44, padding: 0, border: 0, background: 'transparent', display: 'grid', placeItems: 'center', cursor: 'pointer', zIndex: 2, ...at }}>
+      {dot}
+    </button>
+  );
+}
+
+export function StepBadge({ step, problem, fresh, onTap, small = false }: {
+  step: Step; problem: string | null; fresh: StepFresh | undefined;
+  /** Phone: a tap opens the step sheet (no popover, no hover). */
+  onTap?: () => void;
+  /** A smaller dot (the phone strip's 32 px circles). */
+  small?: boolean;
+}) {
+  const flash = useSkipFlash((s) => s.stepId === step.id);
+  const d = small ? 14 : 16;
+  const dot = (bg: string, icon: React.ReactNode) => <span style={{ ...DOT, width: d, height: d, background: bg }}>{icon}</span>;
+  const tapAt: React.CSSProperties = { right: -(25 - d / 2), bottom: -(25 - d / 2) };
+  if (problem) {
+    const tip = "Can't run";
+    const d1 = dot('var(--il-err)', <IconExclamationMark size={small ? 10 : 11} stroke={3.5} />);
+    if (onTap) return <TapBadge tip={tip} dot={d1} onTap={onTap} at={tapAt} />;
+    return (
+      <BadgePopover tip={tip} dot={d1}>
+        {(close) => <StepBadgeDetails step={step} problem={problem} fresh={fresh} close={close} />}
       </BadgePopover>
     );
   }
   if (fresh?.state === 'stale') {
+    const tip = 'Out of date';
+    const d1 = dot('var(--il-warn)', <IconRefresh size={small ? 9 : 10} stroke={3.2} />);
+    if (onTap) return <TapBadge tip={tip} dot={d1} onTap={onTap} at={tapAt} />;
     return (
-      <BadgePopover tip="Out of date" dot={<span style={{ ...DOT, background: 'var(--il-warn)' }}><IconRefresh size={10} stroke={3.2} /></span>}>
-        {(close) => {
-          const blocked = revertBlocked(step.id);
-          return (
-            <>
-              <div className="il-eyebrow" style={{ marginBottom: 6, color: 'var(--il-warn)' }}>{fresh.reason === 'above' ? 'Out of date' : 'Changed since last run'}</div>
-              <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 3 }}>
-                {fresh.changes.map((c) => (
-                  <li key={c} style={{ fontSize: 12, fontWeight: 600, color: 'var(--il-fg2)', fontVariantNumeric: 'tabular-nums', overflowWrap: 'anywhere' }}>{c}</li>
-                ))}
-              </ul>
-              <div style={{ display: 'flex', gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
-                <Button size="sm" tone="primary" icon={<IconPlayerPlay size={13} />} onClick={() => { close(); void runStepNow(step); }}>Re-run</Button>
-                <Button size="sm" tone="card" icon={<IconArrowBackUp size={13} />} disabled={!!blocked} tooltip={blocked ?? undefined}
-                  onClick={() => { if (revertStep(step.id)) close(); }}>Revert to last run</Button>
-              </div>
-            </>
-          );
-        }}
+      <BadgePopover tip={tip} dot={d1}>
+        {(close) => <StepBadgeDetails step={step} problem={problem} fresh={fresh} close={close} />}
       </BadgePopover>
     );
   }
   if (fresh?.state === 'fresh') {
     return (
       <span aria-hidden style={{
-        ...AT, ...DOT, background: 'var(--il-ok)', pointerEvents: 'none',
+        ...AT, ...DOT, width: d, height: d, background: 'var(--il-ok)', pointerEvents: 'none',
         transform: flash ? 'scale(calc(1 + .35 * var(--il-motion)))' : undefined, transition: 'transform calc(.18s * var(--il-motion)) ease',
         boxShadow: flash ? '0 0 0 2px var(--il-bg), 0 0 0 5px color-mix(in srgb, var(--il-ok) 35%, transparent)' : DOT.boxShadow,
-      }}><IconCheck size={10} stroke={3.5} /></span>
+      }}><IconCheck size={small ? 9 : 10} stroke={3.5} /></span>
     );
   }
   return null;

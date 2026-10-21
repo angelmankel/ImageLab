@@ -15,6 +15,7 @@ import { MoreSheet } from './MoreSheet';
 import { OutputPage } from './OutputPage';
 import { PhoneDock } from './PhoneDock';
 import { StepPeek } from './StepPeek';
+import { StepSheet } from './StepSheet';
 import { usePhone } from './phoneStore';
 import { PAGE_GAP, PAGE_SLIDE_MS, pageDragOffset, pageSettleOffset, stepForSwipe } from './phoneLogic';
 
@@ -111,6 +112,7 @@ export function PhoneStepScreen() {
       </div>
       <PhoneDock onJump={jump} />
       <MoreSheet />
+      <StepSheet />
     </div>
   );
 }

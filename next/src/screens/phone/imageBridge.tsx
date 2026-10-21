@@ -28,6 +28,8 @@ export interface GenerateApi {
   stop: () => void;
   /** This step's own job is running. */
   running: boolean;
+  /** Why Generate cannot run now (no server, …), or null. */
+  disabled?: string | null;
 }
 
 export interface StepPanelProps { phone?: boolean; stepId?: string }
