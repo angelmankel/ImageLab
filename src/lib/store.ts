@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { installPersistence } from './persistence';
 import type {
   Layer, Snippet, SnippetCategory, HistoryEntry, WorkflowState, WorkflowCheckpoint, WorkflowLora, WorkflowEmbedding,
-  ServerInfo, Status, LayerKind, Job, Collection, ImportedImage,
+  ServerInfo, ServerListKey, Status, LayerKind, Job, Collection, ImportedImage,
 } from './types';
 import type { ModelHash, WsEvent } from './comfy';
 import {
@@ -223,7 +223,7 @@ function rrEligibleServers(
 function unionInfo(record: Record<string, ServerInfo>): ServerInfo {
   const infos = Object.values(record);
   if (!infos.length) return EMPTY_INFO;
-  const merge = (key: keyof ServerInfo): string[] => {
+  const merge = (key: ServerListKey): string[] => {
     const set = new Set<string>();
     for (const info of infos) for (const v of info[key]) set.add(v);
     return [...set];

@@ -59,6 +59,14 @@ export type BuildGraphResult = {
   clampNotes: string[];
 };
 
+/** Optional inputs past the classic four. */
+export type GraphExtras = {
+  /** Style-reference pictures uploaded to the target server: picture key → LoadImage ref. */
+  styleImages?: Record<string, string>;
+  /** Set by `buildGraph`: the workflow's graph family. */
+  family?: GraphFamily;
+};
+
 /** What every family's builder gets: the same inputs `buildGraph` takes. */
 export type GraphBuilder = (
   workflow: WorkflowState,
@@ -66,4 +74,5 @@ export type GraphBuilder = (
   inputImageRef: string | null,
   inpaint: InpaintConfig | null,
   family: GraphFamily,
+  extras?: GraphExtras,
 ) => BuildGraphResult;

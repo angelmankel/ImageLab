@@ -1,5 +1,7 @@
 import { pipelinePasses } from './pipeline';
-import type { ServerInfo, WorkflowState } from './types';
+import { workflowFamily } from './modelProfiles';
+import { activeRefs, refMissing, styleFamily, TYPE_INFO } from './styleRefs';
+import type { ServerInfo, ServerListKey, WorkflowState } from './types';
 
 /**
  * Resource-availability helpers. Each ComfyUI server reports its own set of
@@ -11,7 +13,7 @@ export type ResourceKind =
   | 'checkpoint' | 'vae' | 'lora' | 'embedding' | 'upscale' | 'tag' | 'sampler' | 'scheduler';
 
 /** Which `ServerInfo` list backs each resource kind. */
-export const RESOURCE_LIST: Record<ResourceKind, keyof ServerInfo> = {
+export const RESOURCE_LIST: Record<ResourceKind, ServerListKey> = {
   checkpoint: 'models',
   vae: 'vaes',
   lora: 'loras',
@@ -70,6 +72,13 @@ export function missingResources(workflow: WorkflowState, info: ServerInfo | und
   }
   need('sampler', workflow.sampler, `sampler “${workflow.sampler}”`);
   need('scheduler', workflow.scheduler, `scheduler “${workflow.scheduler}”`);
+  // Style references (Style tab): every active one needs its nodes and files on this server.
+  if (workflow.styleRefs?.length) {
+    const fam = styleFamily(workflowFamily(workflow));
+    for (const r of activeRefs(workflow.styleRefs, fam)) {
+      for (const m of refMissing(r, fam, info.style, { loras: info.loras, controlnets: info.controlnets })) missing.push(`${TYPE_INFO[r.type].title} reference: ${m}`);
+    }
+  }
   pipelinePasses(workflow).forEach((p, i) => {
     if (p.on === false) return;
     if (!p.kind || p.kind === 'sample') {

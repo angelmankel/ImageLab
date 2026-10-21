@@ -5,6 +5,8 @@ import { comfyHttpFor, clientId, viewUrl } from './comfyHost';
 import { FALLBACKS, uid } from './storage';
 import { resizeDataUrlForUpload } from '@/features/inputImage/imageOps';
 import { buildGraph, type InpaintConfig } from './graphs';
+import { styleSupportOf } from './styleRefs';
+import { uploadStyleImages } from './styleRefImages';
 
 /**
  * REST + WebSocket client for ComfyUI.
@@ -88,6 +90,8 @@ export async function fetchServerInfo(host: string): Promise<ServerInfo> {
     controlnets:   get('ControlNetLoader', 'control_net_name')  ?? FALLBACKS.controlnets,
     // Core since ComfyUI 0.3x (PR 13258); an older server has no such node and gets an empty list.
     interpolationModels: get('FrameInterpolationModelLoader', 'model_name') ?? FALLBACKS.interpolationModels,
+    // The Style tab's nodes and files (IP-Adapter, InstantID, PuLID, Redux), from the same response.
+    style: styleSupportOf(info),
   };
 }
 
@@ -342,8 +346,18 @@ export async function queuePrompt(
     }
   }
 
+  // Style references resolved for this server (`use`, set by the caller): their pictures go up too.
+  let styleImages: Record<string, string> | undefined;
+  if (workflow.styleRefs?.some((r) => r.use)) {
+    try {
+      styleImages = await uploadStyleImages(host, workflow, async (h, b, n) => loadImageRef(await uploadImage(h, b, n)));
+    } catch (err) {
+      return { ok: false, error: `Style reference upload failed: ${err instanceof Error ? err.message : String(err)}` };
+    }
+  }
+
   try {
-    const built = buildGraph(workflow, layers, inputImageRef, inpaintConfig);
+    const built = buildGraph(workflow, layers, inputImageRef, inpaintConfig, styleImages ? { styleImages } : {});
     const { graph, clampNotes } = built;
     const res = await fetch(`${comfyHttpFor(host)}/prompt`, {
       method: 'POST',

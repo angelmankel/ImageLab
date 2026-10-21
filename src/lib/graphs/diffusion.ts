@@ -55,8 +55,8 @@ function loader(spec: DiffusionSpec): BaseLoader {
 /** A family's builder from its spec. */
 export function diffusionBuilder(spec: DiffusionSpec): GraphBuilder {
   const load = loader(spec);
-  return (workflow, layers, inputImageRef, inpaint) =>
-    buildSampledGraph(workflow, layers, inputImageRef, inpaint, load, { inpaintControlnet: false, inpaintSize: 1024, ...spec.core });
+  return (workflow, layers, inputImageRef, inpaint, family, extras) =>
+    buildSampledGraph(workflow, layers, inputImageRef, inpaint, load, { inpaintControlnet: false, inpaintSize: 1024, ...spec.core }, { ...extras, family });
 }
 
 /** One text encoder through `CLIPLoader` of the given type. */

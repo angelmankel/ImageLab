@@ -26,6 +26,6 @@ const loadCheckpoint: BaseLoader = (graph, workflow) => {
   return { model, clip, vae };
 };
 
-export const buildSdGraph: GraphBuilder = (workflow, layers, inputImageRef, inpaint, family) =>
+export const buildSdGraph: GraphBuilder = (workflow, layers, inputImageRef, inpaint, family, extras) =>
   buildSampledGraph(workflow, layers, inputImageRef, inpaint, loadCheckpoint,
-    { inpaintControlnet: true, inpaintSize: family === 'sd15' ? 512 : 1024 });
+    { inpaintControlnet: true, inpaintSize: family === 'sd15' ? 512 : 1024 }, { ...extras, family });

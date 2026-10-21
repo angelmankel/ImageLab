@@ -37,7 +37,8 @@ import { IconDice, IconPlayerPlay } from '@tabler/icons-react';
 import { playSubmitSound } from '@/lib/sounds';
 import { withModelKeywords } from '@/lib/modelKeywords';
 import { withEmbeddings } from '@/lib/embeddings';
-import { profileTagTexts, withProfileTags } from '@/lib/modelProfiles';
+import { profileTagTexts, withProfileTags, workflowFamily } from '@/lib/modelProfiles';
+import { resolveStyleRefs, styleFamily } from '@/lib/styleRefs';
 import { modelTrainedWords } from '@/components/models/modelInfo';
 
 /**
@@ -345,7 +346,11 @@ async function queueFromStore(newSeed: boolean, override?: Partial<WorkflowState
   // `models` is checkpoints then diffusion models; a checkpoint is in it but not in the second list.
   const inCheckpoints = !!targetInfo && targetInfo.models.includes(baseName) && !targetInfo.diffusionModels.includes(baseName);
   const baseFile: WorkflowState['baseFile'] = inCheckpoints ? 'checkpoint' : 'diffusion';
-  const res = await queuePrompt(target.host, { ...workflow, baseFile }, promptLayers, preUploadedRef, inpaintSource);
+  // Style references: the files this server will use (`use`), read from its own lists.
+  const styleRefs = workflow.styleRefs?.length
+    ? { styleRefs: resolveStyleRefs(workflow.styleRefs, styleFamily(workflowFamily(workflow)), targetInfo?.style, { loras: targetInfo?.loras, controlnets: targetInfo?.controlnets }) }
+    : {};
+  const res = await queuePrompt(target.host, { ...workflow, baseFile, ...styleRefs }, promptLayers, preUploadedRef, inpaintSource);
   if (!res.ok) {
     console.error('[queuePrompt] failed on', target.name, '→', res.error);
     setStatus(res.error, 'error');

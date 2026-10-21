@@ -390,6 +390,9 @@ export type WorkflowState = {
   vae: string;
   /** LoRAs applied between the checkpoint and the sampler, in order. */
   loras: WorkflowLora[];
+  /** Style references (next UI's Style tab, `lib/styleRefs.ts`): IP-Adapter / face / Redux pictures
+   *  chained onto the model after the LoRAs. Optional: absent or [] builds the very same graph. */
+  styleRefs?: import('./styleRefs').StyleRef[];
   /** Embeddings (textual inversions), added to the prompt as `embedding:<name>` tokens.
    *  Optional so workflows saved before they existed load unchanged. */
   embeddings?: WorkflowEmbedding[];
@@ -454,7 +457,13 @@ export type ServerInfo = {
   controlnets: string[];
   /** RIFE / FILM weights in models/frame_interpolation (core `FrameInterpolationModelLoader`). */
   interpolationModels: string[];
+  /** What the server can run for the Style tab (IP-Adapter, FaceID, InstantID, PuLID, Redux), read
+   *  from the same /object_info. Absent = not read yet (an older cached info). */
+  style?: import('./styleRefs').StyleSupport;
 };
+
+/** The ServerInfo fields that are file / name lists (everything but `style`). */
+export type ServerListKey = Exclude<keyof ServerInfo, 'style'>;
 
 export type StatusKind = '' | 'ok' | 'error' | 'busy';
 

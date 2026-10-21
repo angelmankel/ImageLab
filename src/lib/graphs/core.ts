@@ -2,7 +2,8 @@ import { appendPasses, applyBreaks } from '../pipeline';
 import { compileLayers } from '../prompt';
 import type { Layer, WorkflowState } from '../types';
 import { scaleForLongestEdge } from '@/features/inputImage/imageOps';
-import type { BuildGraphResult, InpaintConfig } from './types';
+import type { BuildGraphResult, GraphExtras, InpaintConfig } from './types';
+import { applyStyleRefs } from './style';
 
 export type Ref = [string, number];
 export type Graph = Record<string, { class_type: string; inputs: Record<string, unknown> }>;
@@ -34,6 +35,7 @@ export function buildSampledGraph(
   inpaint: InpaintConfig | null,
   load: BaseLoader,
   options: CoreOptions = { inpaintControlnet: true, inpaintSize: 1024 },
+  extras: GraphExtras = {},
 ): BuildGraphResult {
   // Seeds can be up to 0xFFFFFFFF (4.29e9), which overflows the signed 32-bit
   // range that `| 0` truncates to — ComfyUI then rejects the resulting negative
@@ -88,6 +90,10 @@ export function buildSampledGraph(
     modelRef = [id, 0];
     clipRef = [id, 1];
   });
+  // Style references (Style tab): IP-Adapter / face / Redux, after the LoRAs, before the sampler.
+  // Nothing at all without an active, uploaded reference (old workflows: the same graph).
+  const style = applyStyleRefs(graph, workflow, extras.family ?? 'sdxl', modelRef, extras.styleImages);
+  modelRef = style.model;
   graph["3"].inputs.model = modelRef;
   graph["6"].inputs.clip = clipRef;
   graph["7"].inputs.clip = clipRef;
@@ -330,5 +336,6 @@ export function buildSampledGraph(
   // self-clean. Explicit favorites are copied into the imagelab_favorites tree
   // by /imagelab/api/favorites and survive restarts. See `lib/favorites.ts`.
   graph["9"] = { class_type: "PreviewImage", inputs: { images: img }};
+  style.finish(graph);
   return { graph, clampNotes };
 }

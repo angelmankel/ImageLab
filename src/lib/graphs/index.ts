@@ -5,9 +5,9 @@ import { buildAnimaGraph } from './anima';
 import { buildFluxGraph } from './flux';
 import { buildZImageGraph } from './zimage';
 import { buildQwenGraph } from './qwen';
-import type { BuildGraphResult, GraphBuilder, InpaintConfig } from './types';
+import type { BuildGraphResult, GraphBuilder, GraphExtras, InpaintConfig } from './types';
 
-export type { BuildGraphResult, GraphBuilder, InpaintConfig } from './types';
+export type { BuildGraphResult, GraphBuilder, GraphExtras, InpaintConfig } from './types';
 
 /** One builder per graph family. A new family (Flux…) adds its file here. */
 const BUILDERS: Record<GraphFamily, GraphBuilder> = {
@@ -30,7 +30,8 @@ export function buildGraph(
   layers: Layer[],
   inputImageRef: string | null = null,
   inpaint: InpaintConfig | null = null,
+  extras: GraphExtras = {},
 ): BuildGraphResult {
   const family = workflowFamily(workflow);
-  return BUILDERS[family](workflow, layers, inputImageRef, inpaint, family);
+  return BUILDERS[family](workflow, layers, inputImageRef, inpaint, family, extras);
 }
