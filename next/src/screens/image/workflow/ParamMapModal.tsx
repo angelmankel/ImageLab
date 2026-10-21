@@ -6,7 +6,7 @@
  * just text. Blank = automatic (the placeholder shows what the step uses). Saved as you type.
  */
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
-import { Loader, Modal } from '@mantine/core';
+import { Modal } from '@mantine/core';
 import { IconEye, IconEyeOff, IconRestore, IconTags, IconX } from '@tabler/icons-react';
 import { loadSavedWorkflow, comfyHttpFor } from '@/lib/comfy';
 import { readParams, type WorkflowParam } from '@/features/studio/params';
@@ -15,7 +15,7 @@ import { objectInfoNow } from '@/features/studio/useStudioRun';
 import type { EditorWorkflowWithSubgraphs, ObjectInfo } from '@/lib/workflowGraph';
 import { useIsPhone } from '~/app/useIsPhone';
 import { T } from '~/theme/tokens';
-import { Button } from '~/ui';
+import { Button, LoadingState } from '~/ui';
 import { ROLES, ROLE_INFO, resolveParams, type Control, type ParamMapping, type Role } from './paramMap';
 import { useMapEditor, useParamMap, useWorkflowMap } from './paramMapStore';
 import { groupByNode } from './workflowStepLogic';
@@ -98,7 +98,7 @@ function Body({ host, path }: { host: string; path: string }) {
   const editable = (p: WorkflowParam) => !(p.type === 'COMBO' && (p.name === 'image' || (p.options ?? []).some((o) => /\.(safetensors|ckpt|pt|pth|bin|gguf|sft)$/i.test(String(o)))));
 
   if (error) return <div style={{ padding: 20, color: 'var(--il-err)', fontSize: 13, fontWeight: 600 }}>Could not read the workflow: {error}</div>;
-  if (!params) return <div style={{ padding: 30, display: 'grid', placeItems: 'center' }}><Loader size="sm" color="orange" /></div>;
+  if (!params) return <LoadingState label="Reading the workflow…" />;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: 0, flex: 1 }}>
       <div style={{ padding: '8px 16px', display: 'flex', alignItems: 'center', gap: 8, borderBottom: '1px solid var(--il-line)' }}>

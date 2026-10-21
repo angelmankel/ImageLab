@@ -6,7 +6,7 @@
  * data-driven list per provider (`@/lib/aiParams`), unset values use the provider's default.
  */
 import { useEffect, useRef, useState } from 'react';
-import { Modal, Button as MButton, Loader } from '@mantine/core';
+import { Modal, Button as MButton } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconRestore, IconSettings, IconSparkles, IconX } from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
@@ -16,7 +16,7 @@ import { activeEntry, providerSpec } from '@/lib/aiProviders';
 import { paramBody, providerParams } from '@/lib/aiParams';
 import { AiModelPicker } from '@/features/ai/AiModelPicker';
 import { useIsPhone } from '~/app/useIsPhone';
-import { Button, SliderRow, Tabs } from '~/ui';
+import { Button, SliderRow, Tabs, Spinner } from '~/ui';
 import { T } from '~/theme/tokens';
 import { useWriteIt } from './writeIt/writeItStore';
 import { dvh } from '~/theme/uiScale';
@@ -161,7 +161,7 @@ export function WriteItModal({ opened, onClose }: { opened: boolean; onClose: ()
           {!phone && <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--il-dim)' }}>Ctrl+Enter</span>}
           <div style={{ flex: 1 }} />
           <Button tone="card" size={size} onClick={onClose}>Cancel</Button>
-          <Button tone="primary" size={size} disabled={!canRun} onClick={() => void run()} icon={busy ? <Loader size={12} color="dark" /> : <IconSparkles size={15} stroke={2.2} />}>{busy ? 'Writing…' : 'Write'}</Button>
+          <Button tone="primary" size={size} disabled={!canRun} onClick={() => void run()} icon={busy ? <Spinner size={12} color="var(--il-bg)" /> : <IconSparkles size={15} stroke={2.2} />}>{busy ? 'Writing…' : 'Write'}</Button>
         </div>
       </div>
     </Modal>

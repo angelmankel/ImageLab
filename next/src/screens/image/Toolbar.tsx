@@ -10,7 +10,7 @@
  */
 import { useState } from 'react';
 import { notifications } from '@mantine/notifications';
-import { Loader } from '@mantine/core';
+
 import { IconArrowsMaximize, IconZoomIn, IconZoomOut, IconCrop, IconBrush, IconColumns2, IconRefresh, IconHistory, IconArrowRight, IconHeart, IconHeartFilled, IconDownload, IconMaximize, IconTrash, IconBroadcast, IconBroadcastOff, IconBackground } from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
 import { useViewerPrefs } from '@/features/history/viewerPrefs';
@@ -20,7 +20,7 @@ import { useSteps, nextStepId, type Step } from '~/app/stepsStore';
 import { recallFrom, reuseSettingsFrom, sendToNextStep } from '~/app/actions';
 import { deleteOutput } from '~/app/deleteResult';
 import { removeBgFrom, useRemovingBg } from '~/app/removeBgAction';
-import { IconBtn, Sep } from '~/ui';
+import { IconBtn, Sep, Spinner } from '~/ui';
 import { T } from '~/theme/tokens';
 import { StageBadge } from './StageBadge';
 import { useLayout } from './layoutStore';
@@ -103,7 +103,7 @@ export function Toolbar({ step, media, zoom, onFullscreen, canFullscreen, phone 
         <IconBtn icon={<IconCrop size={16} stroke={2.2} />} label="Crop a part and re-render it full size" onClick={() => void crop()} style={round} disabled={!has || media.item?.kind === 'video'} />
         <IconBtn icon={<IconBrush size={16} stroke={2.2} />} label="Mask and inpaint" onClick={() => soon('Mask & inpaint')} style={round} disabled={!has} />
         <IconBtn icon={<IconColumns2 size={16} stroke={2.2} />} label={compare ? 'Close compare' : 'Compare — split view against another result'} on={compare} onClick={() => setCompare(!compare)} style={{ ...round, background: compare ? 'var(--il-ember-soft)' : 'var(--il-elev)' }} disabled={!comparable && !compare} />
-        <IconBtn icon={removing ? <Loader size={14} color="var(--il-ember)" /> : <IconBackground size={16} stroke={2.2} />} label={removing ? 'Removing the background…' : 'Remove BG — cut the subject out (transparent PNG)'} onClick={() => { if (media.item) void removeBgFrom({ url: media.item.url, filename: media.item.filename, entry: media.source === 'image' ? entry : null }); }} style={round} disabled={!has || media.item?.kind === 'video' || removing} />
+        <IconBtn icon={removing ? <Spinner size={14} /> : <IconBackground size={16} stroke={2.2} />} label={removing ? 'Removing the background…' : 'Remove BG — cut the subject out (transparent PNG)'} onClick={() => { if (media.item) void removeBgFrom({ url: media.item.url, filename: media.item.filename, entry: media.source === 'image' ? entry : null }); }} style={round} disabled={!has || media.item?.kind === 'video' || removing} />
         <Sep />
         <IconBtn icon={<IconRefresh size={16} stroke={2.2} />} label="Vary — same settings, new seed" onClick={vary} style={round} disabled={!has} />
         <IconBtn icon={<IconHistory size={16} stroke={2.2} />} label="Recall — everything from this image back into the step" onClick={() => { if (entry) recallFrom(entry); }} style={round} disabled={!entry} />

@@ -7,7 +7,7 @@
  * as a strip, sort, content, shape, search, and tags (the parts that recur in the loaded prompts).
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
-import { Loader, Modal } from '@mantine/core';
+import { Modal } from '@mantine/core';
 import { IconSparkles, IconChevronLeft, IconCopy, IconExternalLink, IconPhotoUp, IconRefresh, IconSearch, IconTextCaption, IconTrash, IconX } from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
 import { civitaiThumbUrl, isCivitaiVideo, type CivitaiImageSort, type NsfwFilter } from '@/lib/civitai';
@@ -18,7 +18,7 @@ import { useMine } from '@/features/next/mineStore';
 import { menuProps, registerMenu } from '~/app/contextMenu';
 import { useIsPhone } from '~/app/useIsPhone';
 import { T } from '~/theme/tokens';
-import { Button, useWheelSideways } from '~/ui';
+import { Button, useWheelSideways, LoadingState } from '~/ui';
 import { tileBackground } from '../prompt/promptSearch';
 import { applyStarter, setAsInput, type StarterUse } from './applyStarter';
 import { passes, topTags, type Shape } from './starterLogic';
@@ -225,7 +225,7 @@ function Body({ onClose }: { onClose: () => void }) {
         </div>
         {shown.length === 0 && empty && <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--il-muted)', textAlign: 'center', padding: '40px 12px' }}>{empty}</div>}
         <div ref={sentinel} style={{ height: 1 }} />
-        {source === 'models' && gallery.loading && <div style={{ display: 'grid', placeItems: 'center', padding: 16 }}><Loader size="sm" color="orange" /></div>}
+        {source === 'models' && gallery.loading && <LoadingState label="Loading pictures…" style={{ padding: 16 }} />}
       </div>
     </div>
   );

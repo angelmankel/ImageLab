@@ -5,7 +5,7 @@
  * Clear, and the negative prompt folded (Wan; it acts above CFG 1 or with NAG).
  */
 import { useEffect, useRef, useState } from 'react';
-import { Modal, Loader } from '@mantine/core';
+import { Modal } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconX } from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
@@ -16,7 +16,7 @@ import { useModeHost } from '@/features/workspace/modeHost';
 import { useVideo } from '@/features/video/videoStore';
 import { WAN_NEGATIVE } from '@/lib/wanGraph';
 import { chainModeOf, type Step } from '~/app/stepsStore';
-import { Tabs } from '~/ui';
+import { Tabs, Spinner } from '~/ui';
 import { T } from '~/theme/tokens';
 import { usePrevStepOutput } from '../useStepOutput';
 import { muted } from './bits';
@@ -104,7 +104,7 @@ function WriteItModal({ opened, onClose, step }: { opened: boolean; onClose: () 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6 }}>
           <button type="button" onClick={onClose} style={btn(false)}>Cancel</button>
           <button type="button" onClick={() => void run()} disabled={!canRun} style={{ ...btn(false), background: 'var(--il-ember)', color: 'var(--il-bg)', fontWeight: 800, opacity: canRun ? 1 : 0.5, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-            {busy ? <Loader size={12} color="dark" /> : '✦'} {busy ? 'Writing…' : 'Write'}
+            {busy ? <Spinner size={12} color="var(--il-bg)" /> : '✦'} {busy ? 'Writing…' : 'Write'}
           </button>
         </div>
       </div>
