@@ -136,3 +136,21 @@ test('relatedTiles ranks by typed words and the related-words table', () => {
   assert.ok(r.words.includes('rain'));
   assert.deepEqual(S.relatedTiles(tiles, '').tiles, []);
 });
+
+test('item 38: sentence-end periods and new lines split parts; numbers, weights, names, ellipses do not', () => {
+  const t = 'depth of field,dramatic lighting. XUER\n(cat:1.2), 0.85 thing, embedding:foo.pt, wait... more, a…b, end.';
+  const secs = P.parseSections(t).map((s) => slice(t, s));
+  assert.deepEqual(secs, ['depth of field', 'dramatic lighting', 'XUER', '(cat:1.2)', '0.85 thing', 'embedding:foo.pt', 'wait... more', 'a…b', 'end']);
+  // removing a part next to a period keeps the rest tidy
+  const u = 'a. b. c';
+  const ps = P.parseSections(u);
+  assert.equal(edit(u, P.removeRange(u, ps[1].start, ps[1].end)), 'a. c');
+  assert.equal(edit(u, P.removeRange(u, ps[2].start, ps[2].end)), 'a. b');
+  assert.equal(P.isBreakDot('1.2', 1), false);
+});
+
+test('item 46: prompt words skip trigger tags and junk stems', () => {
+  const w = S.wordsOf('color grading, s1_dram, 4ur4_illu, 8k, close-up, running cats');
+  assert.ok(!w.includes('dram') && !w.includes('illu') && !w.includes('ur4'));
+  assert.ok(w.includes('run') && w.includes('cat') && w.includes('close'));
+});

@@ -92,18 +92,38 @@ export function searchTiles<S extends TileSnippet>(snippets: S[], query: string)
 
 const STOP = new Set(['the', 'and', 'with', 'for', 'from', 'into', 'onto', 'over', 'under', 'very', 'this', 'that', 'his', 'her', 'their', 'its', 'are', 'was', 'has', 'have', 'lone', 'one', 'two', 'some', 'very', 'best', 'high', 'detailed', 'quality', 'masterpiece']);
 
-/** A word's plain form: flooded → flood, raining → rain, cities → city, cats → cat, rainy → rain. */
+/**
+ * A word's plain form, used on BOTH sides of a match (so it only has to be consistent, not a real
+ * lemma): flooded → flood, running → run, cities → city, cats → cat, rainy → rain.
+ */
 export function stem(w: string): string {
-  if (w.length > 4 && w.endsWith('ies')) return `${w.slice(0, -3)}y`;
-  if (w.length > 5 && w.endsWith('ing')) return w.slice(0, -3);
-  if (w.length > 5 && w.endsWith('ed')) return w.slice(0, -2);
-  if (w.length > 3 && w.endsWith('s') && !w.endsWith('ss')) return w.slice(0, -1);
-  if (w.length > 4 && w.endsWith('y') && !w.endsWith('ey')) return w.slice(0, -1);
-  return w;
+  let r = w;
+  if (r.length > 4 && r.endsWith('ies')) return `${r.slice(0, -3)}y`;
+  if (r.length > 5 && r.endsWith('ing')) r = r.slice(0, -3);
+  else if (r.length > 5 && r.endsWith('ed')) r = r.slice(0, -2);
+  else if (r.length > 3 && r.endsWith('s') && !r.endsWith('ss')) return r.slice(0, -1);
+  else if (r.length > 4 && r.endsWith('y') && !r.endsWith('ey')) return r.slice(0, -1);
+  // runn(ing) → run, stopp(ed) → stop
+  if (r !== w && r.length > 3 && r[r.length - 1] === r[r.length - 2] && !/[aeiouls]/.test(r[r.length - 1])) r = r.slice(0, -1);
+  return r;
 }
 
+/**
+ * The prompt's words for matching (item 46): whole words only. Tokens with digits or underscores
+ * (LoRA trigger tags like `s1_dram`, `4ur4_illu`, sizes like `8k`) are not words and are skipped,
+ * so they never turn into junk stems.
+ */
 export function wordsOf(text: string): string[] {
-  return (text.toLowerCase().match(/[a-z0-9]+/g) ?? []).filter((w) => w.length >= 3 && !STOP.has(w)).map(stem);
+  const toks = text.toLowerCase().split(/[^a-z0-9_'-]+/);
+  const out: string[] = [];
+  for (const raw of toks) {
+    for (const t of raw.split(/-/)) {
+      const w = t.replace(/^'+|'+$/g, '');
+      if (w.length < 3 || /[\d_']/.test(w) || STOP.has(w)) continue;
+      out.push(stem(w));
+    }
+  }
+  return out;
 }
 
 /**
@@ -123,7 +143,7 @@ export function relatedTiles<S extends TileSnippet>(snippets: S[], typed: string
       let hit = 0;
       if (name.has(w)) hit += 4;
       if (body.has(w)) hit += 2;
-      if (!hit && w.length >= 4) for (const t of [...name, ...body]) if (t.length >= 4 && (t.startsWith(w) || w.startsWith(t))) { hit += 1; break; }
+      if (!hit && w.length >= 5) for (const t of [...name, ...body]) if (t.length >= 5 && (t.startsWith(w) || w.startsWith(t))) { hit += 1; break; }
       let rel = 0;
       for (const r of RELATED_WORDS[w] ?? []) {
         const rs = stem(r);

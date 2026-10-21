@@ -37,7 +37,12 @@
 .il-sp-snip { background: hsl(var(--h) 55% 55% / 0.17); box-shadow: 0 0 0 2px hsl(var(--h) 55% 55% / 0.17); }
 .il-sp-up { background: color-mix(in srgb, var(--sp-accent) 14%, transparent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--sp-accent) 14%, transparent); }
 .il-sp-dn { background: color-mix(in srgb, var(--il-info) 13%, transparent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--il-info) 13%, transparent); }
-.il-sp-on { box-shadow: 0 0 0 1.5px var(--sp-accent) !important; }
+/* Item 38: the part under the caret — a soft tinted background whose spread (box-shadow, never
+   padding) gives the same few px on every side, plus a very faint ring; no strong outline. */
+.il-sp-on {
+  background: color-mix(in srgb, var(--sp-accent) 15%, transparent) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--sp-accent) 15%, transparent), 0 0 0 4px color-mix(in srgb, var(--sp-accent) 22%, transparent) !important;
+}
 .il-sp-syn { color: var(--il-dim); }
 .il-sp-num { color: var(--sp-accent-hi); }
 .il-sp-dn .il-sp-num { color: var(--il-info); }

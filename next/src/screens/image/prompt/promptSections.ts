@@ -80,7 +80,20 @@ function readGroup(text: string, start: number, end: number): Pick<Section, 'inn
   return { innerStart: is, innerEnd: ie, weight: 1.1, grouped: true };
 }
 
-/** Top-level sections (split on `,` and newlines outside brackets), trimmed, empty ones dropped. */
+/**
+ * Is the `.` at `i` a part break (item 38)? Only a sentence-end dot: followed by white space or the
+ * end of the text, and not part of "..". So "1.2", "0.85", `embedding:foo.pt`, "file.safetensors",
+ * "…" and "..." never split; "dramatic lighting. XUER" does.
+ */
+export function isBreakDot(text: string, i: number): boolean {
+  if (text[i] !== '.') return false;
+  const next = text[i + 1];
+  if (next !== undefined && !WS.test(next)) return false;
+  if (text[i - 1] === '.') return false;
+  return i > 0;
+}
+
+/** Top-level sections (split on `,`, sentence-end `.` and newlines outside brackets), trimmed, empty ones dropped. */
 export function parseSections(text: string): Section[] {
   const out: Section[] = [];
   let depth = 0;
@@ -96,7 +109,7 @@ export function parseSections(text: string): Section[] {
     if (c === '\\') { i++; continue; }
     if (c === '(') depth++;
     else if (c === ')') depth = Math.max(0, depth - 1);
-    else if ((c === ',' || c === '\n') && depth === 0) { push(segStart, i); segStart = i + 1; }
+    else if ((c === ',' || c === '\n' || (c === '.' && isBreakDot(text, i))) && depth === 0) { push(segStart, i); segStart = i + 1; }
   }
   return out;
 }
@@ -197,13 +210,13 @@ export function nudgeWeight(text: string, parts: Part[], selStart: number, selEn
   return p ? setPartWeight(text, p, p.weight + delta) : null;
 }
 
-/** Remove [start, end) with one neighbouring separator, so no ", ," is left behind. */
+/** Remove [start, end) with one neighbouring separator (`,` or a part-break `.`), so no ", ," is left behind. */
 export function removeRange(text: string, start: number, end: number): Edit {
   let a = start; let b = end;
-  const after = /^[ \t]*,[ \t]*/.exec(text.slice(b));
-  if (after) b += after[0].length;
+  const after = /^[ \t]*[,.][ \t]*/.exec(text.slice(b));
+  if (after && (after[0].trim() === ',' || isBreakDot(text, b + after[0].indexOf('.')))) b += after[0].length;
   else {
-    const before = /[ \t]*,[ \t]*$/.exec(text.slice(0, a));
+    const before = /[ \t]*[,.][ \t]*$/.exec(text.slice(0, a));
     if (before) a -= before[0].length;
     else { while (b < text.length && /[ \t]/.test(text[b])) b++; }
   }

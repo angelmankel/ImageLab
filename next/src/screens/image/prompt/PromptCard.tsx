@@ -2,7 +2,7 @@
  * Items 12 + 13 (and 39: workflow steps use it too): the prompt card. Two tabs on its top edge —
  * Prompt / Negative (with how many parts the negative has) — switch the ONE smart box between the
  * two texts. Negative mode cannot be missed: the card turns red-tinted with a red top edge, the
- * tab fills red, an "AVOIDING" badge shows, the caret and selection go red. Under the box: the
+ * tab fills red, the caret and selection go red (item 45: no "AVOIDING" badge). Under the box: the
  * caller's tools (Write it, Starters…) and the clear button. Pure view: the texts come in as props.
  */
 import type { ReactNode } from 'react';
@@ -58,7 +58,6 @@ export function PromptCard({ positive, negative, negativeMode, onMode, tiles, to
         <div role="tablist" aria-label="Prompt or negative prompt" style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '8px 8px 0' }}>
           {tab(false, 'Prompt')}
           {tab(true, <>Negative{negCount > 0 && <span style={{ fontSize: 10, fontWeight: 800, padding: '1px 6px', borderRadius: 999, background: neg ? 'rgba(0,0,0,.22)' : 'var(--il-line-soft)', color: neg ? 'var(--il-bg)' : 'var(--il-muted)' }}>{negCount}</span>}</>)}
-          {neg && <span style={{ marginLeft: 'auto', paddingRight: 6, fontSize: 10, fontWeight: 800, letterSpacing: '.6px', color: 'color-mix(in srgb, var(--il-err) 70%, white)' }}>AVOIDING</span>}
         </div>
       )}
       <div style={{ padding: '8px 12px 0' }}>

@@ -109,11 +109,8 @@ export function TileGrid({ tiles, on, typed, onToggle }: {
         </div>
       )}
 
-      {auto && (
-        <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap', margin: '-2px 0 8px', fontSize: 11, fontWeight: 700, color: 'var(--il-muted)' }}>
-          {auto.words.length ? <>From your prompt:{auto.words.map((w) => <span key={w} style={{ padding: '2px 8px', borderRadius: 999, background: 'var(--il-card-on)', color: 'var(--il-fg2)' }}>{w}</span>)}</>
-            : <span>Type in the prompt — tiles that go with your words show here.</span>}
-        </div>
+      {auto && !typed.trim() && (
+        <div style={{ margin: '-2px 0 8px', fontSize: 11, fontWeight: 700, color: 'var(--il-muted)' }}>Type in the prompt — tiles that go with your words show here.</div>
       )}
 
       <div className="il-scroll" data-no-swipe

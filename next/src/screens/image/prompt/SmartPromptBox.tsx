@@ -8,6 +8,7 @@
  * Edits go through `insertText` so the browser's own Undo (Ctrl+Z) keeps working.
  */
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { flushSync } from 'react-dom';
 import { IconMinus, IconPlus, IconStar, IconX } from '@tabler/icons-react';
 import { useIsPhone } from '~/app/useIsPhone';
 import { Tip } from '~/ui';
@@ -84,8 +85,16 @@ export function SmartPromptBox({ value, onChange, onBlur, kind, snippets, catego
   const phone = useIsPhone();
   const ta = useRef<HTMLTextAreaElement>(null);
   const back = useRef<HTMLDivElement>(null);
-  const [sel, setSel] = useState<[number, number]>([value.length, value.length]);
-  const [focused, setFocused] = useState(false);
+  // Item 40: the selection is stored WITH the text it was read from; a selection read from another
+  // text is never used (that was the stale "two flycatchers" frame), so the part bar can only show
+  // a part of the current text.
+  const [selRead, setSelRead] = useState<{ a: number; b: number; v: string }>({ a: value.length, b: value.length, v: value });
+  const setSel = ([a, b]: [number, number], v?: string) => setSelRead({ a, b, v: v ?? ta.current?.value ?? value });
+  const selOk = selRead.v === value;
+  const sel: [number, number] = selOk ? [selRead.a, selRead.b] : [-1, -1];
+  const [focusedRaw, setFocused] = useState(false);
+  const focused = focusedRaw && selOk;
+  const pointerFocus = useRef(false);
   const [hl, setHl] = useState(0);
   const [dismissed, setDismissed] = useState<number | null>(null);
   const pendingSel = useRef<[number, number] | null>(null);
@@ -120,11 +129,24 @@ export function SmartPromptBox({ value, onChange, onBlur, kind, snippets, catego
       const [a, b] = pendingSel.current;
       pendingSel.current = null;
       if (document.activeElement === el) el.setSelectionRange(a, b);
-      setSel([a, b]);
-    }
-  }, [value, large]);
+      setSel([a, b], value);
+    } else if (document.activeElement === el && selRead.v !== value) setSel([el.selectionStart, el.selectionEnd], value);
+  }, [value, large]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const readSel = () => { const el = ta.current; if (el) setSel([el.selectionStart, el.selectionEnd]); };
+  const readSel = () => { const el = ta.current; if (el) setSel([el.selectionStart, el.selectionEnd], el.value); };
+  /** Read the caret before the next paint (the browser moves it after mousedown / keydown handlers). */
+  const readSoon = () => requestAnimationFrame(() => {
+    const el = ta.current;
+    if (!el) return;
+    flushSync(() => { setFocused(document.activeElement === el); readSel(); });
+    pointerFocus.current = false;
+  });
+  // Any other caret move (drag-select, IME, programmatic) — read it too.
+  useEffect(() => {
+    const on = () => { if (ta.current && document.activeElement === ta.current) readSel(); };
+    document.addEventListener('selectionchange', on);
+    return () => document.removeEventListener('selectionchange', on);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   /** Apply an edit: through the browser (keeps Ctrl+Z) when the box has focus, else directly. */
   const apply = (e: Edit) => {
@@ -134,7 +156,7 @@ export function SmartPromptBox({ value, onChange, onBlur, kind, snippets, catego
       const ok = e.insert ? document.execCommand('insertText', false, e.insert) : e.start === e.end || document.execCommand('delete');
       if (ok && el.value === applyEdit(value, e)) {
         el.setSelectionRange(e.selStart, e.selEnd);
-        setSel([e.selStart, e.selEnd]);
+        setSel([e.selStart, e.selEnd], el.value);
         return;
       }
     }
@@ -148,6 +170,7 @@ export function SmartPromptBox({ value, onChange, onBlur, kind, snippets, catego
   };
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    readSoon();
     if (pickOpen && options.length) {
       if (e.key === 'ArrowDown') { e.preventDefault(); setHl((h) => (h + 1) % options.length); return; }
       if (e.key === 'ArrowUp') { e.preventDefault(); setHl((h) => (h - 1 + options.length) % options.length); return; }
@@ -180,11 +203,12 @@ export function SmartPromptBox({ value, onChange, onBlur, kind, snippets, catego
           value={value}
           spellCheck={false}
           placeholder={placeholder}
-          onChange={(e) => { onChange(e.target.value); setSel([e.target.selectionStart, e.target.selectionEnd]); }}
+          onChange={(e) => { onChange(e.target.value); setSel([e.target.selectionStart, e.target.selectionEnd], e.target.value); }}
           onSelect={readSel}
           onKeyUp={readSel}
           onMouseUp={readSel}
-          onFocus={() => { setFocused(true); readSel(); }}
+          onMouseDown={() => { pointerFocus.current = true; readSoon(); }}
+          onFocus={() => { if (pointerFocus.current) return; setFocused(true); readSel(); }}
           onBlur={() => { setFocused(false); onBlur?.(); }}
           onScroll={(e) => { if (back.current) back.current.scrollTop = e.currentTarget.scrollTop; }}
           onKeyDown={onKeyDown}
