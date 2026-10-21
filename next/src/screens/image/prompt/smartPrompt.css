@@ -86,3 +86,6 @@
 .il-sp-ghost { position: absolute; z-index: 26; pointer-events: none; transform: translate(8px, -120%); max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 800; background: var(--il-elev); color: var(--il-fg);
   border: 1px solid var(--sp-accent); box-shadow: 0 10px 22px rgba(0, 0, 0, .5); }
+/* The row's category (item 39): a small chip with the whole name, never cut to "Detail…". */
+.il-sp-cat { flex: none; max-width: 45%; font-size: 10px; font-weight: 700; color: var(--il-muted); background: var(--il-card); border: 1px solid var(--il-line-soft);
+  border-radius: 999px; padding: 2px 7px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

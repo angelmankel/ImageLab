@@ -26,3 +26,8 @@ export { UiEffects } from './UiEffects';
 export { SearchField } from './SearchField';
 export type { SearchFieldProps } from './SearchField';
 export { TitleTips } from './TitleTips';
+export { Collapse, CollapseHeader } from './Collapse';
+export type { CollapseProps, CollapseHeaderProps } from './Collapse';
+export { useCollapseStore, useSectionOpen } from './collapseStore';
+export { scrollIntoNearest, scrollParent, useScrollIntoView } from './scrollIntoNearest';
+export { nearestScroll } from './scrollLogic';

@@ -11,14 +11,14 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode }
 import { flushSync } from 'react-dom';
 import { IconMinus, IconPlus, IconStar, IconX } from '@tabler/icons-react';
 import { useIsPhone } from '~/app/useIsPhone';
-import { Tip } from '~/ui';
+import { Tip, useScrollIntoView } from '~/ui';
 import { pushUndo } from '~/app/undo';
 import { PartHandles, type PartDrag } from './PartHandles';
 import {
   applyEdit, formatWeight, movePart, nudgeWeight, partAt, promptParts, replaceSlash, setPartWeight, removeRange, slashQuery, snippetTextFor,
   type Edit, type Part,
 } from './promptSections';
-import { fuzzy, relatedTiles, searchTiles, tileBackground, tileHue, tileName, type TileSnippet } from './promptSearch';
+import { fuzzy, relatedTiles, searchTiles, tileBackground, tileHue, type TileSnippet } from './promptSearch';
 import './smartPrompt.css';
 
 /** Items 6 / 43: the box grows to this share of the window (between the two px bounds), then scrolls inside. */
@@ -118,6 +118,9 @@ export function SmartPromptBox({ value, onChange, onBlur, kind, snippets, catego
   // The "/" picker.
   const slash = focused && sel[0] === sel[1] ? slashQuery(value, sel[0]) : null;
   const pickOpen = !!slash && dismissed !== slash.start;
+  // ↑ / ↓ keep the highlighted snippet in view (item 39): scrolls the list only, never the panel.
+  const pickRef = useRef<HTMLDivElement>(null);
+  useScrollIntoView(pickRef, pickOpen ? hl : -1, { enabled: pickOpen });
   const options = useMemo(() => {
     if (!slash) return [] as Array<{ s: TileSnippet; suggested: boolean }>;
     const usable = snippets.filter((s) => snippetTextFor(s, kind));
@@ -263,7 +266,7 @@ export function SmartPromptBox({ value, onChange, onBlur, kind, snippets, catego
           onRemove={(p) => applyUndoable(removeRange(value, p.start, p.end), 'Take out snippet')}
           onPick={(p) => { const el = ta.current; if (!el) return; el.focus({ preventScroll: true }); el.setSelectionRange(p.innerStart, p.innerEnd); setFocused(true); setSel([p.innerStart, p.innerEnd], el.value); }} />
         {pickOpen && (
-          <div className="il-sp-pick il-scroll" role="listbox" aria-label="Snippets" onMouseDown={keep} style={{ top: 'calc(100% + 6px)' }}>
+          <div ref={pickRef} className="il-sp-pick il-scroll" role="listbox" aria-label="Snippets" onMouseDown={keep} style={{ top: 'calc(100% + 6px)' }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--il-muted)', padding: '4px 8px 6px' }}>
               {slash!.query ? <>Snippets matching <b style={{ color: 'var(--il-fg)' }}>{slash!.query}</b></> : 'Snippets'}{!phone && ' · ↑↓ Enter · Esc'}
             </div>
@@ -280,7 +283,7 @@ export function SmartPromptBox({ value, onChange, onBlur, kind, snippets, catego
                       <b style={{ fontSize: 12, fontWeight: 800 }}>{nm ? <Highlight text={s.name} hits={nm.hits} /> : s.name}</b>
                       <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--il-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{snippetTextFor(s, kind)}</span>
                     </span>
-                    <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--il-dim)', flex: 'none' }}>{tileName(categoryNames[s.categoryId] ?? '', 14)}</span>
+                    {categoryNames[s.categoryId] && <span className="il-sp-cat">{categoryNames[s.categoryId]}</span>}
                   </button>
                 </div>
               );
