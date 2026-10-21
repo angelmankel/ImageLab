@@ -14,11 +14,13 @@ import { DownloadButton } from './DownloadButton';
 import { useModelCover } from './ModelTile';
 import { openModelViewer } from './viewerBridge';
 import { isLocalModel } from './localModels';
+import { hashLabel, useHashState } from '~/screens/image/model/useHashState';
 
 export function ModelRow({ model, selected, installed, revealed, picking, onOpen, onReveal, onUse }: {
   model: CivitaiModel; selected: boolean; installed: InstalledState; mask: number; revealed: boolean; picking?: boolean; onOpen: () => void; onReveal: () => void; onUse: () => void;
 }) {
   const { covered, version, image, start, observe, viewerStart } = useModelCover(model);
+  const hashing = useHashState(isLocalModel(model) ? model.modelVersions[0]?.files[0]?.name : null);
   const hidden = !!image && covered(image.nsfwLevel) && !revealed;
   const url = image ? civitaiSmallUrl(image, 160) : '';
   const file = version ? primaryFile(version) : null;
@@ -50,6 +52,7 @@ export function ModelRow({ model, selected, installed, revealed, picking, onOpen
           {version?.baseModel && <Tag tone="ember">{baseModelShort(version.baseModel)}</Tag>}
           <Tag tone="muted">{typeLabel(model.type).toUpperCase()}</Tag>
           {model.nsfw && <Tag tone="muted" outlined>NSFW</Tag>}
+          {hashing && <Tag tone="muted" outlined>{hashLabel(hashing)}</Tag>}
         </span>
         <Stats stats={model.stats} size="phone" />
       </button>

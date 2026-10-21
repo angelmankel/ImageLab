@@ -18,6 +18,7 @@ import { usePick } from './pickContext';
 import { FChip, MenuPill } from './bits';
 import { SearchBox, SourceChips } from './FilterBar';
 import { ModelList } from './ModelList';
+import { HashProgressLine } from './HashProgressLine';
 import { PhoneFilters } from './PhoneFilters';
 import { SelectedTagChips } from './TagsRow';
 import { useKeepScroll, modelsListKey } from './useKeepScroll';
@@ -80,6 +81,7 @@ export function PhoneBrowse() {
         </div>
         {tagCount > 0 && <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}><SelectedTagChips size="phone" /></div>}
         <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--il-muted)', padding: '0 2px' }}>{summary}</div>
+        <HashProgressLine />
         <ModelList
           items={shown.items} view="grid" columns={2} size="phone" selectedId={null} mask={f.nsfwMask} revealed={revealed} favourites={favourites} installed={installed} picking={actions.picking}
           loading={shown.loading} loadingMore={shown.loadingMore} error={shown.error} hasMore={shown.hasMore} hidden={shown.hidden}

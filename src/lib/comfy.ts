@@ -102,9 +102,31 @@ export interface ModelHash {
   hashed_at: number;
 }
 
+/** A file the node has not hashed yet (ImageLabCore 825f446+): never a `models` entry. */
+export interface ModelHashPending {
+  key: string;
+  filename: string;
+  folder?: string;
+  size?: number;
+  state: 'queued' | 'hashing' | 'error';
+  error?: string;
+}
+
+/** How far the node's hashing is (ImageLabCore 825f446+). `ready` = the first full pass is done. */
+export interface ModelHashProgress {
+  hashed: number;
+  total: number;
+  pending: number;
+  ready: boolean;
+}
+
 export interface ModelHashes {
   version: string;
+  /** Only entries WITH a hash. */
   models: ModelHash[];
+  /** Newer nodes: the files still waiting / being hashed / failed. Older nodes: absent. */
+  pending?: ModelHashPending[];
+  progress?: ModelHashProgress;
 }
 
 /**

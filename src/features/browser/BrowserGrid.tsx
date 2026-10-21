@@ -165,7 +165,7 @@ export function earlyAccessUntil(model: CivitaiSearchHit): string | null {
 /** Lowercase SHA256 of every model file on the connected servers. */
 export function useInstalledHashes(): Set<string> {
   const hashes = useStore((s) => s.modelHashes);
-  return useMemo(() => new Set(hashes.map((h) => h.hash.toLowerCase())), [hashes]);
+  return useMemo(() => new Set(hashes.filter((h) => !!h.hash).map((h) => h.hash.toLowerCase())), [hashes]);
 }
 
 export function isInstalled(model: CivitaiSearchHit, installed: Set<string>): boolean {

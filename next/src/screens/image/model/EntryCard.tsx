@@ -43,6 +43,7 @@ import type { KindApi } from './kindApi';
 import { displayBadge } from './followLogic';
 import { hasRecommended, recommendFrom, type Recommended } from './cardFacts';
 import { RecommendedRow } from './RecommendedRow';
+import { hashLabel, useHashProgress, useHashState } from './useHashState';
 import { initials } from './Thumb';
 import '~/screens/models/models.css';
 
@@ -81,6 +82,9 @@ export function EntryCard({ entry, api, onChange, link }: { entry: ModelEntry; a
   const texture = preview.pictures.slice(1, 5);
   const covered = useNsfwCover();
   const heroSize = phone ? 116 : 104;
+  // ImageLabCore 825f446: a file the node is still hashing says so instead of "unknown".
+  const hashing = useHashState(entry.name && !meta.baseModel ? entry.name : null);
+  const hashProgress = useHashProgress();
 
   // The picture → the full-screen viewer over all the version's pictures (with their generation
   // data when the images API has them), starting on the shown one (item 31 / 33).
@@ -147,7 +151,9 @@ export function EntryCard({ entry, api, onChange, link }: { entry: ModelEntry; a
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 2 }}>
               {base && <Chip ember>{base}</Chip>}
               {badge && <Chip>{badge}</Chip>}
-              {entry.name && !base && <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--il-muted)' }}>{meta.resolved ? 'Not on CivitAI' : 'Looking up…'}</span>}
+              {entry.name && !base && <span style={{ fontSize: 11, fontWeight: 600, color: hashing === 'error' ? 'var(--il-warn)' : 'var(--il-muted)' }}>
+                {hashing ? hashLabel(hashing) : meta.resolved ? 'Not on CivitAI' : hashProgress && !hashProgress.ready ? 'Checking models…' : 'Looking up…'}
+              </span>}
             </div>
             <Button tone="card" size={phone ? 'lg' : 'sm'} icon={<IconArrowsExchange size={14} stroke={2.4} />} onClick={onChange} tooltip={`Pick another ${spec.one}`}
               style={{ alignSelf: 'flex-start', marginTop: 4 }}>{entry.name ? 'Change' : `Pick a ${spec.one}`}</Button>

@@ -69,7 +69,7 @@ function buildInstalled(hashes: ReturnType<typeof useStore.getState>['modelHashe
       hashKey: (f) => {
         const want = new Set(Object.values(f.hashes ?? {}).filter(Boolean).map((h) => h!.toUpperCase()));
         const base = f.name.split('/').pop() ?? f.name;
-        return (hashes.find((h) => want.has(h.hash.toUpperCase())) ?? hashes.find((h) => h.filename === base))?.key;
+        return (hashes.find((h) => !!h.hash && want.has(h.hash.toUpperCase())) ?? hashes.find((h) => h.filename === base))?.key;
       },
     };
   }

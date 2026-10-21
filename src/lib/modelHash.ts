@@ -10,7 +10,7 @@ import type { ModelHash } from './comfy';
 import type { CivitaiCacheEntry, CivitaiModelVersion, CivitaiVersionByHash } from './civitai';
 
 /** Find the hash entry for a ComfyUI model name, or undefined if not hashed. */
-export function findModelHash(hashes: ModelHash[], fileName: string): ModelHash | undefined {
+export function findModelHash<T extends Pick<ModelHash, 'key' | 'filename'> = ModelHash>(hashes: readonly T[], fileName: string): T | undefined {
   if (!fileName) return undefined;
   const base = fileName.split('/').pop();
   return (
@@ -173,7 +173,7 @@ export function orderForPreview(
  * status as *unknown* rather than false.
  */
 export function localHashSet(hashes: ModelHash[]): Set<string> {
-  return new Set(hashes.map((h) => h.hash.toUpperCase()));
+  return new Set(hashes.filter((h) => !!h.hash).map((h) => h.hash.toUpperCase()));
 }
 
 /**

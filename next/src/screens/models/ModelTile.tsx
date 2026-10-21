@@ -29,6 +29,7 @@ import { DownloadButton } from './DownloadButton';
 import { VersionPicker } from './VersionPicker';
 import { openModelViewer } from './viewerBridge';
 import { isLocalModel } from './localModels';
+import { hashLabel, useHashState } from '~/screens/image/model/useHashState';
 import { useInstalled } from './useInstalled';
 import { useModels } from './modelsStore';
 import { menuProps } from '~/app/contextMenu';
@@ -85,6 +86,7 @@ export function ModelTile({ model, selected, installed, revealed, favourite, pic
   const hidden = !!image && covered(image.nsfwLevel) && !revealed;
   const url = image ? civitaiSmallUrl(image, TILE_THUMB) : '';
   const local = isLocalModel(model);
+  const hashing = useHashState(local ? model.modelVersions[0]?.files[0]?.name : null);
   const toggleFavourite = useModels((s) => s.toggleFavourite);
 
   // The cover is a picture you can drag onto a step, a drop zone, another tab (~/dnd).
@@ -163,7 +165,7 @@ export function ModelTile({ model, selected, installed, revealed, favourite, pic
           <span style={{ fontSize: phone ? 13 : 14, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={model.name}>{model.name}</span>
           <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 600, color: 'var(--il-muted)', minWidth: 0 }}>
             <Avatar creator={model.creator} size={16} />
-            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>by {model.creator?.username || 'unknown'}</span>
+            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: hashing ? (hashing === 'error' ? 'var(--il-warn)' : 'var(--il-fg2)') : undefined }}>{hashing ? hashLabel(hashing) : `by ${model.creator?.username || 'unknown'}`}</span>
           </span>
           {!phone && <Stats stats={model.stats} size={size} />}
         </span>

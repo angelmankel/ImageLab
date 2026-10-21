@@ -3,6 +3,7 @@
  * phone's browse page / opened model), used by the route (`ModelsScreen`, full-bleed) and by
  * `ModelsModal` (every picker). `PickContext` says what it was opened for.
  */
+import { HashProgressLine } from './HashProgressLine';
 import { useCallback, useEffect } from 'react';
 import { Panel } from '~/ui';
 import { T } from '~/theme/tokens';
@@ -70,6 +71,7 @@ export function DesktopBrowser() {
     <div style={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex' }}>
       <main style={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
         <FilterBar count={count} pool={shown.pool} />
+        <HashProgressLine style={{ padding: '2px 14px 4px' }} />
         <ModelList
           scroll scrollKey={kind === pickKind ? modelsListKey(source, kind, f.query) : null /* until the store has the picker's kind */}
           items={shown.items} view={view} selectedId={selectedId} mask={f.nsfwMask} revealed={revealed} favourites={favourites} installed={installed} picking={actions.picking}

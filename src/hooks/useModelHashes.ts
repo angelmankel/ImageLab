@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useStore } from '@/lib/store';
 import { fetchModelHashes, type ModelHashes } from '@/lib/comfy';
 import { resolveCivitai, type CivitaiCacheEntry } from '@/lib/civitai';
+import { useHashPending, withHash } from '@/lib/hashPending';
 
 /** Keep hashes and previews current while models download and CivitAI recovers. */
 export function useModelHashes() {
@@ -33,7 +34,9 @@ export function useModelHashes() {
       results.forEach((r, i) => {
         const sv = servers[i];
         if (r.status === 'fulfilled' && r.value) {
-          snapshots.set(sv.host, r.value);
+          // Pending files (newer nodes) are kept apart: they have no hash (ImageLabCore 825f446).
+          snapshots.set(sv.host, { ...r.value, models: withHash(r.value.models) });
+          useHashPending.getState().set(sv.host, Array.isArray(r.value.pending) ? r.value.pending : undefined, r.value.progress);
         } else if (r.status === 'rejected') {
           console.warn(`[imagelab-node] ${sv.name} (${sv.host}) failed:`, r.reason);
         }
@@ -50,7 +53,7 @@ export function useModelHashes() {
 
       if (!resolving && (changed || Date.now() >= nextResolve)) {
         resolving = true;
-        void resolveCivitai(merged.map(m => m.hash), {
+        void resolveCivitai(merged.map(m => m.hash).filter(Boolean), {
           signal: ac.signal,
           onResolved: entry => {
             if (cancelled) return;
