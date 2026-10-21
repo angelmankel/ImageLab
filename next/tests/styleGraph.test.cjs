@@ -69,7 +69,8 @@ test('model picks per family and type', () => {
   const pick = (r, fam) => G.pickModel(r, fam, support);
   assert.equal(pick({ type: 'style' }, 'sdxl'), 'ip-adapter-plus_sdxl_vit-h.safetensors');
   assert.equal(pick({ type: 'subject' }, 'sd15'), 'ip-adapter-plus_sd15.safetensors');
-  assert.equal(pick({ type: 'composition' }, 'sdxl'), 'ip_plus_composition_sdxl.safetensors');
+  // SDXL composition = the PLUS adapter with "composition precise" (the pack's example); SD 1.5 = ostris' adapter.
+  assert.equal(pick({ type: 'composition' }, 'sdxl'), 'ip-adapter-plus_sdxl_vit-h.safetensors');
   assert.equal(pick({ type: 'composition' }, 'sd15'), 'ip_plus_composition_sd15.safetensors');
   assert.equal(pick({ type: 'face' }, 'sdxl'), 'ip-adapter-faceid-plusv2_sdxl.bin');
   assert.equal(pick({ type: 'face', method: 'portrait' }, 'sdxl'), 'ip-adapter-faceid-portrait_sdxl.bin');
@@ -232,4 +233,69 @@ test('switching an SDXL workflow (SDXL VAE) to a Flux model puts the Flux VAE in
     assert.deepEqual(g['8'].inputs.vae, ['4', 2], to);
     assert.ok(g.sr0a0, 'Redux is in');
   }
+});
+
+test('defaults come from the packs\' examples (one click = these values)', () => {
+  const st = G.newStyleRef('a', 'style', 'sdxl');
+  assert.deepEqual([st.weight, st.weightType, st.embedsScaling], [1, 'style transfer', 'V only']);
+  const co = G.newStyleRef('a', 'composition', 'sdxl');
+  assert.deepEqual([co.weight, co.weightType, co.embedsScaling], [0.8, 'composition precise', 'K+mean(V) w/ C penalty']);
+  assert.equal(G.newStyleRef('a', 'composition', 'sd15').weightType, 'linear');
+  assert.equal(G.newStyleRef('a', 'subject', 'sdxl').weight, 0.8);
+  const fa = G.newStyleRef('a', 'face', 'sdxl');
+  assert.deepEqual([fa.method, fa.weight, fa.faceV2Weight, fa.loraStrength], ['faceid', 0.8, 2, 0.6]);
+  assert.deepEqual(G.methodDefaults('instantid'), { weight: 0.8, cnStrength: 0.8, noise: 0.35 });
+  assert.equal(G.methodDefaults('portrait').weight, 0.65);
+  assert.equal(G.methodDefaults('pulid').pulidMethod, 'fidelity');
+  assert.equal(G.samplerAdvice({ type: 'face', method: 'instantid' }).cfg, 4.5);
+  assert.equal(G.samplerAdvice({ type: 'style' }), null);
+});
+
+test('one click: a type + one picture, nothing else, builds a complete graph with every file picked', () => {
+  const fams = { style: 'sdxl', composition: 'sdxl', subject: 'sdxl', redux: 'flux' };
+  const flux = cases.find((c) => c.name === 'flux lora');
+  const all = [...Object.entries(fams).map(([t, f]) => [G.newStyleRef('x', t, f), f]),
+    ...['faceid', 'portrait', 'instantid', 'pulid'].map((m) => [{ ...G.newStyleRef('x', 'face', 'sdxl'), method: m, ...G.methodDefaults(m) }, 'sdxl'])];
+  for (const [ref, fam] of all) {
+    const c = fam === 'flux' ? flux : sdxl;
+    const wf = withRefs(c, [{ ...ref, images: [img('k1')] }], fam);
+    const use = wf.styleRefs[0].use;
+    assert.ok(use && use.model, `${ref.type}/${ref.method}: a model`);
+    const g = G.buildGraph(wf, c.layers, null, null, { styleImages: { k1: 'imagelab/k1.png' } }).graph;
+    // Every link points at a node that exists; no empty file name anywhere.
+    for (const [id, n] of Object.entries(g)) {
+      for (const [k, v] of Object.entries(n.inputs)) {
+        if (Array.isArray(v) && typeof v[0] === 'string') assert.ok(g[v[0]], `${ref.type}/${ref.method}: ${id}.${k} → ${v[0]}`);
+        if (/_name$|_file$/.test(k)) assert.ok(v, `${ref.type}/${ref.method}: ${id}.${k} is empty`);
+      }
+    }
+    assert.ok(Object.keys(g).some((k) => k.startsWith('sr0a')), `${ref.type}/${ref.method}: applied`);
+  }
+});
+
+test('stacking lowers the weights the way the examples do (and leaves a lone reference alone)', () => {
+  const face = { ...G.newStyleRef('f', 'face', 'sdxl'), images: [img('k1')] };
+  const subj = { ...G.newStyleRef('s', 'subject', 'sdxl'), images: [img('k1')] };
+  const sty = { ...G.newStyleRef('t', 'style', 'sdxl'), images: [img('k1')] };
+  const comp = { ...G.newStyleRef('c', 'composition', 'sdxl'), images: [img('k1')] };
+  const iid = { ...G.newStyleRef('i', 'face', 'sdxl'), method: 'instantid', ...G.methodDefaults('instantid'), images: [img('k1')] };
+  assert.equal(G.stackFactor(subj, [subj]), 1);
+  assert.equal(G.stackFactor(subj, [face, subj]), 0.6);
+  assert.equal(G.stackFactor(comp, [face, comp]), 0.75);
+  assert.equal(G.stackFactor(subj, [sty, subj]), 0.75);
+  assert.equal(G.stackFactor(sty, [face, sty, subj]), 1);
+  assert.equal(G.stackFactor(face, [face, iid]), 1);
+  assert.equal(G.stackFactor(iid, [face, iid]), 0.6);
+  const g = G.buildGraph(withRefs(sdxl, [face, sty, subj], 'sdxl'), sdxl.layers, null, null, { styleImages: { k1: 'a.png' } }).graph;
+  assert.equal(g.sr0a.inputs.weight, 0.8);
+  assert.equal(g.sr1a.inputs.weight, 1);
+  assert.equal(g.sr2a.inputs.weight, 0.48);
+});
+
+test('InstantID gets the basic node\'s noise (0.35) against the burn', () => {
+  const refs = [{ ...G.newStyleRef('f', 'face', 'sdxl'), method: 'instantid', ...G.methodDefaults('instantid'), images: [img('k1')] }];
+  const g = G.buildGraph(withRefs(sdxl, refs, 'sdxl'), sdxl.layers, null, null, { styleImages: { k1: 'f.png' } }).graph;
+  assert.equal(g.sr0a.inputs.noise, 0.35);
+  assert.equal(g.sr0a.inputs.ip_weight, 0.8);
+  assert.equal(g.sr0a.inputs.cn_strength, 0.8);
 });

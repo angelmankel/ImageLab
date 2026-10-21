@@ -52,6 +52,10 @@ export interface StyleRef {
   faceV2Weight?: number;
   /** InstantID: ControlNet strength (keypoints). */
   cnStrength?: number;
+  /** InstantID: noise injected into the negative embeds (its README: against the "burn"; 0.35 = the basic node's own). */
+  noise?: number;
+  /** IP-Adapter / FaceID `embeds_scaling`. Absent = the type's default. */
+  embedsScaling?: string;
   /** PuLID `method`. */
   pulidMethod?: 'fidelity' | 'style' | 'neutral';
   /** Set at queue time for the target server (`resolveStyleRefs`): the files this run used. Also what the metadata shows. */
@@ -105,19 +109,49 @@ export const WEIGHT_TYPES: Record<'style' | 'composition' | 'subject', Array<{ v
 
 export const COMBINE = ['concat', 'add', 'subtract', 'average', 'norm average'] as const;
 
+/**
+ * Start values per type / face method, from the node packs' own example workflows and READMEs
+ * (ComfyUI_IPAdapter_plus examples/ipadapter_precise_weight_type, _precise_composition, _simple,
+ * _ideal_faceid_config, _portrait; ComfyUI_InstantID InstantID_basic + "Noise Injection";
+ * PuLID_ComfyUI PuLID_simple):
+ *   style        PLUS adapter, weight 1, "style transfer", V only
+ *   composition  SDXL: PLUS adapter, weight 0.8, "composition precise", K+mean(V) w/ C penalty
+ *                SD 1.5: ostris' composition adapter, weight 1, linear (the precise types are SDXL's)
+ *   subject      PLUS adapter, weight 0.8, linear
+ *   FaceID v2    weight 0.8, faceidv2 2, its LoRA at 0.6
+ *   Portrait     weight 0.65, no LoRA
+ *   InstantID    ip_weight 0.8, ControlNet 0.8, noise 0.35, best at CFG 4–5 and 1016²
+ *   PuLID        fidelity, weight 0.8
+ *   Redux        strength 1, multiply
+ */
+export function methodDefaults(method: FaceMethod): Partial<StyleRef> {
+  switch (method) {
+    case 'faceid': return { weight: 0.8, faceV2Weight: 2, loraStrength: 0.6, weightType: 'linear', embedsScaling: 'V only' };
+    case 'portrait': return { weight: 0.65, faceV2Weight: 1, weightType: 'linear', embedsScaling: 'V only' };
+    case 'instantid': return { weight: 0.8, cnStrength: 0.8, noise: 0.35 };
+    case 'pulid': return { weight: 0.8, pulidMethod: 'fidelity' };
+  }
+}
+
 /** A new reference of a type: its start values. */
 export function newStyleRef(id: string, type: StyleRefType, fam: StyleFamily | null): StyleRef {
   const base: StyleRef = { id, type, on: true, images: [], weight: 1, start: 0, end: 1 };
   switch (type) {
-    case 'style': return { ...base, weight: fam === 'sd15' ? 0.8 : 1, weightType: 'style transfer' };
-    case 'composition': return { ...base, weightType: 'linear' };
-    case 'subject': return { ...base, weight: 0.8, weightType: 'linear' };
-    case 'face': return { ...base, method: 'faceid', weightType: 'linear', loraStrength: 0.6, faceV2Weight: 1, cnStrength: 0.8, pulidMethod: 'fidelity' };
+    case 'style': return { ...base, weight: 1, weightType: 'style transfer', embedsScaling: 'V only' };
+    case 'composition': return fam === 'sd15'
+      ? { ...base, weight: 1, weightType: 'linear', embedsScaling: 'V only' }
+      : { ...base, weight: 0.8, weightType: 'composition precise', embedsScaling: 'K+mean(V) w/ C penalty' };
+    case 'subject': return { ...base, weight: 0.8, weightType: 'linear', embedsScaling: 'V only' };
+    case 'face': return { ...base, method: 'faceid', ...methodDefaults('faceid') };
     case 'redux': return { ...base, weight: 1 };
   }
 }
 
-export const DEFAULTS = { weight: 1, start: 0, end: 1, loraStrength: 0.6, faceV2Weight: 1, cnStrength: 0.8 } as const;
+/** What the sampler wants with a reference, when the pack says so (shown as a hint with a one-tap fix). */
+export function samplerAdvice(r: Pick<StyleRef, 'type' | 'method'>): { cfgMax?: number; cfg?: number; text: string } | null {
+  if (methodOf(r) === 'instantid') return { cfgMax: 5, cfg: 4.5, text: 'InstantID burns above CFG 5' };
+  return null;
+}
 
 // ── what a server has ──────────────────────────────────────────────────────────────────────────
 
@@ -242,7 +276,7 @@ export function pickModel(r: Pick<StyleRef, 'type' | 'method' | 'model'>, fam: S
       return first(list, has('faceid-plusv2', tag), has('faceid-plus', tag), has('faceid', tag));
     }
     default: {
-      if (r.type === 'composition') return first(list, has('composition', tag));
+      if (r.type === 'composition' && !xl) return first(list, has('composition', tag));
       if (xl) return first(list, has('ip-adapter-plus_sdxl_vit-h'), has('ip-adapter_sdxl_vit-h'), (b) => b.includes('plus') && b.includes('sdxl') && !b.includes('face') && !b.includes('composition'));
       return first(list, has('ip-adapter-plus_sd15'), (b) => b.startsWith('ip-adapter_sd15') && !b.includes('light') && !b.includes('vit-g'), (b) => b.includes('sd15') && !b.includes('face') && !b.includes('composition'));
     }
@@ -344,6 +378,30 @@ export function typeState(type: StyleRefType, fam: StyleFamily | null, s: StyleS
     return { fits: true, missing: runs ? [] : refMissing({ type, method: 'faceid' }, fam, s, extra) };
   }
   return { fits: true, missing: refMissing({ type }, fam, s, extra) };
+}
+
+/**
+ * Several references at once: how much a reference's strength is scaled so they do not fight
+ * (the examples stack a second adapter at about half: InstantID + IP-Adapter 0.5, FaceID 0.8 +
+ * full-face 0.4; a style transfer stays at 1 next to PuLID). 1 = as set.
+ *   subject next to a face: ×0.6 · composition next to a face: ×0.75
+ *   subject next to style / composition: ×0.75
+ *   a second face method on top of the first: ×0.6
+ * Style transfer and Redux are never scaled (they touch other layers / the prompt).
+ */
+export function stackFactor(r: StyleRef, active: readonly StyleRef[]): number {
+  if (!active.includes(r) || active.length < 2) return 1;
+  const others = active.filter((o) => o !== r);
+  const face = others.some((o) => o.type === 'face');
+  switch (r.type) {
+    case 'subject': return face ? 0.6 : others.some((o) => o.type === 'style' || o.type === 'composition') ? 0.75 : 1;
+    case 'composition': return face ? 0.75 : 1;
+    case 'face': {
+      const faces = active.filter((o) => o.type === 'face');
+      return faces.indexOf(r) > 0 ? 0.6 : 1;
+    }
+    default: return 1;
+  }
 }
 
 /** Short summary of a reference for metadata ("Style 0.8 · Face (InstantID) 1"). */

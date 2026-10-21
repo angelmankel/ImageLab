@@ -1,4 +1,4 @@
-import { activeRefs, featureOf, methodOf, styleFamily, type StyleRef } from '../styleRefs';
+import { activeRefs, featureOf, methodOf, stackFactor, styleFamily, type StyleRef } from '../styleRefs';
 import type { GraphFamily } from '../modelProfiles';
 import type { WorkflowState } from '../types';
 import type { Graph, Ref } from './core';
@@ -66,8 +66,11 @@ export function applyStyleRefs(
   let pos: Ref = ['6', 0];
   let neg: Ref = ['7', 0];
   const all = workflow.styleRefs;
-  for (const r of refs) {
-    const i = all.indexOf(r);
+  for (const r0 of refs) {
+    // Stacked references are scaled so they do not fight (stackFactor; 1 when alone).
+    const k = stackFactor(r0, refs);
+    const r = k === 1 ? r0 : { ...r0, weight: Math.round(r0.weight * k * 1000) / 1000 };
+    const i = all.indexOf(r0);
     const p = `sr${i}`;
     const use = r.use!;
     const span = { start_at: r.start, end_at: r.end };
@@ -77,7 +80,7 @@ export function applyStyleRefs(
         const cv = loader(`${p}c`, 'CLIPVisionLoader', { clip_name: use.clipVision ?? '' });
         model = add(`${p}a`, 'IPAdapterAdvanced', {
           model, ipadapter: ipa, image: pictures(p, r), weight: r.weight, weight_type: r.weightType ?? 'linear',
-          combine_embeds: r.combine ?? 'concat', ...span, embeds_scaling: 'V only', clip_vision: cv,
+          combine_embeds: r.combine ?? 'concat', ...span, embeds_scaling: r.embedsScaling ?? 'V only', clip_vision: cv,
         });
         break;
       }
@@ -90,7 +93,7 @@ export function applyStyleRefs(
         }
         model = add(`${p}a`, 'IPAdapterFaceID', {
           model, ipadapter: ipa, image: pictures(p, r), weight: r.weight, weight_faceidv2: r.faceV2Weight ?? 1,
-          weight_type: r.weightType ?? 'linear', combine_embeds: r.combine ?? 'concat', ...span, embeds_scaling: 'V only',
+          weight_type: r.weightType ?? 'linear', combine_embeds: r.combine ?? 'concat', ...span, embeds_scaling: r.embedsScaling ?? 'V only',
           clip_vision: cv, insightface: face,
         });
         break;
@@ -102,7 +105,7 @@ export function applyStyleRefs(
         const combine = r.combine === 'norm average' || r.combine === 'concat' ? r.combine : 'average';
         add(`${p}a`, 'ApplyInstantIDAdvanced', {
           instantid: iid, insightface: face, control_net: cn, image: pictures(p, r), model, positive: pos, negative: neg,
-          ip_weight: r.weight, cn_strength: r.cnStrength ?? 0.8, ...span, noise: 0, combine_embeds: combine,
+          ip_weight: r.weight, cn_strength: r.cnStrength ?? 0.8, ...span, noise: r.noise ?? 0.35, combine_embeds: combine,
         });
         model = [`${p}a`, 0];
         pos = [`${p}a`, 1];
