@@ -7,7 +7,6 @@
  * Delete has no confirm: the note offers Undo (`~/app/deleteResult`; the Delete / Backspace key on
  * the stage does the same). Compare splits the stage (`CompareView`).
  */
-import { notifications } from '@mantine/notifications';
 import { IconArrowsMaximize, IconZoomIn, IconZoomOut, IconPencil, IconColumns2, IconRefresh, IconHistory, IconArrowRight, IconHeart, IconHeartFilled, IconDownload, IconMaximize, IconTrash, IconBroadcast, IconBroadcastOff } from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
 import { useViewerPrefs } from '@/features/history/viewerPrefs';
@@ -23,6 +22,7 @@ import { StageBadge } from './StageBadge';
 import { useStage } from './stageStore';
 import { useStepRun } from './GenerateBar';
 import type { StageMedia } from './useStageMedia';
+import { notifyError } from '~/app/notify';
 
 const round: React.CSSProperties = { borderRadius: '50%', background: 'var(--il-elev)' };
 
@@ -35,7 +35,7 @@ async function download(url: string, filename: string) {
     const a = document.createElement('a');
     a.href = obj; a.download = filename || 'imagelab.png'; a.click();
     setTimeout(() => URL.revokeObjectURL(obj), 1000);
-  } catch (e) { notifications.show({ title: 'Download failed', message: e instanceof Error ? e.message : String(e), color: 'red' }); }
+  } catch (e) { notifyError('Download failed', e); }
 }
 
 export function Toolbar({ step, media, zoom, onFullscreen, canFullscreen, phone = false }: {

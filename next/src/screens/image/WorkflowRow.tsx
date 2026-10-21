@@ -7,12 +7,12 @@
  */
 import { useState } from 'react';
 import { Menu, Modal, TextInput } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
 import { IconChevronDown, IconDeviceFloppy, IconCopy, IconArrowBackUp, IconPencil, IconTrash } from '@tabler/icons-react';
 import { useSteps, STEP_LABEL, type Step } from '~/app/stepsStore';
 import { SessionTitle } from './SessionTitle';
 import { saveSnapshot, revertSnapshot } from './workflowSnapshots';
 import { removeStepWithUndo } from './stepActions';
+import { say } from '~/app/notify';
 
 const THUMB: Record<Step['kind'], string> = {
   image: 'linear-gradient(135deg,#5A4A3E,#2A2420)',
@@ -31,10 +31,10 @@ export function WorkflowRow({ step }: { step: Step }) {
   const index = Math.max(0, steps.findIndex((s) => s.id === step.id));
   const first = index === 0;
 
-  const save = () => { saveSnapshot(step.id); updateStep(step.id, { edited: false }); notifications.show({ title: 'Workflow saved', message: step.name, color: 'teal', autoClose: 2000 }); };
+  const save = () => { saveSnapshot(step.id); updateStep(step.id, { edited: false }); say(`Saved “${step.name}”`); };
   const revert = () => {
-    if (revertSnapshot(step.id)) { updateStep(step.id, { edited: false }); notifications.show({ title: 'Reverted', message: `Back to the saved “${step.name}”`, color: 'teal', autoClose: 2000 }); }
-    else notifications.show({ title: 'Nothing saved yet', message: 'Save the workflow first, then Revert goes back to it.', color: 'yellow', autoClose: 3000 });
+    if (revertSnapshot(step.id)) { updateStep(step.id, { edited: false }); say(`Back to the saved “${step.name}”`); }
+    else say('Nothing saved yet: save first', { tone: 'warn' });
   };
   const submit = () => {
     const name = draft.trim();

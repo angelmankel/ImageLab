@@ -6,12 +6,12 @@
  * not downloading. Card look of the job queue (card grey, radius 14, padding 10).
  */
 import { useState } from 'react';
-import { notifications } from '@mantine/notifications';
 import { IconCheck, IconRefresh, IconX, IconAlertTriangle } from '@tabler/icons-react';
 import { useDownloadsStore, type DownloadRow } from '@/features/downloads/store';
 import { Button, IconBtn } from '~/ui';
 import { T } from '~/theme/tokens';
 import { canRetry, downloadCounts, orderDownloads, progressLine } from './downloadLogic';
+import { notifyError } from '~/app/notify';
 
 function Row({ row }: { row: DownloadRow }) {
   const cancel = useDownloadsStore((s) => s.cancel);
@@ -22,7 +22,7 @@ function Row({ row }: { row: DownloadRow }) {
   const pct = row.total_bytes > 0 ? Math.round((row.downloaded_bytes / row.total_bytes) * 100) : null;
   const doRetry = () => {
     setBusy(true);
-    retry(row).catch((err: unknown) => notifications.show({ color: 'red', title: 'Could not retry', message: err instanceof Error ? err.message : String(err), autoClose: 3000 }))
+    retry(row).catch((err: unknown) => notifyError('Could not retry the download', err))
       .finally(() => setBusy(false));
   };
   const status = running ? progressLine(row, bps)

@@ -7,7 +7,6 @@
  * this site (same origin); a ComfyUI elsewhere greys them out.
  */
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { notifications } from '@mantine/notifications';
 import {
   IconDeviceFloppy, IconExternalLink, IconFilePlus, IconLayoutSidebarLeftCollapse, IconLayoutSidebarLeftExpand,
   IconPlayerPlayFilled, IconPlayerStop, IconRefresh, IconFileExport,
@@ -18,6 +17,7 @@ import { Button, Dot, Pill, Sep } from '~/ui';
 import { T } from '~/theme/tokens';
 import { comfyPageUrl } from './comfyApi';
 import { attachFrame, newInFrame, queueInFrame, saveAsInFrame, saveInFrame, setFrameHost, setHideMenus, useComfyFrame } from './comfyFrame';
+import { notifyError, say } from '~/app/notify';
 
 function why(status: string): string {
   return status === 'blocked' ? 'This ComfyUI is on another site: open it in a new tab for this'
@@ -34,7 +34,7 @@ function FrameBtn({ label, icon, run, ready, status, onDone, iconOnly, primary }
     if (!ready || busy) return;
     setBusy(true);
     try { if (await run()) onDone?.(); }
-    catch (err) { notifications.show({ color: 'red', title: `${label} failed`, message: err instanceof Error ? err.message : String(err) }); }
+    catch (err) { notifyError(`${label} failed`, err); }
     finally { setBusy(false); }
   };
   return (
@@ -63,7 +63,7 @@ export function ComfyEmbed({ server, online, running, onWorkflowsChanged, overla
   useEffect(() => { setFrameHost(host); return () => setFrameHost(null); }, [host]);
   // Saves come back after ComfyUI's own name dialog; the list then picks the file up.
   const changed = () => { onWorkflowsChanged?.(); window.setTimeout(() => onWorkflowsChanged?.(), 1500); };
-  const queued = () => notifications.show({ color: 'ember', message: 'Queued in ComfyUI', autoClose: 2000 });
+  const queued = () => say('Queued in ComfyUI');
 
   return (
     <main style={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column' }}>

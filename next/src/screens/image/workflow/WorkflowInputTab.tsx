@@ -7,7 +7,6 @@
  * small zone each. Raw node names ("Load Image #8") are never shown (`slotLabel`).
  */
 import { useMemo, useState } from 'react';
-import { notifications } from '@mantine/notifications';
 import { loadImageRef, uploadImage } from '@/lib/comfy';
 import { useStudio } from '@/features/studio/studioStore';
 import { inputViewUrl } from '@/features/studio/ImageInput';
@@ -19,6 +18,7 @@ import { WorkflowPicker } from './WorkflowPicker';
 import { rememberUpload } from './stepRun';
 import { markStepEdited, useWorkflowStepHost } from './useWorkflowStepHost';
 import { isImageParam, uploadName } from './workflowStepLogic';
+import { notifyError } from '~/app/notify';
 
 const NO_VALUES: Record<string, unknown> = {};
 
@@ -28,7 +28,7 @@ function useUploader(host: string | null, step: Step, p: WorkflowParam, setAsSte
   const setValue = useStudio((s) => s.setValue);
   const setStepInput = useSteps((s) => s.setStepInput);
   const send = async (blob: Blob, name: string, sourceUrl?: string): Promise<string | null> => {
-    if (!host) { notifications.show({ color: 'red', title: 'No workflow server', message: 'Connect a server first.', autoClose: 3000 }); return null; }
+    if (!host) { notifyError('No workflow server', undefined, { hint: 'Connect a server first.' }); return null; }
     setBusy(true);
     try {
       const up = await uploadImage(host, blob, uploadName(name, Date.now()));
@@ -41,7 +41,7 @@ function useUploader(host: string | null, step: Step, p: WorkflowParam, setAsSte
       if (setAsStepInput) setStepInput(step.id, { url, name });
       return ref;
     } catch (err) {
-      notifications.show({ color: 'red', title: 'Upload failed', message: err instanceof Error ? err.message : String(err), autoClose: 3000 });
+      notifyError('Upload failed', err);
       return null;
     } finally { setBusy(false); }
   };

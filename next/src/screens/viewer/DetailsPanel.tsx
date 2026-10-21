@@ -7,7 +7,6 @@
  * `describeEntry` (metaLogic, tested); a run result without a history entry shows File + chain.
  */
 import { useState, type ReactNode } from 'react';
-import { notifications } from '@mantine/notifications';
 import { IconCopy } from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
 import { reuseSettingsFrom, usePromptFrom, recallFrom } from '~/app/actions';
@@ -16,10 +15,11 @@ import { formatDateTime } from '~/lib/time';
 import { describeEntry, formatDuration } from './metaLogic';
 import { useResultMeta } from './resultMeta';
 import type { ViewerItem } from './types';
+import { say } from '~/app/notify';
 
 const copy = (text: string, what: string) => {
   void navigator.clipboard?.writeText(text).then(
-    () => notifications.show({ message: `${what} copied`, color: 'teal', autoClose: 1500 }),
+    () => say(`${what} copied`),
     () => undefined,
   );
 };

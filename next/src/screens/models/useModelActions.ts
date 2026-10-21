@@ -5,7 +5,6 @@
  * workflow (main store: addCheckpoint / addLora / addEmbedding). A sample's generation data goes
  * to the step through `~/app/actions.applyGenerationData`; Delete removes the file from the pod.
  */
-import { notifications } from '@mantine/notifications';
 import { useStore } from '@/lib/store';
 import { deleteModel } from '@/lib/comfy';
 import type { CivitaiImageMeta, CivitaiModel, CivitaiModelVersion } from '@/lib/civitai';
@@ -18,6 +17,7 @@ import { useInstalled } from './useInstalled';
 import { usePick } from './pickContext';
 import { buildPick, pickFile } from './pick';
 import { useVersionDownload } from './DownloadButton';
+import { notifyError, say } from '~/app/notify';
 
 /** The meta of a CivitAI sample as `applyGenerationData` wants it (size split into width/height). */
 export function metaForStep(meta: CivitaiImageMeta, image?: { width?: number; height?: number }): Parameters<typeof applyGenerationData>[0] {
@@ -72,15 +72,15 @@ export function useModelActions() {
   /** Without a picker: put the version's installed file into the active step. */
   const useInStep = (version: CivitaiModelVersion, modelType: string): boolean => {
     const name = serverFileOf(version);
-    if (!name) { notifications.show({ color: 'yellow', message: 'Download it first — the file is not on a server yet' }); return false; }
+    if (!name) { notifyError('Model not on a server', undefined, { hint: 'Download it first.' }); return false; }
     const s = useStore.getState();
     const t = modelType;
     if (t === 'Checkpoint') s.addCheckpoint(name);
     else if (t === 'LORA' || t === 'LoCon' || t === 'DoRA') s.addLora(name);
     else if (t === 'TextualInversion') s.addEmbedding(name.replace(/\.[^.]+$/, ''));
     else if (t === 'VAE') s.setWorkflow({ vae: name });
-    else { notifications.show({ color: 'yellow', message: `${t} files are not something a step loads` }); return false; }
-    notifications.show({ color: 'ember', message: `${name.split('/').pop()} added to ${step.name}` });
+    else { say(`A step cannot load ${t} files`, { tone: 'warn' }); return false; }
+    say(`${name.split('/').pop()} added to ${step.name}`);
     leave();
     return true;
   };
@@ -89,8 +89,8 @@ export function useModelActions() {
   const use = (model: CivitaiModel, version: CivitaiModelVersion): boolean => (ctx.onPick ? pick(model, version) : useInStep(version, model.type));
 
   const copy = async (text: string, what = 'Copied') => {
-    try { await navigator.clipboard.writeText(text); notifications.show({ color: 'ember', message: what }); }
-    catch { notifications.show({ color: 'red', message: 'Could not copy' }); }
+    try { await navigator.clipboard.writeText(text); say(what); }
+    catch { say('Could not copy', { tone: 'warn' }); }
   };
 
   /** Delete an installed file from every server that has it. */
@@ -100,11 +100,12 @@ export function useModelActions() {
     const slash = key.indexOf('/');
     const folder = slash > 0 ? key.slice(0, slash) : '';
     const rest = slash > 0 ? key.slice(slash + 1) : key;
-    if (!folder) { notifications.show({ color: 'red', message: 'Which folder it is in is unknown — delete it from ComfyUI' }); return; }
+    if (!folder) { notifyError('Delete failed', undefined, { hint: 'Its folder is unknown. Delete it from ComfyUI.' }); return; }
     const targets = servers.filter((s) => serverInfo[s.id]);
     const results = await Promise.allSettled(targets.map((s) => deleteModel(s.host, folder, rest)));
     const ok = results.filter((r) => r.status === 'fulfilled').length;
-    notifications.show({ color: ok ? 'ember' : 'red', message: ok ? `Deleted ${rest} on ${ok} server${ok === 1 ? '' : 's'}` : 'Delete failed' });
+    if (ok) say(`Deleted ${rest} on ${ok} server${ok === 1 ? '' : 's'}`);
+    else notifyError('Delete failed', results.map((r) => (r.status === 'rejected' ? r.reason : null)).find(Boolean));
     for (const s of targets) void useStore.getState().refreshServerInfo(s.id);
   };
 

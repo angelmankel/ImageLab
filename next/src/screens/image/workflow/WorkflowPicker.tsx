@@ -6,7 +6,6 @@
  * `ensureStepWorkflowOpen` loads it into the studio store so the other tabs fill at once.
  */
 import { useState } from 'react';
-import { notifications } from '@mantine/notifications';
 import { IconChevronDown, IconChevronUp, IconFolder, IconRefresh, IconTopologyStar3 } from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
 import { serverRole } from '@/lib/serverRoles';
@@ -20,6 +19,7 @@ import { IconBtn } from '~/ui';
 import { useSavedWorkflows } from './useSavedWorkflows';
 import { useWorkflowStepHost } from './useWorkflowStepHost';
 import { groupWorkflows } from './workflowStepLogic';
+import { notifyError } from '~/app/notify';
 
 /** Make `w` the step's workflow and load it. Shared with anything else that picks (the ComfyUI screen has its own). */
 export async function chooseStepWorkflow(step: Step, host: string, w: SavedWorkflow): Promise<void> {
@@ -29,7 +29,7 @@ export async function chooseStepWorkflow(step: Step, host: string, w: SavedWorkf
   wfStore.markUsed(workflowKey(host, w.path));
   useSteps.getState().updateStep(step.id, { name: w.name, edited: false });
   try { await ensureStepWorkflowOpen(step.id); } catch (err) {
-    notifications.show({ color: 'red', title: 'Could not open the workflow', message: err instanceof Error ? err.message : String(err) });
+    notifyError('Could not open the workflow', err);
   }
 }
 
@@ -51,7 +51,7 @@ export function WorkflowPicker({ step }: { step: Step }) {
       const wf = await loadSavedWorkflow(ref.host, ref.path);
       useStudio.getState().loadWorkflow(ref.path, wf as EditorWorkflowWithSubgraphs, info);
     } catch (err) {
-      notifications.show({ color: 'red', title: 'Could not re-read the workflow', message: err instanceof Error ? err.message : String(err) });
+      notifyError('Could not re-read the workflow', err);
     }
   };
 

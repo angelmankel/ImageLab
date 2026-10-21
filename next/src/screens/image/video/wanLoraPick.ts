@@ -5,13 +5,13 @@
  * modal does not start itself. Shared by the list's api (`useVideoKindApi`) and the card's low
  * slot (`WanLoraPairCard`), so neither imports the other.
  */
-import { notifications } from '@mantine/notifications';
 import { useStore } from '@/lib/store';
 import { useVideo } from '@/features/video/videoStore';
 import type { VideoLora } from '@/lib/wanGraph';
 import { useDownloadsStore } from '@/features/downloads';
 import { usePendingModels, pendingKey, recordFromPick, sameFile, type PickTarget, type PickLike } from '~/screens/image/model';
 import { noiseOf, planPairPick, type PairPlan, type PairSlot } from './wanLoraPair';
+import { notifyError } from '~/app/notify';
 
 export const VIDEO_SCOPE = 'video';
 
@@ -76,7 +76,7 @@ function startPairDownloads(plan: PairPlan, pick: PickLike) {
   const dl = useDownloadsStore.getState();
   for (const p of plan.pending) {
     const run = p.downloadUrl ? dl.startUrl(p.downloadUrl, 'loras', p.file) : pick.installed && pick.version.id ? dl.start(pick.version.id, 'loras') : null;
-    if (run) void run.then((r) => { if (r.errors.length) notifications.show({ color: 'red', title: 'Download refused', message: r.errors.join('\n') }); });
+    if (run) void run.then((r) => { if (r.errors.length) notifyError('Download failed', r.errors.join('\n')); });
   }
 }
 

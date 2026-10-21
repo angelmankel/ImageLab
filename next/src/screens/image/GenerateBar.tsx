@@ -5,7 +5,6 @@
  * (chains the previous step's output, then `startVideoRun`); workflow → the step's `startWorkflowStepRun`.
  * Ctrl/⌘+Enter generates, inside a text box too.
  */
-import { notifications } from '@mantine/notifications';
 import { IconCheck, IconDice5, IconSparkles } from '@tabler/icons-react';
 import { useShallow } from 'zustand/react/shallow';
 import { useStore } from '@/lib/store';
@@ -30,6 +29,7 @@ import { OWN_KINDS, runKindStep } from './kinds/kindRun';
 import { useStepProblem } from './useStepProblem';
 import { skipIfUpToDate } from './upToDate';
 import { useSkipFlash } from '~/app/stepFingerprint';
+import { notifyError, say } from '~/app/notify';
 
 /** What the step's Generate does and whether it is running. Pure of look; the phone dock uses it too. */
 export function useStepRun(step: Step): { run: (newSeed?: boolean) => void; stop: () => void; busy: boolean; busyLabel: string; progress: number | null; disabled: string | null } {
@@ -50,7 +50,7 @@ export function useStepRun(step: Step): { run: (newSeed?: boolean) => void; stop
     const activity = jobActivity(jobs, submitting, online);
     const running = jobs.find((j) => j.status === 'running') ?? jobs.find((j) => j.status === 'queued');
     return {
-      run: (newSeed = false) => { const owner = ownerNow('image'); void enqueueRun(() => (skipIfUpToDate(step, newSeed) ? undefined : runAsOwner(owner, () => fireFromStore(newSeed, IMAGE_STEP_ONLY)))).then(() => { const st = useStore.getState(); if (st.status.kind === 'error') notifications.show({ title: 'Could not generate', message: st.status.text, color: 'red', autoClose: 3000 }); }); },
+      run: (newSeed = false) => { const owner = ownerNow('image'); void enqueueRun(() => (skipIfUpToDate(step, newSeed) ? undefined : runAsOwner(owner, () => fireFromStore(newSeed, IMAGE_STEP_ONLY)))).then(() => { const st = useStore.getState(); if (st.status.kind === 'error') notifyError('Could not generate', st.status.text); }); },
       stop: () => { if (running) cancelQueueRow(running.id); },
       busy: !!running || submitting,
       busyLabel: submitting ? 'Queueing…' : running?.status === 'queued' ? 'Queued' : 'Generating',
@@ -78,7 +78,7 @@ export function useStepRun(step: Step): { run: (newSeed?: boolean) => void; stop
       disabled: !wfHost ? 'No server' : !info ? 'Reading the server…' : !stepWf ? 'Pick a workflow in the step' : null,
     };
   }
-  return { run: () => notifications.show({ title: 'Coming soon', message: "This step's workflow is coming.", color: 'gray', autoClose: 2500 }), stop: () => {}, busy: false, busyLabel: '', progress: null, disabled: null };
+  return { run: () => say("This step's workflow is coming soon", { tone: 'warn' }), stop: () => {}, busy: false, busyLabel: '', progress: null, disabled: null };
 }
 
 /**

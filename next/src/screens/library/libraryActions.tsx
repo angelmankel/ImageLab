@@ -6,7 +6,6 @@
 import { useState } from 'react';
 import { Button, TextInput } from '@mantine/core';
 import { modals } from '@mantine/modals';
-import { notifications } from '@mantine/notifications';
 import { useStore } from '@/lib/store';
 import { usePromptFrom, reuseSettingsFrom, recallFrom, sendToStep } from '~/app/actions';
 import { useRoute } from '~/app/routeStore';
@@ -14,6 +13,7 @@ import { T } from '~/theme/tokens';
 import { useLibrary } from './libraryStore';
 import { forgetImage, runStoreOf } from '~/app/deleteResult';
 import type { LibItem } from './libraryLogic';
+import { notifyError, say } from '~/app/notify';
 
 const toStep = () => useRoute.getState().go('step');
 
@@ -56,7 +56,7 @@ export function addToCollection(collectionId: string, items: readonly LibItem[])
   const { addToCollection: add, collections } = useStore.getState();
   for (const it of items) add(collectionId, it.key);
   const name = collections.find((c) => c.id === collectionId)?.name ?? 'collection';
-  notifications.show({ message: `${items.length === 1 ? 'Added' : `${items.length} added`} to ${name}` });
+  say(`${items.length === 1 ? 'Added' : `${items.length} added`} to ${name}`);
 }
 
 export function removeFromCollection(collectionId: string, items: readonly LibItem[]) {
@@ -76,7 +76,7 @@ export async function downloadItem(it: LibItem) {
     a.click();
     setTimeout(() => URL.revokeObjectURL(obj), 1000);
   } catch (err) {
-    notifications.show({ color: 'red', message: `Download failed: ${err instanceof Error ? err.message : String(err)}` });
+    notifyError('Download failed', err);
   }
 }
 

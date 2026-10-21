@@ -17,13 +17,13 @@ import { useInstalledWanFiles } from '@/features/video/videoControls';
 import { useModeHost } from '@/features/workspace/modeHost';
 import { useVideoRun } from '@/features/video/videoRun';
 import { useWorkflowRun } from '@/features/studio/studioRun';
-import { notifications } from '@mantine/notifications';
 import { useSteps } from '~/app/stepsStore';
 import { useJobProgressEffect } from '~/app/jobProgress';
 import { ensureStepWorkflowOpen } from '~/screens/comfy';
 import { usePendingReconcile } from '~/screens/image/model';
 import { useWorkflowFollow } from './workflow/followWorkflow';
 import { useLoopbackToRefine } from './kinds/migrateLoopback';
+import { notifyError } from '~/app/notify';
 
 export function AppEffects() {
   useComfyConnection();
@@ -56,7 +56,7 @@ export function AppEffects() {
   useEffect(() => {
     if (activeKind !== 'workflow') return;
     ensureStepWorkflowOpen(activeId).catch((err: unknown) => {
-      notifications.show({ color: 'red', message: `Could not open this step's workflow: ${err instanceof Error ? err.message : String(err)}` });
+      notifyError("Could not open this step's workflow", err);
     });
   }, [activeId, activeKind]);
   return null;

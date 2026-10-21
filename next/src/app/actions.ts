@@ -1,25 +1,51 @@
 /**
  * Cross-screen actions. The Library, Models and ComfyUI screens call these; the Image step
  * implements them against the main app's stores. Plain functions, callable from any event
- * handler without hooks. Every prompt replace offers Undo (the main app's `applyWithUndo`).
+ * handler without hooks. Every prompt / settings replace goes on the undo stack (Ctrl+Z, list 2 #12);
+ * routine confirmations are a footer `say()`, never a toast.
  */
-import { notifications } from '@mantine/notifications';
 import { useStore } from '@/lib/store';
 import { uid } from '@/lib/storage';
 import type { HistoryEntry, Layer, WorkflowState } from '@/lib/types';
-import { applyWithUndo } from '@/features/layers/PresetLibraryModal';
 import { urlToImageState } from '@/features/inputImage/imageOps';
 import { useRoute } from './routeStore';
 import { nextStepId, useSteps, STEP_LABEL } from './stepsStore';
 import { addStepWithPicker } from './stepKindPicker';
 import { useStage } from '~/screens/image/stageStore';
 import { setStartFrameFrom } from '~/screens/image/video/videoChain';
+import { pushUndo } from './undo';
+import { notifyError, say } from './notify';
 
-/** Put this prompt (positive + negative) into the active step's prompt. */
+/** The Image step's parameters now (workflow + prompt layers), for an undo snapshot. */
+function imageSnapshot(): { workflow: WorkflowState; layers: Layer[] } {
+  const st = useStore.getState();
+  return { workflow: st.workflow, layers: st.layers };
+}
+
+/** Run a change to the Image step's parameters and push it as one undo entry. */
+function withImageUndo(label: string, change: () => void): void {
+  const before = imageSnapshot();
+  change();
+  const after = imageSnapshot();
+  const put = (s: { workflow: WorkflowState; layers: Layer[] }) => { const st = useStore.getState(); st.setWorkflow(s.workflow); st.setPromptLayers(s.layers); };
+  pushUndo({ label, undo: () => put(before), redo: () => put(after) });
+}
+
+/** Set the big text box of one kind: its first part, made if there is none. */
+function setMainText(kind: 'positive' | 'negative', text: string): void {
+  const st = useStore.getState();
+  const main = st.layers.find((l) => l.kind === kind);
+  if (main) st.updateLayer(main.id, { text, on: true });
+  else st.addLayer(kind, { text });
+}
+
+/** Put this prompt (positive + negative) into the active step's prompt. Ctrl+Z puts the old one back. */
 export function usePromptFrom(entry: Pick<HistoryEntry, 'positive' | 'negative'>, name = 'that image'): void {
-  const changes: { positive: string; negative?: string } = { positive: entry.positive ?? '' };
-  if (entry.negative) changes.negative = entry.negative;
-  applyWithUndo(changes, name);
+  withImageUndo('Use prompt', () => {
+    setMainText('positive', entry.positive ?? '');
+    if (entry.negative) setMainText('negative', entry.negative);
+  });
+  say(`Used the prompt of ${name}`);
 }
 
 /** Copy every setting of this history entry (model, size, steps, cfg, sampler, seed…) into the active step. */
@@ -34,11 +60,13 @@ export function reuseSettingsFrom(entry: HistoryEntry): void {
     if (entry.positive) layers.push({ id: uid(), on: true, kind: 'positive', tag: 'Recalled', text: entry.positive, weight: 1 });
     if (entry.negative) layers.push({ id: uid(), on: true, kind: 'negative', tag: 'Recalled', text: entry.negative, weight: 1 });
   }
-  st.setWorkflow(workflow);
-  if (layers.length) st.setPromptLayers(layers);
+  withImageUndo('Reuse settings', () => {
+    st.setWorkflow(workflow);
+    if (layers.length) st.setPromptLayers(layers);
+  });
   useSteps.getState().updateStep(useSteps.getState().steps[0].id, { edited: true });
   st.setStatus('Reused the settings of that image', 'ok');
-  notifications.show({ title: 'Settings reused', message: entry.model || 'Model, size, sampler and seed', color: 'teal', autoClose: 3000 });
+  say('Settings reused');
 }
 
 /**
@@ -49,9 +77,9 @@ export function reuseSettingsFrom(entry: HistoryEntry): void {
 export function recallFrom(entry: HistoryEntry): void {
   const st = useStore.getState();
   st.selectHistoryEntry(entry);
-  st.recallSelected();
+  withImageUndo('Recall', () => useStore.getState().recallSelected());
   useSteps.getState().updateStep(useSteps.getState().steps[0].id, { edited: true });
-  notifications.show({ title: 'Recalled', message: `Everything from that image is back in the step${entry.model ? ` · ${entry.model}` : ''}`, color: 'teal', autoClose: 3000 });
+  say('Recalled everything from that image');
 }
 
 /**
@@ -65,7 +93,7 @@ export function recallFrom(entry: HistoryEntry): void {
 export function sendToStep(image: { url: string; entry?: HistoryEntry }, stepId?: string): void {
   const steps = useSteps.getState();
   const target = stepId ?? nextStepId(steps.steps, steps.activeId) ?? steps.steps[1]?.id ?? null;
-  if (!target) { notifications.show({ title: 'No next step', message: 'Add a step with + in the rail first.', color: 'yellow', autoClose: 3000 }); return; }
+  if (!target) { say('No next step: add one with + in the rail', { tone: 'warn' }); return; }
   const step = steps.steps.find((s) => s.id === target);
   if (!step) return;
   const filename = image.entry?.filename ?? nameOf(image.url);
@@ -79,9 +107,9 @@ export function sendToStep(image: { url: string; entry?: HistoryEntry }, stepId?
   if (step.kind === 'image') {
     void urlToImageState(image.url, filename).then((state) => {
       useStore.getState().setWorkflow({ inputImage: state });
-    }).catch((e) => notifications.show({ title: 'Could not load the image', message: e instanceof Error ? e.message : String(e), color: 'red', autoClose: 3000 }));
+    }).catch((e) => notifyError('Could not load the image', e));
   }
-  notifications.show({ title: `Sent to step ${n}`, message: filename, color: 'teal', autoClose: 2000 });
+  say(`Sent to step ${n}`);
 }
 
 /** "…/view?filename=x.png&…" or ".../x.png" → "x.png". */
@@ -100,14 +128,14 @@ export function sendToNextStep(image: { url: string; entry?: HistoryEntry }, anc
   if (next) { sendToStep(image, next); return; }
   const name = image.entry?.filename ?? nameOf(image.url);
   addStepWithPicker(anchor, { after: steps.activeId, input: { url: image.url, name } }, (_id, kind) => {
-    notifications.show({ title: `New ${STEP_LABEL[kind]} step`, message: `${name} is its input`, color: 'teal', autoClose: 2000 });
+    say(`New ${STEP_LABEL[kind]} step with ${name} as its input`);
   });
 }
 
 /** Models screen → the active step: apply a CivitAI sample's generation data. */
 export function applyGenerationData(meta: { prompt?: string; negativePrompt?: string; steps?: number; cfgScale?: number; sampler?: string; seed?: number; width?: number; height?: number; clipSkip?: number; [k: string]: unknown }, what: 'prompt' | 'settings'): void {
   if (what === 'prompt') {
-    if (!meta.prompt?.trim()) { notifications.show({ title: 'No prompt', message: 'This sample carries no prompt.', color: 'yellow' }); return; }
+    if (!meta.prompt?.trim()) { say('This sample has no prompt', { tone: 'warn' }); return; }
     usePromptFrom({ positive: meta.prompt, negative: meta.negativePrompt ?? '' }, 'a CivitAI prompt');
     return;
   }
@@ -123,10 +151,10 @@ export function applyGenerationData(meta: { prompt?: string; negativePrompt?: st
     if (s.sampler) patch.sampler = s.sampler;
     if (s.scheduler) patch.scheduler = s.scheduler;
   }
-  if (!Object.keys(patch).length) { notifications.show({ title: 'Nothing to apply', message: 'This sample carries no settings.', color: 'yellow' }); return; }
-  st.setWorkflow(patch);
+  if (!Object.keys(patch).length) { say('This sample has no settings', { tone: 'warn' }); return; }
+  withImageUndo('Apply settings', () => st.setWorkflow(patch));
   useSteps.getState().updateStep(useSteps.getState().steps[0].id, { edited: true });
-  notifications.show({ title: 'Settings applied', message: Object.keys(patch).filter((k) => k !== 'randomizeSeed').join(', '), color: 'teal', autoClose: 3000 });
+  say(`Applied ${Object.keys(patch).filter((k) => k !== 'randomizeSeed').join(', ')}`);
 }
 
 /**

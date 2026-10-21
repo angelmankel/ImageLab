@@ -3,9 +3,9 @@
  * monospace, Copy · Clear. Follows the bottom unless the reader scrolled up.
  */
 import { useEffect, useRef } from 'react';
-import { notifications } from '@mantine/notifications';
 import { clock, logText, type LogTone } from './comfyHelpers';
 import { useComfyLog, useHostLog } from './useComfyHost';
+import { say } from '~/app/notify';
 
 const TONE: Record<LogTone, string> = {
   dim: 'var(--il-dim)', info: 'var(--il-muted)', ok: 'var(--il-ok)', warn: 'var(--il-ember)', err: 'var(--il-err)',
@@ -32,8 +32,8 @@ export function LogBox({ host, fill = true, maxHeight }: { host: string | null; 
   }, [lines]);
 
   const copy = async () => {
-    try { await navigator.clipboard.writeText(logText(lines)); notifications.show({ message: 'Log copied' }); }
-    catch { notifications.show({ color: 'red', message: 'Could not copy the log' }); }
+    try { await navigator.clipboard.writeText(logText(lines)); say('Log copied'); }
+    catch { say('Could not copy the log', { tone: 'warn' }); }
   };
 
   return (

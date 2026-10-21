@@ -6,7 +6,6 @@
  * video run. Plain functions, no hooks: the Generate bar, the phone dock and the toolbar's
  * "Send to next step" all land here.
  */
-import { notifications } from '@mantine/notifications';
 import { useStore } from '@/lib/store';
 import { loadImageRef, uploadImage } from '@/lib/comfy';
 import { isVideoFile } from '@/lib/workspace';
@@ -18,11 +17,12 @@ import { modeHostNow } from '@/features/workspace/modeHost';
 import { useSteps, type Step } from '~/app/stepsStore';
 import { stepInputNow } from '../useStepOutput';
 import { resolveStart, type Task } from './videoStepLogic';
+import { notifyError } from '~/app/notify';
 
 /** The task the engine in use is on. */
 export const taskOf = (v: Pick<VideoState, 'engine' | 'mode' | 'h3'>): Task => (v.engine === 'h3' ? v.h3.mode : v.mode);
 
-const fail = (title: string, message: string) => notifications.show({ title, message, color: 'red', autoClose: 3000 });
+const fail = (title: string, message: string) => notifyError(title, message);
 
 /** The main store's status text when it is an error (the send-to-video helpers report there). */
 const lastError = () => { const s = useStore.getState().status; return s.kind === 'error' ? s.text : null; };

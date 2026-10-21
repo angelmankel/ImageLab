@@ -12,7 +12,6 @@
  * (`workflow/followWorkflow.ts` for a Workflow step).
  */
 import { useCallback, useMemo, useState } from 'react';
-import { notifications } from '@mantine/notifications';
 import { useResourceAvailability } from '@/hooks/useResourceAvailability';
 import type { ResourceKind } from '@/lib/routing';
 import { Tabs } from '~/ui';
@@ -31,6 +30,7 @@ import { fixedExpect, linkKey, type FollowCaps } from './followLogic';
 import { useFollowStore, useStepFollow } from './followStore';
 import { useStep1Source } from './step1Source';
 import { FollowBar, LinkStrip, type LinkState } from './FollowBar';
+import { notifyError, say } from '~/app/notify';
 
 /** A step after step 1 that can follow its models: its id and how its slots behave. */
 export interface FollowLink { stepId: string; caps: (kind: ModelKind) => FollowCaps }
@@ -112,15 +112,15 @@ export function ModelList({ kinds = IMAGE_KINDS, initialKind, useApi = useKindAp
     const own = api.pick ? api.pick(picker, pick) : false;
     if (own !== false) {
       id = own;
-      if (!id) notifications.show({ color: 'yellow', message: 'That version has no file to use' });
-      else if (!pick.installed) notifications.show({ color: 'ember', message: `${pick.model.name} added · download it from the card` });
+      if (!id) notifyError('No file to use', undefined, { hint: 'That version has no file.' });
+      else if (!pick.installed) say(`${pick.model.name} added: download it from the card`);
     } else if (pick.installed && pick.file) {
       if (picker.mode === 'change') { api.rename(picker.id, pick.file); id = picker.id; }
       else id = entries.find((e) => e.name === pick.file)?.id ?? api.add?.(pick.file);
     } else {
       id = picker.mode === 'change' ? api.changeToPending?.(picker.id, pick) : api.addPending?.(pick);
-      if (!id) notifications.show({ color: 'yellow', message: 'That version has no file to download' });
-      else notifications.show({ color: 'ember', message: `${pick.model.name} added · download it from the card` });
+      if (!id) notifyError('No file to download', undefined, { hint: 'That version has no file.' });
+      else say(`${pick.model.name} added: download it from the card`);
     }
     if (id) select(id);
     setPicker(null);

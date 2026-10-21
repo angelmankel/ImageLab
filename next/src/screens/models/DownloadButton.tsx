@@ -6,7 +6,6 @@
  * download ever flips the list off its Downloaded default (`markDownloaded`).
  */
 import { IconCheck, IconDownload, IconLoader2 } from '@tabler/icons-react';
-import { notifications } from '@mantine/notifications';
 import { useStore } from '@/lib/store';
 import { serversWithModel } from '@/lib/routing';
 import { useDownloadsStore } from '@/features/downloads';
@@ -16,6 +15,7 @@ import { folderForType } from './civitaiQuery';
 import { useInstalled } from './useInstalled';
 import { useModels } from './modelsStore';
 import { EmberBtn, GhostBtn, RoundAction, type Size } from './bits';
+import { notifyError, say } from '~/app/notify';
 
 export type DownloadState = 'download' | 'sync' | 'on-disk' | 'downloading' | 'offline';
 
@@ -40,9 +40,9 @@ export function useVersionDownload() {
     const { state, missing } = stateOf(v);
     if (state === 'on-disk' || state === 'downloading' || state === 'offline') return;
     const r = await start(v.id, modelType ? folderForType(modelType) : undefined, state === 'sync' ? missing : undefined);
-    if (r.errors.length) notifications.show({ color: 'red', title: 'Download refused', message: r.errors.join('\n') });
+    if (r.errors.length) notifyError('Download failed', r.errors.join('\n'));
     else {
-      notifications.show({ color: 'ember', message: `Downloading ${v.name} on ${r.accepted} server${r.accepted === 1 ? '' : 's'}` });
+      say(`Downloading ${v.name} on ${r.accepted} server${r.accepted === 1 ? '' : 's'}`);
       if (r.accepted > 0) useModels.getState().markDownloaded();
     }
   };

@@ -4,7 +4,6 @@
  * `useGenerate`. Stop cancels the video run row (`cancelQueueRow('video-run')`).
  */
 import { useState } from 'react';
-import { notifications } from '@mantine/notifications';
 import { useShallow } from 'zustand/react/shallow';
 import { useVideo } from '@/features/video/videoStore';
 import { useVideoRun } from '@/features/video/videoRun';
@@ -16,6 +15,7 @@ import { runTagged } from '~/app/runSteps';
 import { useStepInput } from '../useStepOutput';
 import { blockReason } from './videoStepLogic';
 import { runVideoStep } from './videoChain';
+import { notifyError } from '~/app/notify';
 
 export interface StepRun { run: (newSeed?: boolean) => void; stop: () => void; busy: boolean; busyLabel: string; progress: number | null; disabled: string | null }
 
@@ -39,7 +39,7 @@ export function useVideoStepRun(step: Step): StepRun {
   return {
     run: (newSeed = false) => {
       // The desktop button is already off; the phone dock's orb is not, so say why here.
-      if (!host || disabled) { notifications.show({ title: 'Cannot generate', message: disabled ?? 'No video server', color: 'yellow', autoClose: 3000 }); return; }
+      if (!host || disabled) { notifyError('Cannot generate', disabled ?? 'No video server'); return; }
       // Item 46: a press while a clip renders queues one more (presses take turns, `enqueueRun`).
       setPreparing(true);
       void enqueueRun(() => runTagged(useVideoRun, step.id, () => runVideoStep(step, host, newSeed))).finally(() => setPreparing(false));

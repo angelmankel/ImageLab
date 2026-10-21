@@ -7,12 +7,12 @@
  * for the busy state (one run per picture at a time).
  */
 import { create } from 'zustand';
-import { notifications } from '@mantine/notifications';
 import { useStore } from '@/lib/store';
 import { uid } from '@/lib/storage';
 import type { HistoryEntry } from '@/lib/types';
 import { useStage } from '~/screens/image/stageStore';
 import { removeBackgroundRun } from './removeBg';
+import { notifyError, say, unsay } from './notify';
 
 interface RemoveBgState { busy: Record<string, true>; set: (url: string, on: boolean) => void }
 
@@ -34,8 +34,7 @@ export async function removeBgFrom(src: { url: string; filename: string; entry?:
   const { url, filename, entry } = src;
   if (useRemoveBg.getState().busy[url]) return null;
   useRemoveBg.getState().set(url, true);
-  const id = `il-rmbg-${uid()}`;
-  notifications.show({ id, loading: true, title: 'Removing the background…', message: filename, autoClose: false, withCloseButton: false });
+  say('Removing the background…', { tone: 'busy' });
   const started = Date.now();
   try {
     const res = await removeBackgroundRun(url, filename);
@@ -61,10 +60,11 @@ export async function removeBgFrom(src: { url: string; filename: string; entry?:
     const stamped = st.pushHistory(made);
     st.selectHistoryEntry(stamped);
     useStage.getState().showRun(null);
-    notifications.update({ id, loading: false, title: 'Background removed', message: 'The cut-out is on the canvas and in the history.', color: 'teal', autoClose: 3000, withCloseButton: true });
+    say('Background removed');
     return stamped;
   } catch (e) {
-    notifications.update({ id, loading: false, title: 'Remove BG failed', message: e instanceof Error ? e.message : String(e), color: 'red', autoClose: 3000, withCloseButton: true });
+    unsay();
+    notifyError('Remove background failed', e);
     return null;
   } finally {
     useRemoveBg.getState().set(url, false);

@@ -5,11 +5,11 @@
  * The entry flips to enabled by itself when the file lands (`usePendingReconcile`).
  */
 import { IconAlertTriangle, IconDownload, IconLoader2 } from '@tabler/icons-react';
-import { notifications } from '@mantine/notifications';
 import { useStore } from '@/lib/store';
 import { useDownloadsStore } from '@/features/downloads';
 import { T } from '~/theme/tokens';
 import { downloadProgress, recordDownloadKey, recordFolder, type PendingRecord } from './pendingLogic';
+import { notifyError, say } from '~/app/notify';
 
 /** Start a record's download on every online server: by version, or by its own file URL (a pair's other half). */
 export async function startRecordDownload(record: PendingRecord) {
@@ -25,8 +25,8 @@ export function PendingStrip({ record }: { record: PendingRecord }) {
 
   const download = async () => {
     const r = await startRecordDownload(record);
-    if (r.errors.length) notifications.show({ color: 'red', title: 'Download refused', message: r.errors.join('\n') });
-    else notifications.show({ color: 'ember', message: `Downloading ${record.modelName} on ${r.accepted} server${r.accepted === 1 ? '' : 's'}` });
+    if (r.errors.length) notifyError('Download failed', r.errors.join('\n'));
+    else say(`Downloading ${record.modelName} on ${r.accepted} server${r.accepted === 1 ? '' : 's'}`);
   };
 
   return (

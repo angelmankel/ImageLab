@@ -8,7 +8,6 @@
  */
 import type { ReactNode } from 'react';
 import { Menu } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
 import {
   IconPlus, IconLayersSubtract, IconFolderPlus, IconFolder, IconCopyPlus, IconBackground, IconHistory, IconTextCaption,
   IconSettings, IconDownload, IconClipboard, IconArrowRight,
@@ -25,6 +24,7 @@ import { downloadUrl } from '~/screens/image/canvasMenu';
 import { useDropTargets } from '~/dnd';
 import { T } from '~/theme/tokens';
 import type { ViewerItem } from './types';
+import { say } from '~/app/notify';
 
 function Tile({ icon, title, sub, onClick, disabled, busy }: { icon: ReactNode; title: string; sub?: string; onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void; disabled?: boolean; busy?: boolean }) {
   return (
@@ -53,8 +53,8 @@ async function copyImage(url: string) {
     const blob = await (await fetch(url)).blob();
     const png = blob.type === 'image/png' ? blob : await toPng(blob);
     await navigator.clipboard.write([new ClipboardItem({ 'image/png': png })]);
-    notifications.show({ message: 'Picture copied', color: 'teal', autoClose: 1500 });
-  } catch (e) { notifications.show({ title: 'Could not copy', message: e instanceof Error ? e.message : String(e), color: 'red', autoClose: 3000 }); }
+    say('Picture copied');
+  } catch { say('Could not copy the picture', { tone: 'warn' }); }
 }
 async function toPng(blob: Blob): Promise<Blob> {
   const bmp = await createImageBitmap(blob);

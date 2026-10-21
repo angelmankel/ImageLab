@@ -11,7 +11,6 @@
  * sends its last frame), and only the seeds NOT kept are re-rolled on Generate while the dice
  * re-rolls every one.
  */
-import { notifications } from '@mantine/notifications';
 import { loadImageRef, uploadImage } from '@/lib/comfy';
 import { comfyHttpFor } from '@/lib/comfyHost';
 import { serverRef } from '../kinds/kindGraphs';
@@ -28,6 +27,7 @@ import { stepInputNow } from '../useStepOutput';
 import { keptSeedsNow } from './workflowStepStore';
 import { syncWorkflowFollow } from './followWorkflow';
 import { isImageParam, chainInputFrom, seedIdsToReroll, uploadName, type ChainSource } from './workflowStepLogic';
+import { notifyError } from '~/app/notify';
 
 const VIDEO = /\.(mp4|webm|mov|mkv)(\?|$)/i;
 
@@ -94,12 +94,12 @@ export function workflowStepSource(step: Step, host: string, info: ObjectInfo | 
  */
 export async function startWorkflowStepRun(step: Step, host: string, info: ObjectInfo | null, newSeed = false): Promise<void> {
   try { await ensureStepWorkflowOpen(step.id); } catch (err) {
-    notifications.show({ color: 'red', title: 'Could not open the workflow', message: err instanceof Error ? err.message : String(err) });
+    notifyError('Could not open the workflow', err);
     return;
   }
   const run = useWorkflowRun.getState();
   run.setHost(host);
   await run.run(workflowStepSource(step, host, info, newSeed));
   const err = useWorkflowRun.getState().error;
-  if (err) notifications.show({ color: 'red', title: 'Could not generate', message: err, autoClose: 3000 });
+  if (err) notifyError('Could not generate', err);
 }

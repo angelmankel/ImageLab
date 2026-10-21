@@ -4,12 +4,12 @@
  * was let go; the new step goes at the end of the chain. Also a Send-to target ("New step with
  * this picture…") for the phone, registered by `GlobalTargets`.
  */
-import { notifications } from '@mantine/notifications';
 import { addStepWithPicker } from '~/app/stepKindPicker';
 import { useSteps } from '~/app/stepsStore';
 import { dropToStepInput } from './importImage';
 import { useImageDrop } from './useImageDrop';
 import type { DropItem } from './payload';
+import { notifyError } from '~/app/notify';
 
 /** Read the picture, then open the step-kind picker at `at`. */
 export async function newStepFromDrop(item: DropItem, at: { x: number; y: number }): Promise<void> {
@@ -18,7 +18,7 @@ export async function newStepFromDrop(item: DropItem, at: { x: number; y: number
     const steps = useSteps.getState().steps;
     addStepWithPicker(at, { after: steps[steps.length - 1]?.id ?? null, input });
   } catch (e) {
-    notifications.show({ color: 'red', title: 'Could not use that picture', message: e instanceof Error ? e.message : String(e), autoClose: 3000 });
+    notifyError('Could not use that picture', e);
   }
 }
 

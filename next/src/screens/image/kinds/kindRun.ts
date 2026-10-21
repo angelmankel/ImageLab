@@ -13,7 +13,6 @@
  *
  * A picture already on that server is used in place (`serverRef`), never fetched and re-sent.
  */
-import { notifications } from '@mantine/notifications';
 import { useStore } from '@/lib/store';
 import { comfyHttpFor, viewUrl } from '@/lib/comfyHost';
 import { buildGraph } from '@/lib/graphs';
@@ -31,6 +30,7 @@ import { stepInputNow } from '../useStepOutput';
 import { uploadSource } from '../workflow/stepRun';
 import { serverRef, skipBaseSampler, outputIsInput, upscaleGraph, type ApiGraph } from './kindGraphs';
 import { trackRun } from './trackRun';
+import { notifyError } from '~/app/notify';
 
 /** The kinds this runner makes. */
 export const OWN_KINDS = new Set<Step['kind']>(['refine', 'upscale', 'remove-bg']);
@@ -147,7 +147,7 @@ async function buildFor(step: Step, host: string, newSeed: boolean): Promise<{ g
  * failed (also shown as a 3 s note unless `quiet`).
  */
 export async function runKindStep(step: Step, newSeed = false, quiet = false): Promise<string | null> {
-  const fail = (msg: string) => { if (!quiet) notifications.show({ title: 'Could not generate', message: msg, color: 'red', autoClose: 3000 }); return msg; };
+  const fail = (msg: string) => { if (!quiet) notifyError('Could not generate', msg); return msg; };
   const host = modeHostNow('workflow');
   if (!host) return fail('No ComfyUI server');
   const store = useWorkflowRun;
