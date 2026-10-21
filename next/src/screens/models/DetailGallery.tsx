@@ -9,6 +9,7 @@ import { IconEyeOff } from '@tabler/icons-react';
 import type { CivitaiImage } from '@/lib/civitai';
 import { civitaiThumbUrl, civitaiVideoUrl, isCivitaiVideo, previewStill } from '@/lib/civitai';
 import { useNsfwCover } from './nsfwCover';
+import { Spinner } from '~/ui';
 import { COVER_FALLBACK, GhostBtn, type Size } from './bits';
 
 export function Media({ img, width, reveal, blurred, style, cover = true, still }: { img: CivitaiImage; width: number; reveal: () => void; blurred: boolean; style?: React.CSSProperties; cover?: boolean; still?: boolean }) {
@@ -49,7 +50,7 @@ export function DetailGallery({ images, index, onSelect, size, hasMore, onMore, 
   if (images.length === 0) {
     return (
       <div style={{ width: '100%', aspectRatio: size === 'phone' ? '13 / 10' : '4 / 3', borderRadius: size === 'phone' ? 0 : 16, background: COVER_FALLBACK, display: 'grid', placeItems: 'center', color: 'var(--il-muted)', fontSize: 11, fontWeight: 700 }}>
-        {loading ? 'Loading samples…' : 'No sample images'}
+        {loading ? <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Spinner size={16} />Loading samples…</span> : 'No sample images'}
       </div>
     );
   }

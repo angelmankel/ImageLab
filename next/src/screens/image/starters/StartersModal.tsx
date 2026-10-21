@@ -3,22 +3,31 @@
  * model picker (the same ≈ 94vw × 92vh window; full screen with Back on a phone). The body is
  * only pictures, in a masonry; a click uses the picture's prompt (+ negative, steps / CFG / seed)
  * with Undo and closes; right-click / long-press: Use · As input image · Copy prompt · Open on
- * CivitAI. The top section filters: source (Your models / Mine / Built-in), the installed models
- * as a strip, sort, content, shape, search, and tags (the parts that recur in the loaded prompts).
+ * CivitAI. The top section filters: source (Your models / Mine / Built-in), the model (ONE
+ * search with thumbnails, fix list 2 item 5 — no more long row of model chips), sort, content,
+ * shape, search, and tags (the parts that recur in the loaded prompts).
+ *
+ * Fast (item 5): pages show as they land (`useStarterGallery`, cached per model + filter), tiles
+ * load small CivitAI renditions lazily with a placeholder that fades in (`LoadingImage`), and
+ * tiles off screen skip layout and paint (`content-visibility: auto`). Skeleton tiles while the
+ * first page loads, a few more at the end while the next one does. NSFW pictures are covered
+ * until tapped unless the user opted in (item 27).
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { Modal } from '@mantine/core';
-import { IconSparkles, IconChevronLeft, IconCopy, IconExternalLink, IconPhotoUp, IconRefresh, IconSearch, IconTextCaption, IconTrash, IconX } from '@tabler/icons-react';
+import { IconSparkles, IconChevronLeft, IconCopy, IconExternalLink, IconEyeOff, IconPhotoUp, IconRefresh, IconSearch, IconTextCaption, IconTrash, IconX } from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
-import { civitaiThumbUrl, isCivitaiVideo, type CivitaiImageSort, type NsfwFilter } from '@/lib/civitai';
-import { loadNsfw, saveNsfw, useInstalledCivitai, type InstalledCivitai } from '@/features/layers/civitaiPrompts';
+import { civitaiThumbUrl, type CivitaiImageSort, type NsfwFilter } from '@/lib/civitai';
+import { loadNsfw, saveNsfw, useInstalledCivitai } from '@/features/layers/civitaiPrompts';
 import { PROMPT_PRESETS, familyForCheckpoint, presetPrompt } from '@/lib/promptLibrary';
 import { profileById } from '@/lib/modelProfiles';
 import { useMine } from '@/features/next/mineStore';
 import { menuProps, registerMenu } from '~/app/contextMenu';
 import { useIsPhone } from '~/app/useIsPhone';
 import { T } from '~/theme/tokens';
-import { Button, useWheelSideways, LoadingState } from '~/ui';
+import { Button, LoadingImage, SkeletonTiles } from '~/ui';
+import { useNsfwCover } from '~/screens/models/nsfwCover';
+import { ModelAutocomplete } from './ModelAutocomplete';
 import { tileBackground } from '../prompt/promptSearch';
 import { applyStarter, setAsInput, type StarterUse } from './applyStarter';
 import { passes, topTags, type Shape } from './starterLogic';
@@ -33,7 +42,7 @@ export interface StarterItem {
   name: string;
   prompt: string;
   use: StarterUse;
-  img?: { url: string; width: number; height: number; link: string };
+  img?: { url: string; width: number; height: number; link: string; nsfw?: boolean };
   mineId?: string;
 }
 
@@ -73,27 +82,16 @@ function Pills<K extends string>({ label, items, value, onChange, h }: { label: 
   );
 }
 
-function ModelChip({ m, on, onClick }: { m: InstalledCivitai; on: boolean; onClick: () => void }) {
-  return (
-    <button type="button" aria-pressed={on} onClick={onClick} title={`${m.model} · ${m.version}`}
-      style={{ display: 'flex', alignItems: 'center', gap: 8, height: 44, padding: '0 12px 0 4px', borderRadius: 12, flex: 'none', cursor: 'pointer', textAlign: 'left', maxWidth: 240,
-        background: on ? 'var(--il-ember-soft)' : 'var(--il-elev)', border: `1px solid ${on ? 'var(--il-ember-line)' : 'var(--il-line-soft)'}`, color: 'var(--il-fg)' }}>
-      <span aria-hidden style={{ width: 36, height: 36, borderRadius: 9, flex: 'none', overflow: 'hidden', background: 'linear-gradient(140deg,#3f4f5e,#1e262d)' }}>
-        {m.preview && <img src={civitaiThumbUrl(m.preview, 96, { video: isCivitaiVideo({ url: m.preview }) })} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />}
-      </span>
-      <span style={{ minWidth: 0 }}>
-        <b style={{ display: 'block', fontSize: 12, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.model}</b>
-        <span style={{ display: 'block', fontSize: 10, fontWeight: 700, color: 'var(--il-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.version} · {m.type || 'Model'}</span>
-      </span>
-    </button>
-  );
-}
-
 function hue(s: string) { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return h % 360; }
+
+/** The masonry tile's picture width: 2× a ~220px column, a small CivitAI rendition (item 5). */
+const TILE_W = 440;
 
 function Tile({ it, onUse }: { it: StarterItem; onUse: () => void }) {
   const [hover, setHover] = useState(false);
-  const box: CSSProperties = { breakInside: 'avoid', marginBottom: 10, borderRadius: 12, overflow: 'hidden', position: 'relative', cursor: 'pointer', display: 'block', width: '100%', border: 0, padding: 0, textAlign: 'left', color: '#fff', font: 'inherit' };
+  const [shown, setShown] = useState(false);
+  const box: CSSProperties = { breakInside: 'avoid', marginBottom: 10, borderRadius: 12, overflow: 'hidden', position: 'relative', cursor: 'pointer', display: 'block', width: '100%', border: 0, padding: 0, textAlign: 'left', color: '#fff', font: 'inherit',
+    contentVisibility: 'auto', containIntrinsicSize: 'auto 300px' } as CSSProperties;
   const overlay = (
     <span aria-hidden style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: '28px 10px 8px', background: 'linear-gradient(transparent, rgba(0,0,0,.78))', fontSize: 11, fontWeight: 700, lineHeight: 1.4, opacity: hover ? 1 : 0, transition: 'opacity .12s ease' }}>
       <span style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{it.prompt}</span>
@@ -101,9 +99,17 @@ function Tile({ it, onUse }: { it: StarterItem; onUse: () => void }) {
     </span>
   );
   if (it.img) {
+    const aspect = (it.img.width || 1) / (it.img.height || 1);
+    if (it.img.nsfw && !shown) {
+      return (
+        <button type="button" onClick={() => setShown(true)} aria-label="NSFW picture · tap to show" style={{ ...box, background: 'var(--il-elev)', aspectRatio: String(aspect), display: 'grid', placeItems: 'center' }}>
+          <span style={{ height: 30, padding: '0 12px', borderRadius: 999, background: 'color-mix(in srgb, var(--il-bg) 80%, transparent)', color: 'var(--il-fg)', fontSize: 11, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6 }}><IconEyeOff size={13} stroke={2.2} />NSFW · tap to show</span>
+        </button>
+      );
+    }
     return (
-      <button type="button" onClick={onUse} onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)} aria-label={`Use: ${it.prompt.slice(0, 80)}`} style={{ ...box, background: '#000' }} {...menuProps('starter', it)}>
-        <img src={civitaiThumbUrl(it.img.url, 450)} alt="" loading="lazy" style={{ display: 'block', width: '100%', aspectRatio: `${it.img.width || 1} / ${it.img.height || 1}`, objectFit: 'cover' }} />
+      <button type="button" onClick={onUse} onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)} aria-label={`Use: ${it.prompt.slice(0, 80)}`} style={{ ...box, background: 'var(--il-bg-deep)' }} {...menuProps('starter', it)}>
+        <LoadingImage src={civitaiThumbUrl(it.img.url, TILE_W)} thumb={civitaiThumbUrl(it.img.url, 32)} aspect={aspect} />
         {overlay}
       </button>
     );
@@ -135,7 +141,7 @@ function Body({ onClose }: { onClose: () => void }) {
   const mine = useMine((s) => s.items);
   const checkpoint = useStore((s) => s.workflow.checkpoints[0]?.name);
   const typeHasTags = useStore((s) => !!profileById(s.workflow.modelProfile)?.tags.length);
-  const wheel = useWheelSideways<HTMLDivElement>();
+  const covered = useNsfwCover();
   useEffect(() => { setTags([]); }, [source, model?.versionId]);
 
   const items = useMemo<StarterItem[]>(() => {
@@ -145,7 +151,7 @@ function Body({ onClose }: { onClose: () => void }) {
         name: model ? `${model.model} picture` : 'CivitAI picture',
         prompt: img.meta!.prompt!,
         use: { positive: img.meta!.prompt!, negative: img.meta!.negativePrompt || undefined, steps: img.meta!.steps, cfg: img.meta!.cfgScale, seed: img.meta!.seed },
-        img: { url: img.url, width: img.width, height: img.height, link: model ? `https://civitai.com/models/${model.modelId}?modelVersionId=${model.versionId}` : 'https://civitai.com' },
+        img: { url: img.url, width: img.width, height: img.height, link: model ? `https://civitai.com/models/${model.modelId}?modelVersionId=${model.versionId}` : 'https://civitai.com', nsfw: covered(img.nsfwLevel) },
       }));
     }
     if (source === 'mine') {
@@ -153,7 +159,7 @@ function Body({ onClose }: { onClose: () => void }) {
     }
     const fam = familyForCheckpoint(checkpoint, typeHasTags);
     return PROMPT_PRESETS.map((p) => { const t = presetPrompt(p, fam); return { key: p.id, name: p.name, prompt: p.positive, use: { positive: t.positive, negative: t.negative } }; });
-  }, [source, gallery.items, model, mine, checkpoint, typeHasTags]);
+  }, [source, gallery.items, model, mine, checkpoint, typeHasTags, covered]);
 
   const tagList = useMemo(() => topTags(items.map((i) => i.prompt)), [items]);
   const shown = useMemo(() => items.filter((it) => passes({ prompt: it.prompt, width: it.img?.width, height: it.img?.height }, { tags, query, shape: it.img ? shape : 'any' })), [items, tags, query, shape]);
@@ -193,9 +199,7 @@ function Body({ onClose }: { onClose: () => void }) {
           {source === 'models' && <Button tone="card" h={h} icon={<IconRefresh size={15} stroke={2.2} />} tooltip="Reload" onClick={gallery.reload} disabled={gallery.loading} />}
         </div>
         {source === 'models' && installed.length > 0 && (
-          <div ref={wheel} className="il-scroll-x" data-no-swipe style={{ display: 'flex', gap: 8, touchAction: 'pan-x pan-y' }}>
-            {installed.map((m) => <ModelChip key={m.versionId} m={m} on={m.versionId === model?.versionId} onClick={() => setPicked(m.versionId)} />)}
-          </div>
+          <ModelAutocomplete models={installed} value={model?.versionId ?? null} onChange={setPicked} />
         )}
         <div className="il-scroll-x" data-no-swipe style={{ display: 'flex', alignItems: 'center', gap: 10, touchAction: 'pan-x pan-y' }}>
           {source === 'models' && phone && <Pills<CivitaiImageSort> label="Sort" h={30} value={sort} onChange={setSort} items={SORTS} />}
@@ -224,8 +228,10 @@ function Body({ onClose }: { onClose: () => void }) {
           {shown.map((it) => <Tile key={it.key} it={it} onUse={() => use(it)} />)}
         </div>
         {shown.length === 0 && empty && <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--il-muted)', textAlign: 'center', padding: '40px 12px' }}>{empty}</div>}
+        {source === 'models' && gallery.loading && (
+          <SkeletonTiles masonry count={shown.length ? (phone ? 4 : 5) : (phone ? 6 : 15)} columns={phone ? 2 : undefined} min={220} gap={phone ? 8 : 10} radius={12} style={shown.length ? { marginTop: 4 } : undefined} />
+        )}
         <div ref={sentinel} style={{ height: 1 }} />
-        {source === 'models' && gallery.loading && <LoadingState label="Loading pictures…" style={{ padding: 16 }} />}
       </div>
     </div>
   );

@@ -22,7 +22,7 @@
 import { useMemo } from 'react';
 import { IconAlertTriangle, IconArrowsMaximize, IconChevronDown, IconExternalLink, IconInfoCircle } from '@tabler/icons-react';
 import { T } from '~/theme/tokens';
-import { Button, Switch, SliderRow } from '~/ui';
+import { Button, LoadingImage, Switch, SliderRow } from '~/ui';
 import { useIsPhone } from '~/app/useIsPhone';
 import { makePayload, nameFromUrl, useImageDrag } from '~/dnd';
 import { useModels } from '~/screens/models/modelsStore';
@@ -124,7 +124,7 @@ export function EntryCard({ entry, api, onChange, link }: { entry: ModelEntry; a
             style={{ position: 'relative', width: heroSize, height: heroSize, flex: 'none', padding: 0, border: 0, borderRadius: T.radius.lg, overflow: 'hidden', cursor: hero ? 'zoom-in' : 'default',
               background: 'var(--il-elev)', boxShadow: '0 6px 18px rgba(0,0,0,.28)', opacity: pending || entry.missing ? 0.6 : entry.on ? 1 : 0.75, display: 'grid', placeItems: 'center', color: 'var(--il-fg)', fontWeight: 800, fontSize: 26 }}>
             {hero
-              ? <img src={smallThumb(hero.url, heroSize)} alt="" decoding="async" draggable={false} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+              ? <LoadingImage src={smallThumb(hero.url, heroSize)} thumb={smallThumb(hero.url, 16)} loading="eager" draggable={false} style={{ position: 'absolute', inset: 0, height: '100%' }} />
               : initials(meta.label || title)}
             {hero && (
               <span aria-hidden style={{ position: 'absolute', right: 5, bottom: 5, width: 22, height: 22, borderRadius: '50%', background: 'color-mix(in srgb, var(--il-bg) 70%, transparent)', display: 'grid', placeItems: 'center' }}>

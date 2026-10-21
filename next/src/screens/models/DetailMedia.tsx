@@ -9,7 +9,7 @@ import { useEffect, useState } from 'react';
 import { IconChevronLeft, IconChevronRight } from '@tabler/icons-react';
 import type { CivitaiImage } from '@/lib/civitai';
 import { isCivitaiVideo, previewStill } from '@/lib/civitai';
-import { Button } from '~/ui';
+import { Button, Spinner } from '~/ui';
 import { makePayload, nameFromUrl, useImageDrag } from '~/dnd';
 import { useNsfwCover } from './nsfwCover';
 import { COVER_FALLBACK } from './bits';
@@ -58,7 +58,7 @@ export function DetailMedia({ images, index, onSelect, onView, hasMore, onMore, 
   if (images.length === 0) {
     return (
       <div style={{ height: heroH, borderRadius: 14, background: COVER_FALLBACK, display: 'grid', placeItems: 'center', color: 'var(--il-muted)', fontSize: 11, fontWeight: 700 }}>
-        {loading ? 'Loading samples…' : 'No sample images'}
+        {loading ? <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Spinner size={16} />Loading samples…</span> : 'No sample images'}
       </div>
     );
   }

@@ -3,7 +3,7 @@
  * thumb ember-outlined and kept in view, "load more" at the end while the gallery has more.
  * Thumbs are stills even for clips; a hidden (NSFW) sample shows a dim eye instead of a blur.
  * Item 28: the next gallery page loads by itself when the strip's end scrolls into view (a few
- * pulsing placeholder thumbs while it loads); a tap on the current thumb opens it full screen.
+ * shimmer placeholder thumbs while it loads); a tap on the current thumb opens it full screen.
  * `scrollKey` keeps its sideways position per model + version (`useKeepScroll`): a reopen lands
  * where it was, and only centres the current thumb when that one is out of view.
  */
@@ -13,7 +13,7 @@ import type { CivitaiImage } from '@/lib/civitai';
 import { civitaiThumbUrl, previewStill } from '@/lib/civitai';
 import { COVER_FALLBACK } from '~/screens/models/bits';
 import { useKeepScroll, keptScroll } from '~/screens/models/useKeepScroll';
-import '~/screens/models/models.css';
+import { Skeleton } from '~/ui';
 
 export const STRIP_H = 84;
 const THUMB = 66;
@@ -69,7 +69,7 @@ export function ThumbStrip({ images, index, onSelect, onOpen, isHidden, hasMore,
       })}
       {images.length === 0 && !loading && <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--il-muted)' }}>No samples</span>}
       {(loading || loadingMore) && Array.from({ length: images.length ? 3 : 8 }, (_, i) => (
-        <span key={`sk${i}`} aria-hidden className="ilm-skel" style={{ width: THUMB, height: THUMB, flex: 'none', borderRadius: 10, background: 'var(--il-elev)' }} />
+        <Skeleton key={`sk${i}`} w={THUMB} h={THUMB} radius={10} style={{ flex: 'none' }} />
       ))}
       {hasMore && <div ref={end} aria-hidden style={{ width: 1, height: THUMB, flex: 'none' }} />}
     </div>
