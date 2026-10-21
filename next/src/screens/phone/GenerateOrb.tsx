@@ -108,7 +108,7 @@ export function GenerateOrb() {
         </button>
       )}
       {badge && (
-        <button type="button" onClick={showQueue} aria-label={`${rows.length} jobs in the queue — show the queue`}
+        <button type="button" onClick={showQueue} aria-label={`${rows.length} jobs queued`}
           style={{ ...bubble, right: -6, top: -4, minWidth: 22, width: 'auto', padding: '0 6px', background: 'var(--il-fg)', color: 'var(--il-bg)', fontSize: 11, fontWeight: 800 }}>
           {badge}
         </button>

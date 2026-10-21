@@ -93,14 +93,14 @@ export function PromptTab({ large = false }: { large?: boolean }) {
         onSaveAsSnippet={(text) => useTileEdit.getState().edit('new', text)}
         tools={<>
           <Button tone="card" size={size} style={{ color: 'var(--il-ember-hi)' }} onClick={() => { pos.flush(); setWriting(true); }}
-            tooltip={aiReady(ai) ? 'Let the AI write the prompt' : 'Set up the AI helper in Settings to write prompts'}>✦ Write it</Button>
-          <Button tone="card" size={size} onClick={() => { pos.flush(); setStarters(true); }} tooltip="Start from a picture someone made">Starters</Button>
+            tooltip={aiReady(ai) ? 'Let the AI write the prompt' : 'Set up AI in Settings'}>✦ Write it</Button>
+          <Button tone="card" size={size} onClick={() => { pos.flush(); setStarters(true); }} tooltip="Start from a picture">Starters</Button>
         </>}
       />}
       </div>
       <CollapseHeader open={gridOpen} onToggle={() => setGridOpen(!gridOpen)} label={negative ? 'Negative snippets' : 'Styles & snippets'}
         right={!gridFolded && !negative ? (
-          <Chip small={!phone} tall={phone} on={onOnly} onClick={() => setOnOnly(!onOnly)} title="Show only the tiles that are on">
+          <Chip small={!phone} tall={phone} on={onOnly} onClick={() => setOnOnly(!onOnly)} title="Only on">
             On only{onCount > 0 && <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 800, padding: '0 6px', borderRadius: 999, background: onOnly ? 'rgba(0,0,0,.2)' : 'var(--il-ember-soft)', color: onOnly ? 'inherit' : 'var(--il-ember-hi)' }}>{onCount}</span>}
           </Chip>
         ) : gridFolded && onCount > 0 ? <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--il-ember-hi)', paddingRight: 4 }}>{onCount} on</span> : undefined} />

@@ -97,7 +97,7 @@ function VideoWords({ id, meta }: { id: string; meta: ModelMeta }) {
   const low = metaWithPending(useModelMeta(nameLow), record);
   const words = meta.trainedWords.length ? meta.trainedWords : low.trainedWords;
   if (!words.length) return null;
-  return <TriggerWords words={words} text={positive} onText={(positive) => useVideo.getState().set({ positive })} title="Trigger words · tap to add to the motion prompt" />;
+  return <TriggerWords words={words} text={positive} onText={(positive) => useVideo.getState().set({ positive })} title="Trigger words" />;
 }
 
 /** A single-file Wan LoRA: which expert it patches and an own strength on the low-noise one; H3: a note. */

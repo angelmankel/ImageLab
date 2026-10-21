@@ -20,7 +20,7 @@ function ImageSizeCtl() {
 export const COMPOSITION_ROWS: readonly SettingDef[] = [
   {
     id: 'models.imageSize', category: 'models', label: 'Image size',
-    hint: "Model default: each model type's own pixel count in the shape you pick (SD 1.5 512², SDXL 1024², Qwen 1328²). Custom: the width and height you set in Composition.",
+    hint: "The model's native size, or your own.",
     keywords: ['resolution', 'width', 'height', 'aspect', 'composition', 'default', 'native', 'pixels', 'size'], Control: ImageSizeCtl,
   },
 ];

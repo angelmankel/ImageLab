@@ -59,7 +59,7 @@ export function FieldRow({ label, sub, value, changed, onReset, pinned, onPin, i
         {hintText ? <Tip label={hintText} multiline w={260}>{text}</Tip> : hint ? <Tip hint={hint}>{text}</Tip> : text}
         {value != null && <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--il-fg)', fontVariantNumeric: 'tabular-nums' }}>{value}</span>}
         {inline}
-        {onReset && <ResetButton shown={!!changed} size={24} label="Reset to the value saved in ComfyUI" onReset={onReset} />}
+        {onReset && <ResetButton shown={!!changed} size={24} label="Reset to saved" onReset={onReset} />}
         {onPin && <IconBtn size={24} on={pinned} icon={pinned ? <IconPinned size={13} /> : <IconPin size={13} />} label={pinned ? 'Unpin' : 'Pin to the top'} onClick={onPin} />}
       </div>
       {children}
@@ -125,7 +125,7 @@ export function BoolField({ p, value, onChange, onReset, pinned, onPin, sub, lab
   const on = value === true || value === 'true';
   return (
     <FieldRow label={name} hint={hint} hintText={hintText} sub={sub} changed={value !== p.value} onReset={onReset} pinned={pinned} onPin={onPin}
-      inline={<Chip small on={on} onClick={() => onChange(!on)} title={on ? 'On · tap to switch off' : 'Off · tap to switch on'}>{on ? 'on' : 'off'}</Chip>} />
+      inline={<Chip small on={on} onClick={() => onChange(!on)} title={on ? 'On' : 'Off'}>{on ? 'on' : 'off'}</Chip>} />
   );
 }
 
@@ -154,11 +154,11 @@ export function SeedField({ p, value, onChange, onReset, pinned, onPin, sub, lab
       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
         <input aria-label={name} type="number" inputMode="numeric" min={0} value={draft} onChange={(e) => setDraft(e.currentTarget.value)} onBlur={commit}
           onKeyDown={(e) => { if (e.key === 'Enter') (e.currentTarget as HTMLInputElement).blur(); }}
-          title={kept ? 'This seed is used as set' : 'A new seed is rolled for every run (the dice rolls one now)'}
+          title={kept ? 'Seed kept' : 'New seed every run'}
           style={{ ...box, flex: 1, textAlign: 'right', color: kept ? 'var(--il-fg)' : 'var(--il-muted)' }} />
         <IconBtn size={30} tone="card" icon={<IconDice5 size={16} />} label="New seed now" onClick={() => onChange(randomSeed())} />
         <IconBtn size={30} tone="card" on={kept} icon={kept ? <IconLock size={16} /> : <IconLockOpen size={16} />}
-          label={kept ? 'Seed kept · tap for a new seed every run' : 'New seed every run · tap to keep this seed'} onClick={onToggleKept} />
+          label={kept ? 'Seed kept' : 'New seed every run'} onClick={onToggleKept} />
       </div>
     </FieldRow>
   );

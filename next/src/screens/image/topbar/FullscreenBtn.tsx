@@ -19,7 +19,7 @@ export function FullscreenBtn() {
   return (
     <IconBtn
       icon={full ? <IconMinimize size={18} /> : <IconMaximize size={18} />}
-      label={full ? 'Exit fullscreen (F)' : 'Fullscreen (F)'}
+      label={full ? 'Exit fullscreen' : 'Fullscreen'}
       onClick={toggleFullscreen}
       on={full}
     />

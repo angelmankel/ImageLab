@@ -27,7 +27,7 @@ export function CollectionTile({ c, count, cover, coverIsVideo, active, onPick }
     <div {...drop.props} {...menuProps('collection', c)}
       style={{ position: 'relative', width: TILE, height: TILE, flex: 'none', transform: drop.over ? 'scale(1.06)' : undefined, transition: 'transform .12s' }}>
       <button type="button" onClick={onPick} onDoubleClick={() => startRename(c.id)} aria-pressed={active}
-        aria-label={`${c.name}, ${count} picture${count === 1 ? '' : 's'}${active ? ' (shown)' : ''}`} title={`${c.name} · ${count} · drop pictures here`}
+        aria-label={`${c.name}, ${count} picture${count === 1 ? '' : 's'}${active ? ' (shown)' : ''}`} title={c.name}
         style={{
           position: 'absolute', inset: 0, padding: 0, border: 0, borderRadius: 14, overflow: 'hidden', cursor: 'pointer',
           outline: ring, outlineOffset: -1, background: cover ? 'var(--il-bg-deep)' : 'linear-gradient(145deg, var(--il-card-on), var(--il-elev))',
@@ -47,7 +47,7 @@ export function CollectionTile({ c, count, cover, coverIsVideo, active, onPick }
       </button>
       {renaming && <RenameBox c={c} />}
       {!renaming && <button type="button" onClick={(e) => { e.stopPropagation(); deleteCollection(c.id); }} aria-label={`Delete ${c.name} (its pictures stay)`}
-        title="Delete collection · pictures stay"
+        title="Delete collection"
         style={{ position: 'absolute', top: 4, right: 4, width: 22, height: 22, padding: 0, border: '2px solid var(--il-panel)', borderRadius: '50%', background: 'var(--il-err)', color: '#fff', display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
         <IconX size={11} stroke={3} />
       </button>}

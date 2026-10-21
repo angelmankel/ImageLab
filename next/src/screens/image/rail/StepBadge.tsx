@@ -19,9 +19,9 @@ export function StepBadge({ stepId, problem, fresh }: { stepId: string; problem:
   const flash = useSkipFlash((s) => s.stepId === stepId);
   if (problem) return <span aria-hidden style={{ ...BOX, background: 'var(--il-err)', pointerEvents: 'none' }}><IconExclamationMark size={11} stroke={3.5} /></span>;
   if (fresh?.state === 'stale') {
-    const label = fresh.reason === 'above' ? fresh.changes[0] : `Changed since last run: ${fresh.changes.join(' · ')}`;
+    const label = fresh.reason === 'above' ? fresh.changes[0] : fresh.changes.join(', ');
     return (
-      <Tip label={`Out of date — ${label}`} position="right" multiline w={240}>
+      <Tip label={`Out of date: ${label}`} position="right" multiline w={240}>
         <span role="img" aria-label={`Out of date: ${label}`} style={{ ...BOX, background: 'var(--il-warn)', cursor: 'help' }}>
           <IconRefresh size={10} stroke={3.2} />
         </span>

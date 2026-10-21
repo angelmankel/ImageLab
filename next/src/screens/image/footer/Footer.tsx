@@ -40,7 +40,7 @@ function JobPart() {
   const label = useJobProgress((p) => p.label);
   const color = state === 'error' || state === 'offline' ? 'var(--il-err)' : state === 'done' ? 'var(--il-ok)' : 'var(--il-ember)';
   return (
-    <Part label="The current job (switch off in ⋯)">
+    <Part label="Current job">
       <span style={{ color }}>{state === 'running' ? '▶' : state === 'done' ? '✓' : state === 'error' || state === 'offline' ? '⚠' : state === 'queued' ? '…' : '●'}</span>
       <span style={{ maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', fontVariantNumeric: 'tabular-nums' }}>{label}</span>
       {state === 'running' && (

@@ -101,7 +101,7 @@ export function StudioSettings() {
       <div style={group}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ ...eyebrow, flex: 1 }}>System prompt</span>
-          <Button tone="card" size={btn} icon={<IconPencil size={13} />} onClick={() => setEditing(current ?? { id: 'stock', name: 'Stock', text: '' })} tooltip={current ? 'Edit this preset' : 'Start your own from the stock one'}>Edit</Button>
+          <Button tone="card" size={btn} icon={<IconPencil size={13} />} onClick={() => setEditing(current ?? { id: 'stock', name: 'Stock', text: '' })} tooltip={current ? 'Edit this preset' : 'Make your own'}>Edit</Button>
         </div>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           <Chip tall={phone} on={!current} onClick={() => setPresetId('stock')}>Stock</Chip>

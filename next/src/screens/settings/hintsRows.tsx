@@ -47,7 +47,7 @@ function hintEditor(id: string) {
 export const HINTS_ROWS: readonly SettingDef[] = [
   {
     id: 'hints.enabled', category: 'hints', label: 'Show hints', compact: true,
-    hint: 'Help text in the tooltip of every parameter. Also the bulb in the footer, or the H key.',
+    hint: 'Help text in the tooltip of every parameter.',
     keywords: ['tooltip', 'help', 'tips', 'explain', 'on', 'off', 'h'], Control: EnabledCtl,
   },
   {

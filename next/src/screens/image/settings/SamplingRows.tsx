@@ -50,7 +50,7 @@ function BatchRow() {
   const list = useCycleList();
   return (
     <Row label="Images per run">
-      <button type="button" className="il-btn" aria-label={`×${batch}, tap for ×${nextInCycle(list, batch)}`} onClick={() => set({ batch: nextInCycle(list, batch) })}
+      <button type="button" className="il-btn" aria-label={`Images per run: ×${batch}`} onClick={() => set({ batch: nextInCycle(list, batch) })}
         style={{ height: 40, minWidth: 56, padding: '0 14px', border: 0, borderRadius: 999, background: 'var(--il-ember-soft)', color: 'var(--il-ember-hi)', fontSize: 14, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>
         ×{batch}
       </button>
@@ -79,7 +79,7 @@ export function SamplingRows() {
           onChange={(seed) => set({ seed })} style={{ flex: 1, minWidth: 0, color: w.randomizeSeed ? 'var(--il-muted)' : 'var(--il-fg)' }} />
         <IconBtn size={phone ? 40 : 30} tone="card" icon={<IconDice5 size={16} />} label="New seed now" onClick={() => set({ seed: newSeed() })} />
         <IconBtn size={phone ? 40 : 30} tone="card" hint="seed.lock" on={!w.randomizeSeed} icon={w.randomizeSeed ? <IconLockOpen size={16} /> : <IconLock size={16} />}
-          label={w.randomizeSeed ? 'New seed every run · tap to keep this seed' : 'Seed kept · tap for a new seed every run'} onClick={() => set({ randomizeSeed: !w.randomizeSeed })} />
+          label={w.randomizeSeed ? 'New seed every run' : 'Seed kept'} onClick={() => set({ randomizeSeed: !w.randomizeSeed })} />
       </Row>
       {phone && <BatchRow />}
       <Row label="Clip skip" hint="clipSkip">

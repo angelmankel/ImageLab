@@ -127,7 +127,7 @@ export function VideoPromptTab({ step, large = false }: { step: Step; large?: bo
         <textarea aria-label="Motion prompt" rows={large ? 5 : 6} value={prompt.text} onChange={(e) => prompt.set(e.target.value)} onBlur={prompt.flush}
           placeholder={engine === 'h3' ? 'What happens, how the camera moves — and what to hear ("Audio: …").' : 'What happens, how the camera moves.'} style={box} />
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10 }}>
-          <button type="button" onClick={() => { prompt.flush(); setWriting(true); }} style={btn(true)} title={aiReady(ai) ? 'Let the AI write the motion prompt' : 'Set up the AI helper in Settings to write prompts'}>✦ Write it</button>
+          <button type="button" onClick={() => { prompt.flush(); setWriting(true); }} style={btn(true)} title={aiReady(ai) ? 'Write with AI' : 'Set up AI in Settings'}>✦ Write it</button>
           <div style={{ flex: 1 }} />
           <button type="button" aria-label="Clear prompt" onClick={prompt.clear} style={{ width: 34, height: 34, border: 0, borderRadius: '50%', background: 'var(--il-card-on)', color: 'var(--il-muted)', display: 'grid', placeItems: 'center', cursor: 'pointer' }}><IconX size={14} stroke={2.4} /></button>
         </div>

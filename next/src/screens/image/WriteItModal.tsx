@@ -309,7 +309,7 @@ export function WriteItModal({ opened, onClose }: { opened: boolean; onClose: ()
           <div style={{ fontSize: 12, lineHeight: 1.5, color: 'var(--il-fg2)', wordBreak: 'break-word' }}>{r.prompt}</div>
           <div style={{ display: 'flex', gap: 6 }}>
             <Button tone="primary" size={phone ? 'lg' : 'sm'} onClick={() => use(r.prompt)}>Use this</Button>
-            <Button tone="card" size={phone ? 'lg' : 'sm'} onClick={() => { setOptions((os) => [...os, { key: `o${++optSeq}`, versions: [r.prompt], busy: false }]); w.setTab('results'); }} tooltip="Put it with the results to tweak">Tweak</Button>
+            <Button tone="card" size={phone ? 'lg' : 'sm'} onClick={() => { setOptions((os) => [...os, { key: `o${++optSeq}`, versions: [r.prompt], busy: false }]); w.setTab('results'); }} tooltip="Tweak this">Tweak</Button>
             <div style={{ flex: 1 }} />
             <Button tone="ghost" size={phone ? 'lg' : 'sm'} icon={<IconTrash size={14} />} tooltip="Remove" onClick={() => w.removeRecent(r.id)} />
           </div>

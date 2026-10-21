@@ -123,7 +123,7 @@ function Tab({ s, index, current, only, out, job, dragId, setDragId, dropAt, set
       <SessionRing color={color} item={out?.last ?? null} job={job} bg={current ? 'var(--il-bg)' : 'var(--il-bg-deep)'} />
       <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: blank ? 'var(--il-dim)' : undefined }}>{displayName(s.name)}</span>
       {pct != null && <span aria-hidden style={{ fontSize: 10, fontWeight: 800, color, fontVariantNumeric: 'tabular-nums', flex: 'none' }}>{pct}%</span>}
-      <Tip label="Close tab · middle-click">
+      <Tip label="Close tab">
         <button
           type="button"
           aria-label="Close tab"
@@ -191,7 +191,7 @@ export function SessionTabs() {
         <Tab key={s.id} s={s} index={i} current={s.id === currentId} only={tabs.length <= 1} out={outputs[s.id]} job={jobs[s.id]}
           dragId={dragId} setDragId={setDragId} dropAt={dropAt} setDropAt={setDropAt} />
       ))}
-      <Tip label={drop.active ? 'Drop: a new session from this picture' : 'New session'}>
+      <Tip label={drop.active ? 'New session from picture' : 'New session'}>
         <button
           type="button"
           aria-label="New session"

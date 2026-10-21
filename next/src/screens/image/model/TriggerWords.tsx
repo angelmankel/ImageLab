@@ -13,7 +13,7 @@ import { hasWord, toggleWord } from './promptWords';
 
 export interface AutoWords { on: boolean; set: (on: boolean) => void }
 
-export function TriggerWords({ words, auto, title = 'Trigger words · tap to add to the prompt', text: ownText, onText }: {
+export function TriggerWords({ words, auto, title = 'Trigger words', text: ownText, onText }: {
   words: string[]; auto?: AutoWords; title?: string;
   /** The prompt to edit when it is not the Image step's positive layer. */
   text?: string; onText?: (next: string) => void;
@@ -38,7 +38,7 @@ export function TriggerWords({ words, auto, title = 'Trigger words · tap to add
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
         <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--il-muted)' }}>{auto?.on ? `Trigger words · ${words.length} added at generate time` : title}</span>
         {auto && (
-          <Chip small on={auto.on} onClick={() => auto.set(!auto.on)} title={auto.on ? 'All of them join the prompt at generate time. Tap to manage them by hand.' : 'Tap to add all of them at generate time.'}>
+          <Chip small on={auto.on} onClick={() => auto.set(!auto.on)} title={auto.on ? 'All added at generate' : 'Add all at generate'}>
             {auto.on ? '✓ Auto' : 'Auto'}
           </Chip>
         )}
@@ -46,7 +46,7 @@ export function TriggerWords({ words, auto, title = 'Trigger words · tap to add
       {!auto?.on && <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
         {words.map((w) => {
           const on = hasWord(text, w);
-          return <Chip key={w} on={on} onClick={() => tap(w)} title={on ? 'In the prompt · tap to take out' : 'Tap to add to the prompt'}>{on ? '✓' : '+'} {w}</Chip>;
+          return <Chip key={w} on={on} onClick={() => tap(w)} title={on ? 'Remove from prompt' : 'Add to prompt'}>{on ? '✓' : '+'} {w}</Chip>;
         })}
       </div>}
     </div>

@@ -187,7 +187,7 @@ export function PartHandles({ wrap, back, ta, parts, value, caretPart, isSnippet
       {part && pos && (
         <div data-part-handles className="il-sp-handles" style={{ left: pos.x, top: pos.y }}
           onMouseDown={(e) => e.preventDefault()}>
-          <button type="button" aria-label="Drag to move this part" title="Drag to move · Alt+← →" className="il-sp-hbtn is-grip"
+          <button type="button" aria-label="Drag to move this part" title="Move part" className="il-sp-hbtn is-grip"
             style={{ width: size, height: size, touchAction: 'none' }} onPointerDown={(e) => startDrag(e, shown)}>
             <IconGripVertical size={touch ? 15 : 12} stroke={2.4} />
           </button>

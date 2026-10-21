@@ -67,7 +67,7 @@ export function WanLowSlot({ id }: { id: string }) {
             </div>
           </div>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            <Chip small on={same} onClick={() => update({ strengthLow: null })} title="The low-noise file follows the high strength">Same as high</Chip>
+            <Chip small on={same} onClick={() => update({ strengthLow: null })} title="Same strength as high">Same as high</Chip>
           </div>
           <SliderRow label="Strength · low" value={strengthLow} min={0} max={2} step={0.05} presets={PRESETS} format={fmtWeight}
             onChange={(strengthLow) => update({ strengthLow })} hint={same ? `Follows the high strength (${fmtWeight(lora.strength)}) until you move it` : undefined} />

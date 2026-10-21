@@ -164,7 +164,7 @@ export function GenerateAllButton() {
   const upToDate = !running && Date.now() - upToDateAt < 1800;
   useEffect(() => { if (!upToDate) return; const t = setTimeout(() => tick((n) => n + 1), 1850); return () => clearTimeout(t); }, [upToDate]);
   return (
-    <Tip label={running ? 'Stop after the current step' : 'Generate all — re-run the out-of-date steps in order'} position="right">
+    <Tip label={running ? 'Stop after this step' : 'Generate all'} position="right">
       <button type="button" aria-label={running ? 'Stop Generate all' : 'Generate all steps'} className="il-btn" onClick={() => void generateAll()}
         style={{ width: 72, border: 0, background: 'transparent', color: 'var(--il-fg2)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, padding: 0, marginTop: 10, cursor: 'pointer', flex: 'none' }}>
         <span style={{ width: 46, height: 46, borderRadius: '50%', display: 'grid', placeItems: 'center', background: running ? 'var(--il-card-on)' : 'var(--il-ember)', color: running ? 'var(--il-ember-hi)' : 'var(--il-bg)' }}>

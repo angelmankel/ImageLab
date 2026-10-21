@@ -56,7 +56,7 @@ export function WorkflowRow({ step }: { step: Step }) {
         {step.edited && <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--il-ember-hi)', background: 'var(--il-card-on)', borderRadius: 999, padding: '4px 9px', flex: 'none' }}>edited</span>}
       <Menu position="bottom-end" shadow="lg" width={220} withinPortal>
         <Menu.Target>
-          <button type="button" aria-label="Workflow menu" title="Workflow: Save · Save as… · Revert · Rename step…" className="il-chev"
+          <button type="button" aria-label="Workflow menu" title="Workflow menu" className="il-chev"
             style={{ width: 32, height: 32, borderRadius: 10, border: 0, display: 'grid', placeItems: 'center', background: 'transparent', color: 'var(--il-muted)', cursor: 'pointer', flex: 'none' }}>
             <IconChevronDown size={18} stroke={2.4} />
           </button>

@@ -49,7 +49,7 @@ function CycleCtl() {
 export const GENERATE_ROWS: readonly SettingDef[] = [
   {
     id: 'generate.batchCycle', category: 'generate', label: 'Images per run', wide: true,
-    hint: 'The values the ×N on the Generate button steps through, for every step. Tap a value to remove it.',
+    hint: 'The values the ×N on Generate steps through.',
     keywords: ['batch', 'cycle', 'count', 'images', 'x2', 'x3', 'times', 'multiple', 'generate'],
     Control: CycleCtl,
   },

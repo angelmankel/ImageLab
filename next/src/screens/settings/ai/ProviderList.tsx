@@ -53,7 +53,7 @@ function ProviderRow({ entry, active, first, onActivate }: { entry: AiProviderEn
       ) : (
         <button
           type="button" onClick={() => removeWithUndo(entry.id)} aria-label={`Remove ${spec.name}`}
-          title={`Remove ${spec.name} (forgets its key and models here)${active ? '; Local becomes the active provider' : ''}`}
+          title={`Remove ${spec.name}`}
           style={{ width: 40, height: 40, flex: 'none', border: 0, borderRadius: 999, background: 'transparent', color: 'var(--il-dim)', display: 'grid', placeItems: 'center', cursor: 'pointer', padding: 0 }}
           onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--il-err)'; }}
           onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--il-dim)'; }}
@@ -75,7 +75,7 @@ function AddProvider() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 8, borderTop: '1px solid var(--il-line)' }}>
       <Row wrap>
-        <Chip dashed icon={<IconPlus size={13} stroke={2.4} />} on={picking} onClick={() => setPicking((v) => !v)} title="Add one of the supported providers">Add provider</Chip>
+        <Chip dashed icon={<IconPlus size={13} stroke={2.4} />} on={picking} onClick={() => setPicking((v) => !v)} title="Add provider">Add provider</Chip>
         {picking && addable.map((p) => <Chip key={p.id} small onClick={() => add(p.id)} title={p.note}>{p.name}</Chip>)}
       </Row>
     </div>

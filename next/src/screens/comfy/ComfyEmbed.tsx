@@ -79,13 +79,13 @@ export function ComfyEmbed({ server, online, running, onWorkflowsChanged, overla
         <FrameBtn label="Save as…" icon={<IconFileExport size={16} />} run={saveAsInFrame} ready={ready} status={status} onDone={changed} iconOnly />
         <Sep />
         <Button icon={<IconPlayerStop size={15} />} onClick={host && running ? () => void interruptPrompt(host) : undefined}
-          tooltip="Stop what is running on this server" style={{ flex: 'none', opacity: host && running ? 1 : 0.45 }}>
+          tooltip="Stop the run" style={{ flex: 'none', opacity: host && running ? 1 : 0.45 }}>
           Interrupt
         </Button>
         <Button icon={<IconRefresh size={15} />} onClick={host ? () => setNonce((n) => n + 1) : undefined} tooltip="Reload ComfyUI" style={{ flex: 'none' }} />
         <Button on={hideMenus} onClick={() => setHideMenus(!hideMenus)}
           icon={hideMenus ? <IconLayoutSidebarLeftExpand size={15} /> : <IconLayoutSidebarLeftCollapse size={15} />}
-          tooltip={status === 'blocked' ? why(status) : hideMenus ? 'Show ComfyUI’s own menus and sidebars' : 'Hide ComfyUI’s own menus and sidebars: more room, use the buttons here'}
+          tooltip={status === 'blocked' ? why(status) : hideMenus ? 'Show ComfyUI menus' : 'Hide ComfyUI menus'}
           style={{ flex: 'none', opacity: status === 'blocked' ? 0.45 : 1 }}>
           {hideMenus ? 'Menus hidden' : 'Hide menus'}
         </Button>

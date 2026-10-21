@@ -52,7 +52,7 @@ export function NsfwToggle({ variant }: { variant: 'icon' | 'row' }) {
     if (asking) return <Confirm compact onYes={yes} onNo={no} />;
     return (
       <IconBtn icon={on ? <IconEye size={17} stroke={2.2} /> : <IconEyeOff size={17} stroke={2.2} />} on={on}
-        label={on ? 'NSFW shown · tap to cover' : 'NSFW covered · tap to show always'} onClick={() => flip(!on)} />
+        label={on ? 'Cover NSFW' : 'Show NSFW'} onClick={() => flip(!on)} />
     );
   }
   return (

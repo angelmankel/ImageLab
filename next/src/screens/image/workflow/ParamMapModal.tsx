@@ -56,7 +56,7 @@ function Row({ path, r, m, phone }: { path: string; r: ReturnType<typeof resolve
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '8px 0', borderTop: '1px solid var(--il-line-soft)', opacity: m.hidden ? 0.55 : 1 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
         <span style={{ flex: 1, minWidth: 0, fontSize: 11, fontWeight: 700, color: 'var(--il-muted)', fontFamily: 'ui-monospace, monospace', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.p.name} <span style={{ color: 'var(--il-dim)' }}>· {r.p.type.toLowerCase()}</span></span>
-        <Button tone="ghost" size="sm" on={!!m.hidden} icon={m.hidden ? <IconEyeOff size={14} /> : <IconEye size={14} />} tooltip={m.hidden ? 'Hidden in the step · show it' : 'Hide it in the step'} onClick={() => set({ hidden: !m.hidden })} />
+        <Button tone="ghost" size="sm" on={!!m.hidden} icon={m.hidden ? <IconEyeOff size={14} /> : <IconEye size={14} />} tooltip={m.hidden ? 'Show in step' : 'Hide in step'} onClick={() => set({ hidden: !m.hidden })} />
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: phone ? '1fr' : '1.2fr 1fr 0.9fr', gap: 6 }}>
         <input aria-label="Label" placeholder={r.label} value={m.label ?? ''} onChange={(e) => set({ label: e.target.value })} style={input} />

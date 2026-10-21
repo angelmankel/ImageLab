@@ -49,12 +49,12 @@ export function WorkflowList({ wf, large, scroll = true }: { wf: Workflows; larg
 
   const importBtn = (label = 'Import') => (
     <button type="button" className={`il-wf-tool${large ? ' is-large' : ''}`} onClick={() => fileRef.current?.click()} disabled={!wf.ready}
-      title="Import a workflow .json into this server">
+      title="Import workflow">
       <IconFileImport size={14} />{label}
     </button>
   );
   const newBtn = (
-    <button type="button" className={`il-wf-tool${large ? ' is-large' : ''}`} onClick={() => void wf.create()} title="Start a blank workflow in ComfyUI">
+    <button type="button" className={`il-wf-tool${large ? ' is-large' : ''}`} onClick={() => void wf.create()} title="New workflow">
       <IconPlus size={14} stroke={2.6} />New
     </button>
   );

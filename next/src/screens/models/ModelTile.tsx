@@ -104,7 +104,7 @@ export function ModelTile({ model, selected, installed, revealed, favourite, pic
       {has ? 'Use' : phone ? 'Add' : 'Add & get'}
     </Button>
   ) : has ? (
-    <Button tone="card" h={h} grow={phone} icon={<IconCheck size={13} stroke={3} color="var(--il-ok)" />} onClick={() => onUse(version)} tooltip={`Use ${version.name} in the step`}>Use</Button>
+    <Button tone="card" h={h} grow={phone} icon={<IconCheck size={13} stroke={3} color="var(--il-ok)" />} onClick={() => onUse(version)} tooltip="Use in step">Use</Button>
   ) : (
     <DownloadButton version={version} modelType={model.type} h={h} size={size} style={phone ? { flex: 1 } : undefined} />
   );

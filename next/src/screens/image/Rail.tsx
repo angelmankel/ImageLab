@@ -102,7 +102,7 @@ function StepNode({ step, index, lifted, onGrab, fresh, ring }: { step: Step; in
           </button>
         </Tip>
         {!first && (hover || on) && !lifted && (
-          <button type="button" aria-label={`Remove step ${index + 1}`} title="Remove this step (Undo in the note)"
+          <button type="button" aria-label={`Remove step ${index + 1}`} title="Remove step"
             onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => { e.stopPropagation(); removeStepWithUndo(step.id); }}
             style={{ position: 'absolute', top: -5, right: -5, width: 18, height: 18, borderRadius: '50%', padding: 0, border: '1px solid var(--il-line-strong)', background: 'var(--il-elev)', color: 'var(--il-fg2)', display: 'grid', placeItems: 'center', cursor: 'pointer', zIndex: 3 }}>
@@ -219,7 +219,7 @@ export function Rail() {
       <div className="il-eyebrow" style={{ marginBottom: 4 }}>Steps</div>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minHeight: 0, maxHeight: '64%' }}>
         <StepChain />
-        <Tip label="Add a step after the open one" position="right">
+        <Tip label="Add step" position="right">
           <button type="button" aria-label="Add a step" className="il-btn"
             onClick={(e) => addStepWithPicker(e.currentTarget, { after: useSteps.getState().activeId })}
             style={{ width: 72, border: 0, background: 'transparent', color: 'var(--il-muted)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, padding: 0, cursor: 'pointer', flex: 'none' }}>

@@ -77,7 +77,7 @@ export function WorkflowPromptTab({ step }: { step: Step }) {
       {open && pos && (
         <>
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--il-card)', borderRadius: 14, padding: '0 6px 0 12px', minHeight: phone ? 44 : 38 }}>
-            <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--il-muted)', flex: 'none' }} title="This workflow's own tags: they go first in the prompt">Keywords</span>
+            <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--il-muted)', flex: 'none' }} title="Workflow tags">Keywords</span>
             <input aria-label="Keywords for this workflow" value={keywords} onChange={(e) => edit(() => setKeywords(e.currentTarget.value))} placeholder="this workflow's tags, first in the prompt"
               style={{ flex: 1, minWidth: 0, border: 0, background: 'transparent', color: 'var(--il-fg)', fontSize: 13, fontWeight: 600, outline: 'none', fontFamily: 'inherit' }} />
             {keywords && <Button tone="ghost" size="sm" icon={<IconX size={12} stroke={2.4} />} tooltip="Clear the keywords" onClick={() => edit(() => setKeywords(''))} />}
@@ -91,7 +91,7 @@ export function WorkflowPromptTab({ step }: { step: Step }) {
             onClear={(isNeg) => (isNeg ? writeNeg('') : writePos(''))}
             onSaveAsSnippet={(text) => useTileEdit.getState().edit('new', text)}
             tools={<>
-              <Chip small={!phone} on={shared} onClick={() => edit(() => setUseShared(!shared))} title={shared ? 'Shared with the other workflows · tap to give this one its own' : 'This workflow\'s own prompt · tap to share'}>{shared ? 'Shared' : 'Own'}</Chip>
+              <Chip small={!phone} on={shared} onClick={() => edit(() => setUseShared(!shared))} title={shared ? 'Shared prompt' : 'Own prompt'}>{shared ? 'Shared' : 'Own'}</Chip>
               <Button tone="card" size={size} icon={<IconArrowDown size={13} />} disabled={negMode ? !imageNegative.trim() : !imagePrompt.trim()}
                 tooltip={negMode ? 'Copy the Image step\'s negative here' : 'Copy the Image step\'s prompt here'}
                 onClick={() => (negMode ? writeNeg(imageNegative) : writePos(imagePrompt))}>{phone ? 'From Image' : 'From the Image step'}</Button>

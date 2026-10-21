@@ -120,7 +120,7 @@ export function VideoSettingsTab() {
           {h3 ? (
             <>
               <SliderRow label="Steps" value={h.turbo.on ? h3EffectiveSteps(h) : h.steps} min={2} max={50} step={1} onChange={(n) => v.setH3({ steps: n })} hint={h.turbo.on ? 'Turbo sets the steps.' : '← quicker · more detail →'} />
-              <SliderRow label="CFG" value={h.cfg} defaultValue={VD.h3.cfg} min={1} max={6} step={0.5} presets={[1, 2, 3]} format={fmt1} onChange={(cfg) => v.setH3({ cfg })} hint="1 is the template (no negative); above it the zeroed negative costs a second pass." />
+              <SliderRow label="CFG" value={h.cfg} defaultValue={VD.h3.cfg} min={1} max={6} step={0.5} presets={[1, 2, 3]} format={fmt1} onChange={(cfg) => v.setH3({ cfg })} hint="Above 1 adds a second pass." />
               <SliderRow label="Shift · video" value={h.shiftVideo} defaultValue={VD.h3.shiftVideo} min={1} max={20} step={0.5} format={fmt1} onChange={(shiftVideo) => v.setH3({ shiftVideo })} />
               <SliderRow label="Shift · audio" value={h.shiftAudio} defaultValue={VD.h3.shiftAudio} min={1} max={20} step={0.5} format={fmt1} onChange={(shiftAudio) => v.setH3({ shiftAudio })} />
               <ChipGroup title="Sampler">{samplers.map((s) => <Chip key={s} small on={h.sampler === s} onClick={() => v.setH3({ sampler: s })}>{s}</Chip>)}</ChipGroup>

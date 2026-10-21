@@ -42,7 +42,7 @@ export function SessionTitle({ size = 15, style }: { size?: number; style?: CSSP
     <button
       type="button"
       className="il-session-title"
-      title="Click to rename this session"
+      title="Rename session"
       onClick={() => { setDraft(name); setEditing(true); }}
       style={{
         ...base, border: 0, background: 'transparent', textAlign: 'left', cursor: 'text',

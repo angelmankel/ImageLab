@@ -76,7 +76,7 @@ export function ItemDetail({ item, phone, onOpen, onDeleted, pager, hidePicture 
         </div>
       )}
 
-      <button type="button" className="lib-act primary" style={btn} disabled={!e} title={e ? 'Everything from this image back into the step: models, settings, seed, input image and prompt' : noEntry} onClick={() => recallItem(item)}>Recall everything</button>
+      <button type="button" className="lib-act primary" style={btn} disabled={!e} title={e ? 'Recall settings' : noEntry} onClick={() => recallItem(item)}>Recall everything</button>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 6 }}>
         <button type="button" className="lib-act" style={btn} disabled={!e} title={noEntry} onClick={() => applyPrompt(item)}>Use prompt</button>
         <button type="button" className="lib-act strong" style={btn} disabled={!e} title={noEntry} onClick={() => applySettings(item)}>Reuse settings</button>

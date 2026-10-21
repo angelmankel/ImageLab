@@ -78,7 +78,7 @@ function LoaderMore({ id }: { id: string }) {
       )}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: 'var(--il-muted)' }}>
         <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={String(p.value ?? '')}>Saved in ComfyUI: <b style={{ color: 'var(--il-fg2)' }}>{fileLabel(p.value)}</b></span>
-        {edited && <Chip small icon={<IconArrowBackUp size={12} />} onClick={() => useStudio.getState().resetValue(id)} title="Back to the file saved in ComfyUI">Back to saved</Chip>}
+        {edited && <Chip small icon={<IconArrowBackUp size={12} />} onClick={() => useStudio.getState().resetValue(id)} title="Reset to saved">Back to saved</Chip>}
       </div>
     </>
   );

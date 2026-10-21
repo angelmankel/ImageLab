@@ -24,7 +24,7 @@ export function RangeRow({ label, ramp, min, max, step, digits = 2, onChange, on
         <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--il-fg2)', flex: 1, minWidth: 0 }}>{label}</span>
         {onFixed && <Chip small onClick={onFixed} title="One value for every round">one value</Chip>}
         <IconBtn size={26} tone="card" icon={<IconArrowsExchange size={14} />} tooltip={false}
-          label={falling ? 'Rise instead: low on the first round, high on the last' : 'Fall instead: high on the first round, low on the last'}
+          label={falling ? 'Rise instead' : 'Fall instead'}
           onClick={() => onChange({ start: ramp.end, end: ramp.start })} />
         <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--il-fg)', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
           {fmt(ramp.start)} → {fmt(ramp.end)}

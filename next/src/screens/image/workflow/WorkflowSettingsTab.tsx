@@ -91,8 +91,8 @@ export function WorkflowSettingsTab({ step }: { step: Step }) {
       {open && shown.length > 0 && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '2px 2px 6px' }}>
           <span style={{ flex: 1, fontSize: 11, fontWeight: 600, color: 'var(--il-muted)' }}>{top.length ? '' : 'Pin a setting (the pin on its row) to keep it on top.'}</span>
-          {host && ref && <Chip small icon={<IconTags size={12} />} onClick={() => useMapEditor.getState().open({ host, path: ref.path, name: ref.name })} title="Rename, regroup, hide or re-hint these settings">Labels &amp; controls</Chip>}
-          <Chip small icon={<IconArrowBackUp size={12} />} disabled={!changed} onClick={() => shown.forEach((p) => resetValue(p.id))} title="Every setting back to what ComfyUI saved">
+          {host && ref && <Chip small icon={<IconTags size={12} />} onClick={() => useMapEditor.getState().open({ host, path: ref.path, name: ref.name })} title="Edit settings">Labels &amp; controls</Chip>}
+          <Chip small icon={<IconArrowBackUp size={12} />} disabled={!changed} onClick={() => shown.forEach((p) => resetValue(p.id))} title="Reset all to saved">
             Reset{changed ? ` ${changed}` : ''}
           </Chip>
         </div>

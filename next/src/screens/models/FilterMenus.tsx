@@ -49,7 +49,7 @@ export function SourceMenu() {
   const items: Array<{ key: SourcePick; label: string; title: string }> = [
     { key: 'civitai', label: 'CivitAI', title: 'Everything on CivitAI' },
     { key: 'installed', label: 'Downloaded', title: 'What is on the server' },
-    { key: 'favourites', label: `★ Favourites${favCount ? ` ${favCount}` : ''}`, title: 'Models you ♥ here (this browser, across pods)' },
+    { key: 'favourites', label: `★ Favourites${favCount ? ` ${favCount}` : ''}`, title: 'Your favourites' },
     { key: 'account', label: 'Account ★', title: keyed ? "The key's favourites on civitai.com" : 'Needs the API key (Settings → CivitAI)' },
   ];
   return (
@@ -74,9 +74,9 @@ export function TypeMenu() {
   const chip = typeChip(f, kind);
   if (chip.locked) {
     return (
-      <FilterMenu label="Type" value={chip.value} on locked width={240} title="The step asked for this kind">
+      <FilterMenu label="Type" value={chip.value} on locked width={240} title="Set by the step">
         <MenuHead>TYPE</MenuHead>
-        <CheckRow label={chip.value} on disabled hint="Locked: the step asked for this kind" />
+        <CheckRow label={chip.value} on disabled hint="Set by the step" />
       </FilterMenu>
     );
   }
@@ -134,11 +134,11 @@ export function MoreMenu() {
   return (
     <FilterMenu label="More" value={chip.value} on={chip.on} width={open ? 540 : 300}>
       <MenuHead>MORE</MenuHead>
-      <CheckRow label="Followed creators" hint={keyed ? 'Creators you follow on CivitAI' : 'Creators you follow here (no API key: local list)'} on={f.followed} onChange={(followed) => set({ followed })} />
+      <CheckRow label="Followed creators" hint={keyed ? 'Creators you follow on CivitAI' : 'Creators you follow here'} on={f.followed} onChange={(followed) => set({ followed })} />
       <CheckRow label="Early access" hint="Only models still in early access" on={f.earlyAccess === 'only'} onChange={(on) => set({ earlyAccess: on ? 'only' : 'any' })} />
       <CheckRow label="Made on-site" hint="Models CivitAI can generate with" on={f.supportsGeneration} onChange={(supportsGeneration) => set({ supportsGeneration })} />
       <MenuSep />
-      <Fold label="More filters… licence, files, rating, creator" open={open} onToggle={() => setOpen(!open)} />
+      <Fold label="More filters" open={open} onToggle={() => setOpen(!open)} />
       {open && (
         <div className="il-scroll" style={{ maxHeight: vh(52), padding: `${T.gap.xs}px ${T.gap.md}px ${T.gap.md}px` }}>
           <FilterFields f={f} set={set} size="desktop" inline lockedKind={kind} />

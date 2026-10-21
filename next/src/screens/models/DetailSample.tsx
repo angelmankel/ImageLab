@@ -40,7 +40,7 @@ export function DetailSample({ image, index, total, more, size, hasMeta, onUsePr
         <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--il-muted)' }}>{hasMeta ? 'This sample has no generation data' : 'Generation data comes from the images API — loading, or not reachable'}</div>
       ) : (
         <>
-          <p onClick={() => setOpen((o) => !o)} title={open ? 'tap to fold' : 'tap for the whole prompt'}
+          <p onClick={() => setOpen((o) => !o)} title={open ? 'Fold' : 'Whole prompt'}
             style={{ margin: 0, fontSize: 12, lineHeight: 1.5, color: 'var(--il-fg)', display: '-webkit-box', WebkitLineClamp: open ? undefined : 3, WebkitBoxOrient: 'vertical', overflow: 'hidden', cursor: 'pointer', ...wrap }}>
             {meta.prompt || <span style={{ color: 'var(--il-muted)' }}>no prompt</span>}
           </p>

@@ -129,7 +129,7 @@ function ManageModal({ opened, start, onClose }: { opened: boolean; start: strin
               onChange={(into) => { mergeCategory(cat.id, into); setCatId(into); }} />
           </div>
         )}
-        {!isUncat && <Button tone="ghost" size={sz} icon={<IconTrash size={13} />} style={{ color: 'var(--il-err)' }} tooltip="Its snippets go to Uncategorized"
+        {!isUncat && <Button tone="ghost" size={sz} icon={<IconTrash size={13} />} style={{ color: 'var(--il-err)' }} tooltip="Delete category"
           onClick={() => { deleteCategory(cat.id); setCatId(UNCATEGORIZED); }}>Delete</Button>}
         <div style={{ flex: 1 }} />
         <Button tone="primary" size={sz} icon={<IconPlus size={13} stroke={2.6} />} onClick={() => useTileEdit.getState().edit(cat.id.startsWith('neg-') ? 'new-neg' : 'new', '', cat.id)}>Snippet</Button>

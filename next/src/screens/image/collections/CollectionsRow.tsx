@@ -22,7 +22,7 @@ function PlusTile() {
   const drop = useImageDrop({ onDrop: (item) => void newCollectionWith(item) });
   useRegisterDropTarget({ id: 'collection:new', label: 'New collection', group: 'collection', order: 99, onDrop: (item) => void newCollectionWith(item) });
   return (
-    <button type="button" {...drop.props} onClick={() => newCollection()} aria-label="New collection" title="New collection · or drop a picture here to start one"
+    <button type="button" {...drop.props} onClick={() => newCollection()} aria-label="New collection" title="New collection"
       style={{
         width: TILE, height: TILE, flex: 'none', borderRadius: 14, cursor: 'pointer', display: 'grid', placeItems: 'center',
         border: `2px dashed ${drop.over ? 'var(--il-ember)' : drop.active ? 'var(--il-ember-line)' : 'var(--il-line-strong)'}`,

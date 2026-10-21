@@ -50,7 +50,7 @@ export function WorkflowRow({ row, selected, now, target, large }: {
       <span className="il-wf-acts">
         {!large && (
           <button type="button" className="il-wf-use" onClick={(e) => { e.stopPropagation(); target.use(); }} onKeyDown={(e) => e.stopPropagation()}
-            title="Add a step that runs this workflow">
+            title="Add as step">
             Use as step
           </button>
         )}

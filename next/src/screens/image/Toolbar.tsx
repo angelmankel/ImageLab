@@ -72,17 +72,17 @@ export function Toolbar({ step, media, zoom, onFullscreen, canFullscreen, phone 
         <IconBtn icon={<IconZoomOut size={16} stroke={2.2} />} label="Zoom out" onClick={zoom.zoomOut} style={round} disabled={!zoomable} />
         <Sep />
         <IconBtn icon={<IconPencil size={16} stroke={2.2} />} label={editing ? 'Leave Edit mode' : 'Edit'} keys="E" on={editing} onClick={() => toggleEdit(editSourceOf(media))} style={{ ...round, background: editing ? 'var(--il-ember-soft)' : 'var(--il-elev)' }} disabled={!editing && !canEdit} />
-        <IconBtn icon={<IconColumns2 size={16} stroke={2.2} />} label={compare ? 'Close compare' : 'Compare — split view against another result'} on={compare} onClick={() => setCompare(!compare)} style={{ ...round, background: compare ? 'var(--il-ember-soft)' : 'var(--il-elev)' }} disabled={editing || (!comparable && !compare)} />
+        <IconBtn icon={<IconColumns2 size={16} stroke={2.2} />} label={compare ? 'Close compare' : 'Compare'} on={compare} onClick={() => setCompare(!compare)} style={{ ...round, background: compare ? 'var(--il-ember-soft)' : 'var(--il-elev)' }} disabled={editing || (!comparable && !compare)} />
         <Sep />
-        <IconBtn icon={<IconRefresh size={16} stroke={2.2} />} label="Vary — same settings, new seed" onClick={vary} style={round} disabled={!has} />
-        <IconBtn icon={<IconHistory size={16} stroke={2.2} />} label="Recall — everything from this image back into the step" onClick={() => { if (entry) recallFrom(entry); }} style={round} disabled={!entry} />
-        <IconBtn icon={<IconArrowRight size={16} stroke={2.2} />} label={hasNext ? 'Send to the next step' : 'Send to a new step (pick its kind)'} onClick={(e) => { if (media.item) sendToNextStep({ url: media.item.url, entry: entry ?? undefined }, e.currentTarget); }} style={round} disabled={!has} />
+        <IconBtn icon={<IconRefresh size={16} stroke={2.2} />} label="Vary with a new seed" onClick={vary} style={round} disabled={!has} />
+        <IconBtn icon={<IconHistory size={16} stroke={2.2} />} label="Recall settings" onClick={() => { if (entry) recallFrom(entry); }} style={round} disabled={!entry} />
+        <IconBtn icon={<IconArrowRight size={16} stroke={2.2} />} label={hasNext ? 'Send to the next step' : 'Send to a new step'} onClick={(e) => { if (media.item) sendToNextStep({ url: media.item.url, entry: entry ?? undefined }, e.currentTarget); }} style={round} disabled={!has} />
         <IconBtn icon={liked ? <IconHeartFilled size={16} /> : <IconHeart size={16} stroke={2.2} />} label={liked ? 'Remove from favourites' : 'Favourite'} on={liked} onClick={() => { if (entry) toggleLiked(entry.id); }} style={{ ...round, color: liked ? 'var(--il-ember)' : undefined }} disabled={!entry} />
         <IconBtn icon={<IconDownload size={16} stroke={2.2} />} label="Download" onClick={() => { if (media.item) void download(media.item.url, media.item.filename); }} style={round} disabled={!has} />
-        <IconBtn icon={<IconTrash size={16} stroke={2.2} />} label="Delete (Undo in the note)" onClick={() => { if (media.item) deleteOutput({ entry: media.source === 'image' ? entry : null, url: media.item.url }); }} style={round} disabled={!has} />
+        <IconBtn icon={<IconTrash size={16} stroke={2.2} />} label="Delete" onClick={() => { if (media.item) deleteOutput({ entry: media.source === 'image' ? entry : null, url: media.item.url }); }} style={round} disabled={!has} />
         <IconBtn icon={<IconMaximize size={16} stroke={2.2} />} label="Fullscreen" onClick={onFullscreen} style={{ borderRadius: '50%', background: 'var(--il-fg)', color: 'var(--il-bg)' }} disabled={!canFullscreen} />
         <Sep />
-        <IconBtn icon={livePreview ? <IconBroadcast size={16} stroke={2.2} /> : <IconBroadcastOff size={16} stroke={2.2} />} label={livePreview ? 'Live preview on — frames show while a job runs' : 'Live preview off — the last result stays while a job runs'} on={livePreview} onClick={() => setLivePreview(!livePreview)} style={{ ...round, background: livePreview ? 'var(--il-ember-soft)' : 'var(--il-elev)' }} />
+        <IconBtn icon={livePreview ? <IconBroadcast size={16} stroke={2.2} /> : <IconBroadcastOff size={16} stroke={2.2} />} label={livePreview ? 'Live preview on' : 'Live preview off'} on={livePreview} onClick={() => setLivePreview(!livePreview)} style={{ ...round, background: livePreview ? 'var(--il-ember-soft)' : 'var(--il-elev)' }} />
       </div>
     </>
   );

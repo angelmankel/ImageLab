@@ -69,7 +69,7 @@ export function WorkflowPicker({ step }: { step: Step }) {
             {!host ? 'No ComfyUI server' : loading ? 'Opening…' : list.error ? `Could not list: ${list.error}` : `${list.rows.length} saved${list.loading ? ' · reading…' : ''}`}
           </span>
         </span>
-        <IconBtn size={30} tone="card" icon={<IconRefresh size={15} />} label="Refresh: the list, and this workflow as saved in ComfyUI" onClick={() => void refresh()} disabled={!host} />
+        <IconBtn size={30} tone="card" icon={<IconRefresh size={15} />} label="Refresh" onClick={() => void refresh()} disabled={!host} />
         <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} disabled={!host}
           style={{ height: 30, padding: '0 10px', border: 0, borderRadius: 999, background: open ? 'var(--il-ember-soft)' : 'var(--il-card-on)', color: open ? 'var(--il-ember-hi)' : 'var(--il-fg2)', fontSize: 11, fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: 4, cursor: 'pointer', flex: 'none' }}>
           {ref ? 'Change' : 'Pick'}{open ? <IconChevronUp size={13} stroke={2.6} /> : <IconChevronDown size={13} stroke={2.6} />}

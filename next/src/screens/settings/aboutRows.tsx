@@ -38,17 +38,17 @@ function BuildCtl() {
 export const ABOUT_ROWS: readonly SettingDef[] = [
   {
     id: 'about.classic', category: 'about', label: 'Classic UI', compact: true,
-    hint: 'The old app at /imagelab/, one folder up. Same servers, same history.',
+    hint: 'The old app, with the same servers and history.',
     keywords: ['old', 'previous', 'switch', 'link', 'open', 'workspace', 'legacy'], Control: () => <ClassicLink />,
   },
   {
     id: 'about.classicWorkspace', category: 'about', label: 'Classic workspace in the classic UI', compact: true,
-    hint: 'What /imagelab/ shows: the old three-column workspace instead of its new step shell. Does not change this app.',
+    hint: 'The old app shows its three-column workspace.',
     keywords: ['old', 'shell', 'desktop', 'mobile', 'fallback', 'legacy', 'next'], Control: ClassicWorkspaceCtl,
   },
   {
     id: 'about.build', category: 'about', label: 'This app',
-    hint: 'ImageLab next. Settings and keys stay in this browser (localStorage); nothing here is sent to the pod.',
+    hint: 'Settings and keys stay in this browser.',
     keywords: ['version', 'build', 'storage', 'browser', 'local', 'privacy', 'where', 'served'], Control: BuildCtl,
   },
 ];

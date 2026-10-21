@@ -85,7 +85,7 @@ export function ModelPickerGrid({ files, selected, onPick, fits, availability, t
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           {buckets.length > 1 && <Chip small on={!bucket} onClick={() => setBucket(null)}>All</Chip>}
           {buckets.length > 1 && buckets.map((b) => <Chip key={b} small on={bucket === b} onClick={() => setBucket(bucket === b ? null : b)}>{b}</Chip>)}
-          {fits && hidden > 0 && !showAll && <Chip small dashed onClick={() => setShowAll(true)} title={`${hidden} that do not fit ${fits.label} are hidden`}>+ {hidden} other types</Chip>}
+          {fits && hidden > 0 && !showAll && <Chip small dashed onClick={() => setShowAll(true)} title="Show all types">+ {hidden} other types</Chip>}
           {fits && showAll && hidden > 0 && <Chip small on onClick={() => setShowAll(false)}>✓ All types</Chip>}
         </div>
       )}
@@ -103,7 +103,7 @@ export function ModelPickerGrid({ files, selected, onPick, fits, availability, t
                 type="button"
                 onClick={() => onPick(f)}
                 aria-pressed={on}
-                title={`${title}\nTap to pick`}
+                title={title}
                 style={{ display: 'flex', alignItems: 'center', gap: 6, minHeight: 30, padding: '4px 8px', border: 0, borderRadius: 999, background: on ? 'var(--il-ember-soft)' : 'var(--il-card-on)', color: on ? 'var(--il-ember-hi)' : 'var(--il-fg)', cursor: 'pointer', textAlign: 'left', minWidth: 0 }}
               >
                 <span style={{ flex: 1, minWidth: 0, fontSize: 11, fontWeight: 700, lineHeight: 1.25, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflowWrap: 'anywhere' }}>{m.name ?? m.label}</span>

@@ -108,7 +108,7 @@ export function Detail({ modelId, size }: { modelId: number; size: Size }) {
         <div style={{ position: 'sticky', top: 0, zIndex: 2, background: 'var(--il-panel)', padding: `${pad}px ${pad}px 8px`, borderBottom: '1px solid var(--il-line-soft)', display: 'flex', flexDirection: 'column', gap: 8 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
             <div style={{ flex: 1, minWidth: 0, fontSize: 15, fontWeight: 800, lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={m.name}>{m.name}</div>
-            <Button size="sm" tone="elev" icon={<IconArrowsMaximize size={13} stroke={2.4} />} onClick={() => image && viewImage(image)} disabled={!image} tooltip="Open the pictures in the model viewer">View</Button>
+            <Button size="sm" tone="elev" icon={<IconArrowsMaximize size={13} stroke={2.4} />} onClick={() => image && viewImage(image)} disabled={!image} tooltip="Open in viewer">View</Button>
             <Button size="sm" tone="elev" on={fav} icon={fav ? <IconHeartFilled size={14} /> : <IconHeart size={14} stroke={2.2} />} onClick={() => toggleFavourite(m.id)} tooltip={fav ? 'Remove from favourites' : 'Add to favourites'} />
           </div>
           <DetailMedia images={gallery.items} index={imageIndex} onSelect={selectImage} onView={viewImage} mask={mask} hasMore={gallery.hasMore} onMore={() => void gallery.loadMore()} loading={gallery.loading || (loading && !model)} />

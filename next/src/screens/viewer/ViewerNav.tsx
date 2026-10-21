@@ -57,7 +57,7 @@ export function ViewerNav({ item, index, count, live, natural, playing, setPlayi
   const showPicker = (
     <Popover position="bottom-end" withinPortal zIndex={T.z.popover} shadow="md" radius={14} onOpen={() => onHold(true)} onClose={() => onHold(false)}>
       <Popover.Target>
-        <button type="button" className="il-btn" aria-label="Slideshow transition and speed"
+        <button type="button" className="il-btn" aria-label="Slideshow settings"
           style={{ height: 28, border: 0, borderRadius: 9, background: 'transparent', color: 'var(--il-fg2)', fontWeight: 700, fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 4, padding: '0 9px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
           {SHOW_TRANSITIONS.find((t) => t.id === transition)?.label} · {speed / 1000} s <IconChevronDown size={13} />
         </button>

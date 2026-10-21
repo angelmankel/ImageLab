@@ -62,6 +62,20 @@ Nothing ever overlaps the picture. No Simple/Advanced. No preset slots. No mode 
 **Every place that takes a picture has Paste** (FIXLIST-2 #36): use `ImageDropZone` from `~/compose`, or `usePaste` + `PasteButton` when it cannot be one; `tests/paste.test.cjs` fails a drop zone without Paste.
 Zustand selectors are compared by reference: never return a fresh array/object from a selector (React error #185); use a module-level frozen empty.
 
+## Words, feedback, undo (fix list 2: items 35, 12, 10)
+- **Tooltips** (`Tip label`, `IconBtn label`, `Button tooltip`, `title=`): a few words, the control's name or what it
+  does ("Images per run", "Delete", "Recall settings"). No instructions, no lists of values, no "· tap for …", no
+  "click to …", no parentheses, no key names in the text (pass `keys="F"` to `Tip` / `IconBtn` instead).
+- **Hints** (`ui/hints.ts`, Settings row `hint`, `<Tip hint>`): one short sentence. Anything longer does not belong in the UI.
+- **Toasts**: only `notifyError(title, err, { hint })` from `~/app/notify`, and only for critical errors that need action
+  (job failed, server offline, download / upload / save failed, missing node / model). Never `notifications.show`
+  directly. Routine confirmations ("Copied", "Saved", "Sent to step 2") are `say(text)`: a line in the footer.
+- **Undo**: never an Undo toast. After an action, `pushUndo({ label, undo, redo })` from `~/app/undo` (one stack per
+  session; Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y, the Undo / Redo buttons by the logo). Parameter controls set the workflow
+  through `useUndoableSetWorkflow()` (`~/app/undoableWorkflow`), so a drag is one undo.
+- **Times**: only `formatTime` / `formatDate` / `formatDateTime` / `formatWhen` from `~/lib/time` (12-hour, "2:54 PM").
+  Never `toLocaleTimeString` or `getHours()` padding.
+
 ## Working rules
 - Do NOT `git add`/`commit`/`push`, do NOT push to the pod. The orchestrator integrates, ships, commits.
 - Verify with `cd ImageLab/next && npm run typecheck && npm run test && npm run build`. Type errors in files you do not own belong to someone else mid-edit: ignore them, report them, do not fix them.

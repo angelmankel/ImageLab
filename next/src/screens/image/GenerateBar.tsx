@@ -93,7 +93,7 @@ function BatchCycle({ h }: { h: number }) {
   return (
     <>
       <Tip label="Images per run">
-        <button type="button" className="il-btn" aria-label={`Batch ×${batch}, tap to change`} onClick={() => set({ batch: nextInCycle(list, batch) })}
+        <button type="button" className="il-btn" aria-label={`Images per run: ×${batch}`} onClick={() => set({ batch: nextInCycle(list, batch) })}
           style={{ minWidth: 54, height: h, border: 0, padding: '0 6px 0 14px', background: 'transparent', color: 'var(--il-bg)', fontSize: 15, fontWeight: 800, fontVariantNumeric: 'tabular-nums', display: 'grid', placeItems: 'center', flex: 'none' }}>
           ×{batch}
         </button>
@@ -133,7 +133,7 @@ export function GenerateBar({ step, large = false }: { step: Step; large?: boole
           </button>
         </Tip>
         <span aria-hidden style={{ width: 1, background: 'color-mix(in srgb, var(--il-bg) 25%, transparent)', margin: '10px 0' }} />
-        <Tip label={pending ? 'Queue one more with a new random seed' : 'Generate with a new random seed'}>
+        <Tip label={pending ? 'Queue with a new seed' : 'New seed'}>
           <button type="button" className="il-btn" onClick={() => { if (!off) run(true); }} aria-label="Generate with a random seed"
             style={{ ...seg, width: 64, display: 'grid', placeItems: 'center', flex: 'none' }}>
             <IconDice5 size={22} stroke={2.2} />

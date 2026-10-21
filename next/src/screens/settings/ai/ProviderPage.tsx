@@ -73,7 +73,7 @@ function KeyRow({ entry }: { entry: AiProviderEntry }) {
   const { loading, error, summary } = useProviderModels(entry);
   const { run, result } = useTest(entry);
   const shown = result ?? (entry.tested ? (error ? { ok: false, message: error } : summary ? { ok: true, message: summary } : null) : null);
-  const d = { ...KEY_DEF, hint: `Stays in this browser; calls go straight from this tab to ${spec.name}.`, ...(spec.keyUrl ? { links: [{ text: `Get one at ${new URL(spec.keyUrl).host}`, href: spec.keyUrl }] } : {}) };
+  const d = { ...KEY_DEF, hint: `Stays in this browser.`, ...(spec.keyUrl ? { links: [{ text: `Get one at ${new URL(spec.keyUrl).host}`, href: spec.keyUrl }] } : {}) };
   return (
     <SettingRow def={d} first control={
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%' }}>
@@ -100,7 +100,7 @@ function WhereRow({ entry, custom, onCustom }: { entry: AiProviderEntry; custom:
         <div style={{ display: 'flex', gap: 6, alignItems: 'center', width: '100%' }}>
           <Row wrap style={{ flex: 1 }}>
             {knownPlaces().map((p) => <Chip key={p.url} small on={!custom && ollamaRoot(p.url) === here} title={p.url} onClick={() => { onCustom(false); setAiProvider('local', { baseUrl: p.url }); }}>{p.label}</Chip>)}
-            <Chip small on={custom} title="Any Ollama address (HTTPS when ImageLab is opened over HTTPS)" onClick={() => onCustom(true)}>Custom URL</Chip>
+            <Chip small on={custom} title="Ollama address" onClick={() => onCustom(true)}>Custom URL</Chip>
           </Row>
           <TestButton onClick={() => void run()} disabled={!entry.baseUrl.trim()} loading={loading} label="Check" />
         </div>
@@ -129,7 +129,7 @@ export function ProviderPage({ id, onBack, header = true }: { id: AiProviderId; 
   const why = local ? 'Waits for the server to answer.' : 'Enter a key and Test first.';
   const vision = visionModels(slot.models);
   const urlEditable = local ? custom : ready;
-  const visionDef = !ready ? locked(VISION_DEF, why) : spec.vision ? VISION_DEF : { ...VISION_DEF, hint: `${spec.name} has no image-reading models; the image helpers need another provider.` };
+  const visionDef = !ready ? locked(VISION_DEF, why) : spec.vision ? VISION_DEF : { ...VISION_DEF, hint: `${spec.name} cannot read images.` };
 
   return (
     <div>

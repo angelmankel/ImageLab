@@ -35,7 +35,7 @@ import './collections/collectionMenus';
 import { usePaste } from '~/compose/usePaste';
 import { PasteButton, PasteNote } from '~/compose/PasteButton';
 
-const SCOPES: Array<{ key: HistoryScope; label: string; title: string }> = [{ key: 'step', label: 'This step', title: 'Only what the open step made' }, { key: 'all', label: 'All', title: 'Everything this session made' }];
+const SCOPES: Array<{ key: HistoryScope; label: string; title: string }> = [{ key: 'step', label: 'This step', title: 'This step only' }, { key: 'all', label: 'All', title: 'Whole session' }];
 /** Toggles: tap one to show only that, tap it again for everything (no 'All' chip, Donny 10-20). */
 const FILTERS: Array<{ key: HistoryFilter; label: string; title: string }> = [{ key: 'images', label: 'Images', title: 'Only images' }, { key: 'videos', label: 'Videos', title: 'Only videos' }, { key: 'liked', label: '★', title: 'Only favourites' }];
 
@@ -82,7 +82,7 @@ function TileView({ tile, selected, onPick, onOpen, onLike, onDelete }: { tile: 
           {tile.liked ? <IconHeartFilled size={13} /> : <IconHeart size={13} stroke={2.4} />}
         </button>
       )}
-      <button type="button" onClick={(e) => { e.stopPropagation(); onDelete(); }} onDoubleClick={(e) => e.stopPropagation()} aria-label="Delete" title="Delete (Undo in the note)"
+      <button type="button" onClick={(e) => { e.stopPropagation(); onDelete(); }} onDoubleClick={(e) => e.stopPropagation()} aria-label="Delete" title="Delete"
         style={{ ...corner, left: 6, color: 'color-mix(in srgb, var(--il-fg) 80%, transparent)' }} className="il-tile-del">
         <IconTrash size={13} stroke={2.4} />
       </button>
@@ -146,7 +146,7 @@ export function HistoryPanel({ columns = 2, phone = false }: { columns?: number;
       <div data-no-swipe role="toolbar" aria-label="History filters" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6, padding: '10px 12px 8px', flex: 'none' }}>
         <Segmented label="Show" phone={phone} items={SCOPES.map((sc) => ({ key: sc.key, label: sc.label, title: sc.title, on: sc.key === scope, onClick: () => setScope(sc.key) }))} />
         <Segmented label="Kind" phone={phone} items={FILTERS.map((f) => ({ key: f.key, label: f.label, title: f.title, on: f.key === filter, onClick: () => setFilter(f.key === filter ? 'all' : f.key) }))} />
-        <button type="button" aria-label="History options" title="Clear history, reset session"
+        <button type="button" aria-label="History options" title="History options"
           onClick={(e) => openMenu('history-bar', sessionId, e.currentTarget)}
           style={{ marginLeft: 'auto', width: phone ? 40 : 30, height: phone ? 40 : 30, border: 0, borderRadius: 999, background: 'transparent', color: 'var(--il-muted)', display: 'grid', placeItems: 'center', cursor: 'pointer', flex: 'none' }}>
           <IconDots size={16} stroke={2.4} />

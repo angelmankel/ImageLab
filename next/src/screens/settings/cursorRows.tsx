@@ -12,7 +12,7 @@ function CursorsCtl() {
 export const CURSOR_ROWS: readonly SettingDef[] = [
   {
     id: 'themes.cursors', category: 'themes', group: 'Shape & depth', label: 'App cursors', compact: true,
-    hint: "The app's own pointer, zoom, hand, move and resize cursors: a light outline round a dark core, clear on any picture. Off = the browser's.",
+    hint: "The app's own cursors, clear on any picture.",
     keywords: ['cursor', 'mouse', 'pointer', 'zoom', 'hand', 'grab', 'crosshair'], Control: CursorsCtl,
   },
 ];

@@ -67,18 +67,18 @@ function KindsCtl() {
 export const SOUNDS_ROWS: readonly SettingDef[] = [
   {
     id: 'sounds.volume', category: 'sounds', label: 'Volume', wide: true,
-    hint: 'All app sounds: the queued blip, the done chime, clicks and toggles. Off at zero.',
+    hint: 'The volume of every app sound.',
     keywords: ['mute', 'off', 'chime', 'blip', 'notification', 'audio', 'loud', 'quiet'],
     Control: VolumeCtl, Value: VolumeValue,
   },
   {
     id: 'sounds.mute', category: 'sounds', label: 'Mute', compact: true,
-    hint: 'Silence every sound and keep the volume. Same as the speaker button at the top right.',
+    hint: 'Silence every sound, keeping the volume.',
     keywords: ['mute', 'silent', 'quiet', 'off', 'speaker'], Control: MuteCtl,
   },
   {
     id: 'sounds.kinds', category: 'sounds', label: 'Which sounds', wide: true,
-    hint: 'Each sound on or off; ▶ plays it at the volume above.',
+    hint: 'Each sound on or off.',
     keywords: ['play', 'test', 'queued', 'done', 'chime', 'blip', 'hover', 'click', 'toggle', 'error', 'success', 'feedback'], Control: KindsCtl,
   },
 ];

@@ -118,7 +118,7 @@ export function ServersList() {
 export const SERVERS_ROWS: readonly SettingDef[] = [
   {
     id: 'servers.list', category: 'servers', label: 'ComfyUI servers', wide: true,
-    hint: 'Images and video go to the servers marked for them; a /video-comfy host is the video one. Pause a server to keep it without sending it work.',
+    hint: 'Images and video go to the servers marked for them.',
     keywords: ['comfy', 'host', 'port', 'add server', 'remove', 'pause', 'online', 'offline', 'video', 'images', 'runs', 'role', 'url', 'pod'],
     Control: ServersList,
   },

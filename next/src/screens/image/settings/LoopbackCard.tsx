@@ -130,7 +130,7 @@ export function LoopbackCard({ value, onChange, always = false, title = 'Loopbac
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--il-fg2)' }}>Changes per round</span>
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                  {RAMP_KEYS.map((k) => <Chip key={k} small on={!!lb.ramps?.[k]} onClick={() => toggleRamp(k)} title={`${RAMP_LABELS[k]} moves from the first round to the last`}>{RAMP_LABELS[k]}</Chip>)}
+                  {RAMP_KEYS.map((k) => <Chip key={k} small on={!!lb.ramps?.[k]} onClick={() => toggleRamp(k)} title={`${RAMP_LABELS[k]} ramp`}>{RAMP_LABELS[k]}</Chip>)}
                 </div>
                 <span style={{ fontSize: 10, color: 'var(--il-muted)' }}>{rounds > 1 ? 'a lit one moves from its first-round value to its last-round value' : 'needs 2 or more rounds; one round uses the first value'}</span>
               </div>

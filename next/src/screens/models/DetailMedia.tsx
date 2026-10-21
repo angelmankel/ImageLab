@@ -74,7 +74,7 @@ export function DetailMedia({ images, index, onSelect, onView, hasMore, onMore, 
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0 }}>
-      <button type="button" aria-label="Open this picture in the model viewer" onClick={() => current && !isBlurred(current) && onView(current)} {...heroDrag}
+      <button type="button" aria-label="Open in viewer" onClick={() => current && !isBlurred(current) && onView(current)} {...heroDrag}
         style={{ height: heroH, width: '100%', padding: 0, border: 0, borderRadius: 14, overflow: 'hidden', background: 'var(--il-bg-deep)', position: 'relative', cursor: 'zoom-in', display: 'block' }}>
         {current && <Media img={current} width={760} blurred={isBlurred(current)} reveal={() => reveal(current.url)} cover={false} />}
       </button>

@@ -84,8 +84,8 @@ function LoraMore({ id }: { id: string }) {
       <SliderRow label="CLIP strength" value={lora.clipStrength} min={0} max={2} step={0.05} presets={[0.5, 0.8, 1, 1.2]} format={fmtWeight}
         onChange={(clipStrength) => updateLora(id, { clipStrength })} hint="How much the LoRA changes the way the words read" />
       <div style={{ display: 'flex', gap: 6 }}>
-        <Chip small onClick={() => updateLora(id, { strength: 1, clipStrength: 1 })} title="Strength 1.0 · CLIP 1.0">Defaults</Chip>
-        <Chip small onClick={() => updateLora(id, { clipStrength: lora.strength })} title="Set CLIP strength to the model strength">CLIP = strength</Chip>
+        <Chip small onClick={() => updateLora(id, { strength: 1, clipStrength: 1 })} title="Reset strengths">Defaults</Chip>
+        <Chip small onClick={() => updateLora(id, { clipStrength: lora.strength })} title="Match CLIP strength">CLIP = strength</Chip>
       </div>
     </>
   );

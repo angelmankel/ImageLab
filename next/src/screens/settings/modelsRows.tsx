@@ -40,18 +40,18 @@ function PreviewCtl() {
 export const MODELS_ROWS: readonly SettingDef[] = [
   {
     id: 'models.civitaiKey', category: 'models', label: 'CivitAI API key',
-    hint: 'Unlocks the full catalog in Models and the account favourites. Make one while signed in (civitai.red for Red).',
+    hint: 'Unlocks the full catalog and your CivitAI favourites.',
     links: [{ text: 'civitai.com', href: 'https://civitai.com/user/account' }, { text: 'civitai.red', href: 'https://civitai.red/user/account' }],
     keywords: ['token', 'secret', 'credentials', 'catalog', 'browser', 'red', 'nsfw', 'favourites', 'password'], Control: CivitaiKeyCtl,
   },
   {
     id: 'models.preview', category: 'models', label: 'Model preview starts on', wide: true,
-    hint: "Which picture a model's tiles, bubbles and card show first, and the one the viewer opens on.",
+    hint: "The picture a model shows first.",
     keywords: ['first', 'popular', 'random', 'history', 'slideshow', 'hover', 'thumbnail', 'tile', 'picture'], Control: PreviewCtl,
   },
   {
     id: 'models.nsfw', category: 'models', label: 'Always show NSFW images',
-    hint: 'Off: NSFW pictures are covered until tapped. Max rating in Models still decides what loads.',
+    hint: 'Off covers NSFW pictures until tapped.',
     keywords: ['nsfw', 'adult', 'mature', 'blur', 'cover', 'hide', 'explicit', 'rating'], Control: NsfwCtl,
   },
 ];

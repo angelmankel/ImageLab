@@ -30,13 +30,13 @@ function StyleCtl() {
 export const AI_ROWS: readonly SettingDef[] = [
   {
     id: 'ai.providers', category: 'ai', label: 'Providers', wide: true,
-    hint: 'Only the active one is called; each keeps its own key, model and vision model. Local is your Ollama and is always here.',
+    hint: 'Only the active provider is used.',
     keywords: ['provider', 'venice', 'openrouter', 'openai', 'anthropic', 'claude', 'deepseek', 'gemini', 'google', 'groq', 'mistral', 'xai', 'grok', 'together', 'local', 'ollama', 'cloud', 'llm', 'backend', 'api key', 'token', 'secret', 'model', 'vision', 'add', 'remove', 'test'],
     Control: ProvidersCtl, Value: StatusValue,
   },
   {
     id: 'ai.style', category: 'ai', label: 'Prompt style', compact: true,
-    hint: 'Generic SDXL prose, or Illustrious / Danbooru tags. Applies to every helper.',
+    hint: 'Plain prose or Danbooru tags, for every helper.',
     keywords: ['sdxl', 'illustrious', 'danbooru', 'tags', 'pony', 'natural'], Control: StyleCtl,
   },
 ];

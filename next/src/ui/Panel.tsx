@@ -93,7 +93,7 @@ export function Panel({ side, width, min = 240, max = 640, open, onResize, onTog
         aria-valuenow={Math.round(width)}
         aria-valuemin={min}
         aria-valuemax={max}
-        title={canResize ? 'Drag to resize · double-click to reset' : undefined}
+        title={canResize ? 'Resize' : undefined}
         onPointerDown={canResize ? onPointerDown : undefined}
         onPointerMove={canResize ? onPointerMove : undefined}
         onPointerUp={canResize ? onPointerUp : undefined}

@@ -13,9 +13,9 @@ export interface SourceChoice { key: SourceMode; label: string; sub: string; tit
 /** The three ways a step 2+ gets its picture; `from` = the previous step's number (1-based). */
 export function sourceChoices(from: number): SourceChoice[] {
   return [
-    { key: 'off', label: 'My image', sub: 'upload / drop', title: 'A picture you add yourself: upload, drop, paste, or from the library' },
-    { key: 'auto', label: `Last from ${from}`, sub: 'newest result', title: `Step ${from}'s newest result, always: every new result there becomes this step's input` },
-    { key: 'pick', label: `Pick from ${from}`, sub: 'choose one', title: `One result of step ${from} that you choose` },
+    { key: 'off', label: 'My image', sub: 'upload / drop', title: 'Your own picture' },
+    { key: 'auto', label: `Last from ${from}`, sub: 'newest result', title: `Always step ${from}'s newest result` },
+    { key: 'pick', label: `Pick from ${from}`, sub: 'choose one', title: `One result of step ${from}` },
   ];
 }
 

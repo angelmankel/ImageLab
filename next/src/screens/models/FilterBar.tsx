@@ -55,7 +55,7 @@ export function SourceChips({ size = 'desktop' as const }: { size?: 'desktop' | 
   return (
     <>
       <FChip size={size} dot={size === 'desktop'} tall on={source === 'installed'} onClick={() => setSource(source === 'installed' ? 'civitai' : 'installed')} title="Only what is on the pod">Downloaded</FChip>
-      <FChip size={size} dot={size === 'desktop'} tall on={favorites} onClick={() => set({ favorites: !favorites })} title="Models you ♥ here (kept in this browser, across pods)">★ Favourites{favCount ? ` · ${favCount}` : ''}</FChip>
+      <FChip size={size} dot={size === 'desktop'} tall on={favorites} onClick={() => set({ favorites: !favorites })} title="Your favourites">★ Favourites{favCount ? ` · ${favCount}` : ''}</FChip>
     </>
   );
 }

@@ -175,7 +175,7 @@ function SpeedCtl() {
 export const THEMES_ROWS: readonly SettingDef[] = [
   {
     id: 'themes.palette', category: 'themes', group: G_COLOURS, label: 'Palette', wide: true,
-    hint: 'Tap one to use it. On a computer, rest the pointer on one to preview it.',
+    hint: 'Tap one to use it.',
     keywords: ['colour', 'color', 'scheme', 'preset', 'saved', 'ember', 'ocean', 'violet', 'theme'], Control: PaletteGallery,
   },
   {
@@ -190,12 +190,12 @@ export const THEMES_ROWS: readonly SettingDef[] = [
   },
   {
     id: 'themes.oled', category: 'themes', group: G_COLOURS, label: 'OLED black', compact: true,
-    hint: 'Pure black backgrounds on top of any palette. Saves battery on OLED screens.',
+    hint: 'Pure black backgrounds for OLED screens.',
     keywords: ['amoled', 'black', 'dark', 'battery', 'night'], Control: OledCtl,
   },
   {
     id: 'themes.gradient', category: 'themes', group: G_COLOURS, label: 'Accent fill', wide: true,
-    hint: 'Buttons, badges and progress bars in the accent, or a gradient to the second colour.',
+    hint: 'Solid accent or a gradient on buttons and bars.',
     keywords: ['gradient', 'accent', 'buttons'], Control: GradientCtl,
   },
   {
@@ -233,11 +233,11 @@ export const THEMES_ROWS: readonly SettingDef[] = [
   },
   {
     id: 'themes.glass', category: 'themes', group: G_SHAPE, label: 'Glass', wide: true,
-    hint: 'The floating bars: how blurred and how see-through.', keywords: ['blur', 'transparent', 'frosted', 'opacity', 'dock'], Control: GlassCtl,
+    hint: 'How blurred and see-through the floating bars are.', keywords: ['blur', 'transparent', 'frosted', 'opacity', 'dock'], Control: GlassCtl,
   },
   {
     id: 'themes.motion', category: 'themes', group: G_MOTION, label: 'Animations', wide: true,
-    hint: 'Hover, press and pop-up motion. The viewer and new images are always instant; your system’s reduce-motion setting always wins.',
+    hint: 'Hover, press and pop-up motion.',
     keywords: ['animation', 'motion', 'reduce', 'off', 'transitions', 'gsap'], Control: MotionCtl,
   },
   {
@@ -246,6 +246,6 @@ export const THEMES_ROWS: readonly SettingDef[] = [
   },
   {
     id: 'themes.share', category: 'themes', group: G_SHARE, label: 'Import, export, reset', wide: true,
-    hint: 'A theme is one JSON file: save it, share it, load one.', keywords: ['json', 'file', 'backup', 'share', 'reset', 'default'], Control: SharePanel,
+    hint: 'Save, share or load a theme file.', keywords: ['json', 'file', 'backup', 'share', 'reset', 'default'], Control: SharePanel,
   },
 ];
