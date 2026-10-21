@@ -65,7 +65,7 @@ export function PhoneBrowse({ land = false }: { land?: boolean }) {
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--il-bg)' }}>
       {!close && !land && (
-        <div style={{ height: 56, flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px 0' }}>
+        <div style={{ height: 'calc(56px + var(--il-safe-top))', flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'calc(12px + var(--il-safe-top)) 16px 0', boxSizing: 'border-box' }}>
           <span style={{ fontWeight: 800, fontSize: 18 }}>Models</span>
         </div>
       )}

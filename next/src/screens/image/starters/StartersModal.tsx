@@ -362,7 +362,7 @@ export function StartersModal({ opened, onClose }: { opened: boolean; onClose: (
     >
       <div style={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
         {phone ? (
-          <div style={{ height: 48, flex: 'none', display: 'flex', alignItems: 'center', gap: 6, padding: '0 8px', borderBottom: '1px solid var(--il-line)' }}>
+          <div style={{ height: 'calc(48px + var(--il-safe-top))', flex: 'none', display: 'flex', alignItems: 'center', gap: 6, padding: 'var(--il-safe-top) calc(8px + var(--il-safe-right)) 0 calc(8px + var(--il-safe-left))', boxSizing: 'border-box', borderBottom: '1px solid var(--il-line)' }}>
             <button type="button" onClick={onClose} aria-label="Back" style={{ height: 40, padding: '0 12px 0 6px', border: 0, borderRadius: 999, background: 'transparent', color: 'var(--il-fg)', fontWeight: 800, fontSize: 14, display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer' }}>
               <IconChevronLeft size={18} stroke={2.6} />Back
             </button>

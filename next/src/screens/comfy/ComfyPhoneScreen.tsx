@@ -123,7 +123,7 @@ export function ComfyPhoneScreen() {
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--il-bg)' }}>
-      <div style={{ height: 56, flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '10px 14px 0' }}>
+      <div style={{ height: 'calc(56px + var(--il-safe-top))', flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: 'calc(10px + var(--il-safe-top)) 14px 0', boxSizing: 'border-box' }}>
         <span style={{ fontWeight: 800, fontSize: 18 }}>ComfyUI</span>
         <ServerPicker pick={pick} online={live.online} stats={live.stats} queued={live.rows.length} up={up} compact />
       </div>

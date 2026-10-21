@@ -88,7 +88,7 @@ export function CircleRow({ entries, selectedId, onSelect, onChange, onAdd, onRe
             </span>
           </button>
           {removable && (
-            <button type="button" onClick={(ev) => { ev.stopPropagation(); onRemove!(e.id); }} aria-label={`Remove ${label}`} title="Remove"
+            <button type="button" onClick={(ev) => { ev.stopPropagation(); onRemove!(e.id); }} aria-label={`Remove ${label}`} title="Remove" className="ilm-bubble-x"
               style={{ position: 'absolute', top: -2, right: 2, width: 20, height: 20, padding: 0, border: '2px solid var(--il-panel)', borderRadius: '50%', background: 'var(--il-err)', color: '#fff', display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
               <IconX size={11} stroke={3} />
             </button>

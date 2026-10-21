@@ -35,7 +35,7 @@ export function PhoneModel({ modelId }: { modelId: number }) {
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--il-bg)' }}>
-      <div style={{ height: 56, flex: 'none', padding: '12px 16px 0' }}><ModelHead modelId={modelId} /></div>
+      <div style={{ height: 'calc(56px + var(--il-safe-top))', flex: 'none', padding: 'calc(12px + var(--il-safe-top)) 16px 0', boxSizing: 'border-box' }}><ModelHead modelId={modelId} /></div>
       <div ref={keepScroll} className="il-scroll" style={{ flex: 1, minHeight: 0, padding: '8px 0 100px', touchAction: 'pan-y', overflowX: 'hidden' }}>
         <Detail modelId={modelId} size="phone" />
       </div>
