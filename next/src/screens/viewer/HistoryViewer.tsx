@@ -6,14 +6,14 @@
  */
 import { useMemo } from 'react';
 import { useStore } from '@/lib/store';
-import { useImageResults } from '@/features/workspace/results';
+import { useSessionImageResults } from '~/app/outputs';
 import { useLiveFrame } from '@/features/history/FullscreenViewer';
 import { useViewerPrefs } from '@/features/history/viewerPrefs';
 import { ImageViewer } from './ImageViewer';
 import type { ViewerItem } from './types';
 
 export function HistoryViewer({ onClose, showLive = false }: { onClose: () => void; showLive?: boolean }) {
-  const images = useImageResults();
+  const images = useSessionImageResults(); // this session's pictures (fix list 2, item 9)
   const selected = useStore((s) => s.selectedEntry);
   const select = useStore((s) => s.selectHistoryEntry);
   const liveFrame = useLiveFrame();

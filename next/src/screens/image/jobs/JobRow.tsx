@@ -10,6 +10,7 @@ import { useEffect, useState } from 'react';
 import { IconX } from '@tabler/icons-react';
 import { useQueue, type QueueRow } from '~/app/queue';
 import { useSteps } from '~/app/stepsStore';
+import { displayName, useSessions } from '~/app/sessionsStore';
 import { useIsPhone } from '~/app/useIsPhone';
 import { Tip, useWheelSideways } from '~/ui';
 
@@ -52,6 +53,8 @@ export function JobRow() {
   const { rows, cancel } = useQueue();
   const steps = useSteps((s) => s.steps);
   const setActive = useSteps((s) => s.setActive);
+  const currentId = useSessions((s) => s.currentId);
+  const sessions = useSessions((s) => s.sessions);
   const phone = useIsPhone();
   const open = rows.length > 0;
   // Keep the last chips while the row folds away, so it closes with them instead of emptying first.
@@ -70,8 +73,16 @@ export function JobRow() {
         <div ref={scroller} className="il-scroll" aria-label="Jobs"
           style={{ height: h, display: 'flex', alignItems: 'center', gap: 6, padding: '0 10px', overflowX: 'auto', overflowY: 'hidden', touchAction: 'pan-x', scrollbarWidth: 'none' }}>
           {(open ? rows : shown).map((r) => {
-            const i = r.stepId ? steps.findIndex((s) => s.id === r.stepId) : -1;
-            return <Chip key={r.id} row={r} index={i >= 0 ? i + 1 : null} phone={phone} onCancel={() => cancel(r.id)} onOpen={() => { if (r.stepId && i >= 0) setActive(r.stepId); }} />;
+            // Another session's job (fix list 2, item 15): labelled with that session; a tap opens it there.
+            const other = r.sessionId && r.sessionId !== currentId ? sessions[r.sessionId] : undefined;
+            const list = other ? other.steps : steps;
+            const i = r.stepId ? list.findIndex((s) => s.id === r.stepId) : -1;
+            const row = other ? { ...r, label: `${displayName(other.name)} · ${r.label}` } : r;
+            const openIt = () => {
+              if (other) { useSessions.getState().open(other.id); if (r.stepId && i >= 0) useSteps.getState().setActive(r.stepId); return; }
+              if (r.stepId && i >= 0) setActive(r.stepId);
+            };
+            return <Chip key={r.id} row={row} index={i >= 0 ? i + 1 : null} phone={phone} onCancel={() => cancel(r.id)} onOpen={openIt} />;
           })}
         </div>
       </div>

@@ -9,6 +9,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '@/lib/store';
 import { useCanvasStore } from '@/lib/canvasStore';
+import { isJobOfSession, useOutputs } from '~/app/outputs';
+import { useSessions } from '~/app/sessionsStore';
 import { bestGrid, stripBackground, stripCount } from './liveGridLogic';
 import { useArrive, useFrameLayers } from '../frame/FrameImage';
 
@@ -20,11 +22,14 @@ const NONE: LiveFrame[] = [];
 export function useLiveFrames(enabled: boolean): LiveFrame[] {
   const previews = useCanvasStore((s) => s.livePreviews);
   const jobs = useStore((s) => s.jobs);
+  const sessionId = useSessions((s) => s.currentId);
+  const owners = useOutputs((s) => s.jobs);
   return useMemo(() => {
     if (!enabled) return NONE;
     const out: LiveFrame[] = [];
     for (const j of jobs) {
-      if (j.status !== 'running') continue;
+      // Another session's job never paints this session's stage (fix list 2, item 15).
+      if (j.status !== 'running' || !isJobOfSession(j.id, sessionId, owners)) continue;
       const url = previews[j.serverId];
       if (!url || out.some((f) => f.key === j.serverId)) continue;
       const w = j.workflow?.width || 1;
@@ -32,7 +37,7 @@ export function useLiveFrames(enabled: boolean): LiveFrame[] {
       out.push({ key: j.serverId, url, n: Math.max(1, j.workflow?.batch ?? 1), aspect: w / h });
     }
     return out.length > 1 || (out[0]?.n ?? 1) > 1 ? out : NONE;
-  }, [enabled, previews, jobs]);
+  }, [enabled, previews, jobs, sessionId, owners]);
 }
 
 export function LiveGrid({ frames }: { frames: LiveFrame[] }) {

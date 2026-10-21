@@ -12,6 +12,7 @@ import { useStore } from '@/lib/store';
 import { jobActivity } from '@/lib/jobActivity';
 import { useShortcut, ShortcutPriority } from '@/hooks/useShortcut';
 import { fireFromStore } from '@/features/generate/GenerateButton';
+import { ownerNow, runAsOwner } from '~/app/outputs';
 import { useWorkflowRun } from '@/features/studio/studioRun';
 import { useObjectInfo } from '@/features/studio/useStudioRun';
 import { useModeHost } from '@/features/workspace/modeHost';
@@ -49,7 +50,7 @@ export function useStepRun(step: Step): { run: (newSeed?: boolean) => void; stop
     const activity = jobActivity(jobs, submitting, online);
     const running = jobs.find((j) => j.status === 'running') ?? jobs.find((j) => j.status === 'queued');
     return {
-      run: (newSeed = false) => { void enqueueRun(() => (skipIfUpToDate(step, newSeed) ? undefined : fireFromStore(newSeed, IMAGE_STEP_ONLY))).then(() => { const st = useStore.getState(); if (st.status.kind === 'error') notifications.show({ title: 'Could not generate', message: st.status.text, color: 'red', autoClose: 3000 }); }); },
+      run: (newSeed = false) => { const owner = ownerNow('image'); void enqueueRun(() => (skipIfUpToDate(step, newSeed) ? undefined : runAsOwner(owner, () => fireFromStore(newSeed, IMAGE_STEP_ONLY)))).then(() => { const st = useStore.getState(); if (st.status.kind === 'error') notifications.show({ title: 'Could not generate', message: st.status.text, color: 'red', autoClose: 3000 }); }); },
       stop: () => { if (running) cancelQueueRow(running.id); },
       busy: !!running || submitting,
       busyLabel: submitting ? 'Queueing…' : running?.status === 'queued' ? 'Queued' : 'Generating',

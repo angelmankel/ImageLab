@@ -71,8 +71,9 @@ export function StageColumn({ step, phone = false }: { step: Step; phone?: boole
 
   const noOverlay = () => !viewerOpen && runFull === null;
   const pageKeys = () => noOverlay() && !isVideo;
-  useShortcut('ArrowLeft', () => media.pick(media.index + 1), { priority: ShortcutPriority.Panel + 10, when: pageKeys });
-  useShortcut('ArrowRight', () => media.pick(media.index - 1), { priority: ShortcutPriority.Panel + 10, when: pageKeys });
+  // Fix list 2, item 1: the same direction as the history grid and the viewer — ← newer, → older (the list is newest first).
+  useShortcut('ArrowLeft', () => media.pick(media.index - 1), { priority: ShortcutPriority.Panel + 10, when: pageKeys });
+  useShortcut('ArrowRight', () => media.pick(media.index + 1), { priority: ShortcutPriority.Panel + 10, when: pageKeys });
   useShortcut(['Delete', 'Backspace'], (e) => {
     const item = media.item;
     if (!item || (e.target as HTMLElement | null)?.closest?.('[role="dialog"], [role="menu"], [role="listbox"]')) return false;

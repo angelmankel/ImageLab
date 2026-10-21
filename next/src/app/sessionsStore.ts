@@ -16,7 +16,9 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { useStore } from '@/lib/store';
-import { uid } from '@/lib/storage';
+import { defaultWorkflow, uid } from '@/lib/storage';
+import { profileById } from '@/lib/modelProfiles';
+import { defaultVideoSettings } from '@/lib/wanGraph';
 import type { HistoryEntry, Layer, WorkflowState } from '@/lib/types';
 import { useVideo } from '@/features/video/videoStore';
 import { nanoid } from './ids';
@@ -73,6 +75,34 @@ function videoParamsNow(): Record<string, unknown> {
   return Object.fromEntries(Object.entries(useVideo.getState()).filter(([, v]) => typeof v !== 'function'));
 }
 
+/**
+ * A fresh session's parameters (fix list 2, item 9: "everything back to default"): the default
+ * workflow and an empty prompt, keeping only the model you use now (checkpoint, VAE, its type and
+ * that type's start values), so Generate works at once. Video: defaults, same video models.
+ */
+export function freshParams(): { image: ImageParams; video: Record<string, unknown> } {
+  const cur = useStore.getState().workflow;
+  const keep: Partial<WorkflowState> = {
+    checkpoints: cur.checkpoints, vae: cur.vae, modelProfile: cur.modelProfile, modelProfileOverrides: cur.modelProfileOverrides,
+    typeSettings: cur.typeSettings, textEncoder: cur.textEncoder, baseFile: cur.baseFile, profileTags: cur.profileTags,
+  };
+  const typeDefaults = (profileById(cur.modelProfile)?.defaults ?? {}) as Partial<WorkflowState>;
+  const workflow: WorkflowState = { ...defaultWorkflow(), ...keep, ...typeDefaults, inputImage: null };
+  const v = useVideo.getState();
+  return { image: { workflow, layers: [] }, video: { ...defaultVideoSettings(), startImage: '', models: v.models } };
+}
+
+/** The open session's parameters as the live stores hold them now. */
+export function liveParams(): { image: ImageParams; video: Record<string, unknown> } {
+  return { image: imageParamsNow(), video: videoParamsNow() };
+}
+
+/** Put a session's parameters into the live stores (the open session's). */
+export function loadParams(image: ImageParams | null | undefined, video: Record<string, unknown> | null | undefined): void {
+  loadImageParams(image);
+  loadVideoParams(video);
+}
+
 function loadImageParams(p: ImageParams | null | undefined): void {
   if (!p) return;
   const st = useStore.getState();
@@ -119,10 +149,10 @@ export const useSessions = create<SessionsState>()(
       create: () => {
         const now = Date.now();
         const s = makeSession(nanoid(), `step-${uid()}`, now);
-        // A new session starts from the current settings (model, size, sampler) with no input image: a new tab, not a reset.
-        const cur = imageParamsNow();
-        s.image = { workflow: { ...(cur.workflow as WorkflowState), inputImage: null }, layers: cur.layers };
-        s.video = videoParamsNow();
+        // A new session starts fully default (fix list 2, item 9): one empty Image step, no outputs, default parameters (the model stays).
+        const fresh = freshParams();
+        s.image = fresh.image;
+        s.video = fresh.video;
         s.color = newColor(get());
         set((st) => ({ sessions: { ...st.sessions, [s.id]: s } }));
         get().open(s.id);

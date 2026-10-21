@@ -6,6 +6,8 @@ export interface QueueRow {
   id: string;
   /** Which step queued it (step id) when known. */
   stepId?: string;
+  /** Which session queued it (fix list 2, item 15), when known. */
+  sessionId?: string;
   /** 'image' = a generate-store job; 'video' / 'workflow' = that run store's one run. */
   source: 'image' | 'video' | 'workflow';
   label: string;

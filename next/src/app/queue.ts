@@ -11,6 +11,7 @@ import { useVideoRun } from '@/features/video/videoRun';
 import { useWorkflowRun } from '@/features/studio/studioRun';
 import { useSteps, type Step } from './stepsStore';
 import { runStepOf } from './runSteps';
+import { jobOwner } from './outputs';
 import { orderRows, parseRunRowId, rowOfJob, rowsOfRun, type QueueRow, type RunLike } from './queueLogic';
 
 export type { QueueRow } from './queueLogic';
@@ -49,6 +50,12 @@ export function rowsOf(
     if (r) out.push(r);
   }
   out.push(...rowsOfRun('video', video, videoStep, runStepOf), ...rowsOfRun('workflow', workflow, workflowStep, runStepOf));
+  // Every row says which session (and step) queued it, so its tab can show it running (fix list 2, item 15).
+  for (let i = 0; i < out.length; i++) {
+    const r = out[i];
+    const owner = jobOwner(parseRunRowId(r.id)?.promptId ?? (r.source === 'image' ? r.id : undefined));
+    if (owner) out[i] = { ...r, sessionId: owner.sessionId, stepId: owner.stepId || r.stepId };
+  }
   return out.length ? orderRows(out) : NONE;
 }
 

@@ -17,6 +17,8 @@ import type { HistoryEntry } from '@/lib/types';
 import { useImageResults, useVideoResults, useWorkflowResults } from '@/features/workspace/results';
 import { useStage } from './stageStore';
 import { useSteps } from '~/app/stepsStore';
+import { useSessions } from '~/app/sessionsStore';
+import { ownedBy, useOwnerCtx } from '~/app/outputs';
 import { deleteOutput } from '~/app/deleteResult';
 import { filterTiles, inStep, mergeTiles, type HistoryFilter, type HistoryScope, type Tile } from './historyLogic';
 import { useResultSteps } from './resultSteps';
@@ -31,7 +33,7 @@ import './collections/collectionMenus';
 import { usePaste } from '~/compose/usePaste';
 import { PasteButton, PasteNote } from '~/compose/PasteButton';
 
-const SCOPES: Array<{ key: HistoryScope; label: string; title: string }> = [{ key: 'step', label: 'This step', title: 'Only what the open step made' }, { key: 'all', label: 'All', title: 'Every generation' }];
+const SCOPES: Array<{ key: HistoryScope; label: string; title: string }> = [{ key: 'step', label: 'This step', title: 'Only what the open step made' }, { key: 'all', label: 'All', title: 'Everything this session made' }];
 /** Toggles: tap one to show only that, tap it again for everything (no 'All' chip, Donny 10-20). */
 const FILTERS: Array<{ key: HistoryFilter; label: string }> = [{ key: 'images', label: 'Images' }, { key: 'videos', label: 'Videos' }, { key: 'liked', label: '★' }];
 
@@ -87,6 +89,10 @@ export function HistoryPanel({ columns = 2, phone = false }: { columns?: number;
     () => mergeTiles(images.map((i) => ({ ...i, source: 'image' as const })), videos.map((v) => ({ ...v, source: 'video' as const })), runs.map((r) => ({ ...r, source: 'workflow' as const }))),
     [images, videos, runs],
   );
+  // Fix list 2, item 9: the history is THIS session's outputs (All) or this step's (This step); collections keep every picture.
+  const ownerCtx = useOwnerCtx();
+  const sessionId = useSessions((s) => s.currentId);
+  const mine = useMemo(() => ownedBy(all, sessionId, ownerCtx), [all, sessionId, ownerCtx]);
   const coll = useCollectionView(all);
   const activeCollection = useCollectionsUi((s) => s.active);
   const toggleImportedLiked = useStore((s) => s.toggleImportedLiked);
@@ -94,8 +100,8 @@ export function HistoryPanel({ columns = 2, phone = false }: { columns?: number;
   const tiles = useMemo(() => {
     if (coll.tiles) return filterTiles(coll.tiles, filter);
     const step = steps.find((s) => s.id === activeId);
-    return filterTiles(scope === 'step' && step ? all.filter((t) => inStep(t, step, steps, tags)) : all, filter);
-  }, [all, coll.tiles, filter, scope, steps, activeId, tags]);
+    return filterTiles(scope === 'step' && step ? mine.filter((t) => inStep(t, step, steps, tags)) : mine, filter);
+  }, [mine, coll.tiles, filter, scope, steps, activeId, tags]);
   // While a collection is shown, the whole grid takes drops into it.
   const gridDrop = useImageDrop({ onDrop: (item) => { if (activeCollection) void addImageToCollection(activeCollection, item); }, disabled: !coll.tiles });
   // …and a paste (item 36): the Paste button in its header, Ctrl+V over the grid.

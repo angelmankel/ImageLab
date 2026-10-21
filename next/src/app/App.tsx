@@ -15,7 +15,7 @@ import { DesktopShell } from '~/screens/image/DesktopShell';
 import { PhoneShell } from '~/screens/phone/PhoneShell';
 import { ModelViewerHost } from '~/screens/modelViewer';
 import { ExternalViewerHost } from '~/screens/viewer/ExternalViewerHost';
-import { useCreditNewResults } from '~/screens/image/resultSteps';
+import { useCreditOutputs } from './outputs';
 import { ContextMenuHost } from './contextMenu';
 import { DragLayer, SendToSheet } from '~/dnd';
 import { CompositionSync } from '~/compose/sizeStore';
@@ -27,7 +27,7 @@ import { useUndoHotkeys } from './undo';
 
 export function App() {
   const phone = useIsPhone();
-  useCreditNewResults();
+  useCreditOutputs();
   useFullscreenHotkey();
   useLogoFavicon();
   useUndoHotkeys();

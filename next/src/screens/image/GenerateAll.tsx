@@ -21,6 +21,7 @@ import { useStore } from '@/lib/store';
 import { comfyHttpFor } from '@/lib/comfy';
 import type { ObjectInfo } from '@/lib/workflowGraph';
 import { fireFromStore } from '@/features/generate/GenerateButton';
+import { ownerOfStep, runAsOwner } from '~/app/outputs';
 import { useVideoRun } from '@/features/video/videoRun';
 import { useWorkflowRun } from '@/features/studio/studioRun';
 import { objectInfoNow } from '@/features/studio/useStudioRun';
@@ -78,7 +79,8 @@ async function infoFor(host: string): Promise<ObjectInfo | null> {
 async function runStepToEnd(step: Step): Promise<string | null> {
   if (step.kind === 'image') {
     const before = new Set(useStore.getState().jobs.map((j) => j.id));
-    await enqueueRun(() => fireFromStore(false, IMAGE_STEP_ONLY));
+    const owner = ownerOfStep(step.id);
+    await enqueueRun(() => (owner ? runAsOwner(owner, () => fireFromStore(false, IMAGE_STEP_ONLY)) : fireFromStore(false, IMAGE_STEP_ONLY)));
     const queued = useStore.getState().jobs.some((j) => !before.has(j.id));
     if (!queued) { const st = useStore.getState().status; return st.kind === 'error' ? st.text : 'The picture was not queued'; }
     return waitImageJobs(before);

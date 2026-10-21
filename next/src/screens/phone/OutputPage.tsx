@@ -9,13 +9,14 @@
  * Image steps read the generate history and open the history viewer (the same `openViewer()` the
  * desktop stage uses, item 30: `HistoryViewer`); video / workflow steps read their run store and open `ImageViewer`.
  */
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { IconChevronRight, IconDownload, IconMaximize, IconStar, IconStarFilled, IconTrash } from '@tabler/icons-react';
 import { HistoryViewer } from '~/screens/viewer/HistoryViewer';
 import { ImageViewer } from '~/screens/viewer/ImageViewer';
 import { useLiveFrame } from '@/features/history/FullscreenViewer';
 import { useViewerPrefs } from '@/features/history/viewerPrefs';
-import { useImageResults, useVideoResults, useWorkflowResults } from '@/features/workspace/results';
+import { isJobOfSession, useOutputs, useSessionImageResults, useSessionVideoResults, useSessionWorkflowResults } from '~/app/outputs';
+import { useSessions } from '~/app/sessionsStore';
 import { useModeHost } from '@/features/workspace/modeHost';
 import { useVideoRun } from '@/features/video/videoRun';
 import { useWorkflowRun } from '@/features/studio/studioRun';
@@ -42,7 +43,9 @@ export function OutputPage({ step, index }: { step: Step; index: number }) {
 // ── Image steps ─────────────────────────────────────────────────────────────
 
 function ImageOutput({ step, index }: { step: Step; index: number }) {
-  const items = useImageResults();
+  const items = useSessionImageResults(); // this session's (fix list 2, items 9 + 15)
+  const sessionId = useSessions((s) => s.currentId);
+  const owners = useOutputs((s) => s.jobs);
   const history = useStore((s) => s.history);
   const selected = useStore((s) => s.selectedEntry);
   const select = useStore((s) => s.selectHistoryEntry);
@@ -50,7 +53,8 @@ function ImageOutput({ step, index }: { step: Step; index: number }) {
   const closeViewer = useStore((s) => s.closeViewer);
   const viewerOpen = useStore((s) => s.viewerOpen);
   const toggleLiked = useStore((s) => s.toggleHistoryLiked);
-  const jobs = useStore((s) => s.jobs);
+  const allJobs = useStore((s) => s.jobs);
+  const jobs = useMemo(() => allJobs.filter((j) => isJobOfSession(j.id, sessionId, owners)), [allJobs, sessionId, owners]);
   const submitting = useStore((s) => s.isSubmitting);
   const online = useStore((s) => Object.keys(s.serverInfo).length > 0);
   const width = useStore((s) => s.workflow.width);
@@ -58,10 +62,10 @@ function ImageOutput({ step, index }: { step: Step; index: number }) {
   const livePreview = useViewerPrefs((s) => s.livePreview);
   const liveFrame = useLiveFrame();
 
-  const current = selected ?? history[0] ?? null;
-  const item = items.find((i) => i.key === current?.id) ?? null;
-  const activity = jobActivity(jobs, submitting, online);
-  const live = activity.active && livePreview ? liveFrame : null;
+  const item = items.find((i) => i.key === selected?.id) ?? items[0] ?? null;
+  const current = item?.entry ?? null;
+  const activity = jobActivity(jobs, submitting && jobs.length > 0, online);
+  const live = activity.active && jobs.some((j) => j.status === 'running') && livePreview ? liveFrame : null;
   const status = activity.queued > 0 ? `${activity.label} · ${activity.queued} queued` : activity.label;
   const pick = (key: string) => { const e = history.find((h) => h.id === key); if (e) select(e); };
   const open = (key?: string) => {
@@ -107,7 +111,7 @@ function RunOutput({ mode, step, index }: { mode: 'video' | 'workflow'; step: St
   const preview = store((s) => s.preview);
   const queue = store((s) => s.queueRemaining);
   // The component is keyed by mode, so this branch never changes within an instance.
-  const items = mode === 'video' ? useVideoResults() : useWorkflowResults(); // eslint-disable-line react-hooks/rules-of-hooks
+  const items = mode === 'video' ? useSessionVideoResults() : useSessionWorkflowResults(); // eslint-disable-line react-hooks/rules-of-hooks
 
   useEffect(() => { if (host) store.getState().setHost(host); }, [host, store]);
   useEffect(() => store.getState().attach(), [store]);

@@ -3,9 +3,10 @@
  * Close others · Delete) and "New session from this" on a history picture ('history-image').
  * Imported once by App, which also boots `sessionsStore` (the migration + the steps mirror).
  */
-import { IconCopy, IconLayoutGrid, IconSquarePlus, IconTrash, IconX } from '@tabler/icons-react';
+import { IconCopy, IconEraser, IconLayoutGrid, IconRestore, IconSquarePlus, IconTrash, IconX } from '@tabler/icons-react';
 import { registerMenu } from './contextMenu';
 import { useRoute } from './routeStore';
+import { confirmClearHistory, confirmResetSession } from './sessionActions';
 import { deleteSession, newSessionFromImage, useSessions, type ImageLike, type Session } from './sessionsStore';
 
 registerMenu<Session>('tab', [
@@ -25,6 +26,8 @@ registerMenu<Session>('tab', [
       useSessions.setState({ openIds: [s.id] });
     },
   },
+  { id: 'clear-history', label: 'Clear history…', icon: IconEraser, group: 'reset', action: (s) => confirmClearHistory(s.id) },
+  { id: 'reset', label: 'Reset session…', icon: IconRestore, group: 'reset', action: (s) => confirmResetSession(s.id) },
   {
     id: 'delete', label: 'Delete session', icon: IconTrash, danger: true, group: 'danger', order: 100,
     action: (s) => { void deleteSession(s.id); },

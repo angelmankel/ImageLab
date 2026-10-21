@@ -10,6 +10,7 @@
 import type { RunStore } from '@/lib/comfyRunner';
 import { noteRunStart } from '~/app/stepFingerprint';
 import { useResultSteps } from '../resultSteps';
+import { ownerOfStep, recordJob } from '~/app/outputs';
 
 /** Longest a step may take before Generate all gives up waiting on it. */
 const MAX_MS = 60 * 60_000;
@@ -25,6 +26,9 @@ export interface TrackedRun {
 export function trackRun(store: RunStore, stepId: string): TrackedRun {
   noteRunStart(store, stepId);
   const known = new Set(store.getState().results.map((r) => r.url));
+  // Its jobs belong to the step's session (fix list 2, item 15: preview + results go there only).
+  const owner = ownerOfStep(stepId);
+  const knownJobs = new Set(store.getState().jobs.map((j) => j.promptId));
   let started = store.getState().busy;
   let unsub: () => void = () => {};
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -37,6 +41,7 @@ export function trackRun(store: RunStore, stepId: string): TrackedRun {
         for (const r of fresh) known.add(r.url);
         useResultSteps.getState().tag(fresh.map((r) => [r.url, stepId] as [string, string]));
       }
+      if (owner) for (const j of s.jobs) if (!knownJobs.has(j.promptId)) { knownJobs.add(j.promptId); recordJob(j.promptId, owner); }
       if (s.busy) started = true;
       else if (started) finish(s.error);
     });

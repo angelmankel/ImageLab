@@ -11,22 +11,24 @@ import { useStore } from '@/lib/store';
 import { viewUrl } from '@/lib/comfyHost';
 import { useVideoRun } from '@/features/video/videoRun';
 import { useWorkflowRun } from '@/features/studio/studioRun';
-import { toResultItem, useImageResults, useVideoResults, useWorkflowResults } from '@/features/workspace/results';
+import { toResultItem } from '@/features/workspace/results';
+import { ownedBy, ownerCtxNow, useSessionImageResults, useSessionVideoResults, useSessionWorkflowResults } from '~/app/outputs';
+import { useSessions } from '~/app/sessionsStore';
 import { useSteps, type Step } from '~/app/stepsStore';
 import { useResultSteps } from './resultSteps';
 import { chainCandidate, mergeResults, newestResultOf, resolveStepInput, resultsOfStep, type StepInputResolution, type StepResult } from './stepInputLogic';
 
 export interface StepOutput { url: string; name: string }
 
-/** Every result as the resolver wants it, newest first (memoised on the three source lists). */
+/** Every result of the open session as the resolver wants it, newest first (memoised on the three source lists). */
 export function useAllResults(): StepResult[] {
-  const images = useImageResults();
-  const videos = useVideoResults();
-  const runs = useWorkflowResults();
+  const images = useSessionImageResults();
+  const videos = useSessionVideoResults();
+  const runs = useSessionWorkflowResults();
   return useMemo(() => mergeResults(images, videos, runs), [images, videos, runs]);
 }
 
-/** `useAllResults` outside React. */
+/** `useAllResults` outside React (the open session's). */
 export function allResultsNow(): StepResult[] {
   const st = useStore.getState();
   const images = st.history.flatMap((e) => {
@@ -35,7 +37,10 @@ export function allResultsNow(): StepResult[] {
   });
   const videos = useVideoRun.getState().results.map(toResultItem);
   const runs = useWorkflowRun.getState().results.map(toResultItem);
-  return mergeResults(images, videos, runs);
+  // Only the open session's outputs (fix list 2, item 9: a step chains to what ITS session made).
+  const ctx = ownerCtxNow();
+  const id = useSessions.getState().currentId;
+  return mergeResults(ownedBy(images, id, ctx), ownedBy(videos, id, ctx), ownedBy(runs, id, ctx));
 }
 
 /** A step's newest own output (url + name): the rail badge, the Video step's "has the previous step made anything" check. */
