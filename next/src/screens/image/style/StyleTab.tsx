@@ -22,7 +22,7 @@ import { ServerStrip } from './ServerStrip';
 import { TypeTiles } from './TypeTiles';
 import { RefBubbles, refLabel } from './RefBubbles';
 import { RefCard } from './RefCard';
-import { addRef, removeRef } from './styleRefsEdit';
+import { addRef, moveRef, removeRef } from './styleRefsEdit';
 import { tileStates } from './styleTabLogic';
 
 const NONE: StyleRef[] = [];
@@ -81,7 +81,8 @@ export function StyleTab() {
       <ServerStrip rows={rows} typeName={typeName} fam={fam} />
       {refs.length > 0 && (
         <RefBubbles refs={refs} selectedId={selected?.id ?? null} adding={adding} unfit={unfit}
-          onSelect={(id) => { setSelectedId(id); setAdding(false); }} onRemove={remove} onAdd={() => setAdding((a) => !a)} />
+          onSelect={(id) => { setSelectedId(id); setAdding(false); }} onRemove={remove} onAdd={() => setAdding((a) => !a)}
+          onMove={(id, to) => setWorkflowUndoable({ styleRefs: moveRef(refs, id, to) }, 'Reorder references')} />
       )}
       {showTiles
         ? <TypeTiles tiles={tiles} onPick={add} onClose={refs.length ? () => setAdding(false) : undefined} />

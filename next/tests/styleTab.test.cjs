@@ -70,3 +70,11 @@ test('add: defaults from the packs; InstantID lowers a high CFG (and only then)'
   assert.notEqual(list, f.refs);
   assert.deepEqual(E.removeRef(list, 'a').map((r) => r.id), ['b']);
 });
+
+test('reorder: a reference moves to its new place, the rest keep theirs', () => {
+  const refs = ['a', 'b', 'c'].map((id) => ({ id }));
+  assert.deepEqual(E.moveRef(refs, 'a', 2).map((r) => r.id), ['b', 'c', 'a']);
+  assert.deepEqual(E.moveRef(refs, 'c', 0).map((r) => r.id), ['c', 'a', 'b']);
+  assert.deepEqual(E.moveRef(refs, 'x', 0).map((r) => r.id), ['a', 'b', 'c']);
+  assert.deepEqual(E.moveRef(refs, 'b', 9).map((r) => r.id), ['a', 'c', 'b']);
+});

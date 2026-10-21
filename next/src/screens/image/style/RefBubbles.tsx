@@ -2,32 +2,80 @@
  * Style tab: the row of references (like the Model tab's bubbles, mockup B): the first picture in
  * a circle (or the type's icon), the strength as a badge, the type under it, dimmed when off or not
  * for this model type; ember ring on the selected one, a red × to remove, a dashed green Add at the end.
+ * Drag a bubble sideways (mouse / pen) to reorder; on touch the row scrolls instead.
  */
+import { useRef, useState } from 'react';
 import { IconPlus, IconX } from '@tabler/icons-react';
 import { FACE_INFO, TYPE_INFO, methodOf, type StyleRef } from '@/lib/styleRefs';
 import { TypeIcon } from './typeIcons';
 
 const C = 56;
+/** One bubble's slot: its width + the row's gap. */
+const SLOT = 74;
+const DRAG_START = 6;
+let dragEndedAt = 0;
 
 export function refLabel(r: StyleRef): string {
   const m = methodOf(r);
   return m && m !== 'faceid' ? FACE_INFO[m].title : TYPE_INFO[r.type].title;
 }
 
-export function RefBubbles({ refs, selectedId, onSelect, onRemove, onAdd, adding, unfit }: {
+export function RefBubbles({ refs, selectedId, onSelect, onRemove, onAdd, adding, unfit, onMove }: {
   refs: readonly StyleRef[]; selectedId: string | null; onSelect: (id: string) => void; onRemove: (id: string) => void;
   onAdd: () => void; adding: boolean; unfit: (r: StyleRef) => boolean;
+  /** Drag to reorder: move a reference to an index. */
+  onMove?: (id: string, to: number) => void;
 }) {
+  const [drag, setDrag] = useState<{ id: string; to: number } | null>(null);
+  const grab = useRef<{ id: string; x: number; from: number; moved: boolean } | null>(null);
+  const order = (() => {
+    if (!drag) return refs;
+    const from = refs.findIndex((r) => r.id === drag.id);
+    if (from < 0) return refs;
+    const next = [...refs];
+    const [r] = next.splice(from, 1);
+    next.splice(drag.to, 0, r);
+    return next;
+  })();
+  const onGrab = (e: React.PointerEvent, id: string) => {
+    if (!onMove || e.button !== 0 || e.pointerType === 'touch' || refs.length < 2) return;
+    const from = refs.findIndex((r) => r.id === id);
+    grab.current = { id, x: e.clientX, from, moved: false };
+    const move = (ev: PointerEvent) => {
+      const g = grab.current;
+      if (!g) return;
+      const dx = ev.clientX - g.x;
+      if (!g.moved && Math.abs(dx) < DRAG_START) return;
+      g.moved = true;
+      const to = Math.max(0, Math.min(refs.length - 1, g.from + Math.round(dx / SLOT)));
+      setDrag((d) => (d && d.to === to ? d : { id: g.id, to }));
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', up);
+      const g = grab.current;
+      grab.current = null;
+      if (g?.moved) {
+        dragEndedAt = Date.now();
+        setDrag((d) => { if (d && d.to !== g.from) onMove(g.id, d.to); return null; });
+      }
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
+  };
   return (
     <div className="il-scroll-x" style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '4px 4px 0', touchAction: 'pan-x pan-y', flex: 'none' }}>
-      {refs.map((r) => {
+      {order.map((r) => {
         const sel = !adding && r.id === selectedId;
         const off = !r.on || unfit(r);
         const thumb = r.images[0]?.thumb;
         const label = refLabel(r);
         return (
-          <div key={r.id} style={{ position: 'relative', width: 64, flex: 'none' }}>
-            <button type="button" className="ilm-bubble" data-selected={sel || undefined} aria-pressed={sel} aria-label={label} title={label} onClick={() => onSelect(r.id)}
+          <div key={r.id} style={{ position: 'relative', width: 64, flex: 'none', opacity: drag?.id === r.id ? 0.7 : 1 }}>
+            <button type="button" className="ilm-bubble" data-selected={sel || undefined} aria-pressed={sel} aria-label={label} title={label}
+              onPointerDown={(e) => onGrab(e, r.id)} onClick={() => { if (Date.now() - dragEndedAt < 250) return; onSelect(r.id); }}
               style={{ width: 64, border: 0, background: 'transparent', padding: 0, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, color: sel ? 'var(--il-fg)' : off ? 'var(--il-dim)' : 'var(--il-fg2)' }}>
               <span style={{ position: 'relative', width: C, height: C }}>
                 <span className="ilm-bubble-ring" style={{

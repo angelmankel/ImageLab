@@ -24,3 +24,13 @@ export function addRef(refs: readonly StyleRef[], id: string, type: StyleRefType
   const a = samplerAdvice(r);
   return { refs: [...refs, r], id, cfg: a?.cfgMax != null && cfg > a.cfgMax ? a.cfg : undefined };
 }
+
+/** Drag to reorder: move a reference to an index (the order the stage chains them in). */
+export function moveRef(refs: readonly StyleRef[], id: string, to: number): StyleRef[] {
+  const from = refs.findIndex((r) => r.id === id);
+  if (from < 0) return [...refs];
+  const next = [...refs];
+  const [r] = next.splice(from, 1);
+  next.splice(Math.max(0, Math.min(next.length, to)), 0, r);
+  return next;
+}
