@@ -1,18 +1,17 @@
 /**
- * Item 30: the full-screen viewer, redesigned from the ground up (mockup:
- * agent-handoffs/fixlist-mockups/30-viewer.html). Nothing is drawn over the picture:
- *   desktop  top bar (56) / [thumbnail rail 92 | picture between its prev / next gutters | panel 380]
- *   phone    top bar / the picture (swipe pages with motion, pull down closes) / a sheet with the
- *            Send chips and the Details cards, scrolling.
- * The panel has two tabs: Send (quick actions) and Details (rich metadata). Open, close and every
- * seek but a finger's swipe are instant (item 3); only the slideshow animates (its transition and
- * speed live in the top bar). A tap on the picture toggles focus (chrome hidden).
- * Keys: Esc close (focus first) · ←/→ previous / next (wrap) · S slideshow · I panel · F favourite
- * · Del delete. The controller drives it through `registerViewer`.
+ * The full-screen viewer (item 30, list-2 item 22). A click on the canvas opens it straight to the
+ * REAL full screen: the picture gets everything under a slim nav row (`ViewerNav`, its own row —
+ * nothing over the picture; its buttons fade after 2.5 s without a mouse move and the cursor hides,
+ * a move or a tap brings them back). ⓘ turns on the metadata view (remembered): desktop
+ * [thumbnail strip 92 | picture | panel 380], phone the picture over a sheet; the panel has Send
+ * and Details tabs (external pictures, item 31: their CivitAI data). Previous / next are round
+ * frosted buttons at the picture's edges (hover), ←/→ keys, a finger's swipe (the only animated
+ * move, item 3); only the slideshow animates otherwise (transition + speed in the nav).
+ * Keys: Esc close · ←/→ previous / next (wrap) · S slideshow · I details · F favourite · Del delete.
+ * The controller drives it through `registerViewer`.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { IconChevronLeft, IconChevronRight } from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
 import { useShortcut, ShortcutPriority } from '@/hooks/useShortcut';
 import { registerViewer } from '@/components/viewerTransition';
@@ -20,14 +19,15 @@ import { useIsPhone } from '~/app/useIsPhone';
 import { menuProps } from '~/app/contextMenu';
 import { deleteOutput } from '~/app/deleteResult';
 import { makePayload, useImageDrag } from '~/dnd';
-import { IconBtn } from '~/ui';
 import { T } from '~/theme/tokens';
 import { PagerPicture, ShowPicture } from './ViewerPicture';
-import { ViewerTopBar } from './ViewerTopBar';
+import { ViewerNav } from './ViewerNav';
 import { ViewerStrip } from './ViewerStrip';
 import { SendPanel } from './SendPanel';
 import { DetailsPanel } from './DetailsPanel';
 import { ExternalDetails } from './ExternalDetails';
+import { EdgeArrows } from './EdgeArrows';
+import { useIdle } from './useIdle';
 import { useViewerStore, type ViewerTab } from './viewerStore';
 import type { ViewerItem } from './types';
 import './viewerMenu';
@@ -58,18 +58,20 @@ export function ImageViewer({ items, index, onIndexChange, onClose, liveUrl = nu
   z?: number;
 }) {
   const phone = useIsPhone();
-  const panel = useViewerStore((s) => s.panel);
-  const setPanel = useViewerStore((s) => s.setPanel);
+  const meta = useViewerStore((s) => s.meta);
+  const setMeta = useViewerStore((s) => s.setMeta);
   const tab = useViewerStore((s) => s.tab);
   const setTab = useViewerStore((s) => s.setTab);
   const transition = useViewerStore((s) => s.transition);
   const speedMs = useViewerStore((s) => s.speedMs);
   const playing = useStore((s) => s.slideshowPlaying);
   const setPlaying = useStore((s) => s.setSlideshowPlaying);
-  const [focus, setFocus] = useState(false);
   const [natural, setNatural] = useState<{ w: number; h: number } | null>(null);
   /** External NSFW pictures shown after a tap (item 31 / 27), for as long as the viewer is open. */
   const [revealed, setRevealed] = useState<ReadonlySet<string>>(() => new Set());
+  /** The nav is held awake: a popover of it is open or the pointer is on it. */
+  const [hold, setHold] = useState(false);
+  const { idle, wake, sleep } = useIdle(2500, !meta || phone, hold);
 
   const rootRef = useRef<HTMLDivElement>(null);
   useEffect(() => { rootRef.current?.focus({ preventScroll: true }); }, []);
@@ -91,71 +93,70 @@ export function ImageViewer({ items, index, onIndexChange, onClose, liveUrl = nu
   useEffect(() => registerViewer({ step: (dir) => { if (!canPage) return false; go(dir); return true; }, close }), [canPage, go, close]);
 
   const P = ShortcutPriority.TopOverlay;
-  useShortcut('Escape', () => { if (focus) setFocus(false); else close(); }, { priority: P });
+  useShortcut('Escape', () => close(), { priority: P });
   useShortcut('ArrowLeft', () => go(-1), { priority: P });
   useShortcut('ArrowRight', () => go(1), { priority: P });
   useShortcut(['s', 'S'], () => { if (canPlay) setPlaying(!playing); }, { priority: P });
-  useShortcut(['i', 'I'], () => setPanel(!panel), { priority: P, when: () => !phone });
+  useShortcut(['i', 'I'], () => setMeta(!meta), { priority: P });
   useShortcut(['f', 'F'], () => { if (item?.entry) useStore.getState().toggleHistoryLiked(item.entry.id); }, { priority: P });
-  useShortcut('Delete', () => { if (item && !live && !item.external) deleteOutput({ entry: item.entry ?? null, url: item.url }); }, { priority: P });
+  useShortcut('Delete', (e) => { if (e.repeat) return; if (item && !live && !item.external) deleteOutput({ entry: item.entry ?? null, url: item.url }); }, { priority: P });
 
   const drag = useImageDrag(() => (item && !live ? makePayload({ url: item.url, name: item.filename, kind: item.kind, key: item.key, entryId: item.entry?.id, source: 'viewer' }) : null), { disabled: !item || live || phone });
 
   if (!item && !live) return null;
 
-  const tapPicture = () => { if (showing) setPlaying(false); else setFocus((f) => !f); };
+  // A tap on the picture: stops a slideshow; on a phone it shows / hides the nav.
+  const tapPicture = () => { if (showing) setPlaying(false); else if (phone) { if (idle) wake(); else sleep(); } };
   const picture = showing ? (
     <ShowPicture items={items} index={i} onIndexChange={onIndexChange} transition={transition} speedMs={speedMs} onTap={tapPicture} onNatural={onNatural} />
   ) : (
     <PagerPicture items={items} index={i} onIndexChange={onIndexChange} liveUrl={liveUrl} onClose={close} onTap={tapPicture} onNatural={onNatural} phone={phone} dragProps={phone || !('onDragStart' in drag) ? undefined : drag} />
   );
   const covered = !!item?.external?.nsfw && !revealed.has(item.key);
-  const pictureBox = covered ? (
-    <div style={{ flex: 1, minWidth: 0, minHeight: 0, position: 'relative', overflow: 'hidden', display: 'grid', placeItems: 'center' }}>
-      <img src={item!.url} alt="" draggable={false} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', filter: 'blur(48px) brightness(.6)' }} />
-      <button type="button" className="il-btn" onClick={() => setRevealed((r) => new Set(r).add(item!.key))}
-        style={{ position: 'relative', height: 44, padding: '0 18px', borderRadius: 999, border: 0, background: 'var(--il-elev)', color: 'var(--il-fg)', fontWeight: 800, fontSize: 13, cursor: 'pointer' }}>
-        NSFW · tap to show
-      </button>
-    </div>
-  ) : (
-    <div {...(item && !live ? menuProps('viewer-image', { item, onClose: close }) : {})}
-      style={{ flex: 1, minWidth: 0, minHeight: 0, position: 'relative' }}>
-      <div style={{ position: 'absolute', inset: 0 }}>{picture}</div>
-    </div>
-  );
-  const gutter = (dir: 1 | -1) => (
-    <div style={{ width: 64, flex: 'none', display: 'grid', placeItems: 'center' }}>
-      {canPage && !showing && (
-        <IconBtn icon={dir < 0 ? <IconChevronLeft size={20} stroke={2.4} /> : <IconChevronRight size={20} stroke={2.4} />} label={dir < 0 ? 'Previous' : 'Next'} keys={dir < 0 ? '←' : '→'}
-          onClick={() => go(dir)} size={44} style={{ borderRadius: '50%', background: 'var(--il-elev)', color: 'var(--il-fg)' }} />
-      )}
+  const pictureBox = (
+    <div {...(item && !live && !covered ? menuProps('viewer-image', { item, onClose: close }) : {})}
+      style={{ flex: 1, minWidth: 0, minHeight: 0, position: 'relative', overflow: 'hidden' }}>
+      {covered ? (
+        <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center' }}>
+          <img src={item!.url} alt="" draggable={false} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', filter: 'blur(48px) brightness(.6)' }} />
+          <button type="button" className="il-btn" onClick={() => setRevealed((r) => new Set(r).add(item!.key))}
+            style={{ position: 'relative', height: 44, padding: '0 18px', borderRadius: 999, border: 0, background: 'var(--il-elev)', color: 'var(--il-fg)', fontWeight: 800, fontSize: 13, cursor: 'pointer' }}>
+            NSFW · tap to show
+          </button>
+        </div>
+      ) : <div style={{ position: 'absolute', inset: 0 }}>{picture}</div>}
+      {canPage && !showing && !phone && <EdgeArrows onPrev={() => go(-1)} onNext={() => go(1)} show={!idle} />}
     </div>
   );
   const panelBody = item?.external ? <ExternalDetails item={item} natural={natural} /> : item && !live ? (tab === 'send' ? <SendPanel item={item} onClose={close} /> : <DetailsPanel item={item} natural={natural} />) : (
     <div style={{ padding: 24, color: 'var(--il-muted)', fontWeight: 600, fontSize: 12, textAlign: 'center' }}>Live preview — the details show when the job is done.</div>
   );
+  const tabs = !item?.external && <Tabs tab={tab} setTab={setTab} />;
 
-  const root: React.CSSProperties = { position: 'fixed', inset: 0, zIndex: z, outline: 'none', background: '#0B0B0D', color: 'var(--il-fg)', display: 'flex', flexDirection: 'column', fontFamily: T.font };
-  const bar = !focus && (
-    <ViewerTopBar item={item} index={i} count={len} live={live} natural={natural} playing={showing} setPlaying={setPlaying} onClose={close} phone={phone} canPlay={canPlay} />
+  const root: React.CSSProperties = { position: 'fixed', inset: 0, zIndex: z, outline: 'none', background: '#0B0B0D', color: 'var(--il-fg)', display: 'flex', flexDirection: 'column', fontFamily: T.font, cursor: idle && !phone ? 'none' : undefined };
+  const nav = (
+    <ViewerNav item={item} index={i} count={len} live={live} natural={natural} playing={showing} setPlaying={setPlaying} onClose={close} phone={phone} canPlay={canPlay} idle={idle} onHold={setHold} />
   );
+  const rootProps = {
+    ref: rootRef, tabIndex: -1, role: 'dialog', 'aria-label': 'Viewer', 'data-no-swipe': true, 'data-pad-layer': 'viewer', ...STOP,
+    onFocusCapture: stamp, onPointerMove: (e: React.PointerEvent) => { if (e.pointerType === 'mouse') wake(); }, style: root,
+  } as const;
 
   if (phone) {
     return createPortal(
-      <div ref={rootRef} tabIndex={-1} role="dialog" aria-label="Viewer" data-no-swipe data-pad-layer="viewer" {...STOP} onFocusCapture={stamp} style={root}>
-        {bar}
-        <div style={{ flex: focus ? 1 : 'none', height: focus ? undefined : '58dvh', display: 'flex', minHeight: 0 }}>{pictureBox}</div>
-        {!focus && canPage && (
+      <div {...rootProps}>
+        {nav}
+        <div style={{ flex: meta ? 'none' : 1, height: meta ? '58dvh' : undefined, display: 'flex', minHeight: 0 }}>{pictureBox}</div>
+        {meta && canPage && (
           <div aria-hidden style={{ height: 22, flex: 'none', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 5 }}>
             {items.slice(Math.max(0, i - 3), i + 4).map((it) => (
               <i key={it.key} style={{ width: it.key === item?.key ? 18 : 6, height: 6, borderRadius: 9, background: it.key === item?.key ? 'var(--il-ember)' : 'var(--il-line-strong)' }} />
             ))}
           </div>
         )}
-        {!focus && (
+        {meta && (
           <div style={{ flex: 1, minHeight: 0, background: 'var(--il-panel)', borderRadius: '20px 20px 0 0', display: 'flex', flexDirection: 'column' }}>
-            {!item?.external && <Tabs tab={tab} setTab={setTab} />}
+            {tabs}
             <div className="il-scroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 12, paddingBottom: 'calc(12px + env(safe-area-inset-bottom, 0px))', touchAction: 'pan-y' }}>{panelBody}</div>
           </div>
         )}
@@ -165,16 +166,14 @@ export function ImageViewer({ items, index, onIndexChange, onClose, liveUrl = nu
   }
 
   return createPortal(
-    <div ref={rootRef} tabIndex={-1} role="dialog" aria-label="Viewer" data-no-swipe data-pad-layer="viewer" {...STOP} onFocusCapture={stamp} style={root}>
-      {bar}
+    <div {...rootProps}>
+      {nav}
       <div style={{ flex: 1, minHeight: 0, display: 'flex' }}>
-        {!focus && len > 1 && !live && <ViewerStrip items={items} index={i} onPick={onIndexChange} />}
-        {!focus && gutter(-1)}
+        {meta && len > 1 && !live && <ViewerStrip items={items} index={i} onPick={onIndexChange} />}
         {pictureBox}
-        {!focus && gutter(1)}
-        {!focus && panel && (
+        {meta && (
           <aside style={{ width: 380, flex: 'none', borderLeft: '1px solid var(--il-line)', background: 'var(--il-panel)', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-            {!item?.external && <Tabs tab={tab} setTab={setTab} />}
+            {tabs}
             <div className="il-scroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 12 }}>{panelBody}</div>
           </aside>
         )}

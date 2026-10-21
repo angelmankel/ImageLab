@@ -1,5 +1,6 @@
 /**
- * Item 30: the viewer's own preferences (persisted): the side panel open or not, its tab, the
+ * Item 30 / list-2 item 22: the viewer's own preferences (persisted): the metadata view on or off
+ * (off = the real full screen a canvas click opens; ⓘ turns the strip + panel on and it stays), its tab, the
  * slideshow transition and speed. Whether the slideshow plays is the main store's
  * `slideshowPlaying` (the controller and the old viewer share it).
  */
@@ -10,11 +11,12 @@ import { isShowTransition, type ShowTransition } from './slideshowLogic';
 export type ViewerTab = 'send' | 'details';
 
 interface ViewerPrefs {
-  panel: boolean;
+  /** The metadata view (thumbnail strip + side panel / phone sheet). */
+  meta: boolean;
   tab: ViewerTab;
   transition: ShowTransition;
   speedMs: number;
-  setPanel: (on: boolean) => void;
+  setMeta: (on: boolean) => void;
   setTab: (t: ViewerTab) => void;
   setTransition: (t: ShowTransition) => void;
   setSpeed: (ms: number) => void;
@@ -23,11 +25,11 @@ interface ViewerPrefs {
 export const useViewerStore = create<ViewerPrefs>()(
   persist(
     (set) => ({
-      panel: true,
+      meta: false,
       tab: 'details',
       transition: 'dissolve',
       speedMs: 4000,
-      setPanel: (panel) => set({ panel }),
+      setMeta: (meta) => set({ meta }),
       setTab: (tab) => set({ tab }),
       setTransition: (transition) => set({ transition }),
       setSpeed: (speedMs) => set({ speedMs: Math.max(1000, Math.min(60000, speedMs)) }),
@@ -36,6 +38,7 @@ export const useViewerStore = create<ViewerPrefs>()(
       name: 'imagelab.next.viewer.v1',
       merge: (p, cur) => {
         const s = { ...cur, ...(p as Partial<ViewerPrefs>) };
+        if (typeof s.meta !== 'boolean') s.meta = false;
         if (!isShowTransition(s.transition)) s.transition = 'dissolve';
         return s;
       },
