@@ -10,7 +10,7 @@
  * a picture dropped on a tile (or on the grid while a collection is shown) moves there.
  */
 import { useMemo, useRef, useState } from 'react';
-import { LoadingImage, TileActions, tileClick, useScrollIntoView } from '~/ui';
+import { LoadingImage, TileActions, tileClick, useScrollIntoView, VideoThumb } from '~/ui';
 import { IconArrowLeft, IconDots, IconEraser, IconRestore } from '@tabler/icons-react';
 import { ImageViewer } from '~/screens/viewer/ImageViewer';
 import { useStore } from '@/lib/store';
@@ -72,7 +72,7 @@ function TileView({ tile, selected, phone, onPick, onOpen, onLike, onDelete }: {
       <button type="button" onClick={tileClick(selected, onPick, onOpen)} aria-label={tile.filename} aria-pressed={selected} data-viewer-origin={tile.entryId} data-no-ctx {...press}
         style={{ display: 'block', width: '100%', height: '100%', padding: 0, border: 0, background: 'transparent', cursor: selected ? 'zoom-in' : 'pointer' }}>
         {tile.kind === 'video'
-          ? <video src={tile.url} muted playsInline preload="metadata" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', pointerEvents: 'none' }} />
+          ? <VideoThumb src={tile.url} style={{ width: '100%', height: '100%' }} />
           : <LoadingImage src={tile.url} alt="" {...drag} style={{ width: '100%', height: '100%' }} />}
       </button>
       {/* The selected ring: its own layer over the picture (an outline on the tile was painted under the

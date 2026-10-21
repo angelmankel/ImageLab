@@ -10,7 +10,9 @@
 import { memo, useCallback, useEffect, useRef } from 'react';
 import { IconEyeOff } from '@tabler/icons-react';
 import type { CivitaiImage } from '@/lib/civitai';
+import { civitaiVideoUrl, isCivitaiVideo } from '@/lib/civitai';
 import { civitaiSmallUrl } from '~/lib/civitaiSize';
+import { VideoThumb } from '~/ui/VideoThumb';
 import { COVER_FALLBACK } from '~/screens/models/bits';
 import { useKeepScroll, keptScroll } from '~/screens/models/useKeepScroll';
 import { Skeleton } from '~/ui';
@@ -22,10 +24,12 @@ const THUMB = 66;
 const Thumb = memo(function Thumb({ img, i, on, hidden, onTap }: { img: CivitaiImage; i: number; on: boolean; hidden: boolean; onTap: (i: number, on: boolean) => void }) {
   return (
     <button type="button" aria-label={`Image ${i + 1}`} aria-pressed={on} onClick={() => onTap(i, on)}
-      style={{ width: THUMB, height: THUMB, flex: 'none', padding: 0, border: 0, borderRadius: 10, overflow: 'hidden', background: COVER_FALLBACK, outline: on ? '2px solid var(--il-ember)' : '2px solid transparent', outlineOffset: -2, opacity: on ? 1 : 0.8, cursor: 'pointer', display: 'grid', placeItems: 'center', color: 'var(--il-muted)' }}>
+      style={{ position: 'relative', width: THUMB, height: THUMB, flex: 'none', padding: 0, border: 0, borderRadius: 10, overflow: 'hidden', background: COVER_FALLBACK, outline: on ? '2px solid var(--il-ember)' : '2px solid transparent', outlineOffset: -2, opacity: on ? 1 : 0.8, cursor: 'pointer', display: 'grid', placeItems: 'center', color: 'var(--il-muted)' }}>
       {hidden
         ? <IconEyeOff size={16} stroke={2} />
         : <img src={civitaiSmallUrl(img, THUMB * 3)} alt="" loading="lazy" decoding="async" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />}
+      {/* Hover plays a clip; never by itself here (measured: 4 strip clips beside the playing picture dropped frames). */}
+      {!hidden && isCivitaiVideo(img) && <VideoThumb src={civitaiVideoUrl(img.url, 320)} overlay autoplay={false} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} />}
     </button>
   );
 });

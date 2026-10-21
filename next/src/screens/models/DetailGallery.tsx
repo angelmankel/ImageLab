@@ -10,7 +10,7 @@ import type { CivitaiImage } from '@/lib/civitai';
 import { civitaiThumbUrl, civitaiVideoUrl, isCivitaiVideo, previewStill } from '@/lib/civitai';
 import { civitaiSmallUrl } from '~/lib/civitaiSize';
 import { useNsfwCover } from './nsfwCover';
-import { Spinner } from '~/ui';
+import { Spinner, VideoThumb } from '~/ui';
 import { COVER_FALLBACK, GhostBtn, type Size } from './bits';
 
 export function Media({ img, width, reveal, blurred, style, cover = true, still }: { img: CivitaiImage; width: number; reveal: () => void; blurred: boolean; style?: React.CSSProperties; cover?: boolean; still?: boolean }) {
@@ -24,6 +24,9 @@ export function Media({ img, width, reveal, blurred, style, cover = true, still 
       {video && !blurred
         ? <video src={civitaiVideoUrl(img.url, width)} poster={stillUrl} muted loop autoPlay playsInline style={base} />
         : <img src={stillUrl} alt="" loading="lazy" decoding="async" style={base} />}
+      {/* A clip's thumbnail plays as Settings → Video previews says (hover by default), over its still. */}
+      {/* Hover only: the big clip above already plays (same rule as the model viewer's strip). */}
+      {still && !blurred && isCivitaiVideo(img) && <VideoThumb src={civitaiVideoUrl(img.url, 320)} overlay autoplay={false} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} />}
       {blurred && (
         <button type="button" onClick={(e) => { e.stopPropagation(); reveal(); }} style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', border: 0, background: 'color-mix(in srgb, var(--il-bg) 35%, transparent)', color: 'var(--il-fg)', cursor: 'pointer' }}>
           <span style={{ height: 26, padding: '0 10px', borderRadius: 999, background: 'color-mix(in srgb, var(--il-bg) 80%, transparent)', fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6 }}><IconEyeOff size={12} />NSFW · tap to show</span>

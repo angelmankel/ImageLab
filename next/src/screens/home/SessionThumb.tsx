@@ -3,9 +3,11 @@
  * Used by the tab strip (20px) and the Home tiles (natural aspect ratio).
  */
 import type { CSSProperties } from 'react';
+import { VideoThumb } from '~/ui/VideoThumb';
 import type { ResultItem } from '@/lib/workspace';
 
-export function SessionThumb({ item, style, label }: { item: ResultItem | null; style?: CSSProperties; label?: string }) {
+/** `autoplay={false}`: a clip here plays on hover only, never by itself (the session tabs). */
+export function SessionThumb({ item, style, label, autoplay = true }: { item: ResultItem | null; style?: CSSProperties; label?: string; autoplay?: boolean }) {
   const box: CSSProperties = { display: 'block', objectFit: 'cover', background: 'var(--il-bg-deep)', ...style };
   if (!item) {
     return (
@@ -14,6 +16,7 @@ export function SessionThumb({ item, style, label }: { item: ResultItem | null; 
       </span>
     );
   }
-  if (item.kind === 'video') return <video src={item.url} muted playsInline preload="metadata" style={{ ...box, pointerEvents: 'none' }} />;
+  // Settings → Video previews.
+  if (item.kind === 'video') return <VideoThumb src={item.url} autoplay={autoplay} style={box} />;
   return <img src={item.url} alt="" loading="lazy" draggable={false} style={box} />;
 }

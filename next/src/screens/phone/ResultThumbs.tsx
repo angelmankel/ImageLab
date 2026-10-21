@@ -7,6 +7,7 @@ import { useEffect, useRef } from 'react';
 import { IconChevronRight } from '@tabler/icons-react';
 import type { ResultItem } from '@/lib/workspace';
 import { T } from '~/theme/tokens';
+import { VideoThumb } from '~/ui/VideoThumb';
 
 const SIZE = 56;
 const MAX = 60;
@@ -47,7 +48,7 @@ export function ResultThumbs({ items, currentKey, onPick, onOpen, onMore }: {
             }}
           >
             {it.kind === 'video'
-              ? <video src={it.url} muted playsInline preload="metadata" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+              ? <VideoThumb src={it.url} style={{ width: '100%', height: '100%' }} />
               : <img src={it.url} alt="" loading="lazy" decoding="async" draggable={false} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />}
           </button>
         );

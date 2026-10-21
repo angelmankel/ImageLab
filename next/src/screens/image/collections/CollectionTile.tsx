@@ -11,6 +11,7 @@ import type { Collection } from '@/lib/types';
 import { menuProps } from '~/app/contextMenu';
 import { useImageDrop, useRegisterDropTarget } from '~/dnd';
 import { addImageToCollection, deleteCollection, renameCollection, startRename, useCollectionsUi } from './collectionActions';
+import { VideoThumb } from '~/ui/VideoThumb';
 
 /** Item 23: about a quarter bigger than before (68), room for the cover and the name. */
 export const TILE = 86;
@@ -34,7 +35,7 @@ export function CollectionTile({ c, count, cover, coverIsVideo, active, onPick }
           color: 'var(--il-fg)',
         }}>
         {cover && (coverIsVideo
-          ? <video src={cover} muted playsInline preload="metadata" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', pointerEvents: 'none' }} />
+          ? <VideoThumb src={cover} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} />
           : <img src={cover} alt="" loading="lazy" draggable={false} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />)}
         {!cover && <IconFolder size={26} stroke={1.8} style={{ position: 'absolute', left: '50%', top: 22, transform: 'translateX(-50%)', color: 'var(--il-muted)' }} />}
         <span aria-hidden style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 40, background: 'linear-gradient(transparent, color-mix(in srgb, var(--il-bg-deep) 85%, transparent))' }} />

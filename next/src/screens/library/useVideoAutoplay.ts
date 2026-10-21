@@ -1,5 +1,5 @@
 /**
- * Library (rule 12): React glue for grid video autoplay. `useGridAutoplay` (in LibraryGrid) makes
+ * Library (rule 12): React glue for grid video autoplay (only with Settings → Video previews = Autoplay; hover plays otherwise). `useGridAutoplay` (in LibraryGrid) makes
  * one VideoAutoplay, attaches it to the grid's scroll container and keeps cap (phone 3 / desktop 6)
  * and the allowed flag (reduced motion, Save-Data, `paused`) current; tiles reach it through
  * AutoplayContext with `useAutoplayVideo`. Without a provider a tile is just the first-frame still.
@@ -7,6 +7,8 @@
 import { createContext, useContext, useEffect, useRef, useState, type RefObject } from 'react';
 import { useMediaQuery } from '@mantine/hooks';
 import { useIsPhone } from '~/app/useIsPhone';
+import { useVideoPreview } from '~/app/videoPreview';
+import { useHoverPlay } from '~/ui/VideoThumb';
 import { VideoAutoplay } from './videoAutoplay';
 import { autoplayAllowed, playCap } from './videoAutoplayLogic';
 
@@ -31,6 +33,8 @@ export function useGridAutoplay(gridRef: RefObject<HTMLElement>, paused: boolean
   const [ctl] = useState(() => new VideoAutoplay());
   const isPhone = useIsPhone();
   const reducedMotion = useMediaQuery(REDUCED, typeof window !== 'undefined' ? window.matchMedia(REDUCED).matches : false) ?? false;
+  // Settings → Video previews: only Autoplay plays on its own (On hover / Off: the tile's hover, or nothing).
+  const autoplay = useVideoPreview((s) => s.mode) === 'autoplay';
 
   useEffect(() => {
     const el = gridRef.current;
@@ -38,7 +42,7 @@ export function useGridAutoplay(gridRef: RefObject<HTMLElement>, paused: boolean
     return () => ctl.detach();
   }, [ctl, gridRef]);
   useEffect(() => ctl.setCap(playCap(isPhone)), [ctl, isPhone]);
-  useEffect(() => ctl.setAllowed(autoplayAllowed({ reducedMotion, saveData: saveData(), paused })), [ctl, reducedMotion, paused]);
+  useEffect(() => ctl.setAllowed(autoplay && autoplayAllowed({ reducedMotion, saveData: saveData(), paused })), [ctl, autoplay, reducedMotion, paused]);
   return ctl;
 }
 
@@ -53,5 +57,7 @@ export function useAutoplayVideo(url: string, active: boolean): RefObject<HTMLVi
     el.preload = 'metadata';
     el.src = `${url}#t=0.1`;
   }, [ctl, url, active]);
+  // On hover (and Autoplay's fallback): the tile under the pointer plays.
+  useHoverPlay(ref, ctl, undefined, active);
   return ref;
 }

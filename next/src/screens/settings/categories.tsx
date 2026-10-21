@@ -21,7 +21,7 @@ export const CATEGORIES: readonly Category[] = [
   { id: 'generate', label: 'Generate', description: 'The Generate button: how many images one run can make.', icon: IconPhotoBolt },
   { id: 'ai', label: 'AI helper', description: 'The provider and model that write, improve and read prompts. Keys stay in this browser; calls go straight from this tab to the active provider.', icon: IconSparkles },
   { id: 'models', label: 'Models & CivitAI', description: 'CivitAI access and how model previews play.', icon: IconCube },
-  { id: 'appearance', label: 'Appearance', description: 'Sizes and looks of the library.', icon: IconPalette },
+  { id: 'appearance', label: 'Appearance', description: 'Sizes and looks of the library, and how video previews play.', icon: IconPalette },
   { id: 'themes', label: 'Themes', description: 'Colours, fonts, size, shape and motion. Every change shows at once.', icon: IconBrush },
   { id: 'sounds', label: 'Sounds', description: 'Volume, mute, and the sound for each action: clicks, windows, jobs, errors.', icon: IconVolume },
   { id: 'hints', label: 'Hints', description: 'The help text on every parameter: on or off (H), and each text, editable.', icon: IconBulb },

@@ -63,7 +63,7 @@ export function SessionRing({ color, item, job, size = RING, bg = 'var(--il-bg-d
     <span aria-hidden className={running ? 'il-tab-pulse' : undefined}
       style={{ position: 'relative', width: size, height: size, flex: 'none', borderRadius: '50%', padding: 2, background: ring, display: 'block', ['--il-ring' as string]: color }}>
       <span style={{ display: 'block', width: '100%', height: '100%', borderRadius: '50%', overflow: 'hidden', border: `1.5px solid ${bg}`, background: `color-mix(in srgb, ${color} 28%, var(--il-panel))` }}>
-        {item && <SessionThumb item={item} style={{ width: '100%', height: '100%', borderRadius: '50%' }} />}
+        {item && <SessionThumb item={item} autoplay={false} style={{ width: '100%', height: '100%', borderRadius: '50%' }} />}
       </span>
     </span>
   );

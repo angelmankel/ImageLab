@@ -14,7 +14,7 @@ import { useStepInput, useStepResults } from '~/screens/image/useStepOutput';
 import { toChainPick, type StepResult } from '~/screens/image/stepInputLogic';
 import { makePayload, useImageDrag } from '~/dnd';
 import { useIsPhone } from '~/app/useIsPhone';
-import { Button, useWheelSideways } from '~/ui';
+import { Button, useWheelSideways, VideoThumb } from '~/ui';
 import { T } from '~/theme/tokens';
 import { vh } from '~/theme/uiScale';
 import { SourceChoice } from './SourceChoice';
@@ -30,7 +30,7 @@ function ResultTile({ r, selected, size, onPick }: { r: StepResult; selected: bo
   return (
     <button type="button" onClick={onPick} aria-label={r.name} aria-pressed={selected} title={r.name}
       style={{ flex: 'none', width: size === 'fill' ? '100%' : size, height: size === 'fill' ? undefined : size, aspectRatio: size === 'fill' ? '1' : undefined, padding: 0, border: 0, borderRadius: T.radius.sm, background: 'var(--il-bg-deep)', cursor: 'pointer', outline: selected ? '3px solid var(--il-ember)' : undefined, outlineOffset: -3, overflow: 'hidden', position: 'relative' }}>
-      {r.kind === 'video' ? <video src={r.url} muted playsInline preload="metadata" style={box} /> : <img src={r.url} alt="" loading="lazy" style={box} />}
+      {r.kind === 'video' ? <VideoThumb src={r.url} style={box} /> : <img src={r.url} alt="" loading="lazy" style={box} />}
       {r.kind === 'video' && <span style={{ position: 'absolute', left: 5, bottom: 4, fontSize: 9, fontWeight: 800, color: 'color-mix(in srgb, var(--il-fg) 90%, transparent)', background: 'color-mix(in srgb, var(--il-bg-deep) 60%, transparent)', borderRadius: 999, padding: '1px 5px' }}>VIDEO</span>}
     </button>
   );

@@ -20,7 +20,7 @@ import { IconArrowsMaximize, IconCheck, IconChevronRight, IconEyeOff, IconHeart,
 import type { CivitaiModel, CivitaiModelVersion } from '@/lib/civitai';
 import { civitaiVideoUrl, isCivitaiVideo, previewStill } from '@/lib/civitai';
 import { civitaiSmallUrl } from '~/lib/civitaiSize';
-import { Button } from '~/ui';
+import { Button, VideoThumb } from '~/ui';
 import { makePayload, nameFromUrl, useImageDrag } from '~/dnd';
 import { baseModelShort, typeLabel, type InstalledState } from './civitaiQuery';
 import { useNsfwCover } from './nsfwCover';
@@ -77,7 +77,8 @@ export function ModelTile({ model, selected, installed, revealed, favourite, pic
   const [hover, setHover] = useState(false);
   const clip = (() => {
     const c = image && isCivitaiVideo(image) ? image : images.find((i) => isCivitaiVideo(i) && !covered(i.nsfwLevel));
-    return c?.url ? civitaiVideoUrl(c.url, TILE_THUMB) : null;
+    // The smallest transcode that fills a tile (video previews: smallest rendition).
+    return c?.url ? civitaiVideoUrl(c.url, 450) : null;
   })();
   const [broken, setBroken] = useState(false);
   useEffect(() => setBroken(false), [image?.url]);
@@ -130,10 +131,8 @@ export function ModelTile({ model, selected, installed, revealed, favourite, pic
           }}
         >
           {!hidden && url && !broken && <img src={url} alt="" loading="lazy" decoding="async" draggable={false} onError={() => setBroken(true)} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
-          {!hidden && hover && clip && (
-            <video src={clip} poster={url || undefined} muted loop autoPlay playsInline disablePictureInPicture preload="auto" aria-hidden
-              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', background: 'transparent' }} />
-          )}
+          {/* Settings → Video previews: on hover (default) / autoplay on screen / off; the still stays under it. */}
+          {!hidden && clip && <VideoThumb src={clip} overlay hovered={hover} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} />}
           {hidden ? (
             <span style={{ height: 26, padding: '0 10px', border: '1px solid var(--il-line-strong)', borderRadius: 999, fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6 }}>
               <IconEyeOff size={12} stroke={2.2} />NSFW · tap to show
