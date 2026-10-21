@@ -12,6 +12,7 @@ import { GlassBar } from '~/ui';
 import { GenerateOrb } from './GenerateOrb';
 import { StepsStrip } from './StepsStrip';
 import { usePhone } from './phoneStore';
+import { useKeyboardOpen } from '~/phone/keyboard';
 
 /** The height the dock takes over the page, so scroll content can end above it. */
 export const DOCK_SPACE = 150;
@@ -39,6 +40,8 @@ export function PhoneDock({ onJump }: { onJump: (id: string) => void }) {
   const setPage = usePhone((s) => s.setPage);
   const setMoreOpen = usePhone((s) => s.setMoreOpen);
   const go = useRoute((s) => s.go);
+  // The keyboard is up: the dock steps aside so the text box and its suggestions have the room.
+  if (useKeyboardOpen()) return null;
   return (
     <GlassBar style={{
       left: 12, right: 12, bottom: 'calc(10px + var(--il-safe-bottom))', borderRadius: 30, padding: '10px 10px 8px', gap: 8,

@@ -13,6 +13,7 @@ import { SettingsPhoneScreen } from '~/screens/settings';
 import { HomePhoneScreen } from '~/screens/home/HomePhoneScreen';
 import { AppEffects } from './imageBridge';
 import { PhoneStepScreen } from './PhoneStepScreen';
+import { PhoneEffects } from '~/phone/PhoneEffects';
 
 function Screen() {
   const screen = useRoute((s) => s.screen);
@@ -28,6 +29,7 @@ export function PhoneShell() {
   return (
     <div style={{ position: 'relative', height: '100%', overflow: 'hidden', background: 'var(--il-bg)', overscrollBehavior: 'none' }}>
       <AppEffects />
+      <PhoneEffects />
       <Screen />
     </div>
   );

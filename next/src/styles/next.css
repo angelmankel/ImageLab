@@ -15,6 +15,9 @@
   --il-font: "Manrope Variable", Manrope, system-ui, sans-serif;
   --il-blur: blur(18px);
   --il-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --il-safe-top: env(safe-area-inset-top, 0px); --il-safe-left: env(safe-area-inset-left, 0px); --il-safe-right: env(safe-area-inset-right, 0px);
+  /* On-screen keyboard height (phone/keyboard.ts); 0 when closed. */
+  --il-kb: 0px;
   /* Button rounding (item 33): radius = half the height × this. 1 = a full pill, .85 = 15% less. Themes change it here. */
   --il-btn-round: .85;
   /* Motion (item 44): the themes agent flips this to 0 for "animations off"; reduced-motion does too. */
@@ -328,3 +331,5 @@ html[data-motion="off"] .il-ring-spin { animation: none; }
 .il-nav[data-show="false"] { opacity: 0 !important; pointer-events: none !important; }
 .il-nav:hover { background: color-mix(in srgb, var(--il-card-on) 88%, transparent); transform: scale(calc(1 + .06 * var(--il-motion))); }
 .il-nav:active { transform: scale(calc(1 - .06 * var(--il-motion))); }
+/* Phone: the dock steps aside while the on-screen keyboard is open (phone/keyboard.ts). */
+html[data-kb] .il-hide-on-kb { display: none !important; }

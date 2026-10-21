@@ -16,6 +16,7 @@ import { T } from '~/theme/tokens';
 import { toCssPx, vh } from '~/theme/uiScale';
 import { useScrollIntoView } from '~/ui/scrollIntoNearest';
 import { useIsPhone } from '~/app/useIsPhone';
+import { haptic } from '~/phone/haptic';
 import {
   firstIndex, isTextField, lastIndex, letterIndex, placeAtPoint, placeBeside, stepIndex, type MenuRow,
 } from './menuLogic';
@@ -80,7 +81,7 @@ function useGlobalMenuListeners() {
           if (ev.defaultPrevented) {
             syntheticAt = Date.now();
             suppressClickUntil = syntheticAt + 800;
-            try { navigator.vibrate?.(8); } catch { /* not supported */ }
+            haptic('hold');
           }
         }, LONG_PRESS_MS),
       };
