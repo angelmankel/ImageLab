@@ -9,15 +9,16 @@ import { IconCheck, IconDownload, IconLoader2 } from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
 import { serversWithModel } from '@/lib/routing';
 import { useDownloadsStore } from '@/features/downloads';
-import { primaryFile } from '@/features/model-metadata/civitai';
+import { useHashPending } from '@/lib/hashPending';
 import type { CivitaiModelVersion } from '@/lib/civitai';
-import { folderForType } from './civitaiQuery';
+import { folderForType, versionDiskState, type VersionDiskState } from './civitaiQuery';
 import { useInstalled } from './useInstalled';
 import { useModels } from './modelsStore';
 import { EmberBtn, GhostBtn, RoundAction, type Size } from './bits';
 import { notifyError, say } from '~/app/notify';
 
-export type DownloadState = 'download' | 'sync' | 'on-disk' | 'downloading' | 'offline';
+/** ONE rule for every download control (`versionDiskState`): any file's hash, then names; "unchecked" when no server could list hashes. */
+export type DownloadState = VersionDiskState;
 
 export function useVersionDownload() {
   const servers = useStore((s) => s.servers);
@@ -25,16 +26,15 @@ export function useVersionDownload() {
   const rows = useDownloadsStore((s) => s.rows);
   const start = useDownloadsStore((s) => s.start);
   const installed = useInstalled();
+  const listed = useHashPending((s) => s.listed);
   const online = servers.filter((s) => serverInfo[s.id]);
 
-  const stateOf = (v: CivitaiModelVersion): { state: DownloadState; missing: string[] } => {
-    if (online.length === 0) return { state: 'offline', missing: [] };
-    const have = new Set(serversWithModel(serverInfo, primaryFile(v)?.name ?? ''));
-    const missing = online.filter((s) => !have.has(s.id)).map((s) => s.id);
-    if (rows.some((r) => r.version_id === v.id && r.status === 'downloading')) return { state: 'downloading', missing };
-    if (missing.length === 0 || (have.size === 0 && installed.version(v))) return { state: 'on-disk', missing: [] };
-    return { state: have.size > 0 ? 'sync' : 'download', missing };
-  };
+  const stateOf = (v: CivitaiModelVersion): { state: DownloadState; missing: string[] } => versionDiskState(v, installed.index, {
+    online: online.map((s) => s.id),
+    withName: (name) => serversWithModel(serverInfo, name),
+    hashListed: online.filter((s) => listed[s.host]).length,
+    downloading: rows.some((r) => r.version_id === v.id && r.status === 'downloading'),
+  });
 
   const download = async (v: CivitaiModelVersion, modelType?: string) => {
     const { state, missing } = stateOf(v);
@@ -50,7 +50,7 @@ export function useVersionDownload() {
   return { stateOf, download, online: online.length };
 }
 
-const LABEL: Record<DownloadState, string> = { download: 'Download', sync: 'Sync', 'on-disk': 'Installed', downloading: 'Downloading…', offline: 'No server' };
+const LABEL: Record<DownloadState, string> = { download: 'Download', sync: 'Sync', 'on-disk': 'Installed', downloading: 'Downloading…', offline: 'No server', unchecked: "Can't check" };
 
 /**
  * One version's download control. `shape`: 'pill' (tile / file row: "↓ Download"), 'round' (phone
@@ -70,7 +70,7 @@ export function DownloadButton({ version, modelType, shape = 'pill', size = 'des
   if (shape === 'round') {
     return (
       <span onClick={stop} onPointerDown={stop}>
-        <RoundAction label={label} tone={state === 'on-disk' ? 'ok' : state === 'sync' ? 'ghost' : 'ember'} onClick={state === 'download' || state === 'sync' ? () => void download(version, modelType) : undefined} disabled={state === 'offline' || state === 'downloading'}>
+        <RoundAction label={label} tone={state === 'on-disk' ? 'ok' : state === 'sync' ? 'ghost' : 'ember'} onClick={state === 'download' || state === 'sync' || state === 'unchecked' ? () => void download(version, modelType) : undefined} disabled={state === 'offline' || state === 'downloading'}>
           {icon}
         </RoundAction>
       </span>
@@ -89,7 +89,7 @@ export function DownloadButton({ version, modelType, shape = 'pill', size = 'des
   return (
     <span onClick={stop} onPointerDown={stop} style={{ display: 'inline-flex', ...style }}>
       <EmberBtn size={size} h={h} label={label} disabled={state === 'offline' || state === 'downloading'} onClick={() => void download(version, modelType)} style={style?.flex ? { flex: 1, width: '100%' } : undefined}>
-        {icon}{state === 'downloading' ? 'Downloading' : state === 'sync' ? 'Sync' : 'Download'}
+        {icon}{state === 'downloading' ? 'Downloading' : state === 'sync' ? 'Sync' : state === 'unchecked' ? "Can't check · get" : 'Download'}
       </EmberBtn>
     </span>
   );

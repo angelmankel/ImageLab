@@ -282,3 +282,27 @@ test('a search inside Favourites / Account ★ never becomes a CivitAI-wide quer
   assert.deepEqual(plan.filters.ids, [5, 6]);
   assert.equal(Q.planSearch({ ...Q.DEFAULT_FILTERS, query: 'pa' }, { hasKey: true, favouriteIds: [], followedUsers: [] }).filters.query, 'pa');
 });
+
+test('installed: a NON-primary weights file, a renamed file (by hash), and "can\'t check" without hash lists (fix list 2, SD 1.5 bug)', () => {
+  const v = { id: 7, files: [
+    { name: 'perfectdeliberate_v5SD15_196212.safetensors', type: 'Model', primary: true, hashes: { SHA256: '1BB21086' } },
+    { name: 'perfectdeliberate_v5SD15_197009.safetensors', type: 'Pruned Model', hashes: { SHA256: '117D8315' } },
+    { name: 'data.zip', type: 'Training Data', hashes: { SHA256: 'DEAD' } },
+  ] };
+  // on disk under another name; only the non-primary file's hash matches
+  const idx = Q.buildInstalledIndex(['117d8315'], ['perfectdeliberate_v5SD15.safetensors']);
+  assert.equal(Q.versionInstalled(v, idx), true);
+  assert.equal(Q.installedFileOf(v, idx).name, 'perfectdeliberate_v5SD15_197009.safetensors');
+  assert.equal(Q.versionInstalled(v, Q.buildInstalledIndex(['dead'], [])), false, 'training data never counts');
+  const none = () => [];
+  // two servers, one without a hash list: the other's hash still says on disk
+  assert.equal(Q.versionDiskState(v, idx, { online: ['a', 'b'], withName: none, hashListed: 1, downloading: false }).state, 'on-disk');
+  // no hash list anywhere and no name match: can't check, not "download"
+  const empty = Q.buildInstalledIndex([], ['other.safetensors']);
+  assert.equal(Q.versionDiskState(v, empty, { online: ['a'], withName: none, hashListed: 0, downloading: false }).state, 'unchecked');
+  assert.equal(Q.versionDiskState(v, empty, { online: ['a'], withName: none, hashListed: 1, downloading: false }).state, 'download');
+  // listed by name on one of two servers → sync
+  const byName = (n) => (n === 'perfectdeliberate_v5SD15_197009.safetensors' ? ['a'] : []);
+  assert.deepEqual(Q.versionDiskState(v, Q.buildInstalledIndex([], ['perfectdeliberate_v5SD15_197009.safetensors']), { online: ['a', 'b'], withName: byName, hashListed: 1, downloading: false }), { state: 'sync', missing: ['b'] });
+  assert.equal(Q.versionDiskState(v, idx, { online: [], withName: none, hashListed: 0, downloading: false }).state, 'offline');
+});

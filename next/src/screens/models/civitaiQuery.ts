@@ -417,8 +417,49 @@ export function fileInstalled(f: FileLike, idx: InstalledIndex): boolean {
   return idx.baseNames.has(base) || idx.baseNames.has(base.replace(/\.[^.]+$/, ''));
 }
 
+/**
+ * A file that IS the model: the primary one or any other model-weights file — "Model", "Pruned
+ * Model", fp16 / full variants… (fix list 2, added item: SD 1.5 versions often ship 2–3 weight
+ * files and the one on disk is not the primary, so it read "not downloaded"). Not: training data,
+ * configs, a bundled VAE, archives.
+ */
+const NOT_MODEL_FILE = /^(training data|config|vae|archive|text encoder|negative)$/i;
+export function isModelFile(f: FileLike): boolean {
+  return !!f.primary || !f.type || !NOT_MODEL_FILE.test(f.type.trim());
+}
+
+/** The version's file a server has: by any model file's hash first, then by file name. */
+export function installedFileOf<F extends FileLike>(v: { files?: F[] }, idx: InstalledIndex): F | undefined {
+  const files = (v.files ?? []).filter(isModelFile);
+  return files.find((f) => Object.values(f.hashes ?? {}).some((h) => !!h && idx.hashes.has(h.toUpperCase())))
+    ?? files.find((f) => fileInstalled({ ...f, hashes: {} }, idx));
+}
+
 export function versionInstalled(v: VersionLike, idx: InstalledIndex): boolean {
-  return (v.files ?? []).some((f) => (f.type === 'Model' || f.type == null || f.primary) && fileInstalled(f, idx));
+  return !!installedFileOf(v, idx);
+}
+
+/** What the version's download control says (ONE rule for tiles, rows, the detail, the viewer). */
+export type VersionDiskState = 'download' | 'sync' | 'on-disk' | 'downloading' | 'offline' | 'unchecked';
+
+/**
+ * `online` = the server ids that answer; `withName(file)` = which of them list that file name;
+ * `hashListed` = how many online servers sent a hash list. Installed (by any file's hash, or by
+ * name) → on disk, or "sync" when some servers list it by name and others do not. Not found and
+ * no server could give a hash list (offline node, 404, 502) → "unchecked" ("can't check"), never
+ * "not downloaded" (a renamed file can only be found by its hash).
+ */
+export function versionDiskState(v: VersionLike, idx: InstalledIndex, ctx: { online: readonly string[]; withName: (name: string) => readonly string[]; hashListed: number; downloading: boolean }): { state: VersionDiskState; missing: string[] } {
+  if (!ctx.online.length) return { state: 'offline', missing: [] };
+  if (ctx.downloading) return { state: 'downloading', missing: [] };
+  const have = new Set<string>();
+  for (const f of (v.files ?? []).filter(isModelFile)) for (const id of ctx.withName(f.name)) have.add(id);
+  const missing = ctx.online.filter((id) => !have.has(id));
+  if (missing.length === 0) return { state: 'on-disk', missing: [] };
+  const found = !!installedFileOf(v, idx);
+  if (found && have.size === 0) return { state: 'on-disk', missing: [] };
+  if (have.size > 0) return { state: 'sync', missing };
+  return { state: ctx.hashListed > 0 ? 'download' : 'unchecked', missing };
 }
 
 export interface InstalledState {

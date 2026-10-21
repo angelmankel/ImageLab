@@ -40,7 +40,7 @@ test('polls late hashes, preserves 304 snapshots and aliases, retries metadata, 
     '@/lib/store': { useStore: selector => selector(state) },
     '@/lib/comfy': { fetchModelHashes: async (_, known) => { knownVersions.push(known); return responses.shift() ?? null; } },
     // ImageLabCore 825f446: pending files are kept apart; entries without a hash never publish.
-    '@/lib/hashPending': { useHashPending: { getState: () => ({ set() {} }) }, withHash: (m) => (m ?? []).filter((x) => x && typeof x.hash === 'string' && x.hash) },
+    '@/lib/hashPending': { useHashPending: { getState: () => ({ set() {}, setListed() {} }) }, withHash: (m) => (m ?? []).filter((x) => x && typeof x.hash === 'string' && x.hash) },
     '@/lib/civitai': { resolveCivitai: async (hashes, opts) => {
       resolves++;
       for (const hash of hashes) opts.onResolved({ hash, status: resolves < 3 ? 'error' : 'found' });

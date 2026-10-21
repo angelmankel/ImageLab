@@ -33,6 +33,8 @@ export function useModelHashes() {
       if (cancelled) return;
       results.forEach((r, i) => {
         const sv = servers[i];
+        // Whether this server can say what it has by hash (a 304 = yes, a 404 / 502 = no).
+        useHashPending.getState().setListed(sv.host, r.status === 'fulfilled');
         if (r.status === 'fulfilled' && r.value) {
           // Pending files (newer nodes) are kept apart: they have no hash (ImageLabCore 825f446).
           snapshots.set(sv.host, { ...r.value, models: withHash(r.value.models) });

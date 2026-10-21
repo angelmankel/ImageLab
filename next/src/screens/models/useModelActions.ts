@@ -13,6 +13,7 @@ import { applyGenerationData } from '~/app/actions';
 import { useRoute } from '~/app/routeStore';
 import { useActiveStep } from '~/app/stepsStore';
 import { primaryFile } from '@/features/model-metadata/civitai';
+import { installedFileOf } from './civitaiQuery';
 import { useInstalled } from './useInstalled';
 import { usePick } from './pickContext';
 import { buildPick, pickFile } from './pick';
@@ -49,8 +50,15 @@ export function useModelActions() {
 
   /** The server file name for a version, when one of its files is on the pod. */
   const serverFileOf = (version: CivitaiModelVersion): string | undefined => {
-    const file = version.files.find((f) => installed.file(f)) ?? primaryFile(version);
-    return file ? installed.serverName(file.name) : undefined;
+    // Any of the version's weight files, by hash first (fix list 2: SD 1.5 versions ship several,
+    // and the one on disk may be a non-primary file under its own name).
+    const file = installedFileOf(version, installed.index) ?? primaryFile(version);
+    if (!file) return undefined;
+    const byName = installed.serverName(file.name);
+    if (byName) return byName;
+    // Renamed on disk: the hash list's key ("checkpoints/SD15/x.safetensors") names it.
+    const key = installed.hashKey(file);
+    return key ? installed.serverName(key.split('/').slice(1).join('/') || key) : undefined;
   };
 
   /**

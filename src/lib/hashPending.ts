@@ -11,12 +11,17 @@ import { findModelHash } from './modelHash';
 
 interface HashPendingState {
   byHost: Record<string, { pending: ModelHashPending[]; progress?: ModelHashProgress }>;
+  /** Did this host's node answer `/hashes` last time (true) or fail — 404 / 502 / offline (false)? */
+  listed: Record<string, boolean>;
   set: (host: string, pending: ModelHashPending[] | undefined, progress: ModelHashProgress | undefined) => void;
+  setListed: (host: string, ok: boolean) => void;
 }
 
 export const useHashPending = create<HashPendingState>((set) => ({
   byHost: {},
+  listed: {},
   set: (host, pending, progress) => set((s) => ({ byHost: { ...s.byHost, [host]: { pending: pending ?? [], progress } } })),
+  setListed: (host, ok) => set((s) => (s.listed[host] === ok ? s : { listed: { ...s.listed, [host]: ok } })),
 }));
 
 /** Only real hash entries: a string hash (an older / odd node could send an entry without one). */
