@@ -1,18 +1,20 @@
 /**
  * The saved workflows of the chosen server (FIXLIST-2 #53; mockup
- * agent-handoffs/fixlist2-mockups/53-workflows-list.html): header "Workflows · N" with New (when
- * the embedded ComfyUI can make one) and Import; search + sort (Recent / A–Z) once the list is
- * longer than SEARCH_FROM; one-line rows (./WorkflowRow); an empty state with New / Import.
+ * agent-handoffs/fixlist2-mockups/53-workflows-list.html): header "Workflows · N" with the sort /
+ * filter menu (./WorkflowSortMenu: A–Z by default, so opening a workflow never moves it), New
+ * (when the embedded ComfyUI can make one) and Import; the search box, always; one-line rows
+ * (./WorkflowRow); an empty state with New / Import.
  * Shared by the desktop left panel and the phone's Workflows tab (`large`).
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { IconFileImport, IconPlus, IconSortAscendingLetters, IconClockHour3, IconTopologyStar3 } from '@tabler/icons-react';
+import { IconFileImport, IconPlus, IconTopologyStar3 } from '@tabler/icons-react';
 import { useStudio } from '@/features/studio/studioStore';
 import { SearchField } from '~/ui';
 import { WorkflowRow } from './WorkflowRow';
 import { useComfyFrame } from './comfyFrame';
 import { useWorkflowStore } from './workflowStore';
-import { SEARCH_FROM, shownRows } from './workflowListLogic';
+import { shownRows } from './workflowListLogic';
+import { WorkflowSortMenu } from './WorkflowSortMenu';
 import type { ComfyWorkflowTarget } from './workflowMenu';
 import './workflowMenu';
 import './workflowList.css';
@@ -27,13 +29,12 @@ export function WorkflowList({ wf, large, scroll = true }: { wf: Workflows; larg
   const framePath = useComfyFrame((s) => (s.status === 'ready' ? s.openPath : undefined));
   const openPath = framePath === undefined ? studioPath : framePath;
   const sort = useWorkflowStore((s) => s.sort);
-  const setSort = useWorkflowStore((s) => s.setSort);
+  const show = useWorkflowStore((s) => s.show);
   const fileRef = useRef<HTMLInputElement>(null);
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => { const t = window.setInterval(() => setNow(Date.now()), 30_000); return () => window.clearInterval(t); }, []);
 
-  const many = wf.rows.length > SEARCH_FROM;
-  const shown = useMemo(() => shownRows(wf.rows, many ? query : '', sort), [wf.rows, query, sort, many]);
+  const shown = useMemo(() => shownRows(wf.rows, query, sort, show), [wf.rows, query, sort, show]);
   const canCreate = !large && frameStatus === 'ready';
 
   const targetOf = (r: ComfyWorkflowRow): ComfyWorkflowTarget => ({
@@ -80,7 +81,7 @@ export function WorkflowList({ wf, large, scroll = true }: { wf: Workflows; larg
     <div role="listbox" aria-label="Saved workflows" style={{ display: 'flex', flexDirection: 'column', gap: large ? 2 : 1 }}>
       {shown.map((r) => <WorkflowRow key={r.key} row={r} large={large} now={now} selected={r.path === openPath} target={targetOf(r)} />)}
       {!shown.length && (
-        <div style={{ padding: '14px 8px', fontSize: 12, fontWeight: 600, color: 'var(--il-muted)', textAlign: 'center' }}>No workflow matches “{query}”.</div>
+        <div style={{ padding: '14px 8px', fontSize: 12, fontWeight: 600, color: 'var(--il-muted)', textAlign: 'center' }}>{query ? `No workflow matches “${query}”.` : `No ${show} workflows here.`}</div>
       )}
     </div>
   );
@@ -91,21 +92,14 @@ export function WorkflowList({ wf, large, scroll = true }: { wf: Workflows; larg
         <span style={{ fontSize: large ? 15 : 13, fontWeight: 800 }}>Workflows</span>
         {!empty && <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--il-muted)' }}>· {wf.rows.length}</span>}
         <span style={{ flex: 1 }} />
+        {!empty && <WorkflowSortMenu large={large} />}
         {!empty && canCreate && newBtn}
         {!empty && importBtn()}
         <input ref={fileRef} type="file" accept=".json,application/json" hidden
           onChange={(e) => { const f = e.currentTarget.files?.[0]; e.currentTarget.value = ''; if (f) void wf.importFile(f); }} />
       </div>
-      {many && (
-        <div style={{ display: 'flex', gap: 6, flex: 'none' }}>
-          <SearchField value={query} onChange={setQuery} placeholder="Search workflows" h={large ? 40 : 30} style={{ flex: 1, minWidth: 0 }} />
-          <button type="button" className={`il-wf-tool${large ? ' is-large' : ''}`} style={{ height: large ? 40 : 30 }}
-            onClick={() => setSort(sort === 'recent' ? 'name' : 'recent')} aria-label={`Sorted by ${sort === 'recent' ? 'recent' : 'name'}`}
-            title={sort === 'recent' ? 'Recent first · tap for A–Z' : 'A–Z · tap for recent first'}>
-            {sort === 'recent' ? <IconClockHour3 size={14} /> : <IconSortAscendingLetters size={14} />}
-            {sort === 'recent' ? 'Recent' : 'A–Z'}
-          </button>
-        </div>
+      {!empty && (
+        <SearchField value={query} onChange={setQuery} placeholder="Filter workflows" label="Filter workflows by name" h={large ? 40 : 30} style={{ flex: 'none' }} />
       )}
       {scroll
         ? <div className="il-scroll" style={{ flex: 1, minHeight: 0, margin: '0 -2px', padding: '0 2px', touchAction: 'pan-y', display: 'flex', flexDirection: 'column' }}>{body}</div>

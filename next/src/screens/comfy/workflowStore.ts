@@ -8,7 +8,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { useSteps } from '~/app/stepsStore';
-import type { WorkflowSort, WorkflowType } from './workflowListLogic';
+import { sortOf, type WorkflowShow, type WorkflowSort, type WorkflowType } from './workflowListLogic';
 
 export type ComfyKind = 'image' | 'video';
 
@@ -41,9 +41,11 @@ interface WorkflowStoreState {
   markUsed: (key: string) => void;
   setMeta: (key: string, meta: WorkflowMeta) => void;
   setServer: (kind: ComfyKind, serverId: string | null) => void;
-  /** The workflows list's order (FIXLIST-2 #53). */
+  /** The workflows list's order (A–Z by default, so opening one never moves it) and kind filter. */
   sort: WorkflowSort;
   setSort: (sort: WorkflowSort) => void;
+  show: WorkflowShow;
+  setShow: (show: WorkflowShow) => void;
   /** A file was renamed on `host`: move its memory (last used, meta) and the steps that run it. */
   renamePath: (host: string, from: string, to: string, name: string) => void;
 }
@@ -68,8 +70,10 @@ export const useWorkflowStore = create<WorkflowStoreState>()(
       markUsed: (key) => set((s) => ({ lastUsed: { ...s.lastUsed, [key]: Date.now() } })),
       setMeta: (key, meta) => set((s) => ({ meta: { ...s.meta, [key]: meta } })),
       setServer: (kind, serverId) => set({ kind, serverId }),
-      sort: 'recent',
+      sort: 'name',
       setSort: (sort) => set({ sort }),
+      show: 'all',
+      setShow: (show) => set({ show }),
       renamePath: (host, from, to, name) => set((s) => {
         const a = workflowKey(host, from);
         const b = workflowKey(host, to);
@@ -81,7 +85,11 @@ export const useWorkflowStore = create<WorkflowStoreState>()(
         return { lastUsed, meta, byStep };
       }),
     }),
-    { name: 'imagelab.next.comfy.v1' },
+    {
+      name: 'imagelab.next.comfy.v1',
+      // An old saved 'recent' (the jumping order) reads as A–Z.
+      merge: (saved, cur) => { const s = { ...cur, ...(saved as Partial<WorkflowStoreState>) }; return { ...s, sort: sortOf(s.sort) }; },
+    },
   ),
 );
 

@@ -25,15 +25,23 @@ test('short meta', () => {
   assert.equal(L.shortAgo(now - 20 * 86400_000, now), '3w');
 });
 
-test('search and sort', () => {
+test('search, kind filter and every sort; default A–Z natural', () => {
   const rows = [
-    { name: 'b10', path: 'b10.json', usedAt: 0, savedAt: 5 },
-    { name: 'b2', path: 'wip/b2.json', usedAt: 9, savedAt: 1 },
-    { name: 'A', path: 'A.json', usedAt: 0, savedAt: 7 },
+    { name: 'test10', path: 'test10.json', usedAt: 0, savedAt: 5, nodes: 3, type: 'image' },
+    { name: 'test2', path: 'wip/test2.json', usedAt: 9, savedAt: 1, nodes: 12, type: 'video' },
+    { name: 'Alpha', path: 'Alpha.json', usedAt: 4, savedAt: 7, nodes: null, type: 'image' },
   ];
-  assert.deepEqual(L.shownRows(rows, '', 'recent').map((r) => r.name), ['b2', 'A', 'b10']);
-  assert.deepEqual(L.shownRows(rows, '', 'name').map((r) => r.name), ['A', 'b2', 'b10']);
-  assert.deepEqual(L.shownRows(rows, 'wip b', 'name').map((r) => r.name), ['b2']);
+  const names = (sort, q = '', show) => L.shownRows(rows, q, sort, show).map((r) => r.name);
+  assert.deepEqual(names('name'), ['Alpha', 'test2', 'test10']);
+  assert.deepEqual(names('name-desc'), ['test10', 'test2', 'Alpha']);
+  assert.deepEqual(names('used'), ['test2', 'Alpha', 'test10']);
+  assert.deepEqual(names('modified'), ['Alpha', 'test10', 'test2']);
+  assert.deepEqual(names('nodes'), ['test2', 'test10', 'Alpha']);
+  assert.deepEqual(names('name', 'wip test'), ['test2']);
+  assert.deepEqual(names('name', '', 'image'), ['Alpha', 'test10']);
+  assert.equal(L.sortOf('recent'), 'name');
+  assert.equal(L.sortOf('nodes'), 'nodes');
+  assert.equal(L.sortOf(undefined), 'name');
 });
 
 test('copy and rename paths stay in the folder', () => {

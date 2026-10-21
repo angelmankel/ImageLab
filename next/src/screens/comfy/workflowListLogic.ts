@@ -4,7 +4,19 @@
  * the short one-line meta, search, sort, and unique copy names.
  */
 export type WorkflowType = 'image' | 'video' | 'upscale' | 'other';
-export type WorkflowSort = 'recent' | 'name';
+/** The list's order (FIXLIST-2 late item: A–Z by default, so opening one never moves it). */
+export type WorkflowSort = 'name' | 'name-desc' | 'used' | 'modified' | 'nodes';
+export const WORKFLOW_SORTS: ReadonlyArray<{ id: WorkflowSort; label: string }> = [
+  { id: 'name', label: 'Name A–Z' },
+  { id: 'name-desc', label: 'Name Z–A' },
+  { id: 'used', label: 'Recently used' },
+  { id: 'modified', label: 'Recently modified' },
+  { id: 'nodes', label: 'Node count' },
+];
+/** A saved sort that is not one of today's (an old 'recent') reads as the default, A–Z. */
+export const sortOf = (v: unknown): WorkflowSort => (WORKFLOW_SORTS.some((x) => x.id === v) ? (v as WorkflowSort) : 'name');
+/** Kind filter: every workflow, or one type. */
+export type WorkflowShow = 'all' | WorkflowType;
 
 const VIDEO = /(^|_)(Wan|LTXV|Hunyuan|Mochi|Cosmos|MiniMaxH3|AnimateDiff|ADE_|VHS_)|Video|SaveAnimated|CreateVideo/i;
 const UPSCALE = /Upscale(Model|WithModel)|UltimateSDUpscale|ImageUpscale|LatentUpscale|SUPIR|SeedVR/i;
@@ -59,18 +71,25 @@ export function rowMeta(nodes: number | null, usedAt: number, savedAt: number, n
   return parts.join(' · ');
 }
 
-export interface ListRow { name: string; path: string; usedAt: number; savedAt: number }
+export interface ListRow { name: string; path: string; usedAt: number; savedAt: number; nodes?: number | null; type?: WorkflowType | null }
 
-/** Search (name or folder, any order of words) then sort: recent = last used or saved first; name = A–Z (numbers natural). */
-export function shownRows<T extends ListRow>(rows: readonly T[], query: string, sort: WorkflowSort): T[] {
+/**
+ * Filter (words of the name / folder, any order; a kind) then sort. Names compare naturally and
+ * case-insensitively ("test2" before "test10"); every other order falls back to A–Z for ties.
+ */
+export function shownRows<T extends ListRow>(rows: readonly T[], query: string, sort: WorkflowSort, show: WorkflowShow = 'all'): T[] {
   const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
-  const hit = words.length ? rows.filter((r) => words.every((w) => r.path.toLowerCase().includes(w))) : [...rows];
-  const byName = (a: T, b: T) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
-  return hit.sort(sort === 'name' ? byName : (a, b) => (Math.max(b.usedAt, b.savedAt) - Math.max(a.usedAt, a.savedAt)) || byName(a, b));
+  const hit = rows.filter((r) => (show === 'all' || (r.type ?? 'other') === show) && words.every((w) => r.path.toLowerCase().includes(w)));
+  const byName = (a: T, b: T) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }) || a.path.localeCompare(b.path);
+  const cmp: Record<WorkflowSort, (a: T, b: T) => number> = {
+    name: byName,
+    'name-desc': (a, b) => byName(b, a),
+    used: (a, b) => (b.usedAt - a.usedAt) || byName(a, b),
+    modified: (a, b) => (b.savedAt - a.savedAt) || byName(a, b),
+    nodes: (a, b) => ((b.nodes ?? -1) - (a.nodes ?? -1)) || byName(a, b),
+  };
+  return hit.sort(cmp[sort]);
 }
-
-/** Search box + sort show once the list is longer than this. */
-export const SEARCH_FROM = 6;
 
 /** Candidate file names for a copy: "x (copy).json", "x (copy 2).json", … (in the same folder). */
 export function copyNames(path: string, max = 20): string[] {
