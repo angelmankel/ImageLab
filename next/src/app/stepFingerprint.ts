@@ -38,13 +38,16 @@ export type { Freshness, Snap } from './fingerprintLogic';
 
 const MAX_RESULTS = 3000;
 const MAX_SNAPS = 50;
+const MAX_RAWS = 30;
 
 interface FpState {
   /** Output key (history id / run url) → the fingerprint it was made with. */
   byResult: Record<string, string>;
   /** Fingerprint → its snap (for "what changed"). Newest last, capped. */
   snaps: Record<string, Snap>;
-  record: (pairs: Array<[string, Snap]>) => void;
+  /** Fingerprint → the full settings that made it (Revert to last run). Newest last, capped. */
+  raws: Record<string, StepRaw>;
+  record: (pairs: Array<[string, Snap, StepRaw | null]>) => void;
 }
 
 export const useFingerprints = create<FpState>()(
@@ -52,20 +55,25 @@ export const useFingerprints = create<FpState>()(
     (set) => ({
       byResult: {},
       snaps: {},
+      raws: {},
       record: (pairs) => set((s) => {
         const byResult = { ...s.byResult };
         const snaps = { ...s.snaps };
-        for (const [key, snap] of pairs) {
+        const raws = { ...s.raws };
+        for (const [key, snap, raw] of pairs) {
           const fp = fingerprintOf(snap);
           byResult[key] = fp;
           delete snaps[fp];
           snaps[fp] = snap;
+          if (raw) { delete raws[fp]; raws[fp] = raw; }
         }
+        const wk = Object.keys(raws);
+        if (wk.length > MAX_RAWS) for (const k of wk.slice(0, wk.length - MAX_RAWS)) delete raws[k];
         const rk = Object.keys(byResult);
         if (rk.length > MAX_RESULTS) for (const k of rk.slice(0, rk.length - MAX_RESULTS)) delete byResult[k];
         const sk = Object.keys(snaps);
         if (sk.length > MAX_SNAPS) for (const k of sk.slice(0, sk.length - MAX_SNAPS)) delete snaps[k];
-        return { byResult, snaps };
+        return { byResult, snaps, raws };
       }),
     }),
     { name: 'imagelab.next.fingerprints.v1' },
@@ -142,6 +150,77 @@ function snapOf(step: Step, c: Ctx): Snap {
   return snap;
 }
 
+// ── the full settings (Revert to last run) ────────────────────────────────────────────────
+
+/** Everything a step's output was made with, as the stores hold it (not flattened): what "Revert to last run" puts back. */
+export interface StepRaw {
+  kind: Step['kind'];
+  /** Image step: the main workflow (minus what the Image step overrides at queue time) and the prompt layers. */
+  workflow?: Partial<WorkflowState>;
+  layers?: Layer[];
+  /** Refine / Upscale / Remove BG: the step's own settings. */
+  params?: Step['params'];
+  /** Video step: the video store's settings. */
+  video?: Record<string, unknown>;
+  /** Workflow step: which workflow and its values. */
+  wf?: { ref: StepWorkflowRef | null; values?: Record<string, unknown> };
+  /** Step 2+: how it took its input, and the picture it resolved to. */
+  input?: { chained: boolean; input?: Step['input']; chainMode?: Step['chainMode']; chainPick?: Step['chainPick']; url?: string };
+}
+
+/** Not saved for a revert: what the Image step overrides at queue time, ×N, the per-type memory, the loader picked per server. */
+const NOT_RESTORED = new Set<string>([...Object.keys(IMAGE_STEP_ONLY), 'typeSettings', 'baseFile', 'batch']);
+/** An input picture larger than this (a data URL) is not kept; a revert takes it from the output's history entry instead. */
+const MAX_INLINE = 150_000;
+
+const clone = <V>(v: V): V => (v === undefined ? v : JSON.parse(JSON.stringify(v)) as V);
+
+function rawOf(step: Step, c: Ctx): StepRaw {
+  const raw: StepRaw = { kind: step.kind };
+  switch (step.kind) {
+    case 'image': {
+      const wf: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(c.workflow)) if (!NOT_RESTORED.has(k)) wf[k] = v;
+      const img = c.workflow.inputImage as { dataUrl?: string } | null;
+      if (img?.dataUrl && img.dataUrl.length > MAX_INLINE) wf.inputImage = { ...img, dataUrl: '' };
+      raw.workflow = clone(wf) as Partial<WorkflowState>;
+      raw.layers = clone(c.layers as Layer[]);
+      break;
+    }
+    case 'refine': case 'upscale': case 'remove-bg': raw.params = clone(step.params ?? {}); break;
+    case 'video': raw.video = clone(Object.fromEntries(Object.entries(c.video).filter(([, v]) => typeof v !== 'function'))); break;
+    case 'workflow': {
+      const ref = c.byStep[step.id] ?? null;
+      raw.wf = { ref, values: ref ? clone(c.studioValues[ref.path]) : undefined };
+      break;
+    }
+  }
+  if (c.steps[0]?.id !== step.id) {
+    const res = resolveStepInput(step, c.steps, c.tags, c.results);
+    raw.input = { chained: step.chained, input: step.input ?? null, chainMode: step.chainMode, chainPick: step.chainPick ?? null, url: res.kind === 'chained' || res.kind === 'explicit' ? res.src.url : undefined };
+  }
+  return raw;
+}
+
+/** The step's full settings as they are now (Revert's undo). */
+export function rawNow(stepId: string): StepRaw | null {
+  const c = ctxNow();
+  const step = c.steps.find((s) => s.id === stepId);
+  return step ? rawOf(step, c) : null;
+}
+
+/** The full settings that made the step's newest output, the key of that output; null when none were kept. */
+export function savedRawOf(stepId: string): { raw: StepRaw; outKey: string } | null {
+  const c = ctxNow();
+  const step = c.steps.find((s) => s.id === stepId);
+  if (!step) return null;
+  const out = resultsOfStep(step, c.steps, c.tags, c.results)[0];
+  const st = useFingerprints.getState();
+  const fp = out ? st.byResult[out.key] : undefined;
+  const raw = fp ? st.raws[fp] : undefined;
+  return raw && out ? { raw, outKey: out.key } : null;
+}
+
 // ── freshness of the chain ─────────────────────────────────────────────────────────────────
 
 export interface StepFresh {
@@ -179,7 +258,7 @@ function chainOf(c: Ctx, byResult: Record<string, string>, snaps: Record<string,
       if (r.reason === 'above') changes = [`Step ${i} above is out of date`];
       else {
         const before = f.outFp ? snaps[f.outFp] : undefined;
-        changes = before ? diffSnaps(before, nowSnaps[i]) : [];
+        changes = before ? diffSnaps(before, nowSnaps[i], 8) : [];
         if (!changes.length) changes = ['Settings changed'];
       }
     }
@@ -224,7 +303,7 @@ export const isStale = (stepId: string): boolean => stepFreshnessNow(stepId)?.st
 
 // ── recording: the snap at queue time, filed under each output ──────────────────────────────
 
-interface Queued { stepId: string; snap: Snap; fp: string }
+interface Queued { stepId: string; snap: Snap; fp: string; raw: StepRaw }
 /** Prompt id → the step + snap it was queued with (session memory, capped). */
 const byPrompt = new Map<string, Queued>();
 /** Prompt ids still queued / running. */
@@ -235,7 +314,7 @@ function remember(promptId: string, stepId: string): void {
   const step = c.steps.find((s) => s.id === stepId);
   if (!step) return;
   const snap = snapOf(step, c);
-  byPrompt.set(promptId, { stepId, snap, fp: fingerprintOf(snap) });
+  byPrompt.set(promptId, { stepId, snap, fp: fingerprintOf(snap), raw: rawOf(step, c) });
   if (byPrompt.size > 400) for (const k of [...byPrompt.keys()].slice(0, byPrompt.size - 400)) byPrompt.delete(k);
 }
 
@@ -295,17 +374,17 @@ function promptIdOf(key: string): string | undefined {
 useResultSteps.subscribe((st, prev) => {
   if (st.tags === prev.tags) return;
   const have = useFingerprints.getState().byResult;
-  const pairs: Array<[string, Snap]> = [];
+  const pairs: Array<[string, Snap, StepRaw | null]> = [];
   let ctx: Ctx | null = null;
   for (const [key, stepId] of Object.entries(st.tags)) {
     if (prev.tags[key] === stepId || have[key]) continue;
     const pid = promptIdOf(key);
     const q = pid ? byPrompt.get(pid) : undefined;
-    if (q && q.stepId === stepId) { pairs.push([key, q.snap]); continue; }
+    if (q && q.stepId === stepId) { pairs.push([key, q.snap, q.raw]); continue; }
     // Not seen at queue time (a run started elsewhere): the settings now, which is what just ran unless edited since.
     ctx ??= ctxNow();
     const step = ctx.steps.find((s) => s.id === stepId);
-    if (step) pairs.push([key, q ? withSeedsFrom(q.snap, snapOf(step, ctx)) : snapOf(step, ctx)]);
+    if (step) pairs.push([key, q ? withSeedsFrom(q.snap, snapOf(step, ctx)) : snapOf(step, ctx), q ? null : rawOf(step, ctx)]);
   }
   if (pairs.length) useFingerprints.getState().record(pairs);
 });

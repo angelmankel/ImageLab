@@ -123,7 +123,7 @@ export function GenerateBar({ step, large = false }: { step: Step; large?: boole
     <div style={{ padding: large ? '10px 12px 12px' : '12px 20px 18px', borderTop: '1px solid var(--il-line)', flex: 'none' }}>
       <div className="il-btn-primary" style={{ position: 'relative', display: 'flex', height: h, borderRadius: 999, overflow: 'hidden', background: 'var(--il-ember)' }}>
         {step.kind === 'image' && <BatchCycle h={h} />}
-        <Tip label={disabled ?? (pending ? `Queue one more (${pending} on the way) · ⌘/Ctrl + Enter` : 'Generate · ⌘/Ctrl + Enter')}>
+        <Tip label={disabled ?? (pending ? 'Queue one more' : 'Generate')} keys="Ctrl+Enter">
           <button type="button" className="il-btn" onClick={() => { if (!off) run(false); }} aria-label="Generate"
             style={{ ...seg, flex: 1, minWidth: 0, fontSize: 16, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
             {upToDate ? <><IconCheck size={18} stroke={2.6} />Up to date</> : <><IconSparkles size={18} stroke={2.4} />Generate</>}

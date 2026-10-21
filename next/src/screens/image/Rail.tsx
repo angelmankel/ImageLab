@@ -66,8 +66,10 @@ function StepNode({ step, index, lifted, onGrab, fresh, ring }: { step: Step; in
   const Icon = KIND_ICON[step.kind];
   const first = index === 0;
   const label = `${index + 1} · ${STEP_LABEL[step.kind]}`;
-  const stale = fresh?.state === 'stale' ? ` — out of date: ${fresh.changes.join(' · ')}` : '';
-  const tip = problem ? `${label} — ${problem}` : `${label} · ${step.name}${stale}${on && !stale ? ' (click to fold the panel)' : ''}`;
+  // Item 35: the name and its state, a few words. Why / what changed: a click on the badge.
+  const state = problem ? "can't run" : ring.kind === 'running' ? 'running' : ring.kind === 'queued' ? 'queued'
+    : fresh?.state === 'stale' ? 'out of date' : fresh?.state === 'fresh' ? 'up to date' : '';
+  const tip = state ? `${step.name || STEP_LABEL[step.kind]} · ${state}` : step.name || STEP_LABEL[step.kind];
 
   const open = () => {
     const lay = useLayout.getState();
@@ -109,7 +111,7 @@ function StepNode({ step, index, lifted, onGrab, fresh, ring }: { step: Step; in
             <IconX size={11} stroke={3} />
           </button>
         )}
-        <StepBadge stepId={step.id} problem={problem} fresh={fresh} />
+        <StepBadge step={step} problem={problem} fresh={fresh} />
       </span>
       <span style={{ fontSize: 10, fontWeight: on ? 800 : 700, whiteSpace: 'nowrap', color: problem ? 'var(--il-err)' : on ? 'var(--il-fg)' : 'var(--il-fg2)' }}>{label}</span>
     </div>
