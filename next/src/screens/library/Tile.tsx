@@ -1,12 +1,17 @@
 /**
- * Library (rule 12): one grid tile. Picture fills the square (cover); ★ badge top-right when
- * starred, play + duration bottom-left for videos. Hover (pointer devices only): an expand button
- * top-left and the model · time along the bottom. Selected = 3px ember ring inside; in Select
- * mode a round check top-left. Click = select (or pick), double-click / expand = fullscreen.
+ * Library (rule 12): one grid tile. Picture fills the square (cover); play + duration bottom-left
+ * for videos; 🗑 top-left and ♥ top-right on hover (♥ always when liked; on touch on the selected
+ * tile) — the shared `TileActions`, as in the history panel. Hover: the model · time along the
+ * bottom. Selected = 3px ember ring inside; in Select mode a round check top-left. Click = select
+ * (or pick); a click on the selected tile = fullscreen (`tileClick`).
  * Videos autoplay muted while on screen; the grid's controller (useVideoAutoplay) owns src/play/pause.
  */
 import { memo, useState } from 'react';
-import { IconArrowsMaximize, IconCheck, IconPlayerPlayFilled, IconStarFilled } from '@tabler/icons-react';
+import { IconCheck, IconPlayerPlayFilled } from '@tabler/icons-react';
+import { useStore } from '@/lib/store';
+import { deleteOutput } from '~/app/deleteResult';
+import { useIsPhone } from '~/app/useIsPhone';
+import { TileActions, tileClick } from '~/ui';
 import { durationLabel, prettyModel, whenLabel, type LibItem } from './libraryLogic';
 import { useAutoplayVideo } from './useVideoAutoplay';
 import { makePayload, nameFromUrl, useImageDrag } from '~/dnd';
@@ -17,23 +22,28 @@ export const Tile = memo(function Tile({ item, selected, selecting, picked, radi
 }) {
   const [dur, setDur] = useState<number | null>(null);
   const [broken, setBroken] = useState(false);
+  const phone = useIsPhone();
   const videoRef = useAutoplayVideo(item.url, item.kind === 'video' && !broken);
   const ring = picked || (selected && !selecting);
   // A drag source app-wide (fix list 42): onto a drop zone, a collection, the rail, a tab.
   const drag = useImageDrag(() => (broken ? null : makePayload({ url: item.url, name: item.entry?.filename ?? nameFromUrl(item.url), kind: item.kind, key: item.key, entryId: item.entry?.id, source: 'collection' })));
   const model = item.entry ? prettyModel(item.entry.workflow?.checkpoints?.[0]?.name || item.entry.model || '') : '';
 
+  // Shared tile behaviour (fix list 2, consistent clicks): a click selects, a click on the selected tile opens the
+  // viewer; ♥ / 🗑 as in the history panel (`TileActions`). Select mode: a click picks, no actions.
+  const click = selecting ? () => onClick(item) : tileClick(selected, () => onClick(item), () => onOpen(item));
+  const entry = item.entry;
   return (
+    <div data-tile-selected={selected && !selecting} style={{ position: 'relative' }}>
     <button
       type="button"
       className="lib-tile"
       data-lib-key={item.key}
       aria-label={item.kind === 'video' ? 'Video' : 'Image'}
       aria-pressed={selecting ? picked : selected}
-      onClick={() => onClick(item)}
-      onDoubleClick={() => onOpen(item)}
+      onClick={click}
       {...drag}
-      style={{ borderRadius: radius }}
+      style={{ borderRadius: radius, cursor: selected && !selecting ? 'zoom-in' : undefined }}
     >
       {broken ? (
         <span style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', color: 'var(--il-dim)', fontSize: 11, fontWeight: 700 }}>Not on the server</span>
@@ -47,9 +57,6 @@ export const Tile = memo(function Tile({ item, selected, selecting, picked, radi
 
       {/* The selected ring as its own inset layer over the picture: never under a positioned child, never clipped. */}
       {ring && <span aria-hidden style={{ position: 'absolute', inset: 0, borderRadius: radius, boxShadow: 'inset 0 0 0 3px var(--il-ember)', pointerEvents: 'none' }} />}
-      {item.liked && (
-        <span className="lib-badge" style={{ right: 8, top: 8, width: 22, height: 22, color: 'var(--il-ember-hi)' }}><IconStarFilled size={12} /></span>
-      )}
       {item.kind === 'video' && (
         <span className="lib-badge" style={{ left: 8, bottom: 8, height: 22, padding: '0 8px 0 6px', display: 'flex', gap: 4, fontSize: 10, fontWeight: 800 }}>
           <IconPlayerPlayFilled size={10} />{dur != null ? durationLabel(dur) : 'Video'}
@@ -63,17 +70,6 @@ export const Tile = memo(function Tile({ item, selected, selecting, picked, radi
 
       {!selecting && (
         <span className="lib-hover" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
-          <span
-            role="button"
-            aria-label="Fullscreen"
-            title="Fullscreen"
-            onClick={(e) => { e.stopPropagation(); onOpen(item); }}
-            onDoubleClick={(e) => e.stopPropagation()}
-            className="lib-badge"
-            style={{ left: 8, top: 8, width: 26, height: 26, pointerEvents: 'auto', cursor: 'zoom-in' }}
-          >
-            <IconArrowsMaximize size={13} stroke={2.4} />
-          </span>
           {item.kind === 'image' && (
             <span style={{
               position: 'absolute', left: 0, right: 0, bottom: 0, padding: '18px 8px 7px', display: 'flex', justifyContent: 'space-between', gap: 6,
@@ -86,5 +82,11 @@ export const Tile = memo(function Tile({ item, selected, selecting, picked, radi
         </span>
       )}
     </button>
+    {!selecting && (
+      <TileActions liked={item.liked} phone={phone}
+        onLike={entry ? () => useStore.getState().toggleHistoryLiked(entry.id) : undefined}
+        onDelete={() => deleteOutput({ entry: entry ?? null, url: item.url })} />
+    )}
+    </div>
   );
 });

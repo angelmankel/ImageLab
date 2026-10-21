@@ -1,8 +1,8 @@
 /**
  * Rule 8: the right panel is history. A filter row only (This step | All, then the Images · Videos · ★
  * segmented control — tap the lit one again for every kind — and ⋯ = Clear history / Reset session; the row wraps when narrow), no title, no search, no date dividers, one grid. This step (the default) shows what the
- * open step made (`inStep`, tags from `resultSteps.ts`). Click = show on the stage, double-click = fullscreen, the ★
- * toggles favourite, the trash (top-left, on hover) deletes with Undo (`~/app/deleteResult`). Images
+ * open step made (`inStep`, tags from `resultSteps.ts`). Click = show on the stage, a click on the shown one = fullscreen, the ♥
+ * toggles favourite, the trash (top-left, on hover) deletes with Ctrl+Z (`TileActions`, shared by every grid) (`~/app/deleteResult`). Images
  * from the main store's history; videos from the video / workflow run stores. The pure merge +
  * filter is `historyLogic.ts` (tested).
  * Collections (FIXLIST 21): a row of collection tiles under the filters (`collections/*`); a picked
@@ -10,9 +10,9 @@
  * a picture dropped on a tile (or on the grid while a collection is shown) moves there.
  */
 import { useMemo, useRef, useState } from 'react';
-import { LoadingImage, useScrollIntoView } from '~/ui';
-import { IconArrowLeft, IconDots, IconEraser, IconHeart, IconHeartFilled, IconRestore, IconTrash } from '@tabler/icons-react';
-import { FullscreenImage } from '@/components/FullscreenImage';
+import { LoadingImage, TileActions, tileClick, useScrollIntoView } from '~/ui';
+import { IconArrowLeft, IconDots, IconEraser, IconRestore } from '@tabler/icons-react';
+import { ImageViewer } from '~/screens/viewer/ImageViewer';
 import { useStore } from '@/lib/store';
 import type { HistoryEntry } from '@/lib/types';
 import { useImageResults, useVideoResults, useWorkflowResults } from '@/features/workspace/results';
@@ -60,18 +60,17 @@ function Segmented({ label, items, phone }: { label: string; phone: boolean; ite
   );
 }
 
-const corner: React.CSSProperties = { position: 'absolute', top: 6, width: 26, height: 26, border: 0, borderRadius: '50%', background: 'color-mix(in srgb, var(--il-bg-deep) 60%, transparent)', display: 'grid', placeItems: 'center', cursor: 'pointer' };
-
-function TileView({ tile, selected, onPick, onOpen, onLike, onDelete }: { tile: Tile<HistoryEntry>; selected: boolean; onPick: () => void; onOpen: () => void; onLike?: () => void; onDelete: () => void }) {
+function TileView({ tile, selected, phone, onPick, onOpen, onLike, onDelete }: { tile: Tile<HistoryEntry>; selected: boolean; phone: boolean; onPick: () => void; onOpen: () => void; onLike?: () => void; onDelete: () => void }) {
   // A tile is a drag source app-wide (fix list 42); a long-press opens the Send-to sheet on a phone.
   const payload = () => makePayload({ url: tile.url, name: tile.filename, kind: tile.kind, key: tile.key, entryId: tile.entryId ?? undefined, source: 'history' });
   const drag = useImageDrag(payload);
   const press = useLongPress(() => openSendTo(payload()));
   return (
-    <div {...menuProps('history-image', tile)} style={{ position: 'relative', aspectRatio: '1', borderRadius: 14, overflow: 'hidden', background: 'var(--il-bg-deep)' }}>
-      {/* data-no-ctx: on a phone the hold is the Send-to sheet's; right-click still opens the menu. */}
-      <button type="button" onClick={onPick} onDoubleClick={onOpen} aria-label={tile.filename} aria-pressed={selected} data-viewer-origin={tile.entryId} data-no-ctx {...press}
-        style={{ display: 'block', width: '100%', height: '100%', padding: 0, border: 0, background: 'transparent', cursor: 'pointer' }}>
+    <div {...menuProps('history-image', tile)} data-tile-selected={selected} style={{ position: 'relative', aspectRatio: '1', borderRadius: 14, overflow: 'hidden', background: 'var(--il-bg-deep)' }}>
+      {/* data-no-ctx: on a phone the hold is the Send-to sheet's; right-click still opens the menu.
+          Click = select; a click on the selected tile = the full-screen viewer (`tileClick`, shared by every grid). */}
+      <button type="button" onClick={tileClick(selected, onPick, onOpen)} aria-label={tile.filename} aria-pressed={selected} data-viewer-origin={tile.entryId} data-no-ctx {...press}
+        style={{ display: 'block', width: '100%', height: '100%', padding: 0, border: 0, background: 'transparent', cursor: selected ? 'zoom-in' : 'pointer' }}>
         {tile.kind === 'video'
           ? <video src={tile.url} muted playsInline preload="metadata" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', pointerEvents: 'none' }} />
           : <LoadingImage src={tile.url} alt="" {...drag} style={{ width: '100%', height: '100%' }} />}
@@ -79,16 +78,7 @@ function TileView({ tile, selected, onPick, onOpen, onLike, onDelete }: { tile: 
       {/* The selected ring: its own layer over the picture (an outline on the tile was painted under the
           positioned LoadingImage, so it vanished), inset so no scroller clips it. */}
       {selected && <span aria-hidden style={{ position: 'absolute', inset: 0, borderRadius: 14, boxShadow: 'inset 0 0 0 3px var(--il-ember)', pointerEvents: 'none' }} />}
-      {onLike && (
-        <button type="button" onClick={(e) => { e.stopPropagation(); onLike(); }} aria-label={tile.liked ? 'Remove from favourites' : 'Favourite'} aria-pressed={tile.liked}
-          style={{ ...corner, right: 6, color: tile.liked ? 'var(--il-ember)' : 'color-mix(in srgb, var(--il-fg) 80%, transparent)', opacity: tile.liked ? 1 : undefined }} className="il-tile-like">
-          {tile.liked ? <IconHeartFilled size={13} /> : <IconHeart size={13} stroke={2.4} />}
-        </button>
-      )}
-      <button type="button" onClick={(e) => { e.stopPropagation(); onDelete(); }} onDoubleClick={(e) => e.stopPropagation()} aria-label="Delete" title="Delete"
-        style={{ ...corner, left: 6, color: 'color-mix(in srgb, var(--il-fg) 80%, transparent)' }} className="il-tile-del">
-        <IconTrash size={13} stroke={2.4} />
-      </button>
+      <TileActions liked={tile.liked} onLike={onLike} onDelete={onDelete} phone={phone} />
       {tile.kind === 'video' && <span style={{ position: 'absolute', left: 8, bottom: 6, fontSize: 10, fontWeight: 800, color: 'color-mix(in srgb, var(--il-fg) 90%, transparent)', background: 'color-mix(in srgb, var(--il-bg-deep) 60%, transparent)', borderRadius: 999, padding: '2px 7px' }}>VIDEO</span>}
     </div>
   );
@@ -173,22 +163,21 @@ export function HistoryPanel({ columns = 2, phone = false }: { columns?: number;
         <div style={{ display: 'grid', gridTemplateColumns: `repeat(${phone ? 3 : columns}, minmax(0, 1fr))`, gap: 6 }}>
           {tiles.map((t, i) => coll.isImported(t.key) ? (
             // An imported picture (Collections): the stage cannot show it, so a click opens the viewer.
-            <TileView key={t.key} tile={t} selected={false}
+            <TileView key={t.key} tile={t} selected={false} phone={phone}
               onPick={() => setViewing(i)} onOpen={() => setViewing(i)}
               onLike={() => toggleImportedLiked(t.key)}
               onDelete={() => takeOut(t.key)} />
           ) : (
-            <TileView key={t.key} tile={t} selected={t.key === currentKey}
+            <TileView key={t.key} tile={t} selected={t.key === currentKey} phone={phone}
               onPick={() => { if (t.entry) { select(t.entry); showRun(null); } else showRun(t.key); }}
-              onOpen={() => { if (t.entry) { select(t.entry); showRun(null); openViewer(); } else showRun(t.key); }}
+              onOpen={() => { if (t.entry) { select(t.entry); showRun(null); openViewer(); } else { showRun(t.key); setViewing(i); } }}
               onLike={t.entry ? () => toggleLiked(t.entry!.id) : undefined}
               onDelete={() => deleteOutput(t)} />
           ))}
         </div>
       </div>
       {viewing != null && tiles[viewing] && (
-        <FullscreenImage items={tiles.map((t) => ({ key: t.key, url: t.url }))} index={viewing} onIndexChange={setViewing} onClose={() => setViewing(null)} instantClose
-          pageCaption={tiles[viewing].filename} />
+        <ImageViewer items={tiles} index={viewing} onIndexChange={setViewing} onClose={() => setViewing(null)} />
       )}
     </aside>
   );

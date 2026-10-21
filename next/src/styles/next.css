@@ -290,6 +290,8 @@ html[data-motion="off"] .il-ring-spin { animation: none; }
 *:hover > .il-tile-like, .il-tile-like[aria-pressed="true"], .il-tile-like:focus-visible,
 *:hover > .il-tile-del, .il-tile-del:focus-visible { opacity: 1; }
 .il-tile-del:hover { color: var(--il-err) !important; }
+/* Touch has no hover: the selected tile shows its ♥ / 🗑 (`TileActions`, data-tile-selected on the tile). */
+@media (hover: none) { [data-tile-selected="true"] > .il-tile-like, [data-tile-selected="true"] > .il-tile-del { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .il-sweep { animation: none; width: 100% !important; opacity: .5; } }
 
 /* ---- Slider value bubble (FIXLIST-2 item 24): an ember pin over the handle with the live value,
