@@ -10,7 +10,14 @@ import type { WorkflowState } from '@/lib/types';
 import { hintOf } from '~/ui/hints';
 import { pushUndo } from './undo';
 
+const LABELS: Record<string, string> = {
+  inputDenoise: 'How much to change', inputImage: 'Input image', 'inputMaxSize,inputMinSize': 'Input size',
+  'height,width': 'Size', vae: 'VAE', loopback: 'Loopback', batch: 'Images per run',
+};
+
 function labelOf(keys: string[]): string {
+  const known = LABELS[keys.join(',')];
+  if (known) return known;
   if (keys.length !== 1) return 'Change settings';
   const meta = hintOf(keys[0]);
   return meta?.label ?? keys[0].charAt(0).toUpperCase() + keys[0].slice(1);

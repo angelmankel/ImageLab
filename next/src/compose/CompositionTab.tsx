@@ -38,6 +38,7 @@ import { originalOf, setCompositionMode, setInputShape, shapeOf, useInputShape, 
 import {
   SHAPES, cropRect, orientOf, orientOfRatio, type Orient, flipRatio, lockedPair, longForSide, megapixels, nearestRatio, presetArea, ratioById, reshape, scaledInput, sizeForArea, snap8, type SizePreset,
 } from './sizeLogic';
+import { useUndoableSetWorkflow } from '~/app/undoableWorkflow';
 
 const card: React.CSSProperties = { background: 'var(--il-card)', borderRadius: T.radius.lg, padding: 10, display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 };
 const title: React.CSSProperties = { fontSize: 12, fontWeight: 800, color: 'var(--il-fg)' };
@@ -279,7 +280,7 @@ const CHANGE: Array<{ key: string; label: string; v: number }> = [
 
 function HowMuch() {
   const denoise = useStore((s) => s.workflow.inputDenoise);
-  const setWorkflow = useStore((s) => s.setWorkflow);
+  const setWorkflow = useUndoableSetWorkflow();
   const preset = CHANGE.find((c) => Math.abs(c.v - denoise) < 0.005)?.key ?? null;
   return (
     <div style={card}>
@@ -293,7 +294,7 @@ function FromImageSize({ input }: { input: Pic | null }) {
   const phone = useIsPhone();
   const maxSize = useStore((s) => s.workflow.inputMaxSize);
   const minSize = useStore((s) => s.workflow.inputMinSize);
-  const setWorkflow = useStore((s) => s.setWorkflow);
+  const setWorkflow = useUndoableSetWorkflow();
   const inputSize = useComposition((s) => s.inputSize);
   const setInputSize = useComposition((s) => s.setInputSize);
   const shapeState = useInputShape();
@@ -338,7 +339,7 @@ export function CompositionTab({ step }: { step: Step; phone?: boolean }) {
   const setStepInput = useSteps((s) => s.setStepInput);
   const first = steps[0]?.id === step.id;
   const inputImage = useStore((s) => s.workflow.inputImage);
-  const setWorkflow = useStore((s) => s.setWorkflow);
+  const setWorkflow = useUndoableSetWorkflow();
   const storedMode = useComposition((s) => s.mode);
   const setMode = useComposition((s) => s.setMode);
   const [editing, setEditing] = useState(false);

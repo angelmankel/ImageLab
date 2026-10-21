@@ -16,6 +16,7 @@ import { TriggerWords, type AutoWords } from './TriggerWords';
 import { fmtWeight, type ModelKind } from './kindSpecs';
 import type { CardParts } from './kindApi';
 import { PREPROCESSORS, useControlnets, type ControlNetImage, type Preprocessor } from './controlnetStore';
+import { useUndoableSetWorkflow } from '~/app/undoableWorkflow';
 
 export const SELECT_STYLES = {
   input: { background: 'var(--il-elev)', borderColor: 'var(--il-line-strong)', fontWeight: 700, fontSize: 12, height: 32, minHeight: 32 },
@@ -95,7 +96,7 @@ const BUILT_IN_VAE = '__builtin__';
 function BaseCheckpointMore() {
   const vae = useStore((s) => s.workflow.vae);
   const vaes = useStore((s) => s.server.vaes);
-  const setWorkflow = useStore((s) => s.setWorkflow);
+  const setWorkflow = useUndoableSetWorkflow();
   const { profile, detected } = useModelProfile();
   const options = [{ value: BUILT_IN_VAE, label: "Checkpoint's built-in VAE" }, ...[...new Set([...(vae ? [vae] : []), ...vaes])].map((v) => ({ value: v, label: modelLabel(v) }))];
   return (
