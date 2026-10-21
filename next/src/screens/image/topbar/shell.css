@@ -16,8 +16,12 @@
 .il-tab-on::before { left: -12px; background: radial-gradient(circle at 0 0, transparent 11.5px, var(--il-bg) 12px); }
 .il-tab-on::after { right: -12px; background: radial-gradient(circle at 100% 0, transparent 11.5px, var(--il-bg) 12px); }
 .il-tab:focus-visible { box-shadow: inset 0 0 0 2px var(--il-ember-line); }
-@keyframes il-tab-spin { to { transform: rotate(360deg); } }
-.il-tab-spin { animation: il-tab-spin calc(1.1s / max(var(--il-motion), .001)) linear infinite; }
-html[data-motion="off"] .il-tab-spin { animation: none; }
-@media (prefers-reduced-motion: reduce) { .il-tab-spin { animation: none; } }
+/* A running session's ring breathes (a soft glow, ~1.8 s); never spins. Motion off / reduced = static. */
+@keyframes il-tab-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--il-ring) 0%, transparent); filter: brightness(1); }
+  50% { box-shadow: 0 0 6px 1px color-mix(in srgb, var(--il-ring) 55%, transparent); filter: brightness(1.18); }
+}
+.il-tab-pulse { animation: il-tab-pulse calc(1.8s * var(--il-dur, 1)) ease-in-out infinite; }
+html[data-motion="off"] .il-tab-pulse { animation: none; }
+@media (prefers-reduced-motion: reduce) { .il-tab-pulse { animation: none; } }
 .il-home-place:hover { background: var(--il-elev) !important; color: var(--il-fg) !important; }

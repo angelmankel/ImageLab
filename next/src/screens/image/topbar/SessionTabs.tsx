@@ -4,7 +4,7 @@
  *   Look: no borders or lines. The top bar is one shade darker than the page; the active tab is the
  *   page colour with inverse-rounded feet, so it flows into the screen below. Inactive = flat text,
  *   hover = a faint fill. Each session's colour (`~/app/sessionColor`, stored on the session) is the
- *   ring round its thumbnail; a running job turns the ring into a progress arc + "42%" (#15). The ×
+ *   ring round its thumbnail; a running job fills the ring by its % and the ring breathes softly (never spins; #15). The ×
  *   shows on hover and on the active tab. No native `title` (item 20: one tooltip only).
  *   click = switch (and show the step screen) · drag = reorder · × or middle-click = close
  *   (never the last tab) · "+" = a new blank session · right-click = the 'tab' menu
@@ -57,11 +57,11 @@ export function SessionRing({ color, item, job, size = RING, bg = 'var(--il-bg-d
   const ring = running
     ? pct != null
       ? `conic-gradient(${color} ${Math.max(4, pct)}%, color-mix(in srgb, ${color} 22%, transparent) 0)`
-      : `conic-gradient(${color} 28%, color-mix(in srgb, ${color} 22%, transparent) 0)`
+      : color
     : job?.count ? `color-mix(in srgb, ${color} 55%, transparent)` : color;
   return (
-    <span aria-hidden className={running && pct == null ? 'il-tab-spin' : undefined}
-      style={{ position: 'relative', width: size, height: size, flex: 'none', borderRadius: '50%', padding: 2, background: ring, display: 'block' }}>
+    <span aria-hidden className={running ? 'il-tab-pulse' : undefined}
+      style={{ position: 'relative', width: size, height: size, flex: 'none', borderRadius: '50%', padding: 2, background: ring, display: 'block', ['--il-ring' as string]: color }}>
       <span style={{ display: 'block', width: '100%', height: '100%', borderRadius: '50%', overflow: 'hidden', border: `1.5px solid ${bg}`, background: `color-mix(in srgb, ${color} 28%, var(--il-panel))` }}>
         {item && <SessionThumb item={item} style={{ width: '100%', height: '100%', borderRadius: '50%' }} />}
       </span>
@@ -122,7 +122,6 @@ function Tab({ s, index, current, only, out, job, dragId, setDragId, dropAt, set
       {dropAt === index && dragId && dragId !== s.id && <span aria-hidden style={{ position: 'absolute', left: -2, top: 8, bottom: 8, width: 2, borderRadius: 1, background: color }} />}
       <SessionRing color={color} item={out?.last ?? null} job={job} bg={current ? 'var(--il-bg)' : 'var(--il-bg-deep)'} />
       <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: blank ? 'var(--il-dim)' : undefined }}>{displayName(s.name)}</span>
-      {pct != null && <span aria-hidden style={{ fontSize: 10, fontWeight: 800, color, fontVariantNumeric: 'tabular-nums', flex: 'none' }}>{pct}%</span>}
       <Tip label="Close tab">
         <button
           type="button"
