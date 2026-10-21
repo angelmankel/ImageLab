@@ -22,6 +22,8 @@ export interface Session {
   video?: Record<string, unknown> | null;
   /** The session migrated from the single-session save: it owns the results made before step tags existed. */
   legacy?: boolean;
+  /** The session's colour id (fix list 2 #19, `~/app/sessionColor`): the tab's ring, the Home tile. */
+  color?: string;
 }
 
 export const UNTITLED = 'Untitled session';

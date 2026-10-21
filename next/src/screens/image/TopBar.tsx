@@ -1,5 +1,6 @@
 /**
- * The top nav (fix list 36 / 19): ← Home · logo + wordmark (also → Home) · Undo / Redo (list 2 #12) · | · the session tab
+ * The top nav (fix list 36 / 19; fix list 2 #19: one shade darker than the page, no bottom line, so
+ * the active session tab flows into the screen below): ← Home · logo + wordmark (also → Home) · Undo / Redo (list 2 #12) · | · the session tab
  * strip (fills the width) · | · server chip ("This pod · B200") · "Jobs 2" · "↓ 1 · 37%" · mute ·
  * fullscreen far right. The clock and the keyboard shortcuts live in the footer (`Footer.tsx`). The
  * queue is split in two (item 14, `queue/QueueButtons`): the job queue and the download queue. No session component here: the session's name is the left
@@ -37,7 +38,7 @@ export function TopBar() {
   const screen = useRoute((s) => s.screen);
   const home = screen === 'home';
   return (
-    <div style={{ height: T.size.topBar, flex: 'none', display: 'flex', alignItems: 'center', gap: T.gap.sm, padding: '0 12px 0 10px', borderBottom: '1px solid var(--il-line)' }}>
+    <div style={{ height: T.size.topBar, flex: 'none', display: 'flex', alignItems: 'center', gap: T.gap.sm, padding: '0 12px 0 10px', background: 'var(--il-bg-deep)' }}>
       <IconBtn icon={<IconArrowLeft size={20} stroke={2.4} />} label="Home: all sessions" onClick={() => useRoute.getState().go('home')} on={home} />
       <button type="button" onClick={() => useRoute.getState().go('home')} aria-label="ImageLab: all sessions"
         style={{ display: 'flex', alignItems: 'center', gap: 9, marginLeft: 2, border: 0, padding: 0, background: 'transparent', color: 'var(--il-fg)', cursor: 'pointer', flex: 'none' }}>

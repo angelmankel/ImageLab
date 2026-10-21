@@ -20,6 +20,7 @@ import { uid } from '@/lib/storage';
 import type { HistoryEntry, Layer, WorkflowState } from '@/lib/types';
 import { useVideo } from '@/features/video/videoStore';
 import { nanoid } from './ids';
+import { colorIdOf, pickColor } from './sessionColor';
 import { useSteps } from './stepsStore';
 import { useRoute } from './routeStore';
 import { byRecent, closeTab as closeTabOf, displayName, duplicateSession, insertTabAfter, makeSession, migrateLegacy, moveTab as moveTabOf, slimForStorage, type ImageParams, type Session } from './sessionsLogic';
@@ -97,6 +98,11 @@ async function copyStepStores(map: Record<string, string>): Promise<void> {
 /** Guards the mirror while this store writes `useSteps` itself. */
 let loading = false;
 
+/** A new session's colour (fix list 2 #19): the first one no open tab wears. */
+function newColor(st: Pick<SessionsState, 'sessions' | 'openIds'>): string {
+  return pickColor(st.openIds.map((id) => st.sessions[id]).filter(Boolean).map(colorIdOf));
+}
+
 function pushToSteps(s: Session): void {
   loading = true;
   try { useSteps.setState({ steps: s.steps, activeId: s.activeId, sessionName: s.name }); }
@@ -117,6 +123,7 @@ export const useSessions = create<SessionsState>()(
         const cur = imageParamsNow();
         s.image = { workflow: { ...(cur.workflow as WorkflowState), inputImage: null }, layers: cur.layers };
         s.video = videoParamsNow();
+        s.color = newColor(get());
         set((st) => ({ sessions: { ...st.sessions, [s.id]: s } }));
         get().open(s.id);
         return s.id;
@@ -179,6 +186,7 @@ export const useSessions = create<SessionsState>()(
         if (!src) return '';
         const live = id === st.currentId ? { ...src, image: imageParamsNow(), video: videoParamsNow() } : src;
         const { session, map } = duplicateSession(live, nanoid(), () => `step-${uid()}`, Date.now());
+        session.color = newColor(st);
         set((s) => ({ sessions: { ...s.sessions, [session.id]: session } }));
         void copyStepStores(map);
         get().open(session.id);
