@@ -6,7 +6,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { T } from '~/theme/tokens';
 
-export type StepTab = 'prompt' | 'model' | 'settings' | 'input';
+export type StepTab = 'prompt' | 'model' | 'settings' | 'input' | 'style';
 
 interface LayoutState {
   stepW: number;

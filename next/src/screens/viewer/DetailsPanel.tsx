@@ -16,6 +16,7 @@ import { describeEntry, formatDuration } from './metaLogic';
 import { useResultMeta } from './resultMeta';
 import type { ViewerItem } from './types';
 import { say } from '~/app/notify';
+import { StyleRefsMeta } from '~/screens/image/style/StyleRefsMeta';
 
 const copy = (text: string, what: string) => {
   void navigator.clipboard?.writeText(text).then(
@@ -131,6 +132,8 @@ export function DetailsPanel({ item, natural }: { item: ViewerItem; natural: { w
           </div>
         </Section>
       )}
+      {/* Style tab references (thumbnails, type, strength, adapter): screens/image/style. */}
+      <StyleRefsMeta refs={e?.workflow?.styleRefs} />
       {meta && (
         <Section title="Parameters" extra={<>{mini('Use settings', () => reuseSettingsFrom(e!))}{mini('Recall all', () => recallFrom(e!))}</>}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(96px, 1fr))', gap: 6 }}>

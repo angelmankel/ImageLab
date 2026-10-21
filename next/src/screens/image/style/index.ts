@@ -1,0 +1,1 @@
+export { StyleTab } from './StyleTab';

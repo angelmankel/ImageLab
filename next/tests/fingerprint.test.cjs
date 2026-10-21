@@ -44,3 +44,17 @@ test('chain: none / fresh / stale, stale spreads to followers only', () => {
   // unknown fingerprint (an old output) counts as up to date
   assert.equal(L.chainFreshness([f('a', { outFp: undefined, nowFp: 'z' })])[0].state, 'fresh');
 });
+
+test('style references are part of the image step fingerprint, with readable labels (Style tab)', () => {
+  const load = require('./_load.cjs');
+  const F = load('src/app/fingerprintLogic.ts');
+  const ref = { id: 'a', type: 'style', on: true, weight: 1, start: 0, end: 1, images: [{ key: 'k1', name: 'a.png', width: 9, height: 9, thumb: 'data:image/jpeg;base64,' + 'x'.repeat(80) }] };
+  const a = F.flatten({ cfg: 5 });
+  const b = F.flatten({ cfg: 5, styleRefs: [ref] });
+  const c = F.flatten({ cfg: 5, styleRefs: [{ ...ref, weight: 0.8 }] });
+  assert.equal(F.fingerprintOf(a), F.fingerprintOf(F.flatten({ cfg: 5, styleRefs: [] })));
+  assert.notEqual(F.fingerprintOf(a), F.fingerprintOf(b));
+  assert.notEqual(F.fingerprintOf(b), F.fingerprintOf(c));
+  assert.equal(F.labelOf('styleRefs.0.weight'), 'Style reference 1 strength');
+  assert.equal(F.labelOf('styleRefs.1.images.0.key'), 'Style reference 2 picture');
+});

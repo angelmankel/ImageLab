@@ -116,6 +116,11 @@ export function labelOf(key: string): string {
   }
   const parts = key.split('.');
   if (parts[0] === 'values') return `${parts.slice(1).join(' ')}`;
+  // Style tab references: "Style reference 1 picture", "Style reference 2 weight".
+  if (parts[0] === 'styleRefs' && parts.length > 2) {
+    const what = parts[2] === 'images' ? 'picture' : parts[2] === 'weight' ? 'strength' : LABELS[parts[2]] ?? humanize(parts[2]).toLowerCase();
+    return `Style reference ${Number(parts[1]) + 1} ${what}`;
+  }
   const leaf = parts[parts.length - 1];
   if (parts[0] in KIND_PREFIX && parts.length > 1) return LABELS[parts.slice(1).join('.')] ?? LABELS[leaf] ?? humanize(leaf);
   return LABELS[leaf] ?? humanize(leaf);

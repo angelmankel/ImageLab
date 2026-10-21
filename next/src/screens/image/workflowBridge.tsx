@@ -26,7 +26,7 @@ async function loadWorkflowTabs(): Promise<WorkflowTabs | null> {
   return loaded;
 }
 
-const NAME: Record<StepTab, keyof WorkflowTabs> = { prompt: 'WorkflowPromptTab', model: 'WorkflowModelTab', settings: 'WorkflowSettingsTab', input: 'WorkflowInputTab' };
+const NAME: Partial<Record<StepTab, keyof WorkflowTabs>> = { prompt: 'WorkflowPromptTab', model: 'WorkflowModelTab', settings: 'WorkflowSettingsTab', input: 'WorkflowInputTab' };
 
 function Line({ children }: { children: string }) {
   return <div style={{ background: 'var(--il-card)', borderRadius: 16, padding: '28px 14px', textAlign: 'center', fontSize: 12, fontWeight: 600, color: 'var(--il-muted)' }}>{children}</div>;
@@ -38,7 +38,8 @@ export function WorkflowTab({ tab, step }: { tab: StepTab; step: Step }) {
   useEffect(() => { let on = true; void loadWorkflowTabs().then((m) => { if (on) setTabs(m); }); return () => { on = false; }; }, []);
   if (!hasWorkflowTabs()) return <Line>{tab === 'input' ? 'This step takes the previous step\'s output into the workflow\'s first image input.' : 'Generate runs the saved ComfyUI workflow; its own tabs are coming.'}</Line>;
   if (!tabs) return <Line>Loading…</Line>;
-  const C = tabs[NAME[tab]];
+  const name = NAME[tab];
+  const C = name ? tabs[name] : undefined;
   if (!C) return <Line>{tab === 'model' ? 'This workflow has no model slot.' : 'Nothing to set here.'}</Line>;
   return <C step={step} />;
 }

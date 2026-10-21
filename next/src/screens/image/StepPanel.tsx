@@ -1,13 +1,13 @@
 /**
- * Rule 3: the step panel. A sticky dark block (edge to edge, #0F0F11) = the workflow row + the 4
- * tabs Prompt · Composition · Model · Parameters (fix list 25; icons only when narrow); one tab body at a time, scrolling; at the bottom the
+ * Rule 3: the step panel. A sticky dark block (edge to edge, #0F0F11) = the workflow row + the
+ * tabs Prompt · Composition · Model · Parameters (fix list 25; icons only when narrow) · Style (Image step); one tab body at a time, scrolling; at the bottom the
  * Generate group (left out on the phone: the dock has Generate). Which tab bodies render is per
  * `step.kind` (`TABS_BY_KIND`): the Image step's own tabs, the Video step's (`./video`), the
  * Workflow step's through `./workflowBridge` (another owner's folder, loaded when it exists);
  * Refine / Upscale / Remove BG through `./kinds` (fix list 15, 22, 43).
  */
 import { useEffect, useRef, useState, type ComponentType } from 'react';
-import { IconAlignLeft, IconCube, IconAdjustmentsHorizontal, IconPhoto } from '@tabler/icons-react';
+import { IconAlignLeft, IconCube, IconAdjustmentsHorizontal, IconPhoto, IconPalette } from '@tabler/icons-react';
 import { useStore } from '@/lib/store';
 import { useVideo } from '@/features/video/videoStore';
 import { useSteps, type Step, type StepKind } from '~/app/stepsStore';
@@ -20,6 +20,7 @@ import { PromptTab } from './PromptTab';
 import { InputTab } from './InputTab';
 import { ModelTab } from './model';
 import { SettingsTab } from './settings';
+import { StyleTab } from './style';
 import { VideoPromptTab, VideoModelTab, VideoSettingsTab, VideoInputTab } from './video';
 import { WorkflowTab } from './workflowBridge';
 import './stepMenuEntries';
@@ -29,32 +30,39 @@ import {
 } from './kinds/KindTabs';
 
 /** Fix list 25: Prompt · Composition · Model · Parameters (keys stay 'input' / 'settings' so saved state and callers keep working). */
-const TAB_DEFS: Array<{ key: StepTab; title: string; Icon: typeof IconAlignLeft }> = [
+const TAB_DEFS: Array<{ key: StepTab; title: string; short?: string; Icon: typeof IconAlignLeft }> = [
   { key: 'prompt', title: 'Prompt', Icon: IconAlignLeft },
-  { key: 'input', title: 'Composition', Icon: IconPhoto },
+  { key: 'input', title: 'Composition', short: 'Comp.', Icon: IconPhoto },
   { key: 'model', title: 'Model', Icon: IconCube },
-  { key: 'settings', title: 'Parameters', Icon: IconAdjustmentsHorizontal },
+  { key: 'settings', title: 'Parameters', short: 'Params', Icon: IconAdjustmentsHorizontal },
+  // Style references (IP-Adapter, faces, Redux): last, and only on steps that have it (TABS_BY_KIND).
+  { key: 'style', title: 'Style', Icon: IconPalette },
 ];
 
-/** Below this width of the tab row the words go and each tab is its icon with a tooltip. */
-const WORDS_MIN = 372;
+/** Per tab, the width the row needs: with icon + word, and with the word alone (5 tabs: ~470 / ~360). */
+const PER_TAB_FULL = 94;
+const PER_TAB_WORDS = 72;
 
-/** The phone has no hover for tooltips: there the words stay and the icons go when it is narrow. */
-function StepTabs({ tab, setTab, phone }: { tab: StepTab; setTab: (t: StepTab) => void; phone: boolean }) {
+/** Wide: icon + word. Medium: the word alone. Narrow: the icon with a tooltip (the phone keeps the words: no hover there). */
+function StepTabs({ tab, setTab, phone, keys }: { tab: StepTab; setTab: (t: StepTab) => void; phone: boolean; keys: readonly StepTab[] }) {
   const ref = useRef<HTMLDivElement>(null);
-  const [wide, setWide] = useState(true);
+  const [w, setW] = useState(9999);
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const ro = new ResizeObserver(([e]) => setWide(e.contentRect.width >= WORDS_MIN));
+    const ro = new ResizeObserver(([e]) => setW(e.contentRect.width));
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
-  const items = TAB_DEFS.map(({ key, title, Icon }) => ({
+  const defs = TAB_DEFS.filter((d) => keys.includes(d.key));
+  const full = w >= PER_TAB_FULL * defs.length;
+  const roomy = w >= PER_TAB_WORDS * defs.length;
+  const words = phone || roomy;
+  const items = defs.map(({ key, title, short, Icon }) => ({
     key,
-    label: wide ? <><Icon size={15} stroke={2.2} />{title}</> : phone ? title : <Tip label={title}><span style={{ display: 'grid', placeItems: 'center' }} aria-label={title}><Icon size={17} stroke={2.2} /></span></Tip>,
+    label: full ? <><Icon size={15} stroke={2.2} />{title}</> : words ? (roomy ? title : short ?? title) : <Tip label={title}><span style={{ display: 'grid', placeItems: 'center' }} aria-label={title}><Icon size={17} stroke={2.2} /></span></Tip>,
   }));
-  return <div ref={ref}><Tabs<StepTab> items={items} value={tab} onChange={setTab} itemPad={wide || phone ? 9 : 12} hug={wide || phone} /></div>;
+  return <div ref={ref}><Tabs<StepTab> items={items} value={tab} onChange={setTab} itemPad={full || words ? 9 : 12} hug={full || words} /></div>;
 }
 
 type TabProps = { step: Step; phone?: boolean };
@@ -62,7 +70,7 @@ type TabBodies = Partial<Record<StepTab, ComponentType<TabProps>>>;
 
 /** Per step kind, the component of each tab; a missing tab shows `ComingSoon`. */
 const TABS_BY_KIND: Record<StepKind, TabBodies> = {
-  image: { prompt: ({ phone }) => <PromptTab large={phone} />, model: () => <ModelTab />, settings: () => <SettingsTab />, input: InputTab },
+  image: { prompt: ({ phone }) => <PromptTab large={phone} />, model: () => <ModelTab />, settings: () => <SettingsTab />, input: InputTab, style: () => <StyleTab /> },
   video: { prompt: ({ step, phone }) => <VideoPromptTab step={step} large={phone} />, model: () => <VideoModelTab />, settings: () => <VideoSettingsTab />, input: VideoInputTab },
   workflow: {
     prompt: ({ step }) => <WorkflowTab tab="prompt" step={step} />, model: ({ step }) => <WorkflowTab tab="model" step={step} />,
@@ -104,9 +112,12 @@ export function StepPanel({ phone = false, stepId }: { phone?: boolean; stepId?:
   const steps = useSteps((s) => s.steps);
   const activeId = useSteps((s) => s.activeId);
   const step = steps.find((s) => s.id === (stepId ?? activeId)) ?? steps[0];
-  const tab = useLayout((s) => s.tab);
+  const savedTab = useLayout((s) => s.tab);
   const setTab = useLayout((s) => s.setTab);
   useEditedTracking(step);
+  // The four base tabs show on every step (a missing body = ComingSoon); Style only where a step has it.
+  const keys = TAB_DEFS.map((d) => d.key).filter((k) => k !== 'style' || !!TABS_BY_KIND[step.kind].style);
+  const tab: StepTab = keys.includes(savedTab) ? savedTab : 'prompt';
   const Body = TABS_BY_KIND[step.kind][tab];
 
   return (
@@ -115,7 +126,7 @@ export function StepPanel({ phone = false, stepId }: { phone?: boolean; stepId?:
         <WorkflowRow step={step} />
         <div style={{ height: 1, background: 'var(--il-line-soft)', margin: '0 10px' }} />
         <div style={{ padding: '6px 10px 10px' }}>
-          <StepTabs tab={tab} setTab={setTab} phone={phone} />
+          <StepTabs tab={tab} setTab={setTab} phone={phone} keys={keys} />
         </div>
       </div>
       {/* Phone: the page itself scrolls (CreatePage), so this is no scroll container there — a sticky

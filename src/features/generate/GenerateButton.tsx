@@ -368,7 +368,8 @@ async function queueFromStore(newSeed: boolean, override?: Partial<WorkflowState
     negative: res.negative,
     seed: workflow.seed,
     model: workflow.checkpoints[0]?.name ?? '',
-    workflow,
+    // With style references, the snapshot keeps the files they ran with (`use`): the output's metadata.
+    workflow: styleRefs.styleRefs ? { ...workflow, ...styleRefs } : workflow,
     layers,
     targetLayerId,
     ...(resultCrop ? { resultCrop } : {}),
