@@ -83,9 +83,11 @@ export interface CollapseProps extends Omit<CollapseHeaderProps, 'open' | 'onTog
   wrapStyle?: CSSProperties;
   /** Style of the header row. */
   headerStyle?: CSSProperties;
+  /** Style of the body box (e.g. a flex column with the card's gap). */
+  bodyStyle?: CSSProperties;
 }
 
-export function Collapse({ id, defaultOpen = true, open: controlled, onOpenChange, children, gap = 6, wrapStyle, headerStyle, style, ...head }: CollapseProps) {
+export function Collapse({ id, defaultOpen = true, open: controlled, onOpenChange, children, gap = 6, wrapStyle, headerStyle, bodyStyle, style, ...head }: CollapseProps) {
   const [local, setLocal] = useState(defaultOpen);
   const stored = useCollapseStore((s) => (id ? s.open[id] : undefined));
   const setStored = useCollapseStore((s) => s.set);
@@ -99,7 +101,7 @@ export function Collapse({ id, defaultOpen = true, open: controlled, onOpenChang
     <div style={{ display: 'flex', flexDirection: 'column', ...wrapStyle }}>
       <CollapseHeader {...head} open={open} onToggle={toggle} style={{ ...style, ...headerStyle }} />
       <MCollapse in={open} transitionDuration={Math.round(160 * motionScale())} transitionTimingFunction="ease">
-        <div style={{ paddingTop: gap }}>{children}</div>
+        <div style={{ paddingTop: gap, ...bodyStyle }}>{children}</div>
       </MCollapse>
     </div>
   );

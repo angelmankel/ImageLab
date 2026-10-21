@@ -24,7 +24,7 @@ import { useSteps, stepTitle, type Step } from '~/app/stepsStore';
 import { useIsPhone } from '~/app/useIsPhone';
 import { editInputImage } from '~/canvas/edit/editStore';
 import { usePhone } from '~/screens/phone/phoneStore';
-import { Button, SliderRow, Tip } from '~/ui';
+import { Button, Collapse, SliderRow, Tip } from '~/ui';
 import { T, btnRadius } from '~/theme/tokens';
 import { dropToBlob, useRegisterDropTarget, type DropItem } from '~/dnd';
 import { ImageDropZone } from './ImageDropZone';
@@ -46,7 +46,12 @@ import {
 import { useUndoableSetWorkflow } from '~/app/undoableWorkflow';
 
 const card: React.CSSProperties = { background: 'var(--il-card)', borderRadius: T.radius.lg, padding: 10, display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 };
-const title: React.CSSProperties = { fontSize: 12, fontWeight: 800, color: 'var(--il-fg)' };
+const cardBody: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 };
+
+/** A card whose header folds it (item 7: the shared low-profile Collapse, remembered per section). */
+function Section({ id, label, preview, children }: { id: string; label: string; preview?: ReactNode; children: ReactNode }) {
+  return <div style={card}><Collapse id={id} label={label} preview={preview} gap={8} bodyStyle={cardBody}>{children}</Collapse></div>;
+}
 const fmt = (w: number, h: number) => `${w} × ${h}`;
 /** The size chip on a preview: solid panel colour + hairline, readable on any theme. */
 const sizeChip: React.CSSProperties = {
@@ -261,8 +266,8 @@ function NewImageSize() {
   };
 
   return (
-    <div style={card}>
-      <ShapeChips title={<Tip hint="width"><div style={title}>Size</div></Tip>} value={lit} onPick={pick} onFlip={flip}
+    <Section id="compose.size" label="Size" preview={fmt(shown.width, shown.height)}>
+      <ShapeChips title={null} value={lit} onPick={pick} onFlip={flip}
         current={orientOf(shown.width, shown.height) === 'square' ? null : orientOf(shown.width, shown.height)} />
       <ShapePreview w={shown.width} h={shown.height} height={phone ? 140 : 150} />
       <Seg<SizeMode> label="Size" items={PRESETS(phone)} value={sizeMode} onChange={toPreset} />
@@ -273,7 +278,7 @@ function NewImageSize() {
           lock={{ on: lock, label: lock ? `Keep ${lit ?? 'the ratio'}` : 'Ratio free', onToggle: () => setLock(!lock) }} />
       )}
       <FinalSize w={shown.width} h={shown.height} />
-    </div>
+    </Section>
   );
 }
 
@@ -288,10 +293,10 @@ function HowMuch() {
   const setWorkflow = useUndoableSetWorkflow();
   const preset = CHANGE.find((c) => Math.abs(c.v - denoise) < 0.005)?.key ?? null;
   return (
-    <div style={card}>
-      <SliderRow id="denoise" label="How much to change" value={denoise} min={0} max={1} step={0.01} defaultValue={DENOISE_DEFAULT} onChange={(v) => setWorkflow({ inputDenoise: v })} format={(v) => v.toFixed(2)} />
+    <Section id="compose.change" label="How much to change" preview={denoise.toFixed(2)}>
+      <SliderRow id="denoise" label="Denoise" value={denoise} min={0} max={1} step={0.01} defaultValue={DENOISE_DEFAULT} onChange={(v) => setWorkflow({ inputDenoise: v })} format={(v) => v.toFixed(2)} />
       <Seg label="How much to change" items={CHANGE} value={preset} onChange={(k) => setWorkflow({ inputDenoise: CHANGE.find((c) => c.key === k)!.v })} />
-    </div>
+    </Section>
   );
 }
 
@@ -306,10 +311,9 @@ function FromImageSize({ input }: { input: Pic | null }) {
   const [busy, setBusy] = useState(false);
   if (!input) {
     return (
-      <div style={card}>
-        <div style={title}>Size</div>
+      <Section id="compose.size" label="Size">
         <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--il-muted)' }}>Add a picture: the output takes its shape.</div>
-      </div>
+      </Section>
     );
   }
   const original = originalOf(shapeState, input);
@@ -320,8 +324,8 @@ function FromImageSize({ input }: { input: Pic | null }) {
   const pickShape = (id: string) => { if (id === shape || busy) return; setBusy(true); void setInputShape(id).finally(() => setBusy(false)); };
   const custom = inputSize === 'custom';
   return (
-    <div style={card}>
-      <ShapeChips title={<Tip hint="width"><div style={title}>Size</div></Tip>} value={shape} picture={{ w: original.width, h: original.height }} onPick={pickShape} disabled={busy}
+    <Section id="compose.size" label="Size" preview={fmt(out.width, out.height)}>
+      <ShapeChips title={null} value={shape} picture={{ w: original.width, h: original.height }} onPick={pickShape} disabled={busy}
         current={shape === 'picture' || shape === '1:1' ? null : orientOfRatio(ratioById(shape))}
         onFlip={() => { if (shape !== 'picture') pickShape(flipRatio(shape)); }} />
       <CropPreview original={original} shape={shape} out={out} height={phone ? 150 : 160} />
@@ -333,7 +337,7 @@ function FromImageSize({ input }: { input: Pic | null }) {
           lock={{ on: true, label: 'Keeps the picture\'s shape', fixed: 'Pick a shape above to change it' }} />
       )}
       <FinalSize w={out.width} h={out.height} extra={`picture ${fmt(input.width, input.height)}`} />
-    </div>
+    </Section>
   );
 }
 
@@ -402,7 +406,7 @@ export function CompositionTab({ step }: { step: Step; phone?: boolean }) {
   else body = (
     <>
       <ModeSwitch value={mode} onChange={switchMode} />
-      <div style={card}>{zone}</div>
+      <Section id="compose.input" label="Input image" preview={inputImage?.name}>{zone}</Section>
       <HowMuch />
       <FromImageSize input={inputImage} />
     </>

@@ -10,6 +10,7 @@ import { T } from '~/theme/tokens';
 import type { SettingDef } from './categories';
 import { CTL_WIDTH } from './inputs';
 import { highlight } from './settingsLogic';
+import { Collapse } from '~/ui';
 
 export function Mark({ text, query }: { text: string; query?: string }) {
   if (!query) return <>{text}</>;
@@ -66,10 +67,11 @@ export function SettingRow({ def, query, first, control, disabled }: { def: Sett
 
 /** A small titled group of rows ("Provider", "Venice", "Local LLM"). */
 export function RowGroup({ title, children }: { title?: string; children: ReactNode }) {
+  // A titled group (a long category) folds under the shared low-profile header (item 7), remembered per group.
+  if (!title) return <section style={{ marginBottom: 18 }}>{children}</section>;
   return (
     <section style={{ marginBottom: 18 }}>
-      {title && <div className="il-eyebrow" style={{ padding: '0 0 4px', borderBottom: '1px solid var(--il-line-strong)' }}>{title}</div>}
-      {children}
+      <Collapse id={`settings.${title}`} label={title} gap={0} headerStyle={{ borderBottom: '1px solid var(--il-line-strong)' }}>{children}</Collapse>
     </section>
   );
 }
