@@ -3,7 +3,8 @@
  * tile. A calm two-column layout: a square picture slot on the left (drop · Paste · Upload, × on
  * its corner), the text (focused), name and category on the right; phone: stacked, picture last.
  * Only the text is needed (one note says so): the name is made from the text when empty (shown as
- * the placeholder), the category is the shared SearchSelect. A "✦ From image" spot sits top-right. Enter saves, Shift+Enter = new line, Esc
+ * the placeholder), the category is the shared SearchSelect. "✦ From image" (top-right, new only)
+ * hands over to writeit's from-a-picture window. Enter saves, Shift+Enter = new line, Esc
  * closes. Editing shows Delete too. Every save / delete is one app undo step (`snippetOps`).
  */
 import { createElement, useEffect, useMemo, useRef, useState, type ComponentType } from 'react';
@@ -19,15 +20,18 @@ import { useTileEdit } from '../prompt/tileStore';
 import { autoName, UNCATEGORIZED } from './snippetModel';
 import { addSnippets, deleteSnippets, snippetPicture, updateSnippet } from './snippetOps';
 import { SnippetPicture } from './SnippetPicture';
+import { openSnippetsFromImage } from '../writeIt/fromImageRuns';
 
 /**
- * The "✦ From image" spot (writeit's item): `writeIt/SnippetFromImage.tsx` exporting
- * `SnippetFromImage` gets { image (the slot's picture data URL or null), categoryId, negative,
- * onText({ text, name? }) } and renders its own button. A glob that matches nothing = no button.
+ * The "✦ From image" spot. When writeit ships `writeIt/SnippetFromImage.tsx` exporting
+ * `SnippetFromImage` (props below: the slot's picture data URL or null, the category, the kind, and
+ * onText to fill this snippet's text / name), it renders here. Until then a button hands the picture
+ * to writeit's from-a-picture window (many snippets at once).
  */
 export interface SnippetFromImageProps { image: string | null; categoryId: string; negative: boolean; onText: (v: { text: string; name?: string }) => void }
 const fromImageMods = import.meta.glob('../writeIt/SnippetFromImage.tsx', { eager: true }) as Record<string, { SnippetFromImage?: ComponentType<SnippetFromImageProps> }>;
-const fromImageButton = () => Object.values(fromImageMods)[0]?.SnippetFromImage ?? null;
+const FromImageSlot = Object.values(fromImageMods)[0]?.SnippetFromImage ?? null;
+
 
 const field: React.CSSProperties = {
   width: '100%', border: '1px solid var(--il-line-soft)', borderRadius: 10, background: 'var(--il-bg-deep)', color: 'var(--il-fg)',
@@ -89,7 +93,6 @@ function EditorModal({ opened, onClose, snip, negative, draftText, draftCat, cat
     if (e.key === 'Enter' && !e.shiftKey && !(e.nativeEvent as KeyboardEvent).isComposing) { e.preventDefault(); save(); }
   };
 
-  const fromImage = fromImageButton();
   const pic = (
     <SnippetPicture size={phone ? 'min(100%, 220px)' : 176} url={image ?? null}
       onBlob={async (blob) => { setImage(await snippetPicture(blob)); }} onClear={() => setImage(undefined)} />
@@ -103,11 +106,15 @@ function EditorModal({ opened, onClose, snip, negative, draftText, draftCat, cat
       <div data-no-swipe style={{ display: 'flex', flexDirection: 'column', gap: 18, padding: phone ? '16px 16px 20px' : '20px 22px 20px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, minHeight: 32 }}>
           <div style={{ fontSize: 17, fontWeight: 800, flex: 1, minWidth: 0 }}>{snip ? 'Edit snippet' : negative ? 'New negative snippet' : 'New snippet'}</div>
-          {/* The "✦ From image" spot (writeit's helper fills it when present). */}
-          {fromImage && !preset && createElement(fromImage, {
+          {/* ✦ From image (writeit's window: snippets made from a picture by the vision model). It opens
+              over the app, so this modal closes and hands it the picture already in the slot. */}
+          {FromImageSlot && !preset ? createElement(FromImageSlot, {
             image: image ?? null, categoryId: cat, negative,
             onText: (v: { text: string; name?: string }) => { setText(v.text); if (v.name && !name.trim()) setName(v.name); },
-          })}
+          }) : !snip && (
+            <Button tone="card" size="sm" style={{ color: 'var(--il-ember-hi)' }} tooltip="Make snippets from a picture"
+              onClick={() => { onClose(); openSnippetsFromImage({ ...(image ? { url: image, name: 'snippet picture' } : {}), categoryId: cat }); }}>✦ From image</Button>
+          )}
         </div>
 
         <div style={{ display: 'flex', flexDirection: phone ? 'column' : 'row', gap: phone ? 16 : 20, alignItems: phone ? 'stretch' : 'flex-start' }}>

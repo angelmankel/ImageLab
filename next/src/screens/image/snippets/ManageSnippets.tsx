@@ -26,6 +26,7 @@ import { addCategory, deleteCategory, deleteSnippets, duplicateSnippets, mergeCa
 import { previewText, searchSnippets } from './snippetLogic';
 import { dragSet, headerState, selectRange, toggleAll, toggleOne } from './selectionLogic';
 import { generateSnippetsFor } from './generateBridge';
+import { openSnippetsFromImage } from '../writeIt/fromImageRuns';
 
 const EMPTY: never[] = [];
 const cleanName = (c: SnippetCategory) => c.name.replace(/^negative\s*[·:\-–—]\s*/i, '');
@@ -182,6 +183,8 @@ function ManageModal({ opened, start, onClose }: { opened: boolean; start: strin
       </div>
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
         {gen && <Button tone="card" size={sz} icon={<IconSparkles size={13} />} style={{ color: 'var(--il-ember-hi)' }} onClick={gen}>Generate snippets</Button>}
+        <Button tone="card" size={sz} style={{ color: 'var(--il-ember-hi)' }} tooltip="Make snippets from a picture"
+          onClick={() => { onClose(); openSnippetsFromImage({ categoryId: cat.id }); }}>✦ From image</Button>
         {!isUncat && (
           <div style={{ width: phone ? 170 : 150 }}>
             <SearchSelect label="Merge into" value={null} placeholder="Merge into…" size={sz} options={mergeOptions} searchable={false}
