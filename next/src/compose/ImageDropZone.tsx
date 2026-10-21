@@ -2,7 +2,8 @@
  * THE input-image drop zone (fix list 41, list 2 items 34 + 36), one component for every picture
  * slot in the app: the Image step's input, a step 2+'s own picture, the Video start / end frame and
  * H3 references, every LoadImage slot of a workflow, the ControlNet guide. Empty: a dashed well —
- * drop, paste, Upload, Library (history · liked · Collections · on the server), Paste. Filled: a
+ * drop, paste, Upload, Library (history · liked · Collections · on the server), Paste; a small box
+ * (measured) gets a short title + one row of icon buttons, a tiny one the icons alone. Filled: a
  * label row (the slot's name, where the picture came from, a small Clear at the right end), the
  * picture whole (checkerboard behind transparency, its size as a badge bottom-left), then Replace ·
  * Library · Paste · Edit as one joined group — in a narrow panel an icon column beside the picture.
@@ -101,15 +102,20 @@ export function ImageDropZone(p: ImageDropZoneProps) {
 
   // A narrow panel (< 300px, not the phone): the actions go beside the picture as an icon column.
   const rootRef = useRef<HTMLDivElement | null>(null);
-  const [narrow, setNarrow] = useState(false);
+  const [boxW, setBoxW] = useState(0);
   useEffect(() => {
     const el = rootRef.current;
     if (!el || typeof ResizeObserver === 'undefined') return;
-    const ro = new ResizeObserver(([e]) => setNarrow(e.contentRect.width < 300));
+    const ro = new ResizeObserver(([e]) => setBoxW(Math.round(e.contentRect.width)));
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
+  const narrow = boxW > 0 && boxW < 300;
   const side = narrow && !phone;
+  // The empty well fits its box (measured): full (round icon, hint, text buttons) · compact (a short
+  // title + one row of icon buttons with tooltips) · tiny (the icon row alone). Never stacks.
+  const fit: 'full' | 'compact' | 'tiny' = boxW > 0 && boxW < 150 ? 'tiny' : boxW > 0 && boxW < (phone ? 330 : 270) ? 'compact' : 'full';
+  const iconsOnly = fit !== 'full';
   const gh = phone ? 44 : side ? 40 : 32;
   const acts: Array<{ key: string; label: string; icon?: ReactNode; run?: () => void }> = [
     { key: 'replace', label: 'Replace', icon: <IconUpload size={14} />, run: () => fileRef.current?.click() },
@@ -166,26 +172,30 @@ export function ImageDropZone(p: ImageDropZoneProps) {
           onClick={(e) => { if (e.target === e.currentTarget) fileRef.current?.click(); }}
           onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); fileRef.current?.click(); } }}
           style={{
-            position: 'relative', width: '100%', aspectRatio: small ? '16 / 7' : '4 / 3', maxHeight: small ? 140 : 240, minHeight: small ? 120 : 190, borderRadius: T.radius.lg,
+            position: 'relative', width: '100%', aspectRatio: small || iconsOnly ? '16 / 7' : '4 / 3', maxHeight: small || iconsOnly ? 140 : 240,
+            minHeight: fit === 'tiny' ? 64 : fit === 'compact' ? (phone ? 112 : 92) : small ? 120 : 190, borderRadius: T.radius.lg, overflow: 'hidden',
             border: `2px dashed ${glow ?? 'var(--il-line-strong)'}`, background: drop.over ? 'var(--il-ember-soft)' : drop.active ? '#1a1613' : 'var(--il-bg-deep)',
-            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: small ? 6 : 8, padding: 10, textAlign: 'center', cursor: 'pointer',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: small || iconsOnly ? 6 : 8, padding: iconsOnly ? 8 : 10, textAlign: 'center', cursor: 'pointer',
             opacity: working ? 0.6 : 1, transition: 'background-color .12s, border-color .12s',
           }}>
-          {!small && <span aria-hidden style={{ width: 42, height: 42, borderRadius: '50%', background: 'var(--il-ember-soft)', color: 'var(--il-ember)', display: 'grid', placeItems: 'center', pointerEvents: 'none' }}><IconArrowUp size={20} stroke={2.6} /></span>}
-          <span style={{ fontSize: 13, fontWeight: 800, color: drop.over ? 'var(--il-ember-hi)' : 'var(--il-fg)', pointerEvents: 'none' }}>
-            {working ? 'Loading…' : drop.over ? 'Release to use it' : emptyTitle ?? (phone ? 'Add a picture' : 'Drop a picture')}
-          </span>
-          {!small && !drop.over && !working && <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--il-muted)', pointerEvents: 'none' }}>{phone ? 'Long-press any picture → Send to' : 'or paste it · from a file, a tab, the canvas, history'}</span>}
+          {!small && !iconsOnly && <span aria-hidden style={{ width: 42, height: 42, borderRadius: '50%', background: 'var(--il-ember-soft)', color: 'var(--il-ember)', display: 'grid', placeItems: 'center', pointerEvents: 'none' }}><IconArrowUp size={20} stroke={2.6} /></span>}
+          {(fit !== 'tiny' || working || drop.over) && (
+            <span style={{ fontSize: iconsOnly ? 12 : 13, fontWeight: 800, color: drop.over ? 'var(--il-ember-hi)' : 'var(--il-fg)', pointerEvents: 'none', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {working ? 'Loading…' : drop.over ? 'Release to use it' : emptyTitle ?? (phone ? 'Add a picture' : 'Drop a picture')}
+            </span>
+          )}
+          {!small && !iconsOnly && !drop.over && !working && <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--il-muted)', pointerEvents: 'none' }}>{phone ? 'Long-press any picture → Send to' : 'or paste it · from a file, a tab, the canvas, history'}</span>}
           {!drop.over && (
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'center' }}>
-              <Button size={phone ? 'lg' : small ? 'sm' : h} icon={<IconUpload size={14} />} onClick={() => fileRef.current?.click()} disabled={working}>Upload</Button>
-              <Button size={phone ? 'lg' : small ? 'sm' : h} icon={<IconPhoto size={14} />} onClick={() => setLib(true)} disabled={working}>Library</Button>
-              <PasteButton size={phone ? 'lg' : small ? 'sm' : h} onPaste={() => void clip.paste()} disabled={working} />
-              {extra}
+            <div style={{ display: 'flex', gap: iconsOnly ? 4 : 6, flexWrap: iconsOnly ? 'nowrap' : 'wrap', justifyContent: 'center' }}>
+              <Button size={phone ? 'lg' : small || iconsOnly ? 'sm' : h} icon={<IconUpload size={14} />} onClick={() => fileRef.current?.click()} disabled={working} tooltip={iconsOnly ? 'Upload' : undefined}>{iconsOnly ? undefined : 'Upload'}</Button>
+              <Button size={phone ? 'lg' : small || iconsOnly ? 'sm' : h} icon={<IconPhoto size={14} />} onClick={() => setLib(true)} disabled={working} tooltip={iconsOnly ? 'Library' : undefined}>{iconsOnly ? undefined : 'Library'}</Button>
+              <PasteButton size={phone ? 'lg' : small || iconsOnly ? 'sm' : h} iconOnly={iconsOnly} onPaste={() => void clip.paste()} disabled={working} />
+              {!iconsOnly && extra}
             </div>
           )}
         </div>
       )}
+      {!url && iconsOnly && extra && <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>{extra}</div>}
       <PasteNote note={clip.note} />
       <LibraryPicker opened={lib} onClose={() => setLib(false)} onPick={takePick} server={onServerFile ? server : null} />
     </div>

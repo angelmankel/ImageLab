@@ -87,7 +87,7 @@ function EditorModal({ opened, onClose, snip, negative, draftText, draftCat, cat
       <div data-no-swipe style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: phone ? '14px 14px 18px' : '16px 18px 18px' }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
           <div style={{ fontSize: 16, fontWeight: 800 }}>{snip ? 'Edit snippet' : negative ? 'New negative snippet' : 'New snippet'}</div>
-          {!phone && <div style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 700, color: 'var(--il-dim)' }}>Enter saves · Shift+Enter new line · Esc</div>}
+          {!phone && <div style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 700, color: 'var(--il-dim)' }}>Enter saves</div>}
         </div>
 
         {preset ? (
