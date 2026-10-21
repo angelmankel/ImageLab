@@ -96,3 +96,30 @@ test('gpu view: fit centres in the free area; zoom keeps the point under the cur
   assert.equal(V.isFitted(f, f), true);
   assert.equal(V.isFitted(V.panBy(f, 5, 0), f), false);
 });
+
+const GS = require('./_load.cjs')('src/canvas/gpu/gesture.ts');
+
+test('gesture: a press past 5 px pans (start does not follow the pointer), a still press is a tap', () => {
+  const live = { x: 100, y: 100 };
+  const d = GS.startDrag(1, live, true);
+  live.x = 140; // the engine mutates its live pointer point: the drag must not see it
+  assert.equal(d.start.x, 100);
+  assert.equal(GS.moveDrag(d, { x: 102, y: 101 }), null, 'inside the slop');
+  assert.deepEqual(GS.moveDrag(d, { x: 120, y: 100 }), { dx: 20, dy: 0 });
+  assert.deepEqual(GS.moveDrag(d, { x: 125, y: 104 }), { dx: 5, dy: 4 });
+  assert.equal(GS.isTap(d, false), false, 'a pan is never a tap');
+  const t = GS.startDrag(2, { x: 0, y: 0 }, true);
+  GS.moveDrag(t, { x: 3, y: 3 });
+  assert.equal(GS.isTap(t, false), true);
+  assert.equal(GS.isTap(t, true), false, 'cancelled');
+  assert.equal(GS.isTap(GS.startDrag(3, { x: 0, y: 0 }, false), false), false, 'middle button');
+});
+
+test('gesture: the canvas leaves its own controls alone', () => {
+  const el = (match) => ({ closest: (sel) => (sel.split(', ').some((s) => match(s)) ? {} : null) });
+  assert.equal(GS.ignoredTarget(el((s) => s === 'button')), true);
+  assert.equal(GS.ignoredTarget(el((s) => s === '[role="toolbar"]')), true);
+  assert.equal(GS.ignoredTarget(el((s) => s === '[data-gpu-ignore]')), true);
+  assert.equal(GS.ignoredTarget(el(() => false)), false, 'the canvas itself');
+  assert.equal(GS.ignoredTarget(null), false);
+});

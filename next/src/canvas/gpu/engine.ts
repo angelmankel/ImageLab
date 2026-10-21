@@ -18,6 +18,7 @@ import { fitView, gridSpec, isFitted, panBy, toScreen, toWorld, zoomAt, NO_INSET
 import { lookMatrix, isNeutralLook, type Look } from '../edit/editLogic';
 import { fadeMs } from '~/screens/image/frame/frameLayers';
 import { toCssPx, uiZoom } from '~/theme/uiScale';
+import { ignoredTarget, isTap, moveDrag, startDrag, type Drag } from './gesture';
 
 export type ZoomMode = 'view' | 'edit';
 
@@ -60,7 +61,6 @@ export interface GpuCanvas {
 const VIEW_MAX_REL = 8;
 const EDIT_MIN_REL = 0.1;
 const EDIT_MAX_Z = 32;
-const TAP_PX = 5;
 
 function cssColor(name: string, fallback: number): number {
   try {
@@ -241,7 +241,7 @@ export function createGpuCanvas(host: HTMLElement, opts: GpuCanvasOptions = {}):
 
   // ---- Input -----------------------------------------------------------------
   const pointers = new Map<number, Pt>();
-  let drag: { id: number; x: number; y: number; moved: boolean; start: Pt; primary?: boolean } | null = null;
+  let drag: Drag | null = null;
   let pinch: { d: number; v: View; mid: Pt } | null = null;
   let pinched = false;
   const vel = createVelocityTracker();
@@ -261,16 +261,18 @@ export function createGpuCanvas(host: HTMLElement, opts: GpuCanvasOptions = {}):
   };
   const onDown = (e: PointerEvent) => {
     if (e.pointerType === 'mouse' && e.button !== 0 && e.button !== 1) return;
+    // The canvas's own DOM controls (Edit tool bar, flyouts, crop handles) keep their pointer.
+    if (ignoredTarget(e.target as Element | null)) return;
     stopThrow?.(); stopThrow = null;
     // A mouse press on a draggable element (the picture's drag source, `~/dnd`) may become a native
     // drag: capturing the pointer would swallow it. Its dragstart ends the gesture (no tap).
     const nativeDrag = e.pointerType === 'mouse' && (e.target as HTMLElement | null)?.draggable === true;
     if (!nativeDrag) { try { host.setPointerCapture(e.pointerId); } catch { /* gone */ } }
     const p = local(e);
-    pointers.set(e.pointerId, p);
+    pointers.set(e.pointerId, { ...p });
     if (pointers.size === 1) {
       pinched = false;
-      drag = { id: e.pointerId, x: p.x, y: p.y, moved: false, start: p, primary: e.pointerType !== 'mouse' || e.button === 0 };
+      drag = startDrag(e.pointerId, p, e.pointerType !== 'mouse' || e.button === 0);
       vel.reset(p.x, p.y);
     } else if (pointers.size === 2) {
       pinched = true; drag = null;
@@ -295,13 +297,11 @@ export function createGpuCanvas(host: HTMLElement, opts: GpuCanvasOptions = {}):
       return;
     }
     if (!drag || drag.id !== e.pointerId) return;
-    const dx = p.x - drag.x, dy = p.y - drag.y;
-    if (!drag.moved && Math.hypot(p.x - drag.start.x, p.y - drag.start.y) < TAP_PX) return;
-    drag.moved = true;
-    drag.x = p.x; drag.y = p.y;
+    const m = moveDrag(drag, p);
+    if (!m) return;
     vel.sample(p.x, p.y);
     if (!panEnabled || (mode === 'view' && isFitted(view, fitNow()))) return;
-    view = panBy(view, dx, dy);
+    view = panBy(view, m.dx, m.dy);
     changed();
   };
   const onUp = (e: PointerEvent) => {
@@ -309,7 +309,8 @@ export function createGpuCanvas(host: HTMLElement, opts: GpuCanvasOptions = {}):
     if (pointers.size === 1) {
       const [id, p] = [...pointers.entries()][0];
       pinch = null;
-      drag = { id, x: p.x, y: p.y, moved: true, start: p };
+      drag = startDrag(id, p, false);
+      drag.moved = true;
       return;
     }
     if (pointers.size > 1) return;
@@ -317,7 +318,7 @@ export function createGpuCanvas(host: HTMLElement, opts: GpuCanvasOptions = {}):
     drag = null; pinch = null;
     // One rule (fix list 2, consistent clicks): a primary press that moved < TAP_PX is a tap, at any zoom;
     // a pan, a pinch, the middle button (pans) and a right click (the menu) never are.
-    const tap = e.type !== 'pointercancel' && !pinched && !!d && d.id === e.pointerId && !d.moved && !!d.primary;
+    const tap = !pinched && !!d && d.id === e.pointerId && isTap(d, e.type === 'pointercancel');
     pinched = false;
     if (tap) { opts.onTap?.(e); return; }
     if (d?.moved && panEnabled && !(mode === 'view' && isFitted(view, fitNow()))) {

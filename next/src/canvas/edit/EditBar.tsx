@@ -197,7 +197,8 @@ function CropPanel({ phone }: { phone: boolean }) {
     <div>
       <Head title="Crop" right={crop && <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--il-muted)', fontVariantNumeric: 'tabular-nums' }}>{crop.w} × {crop.h}</span>} />
       <Chips>{CROP_RATIOS.map((r) => <Chip key={r.id} small={!phone} tall={phone} on={ratio === r.id} onClick={() => pick(r.id)}>{r.label}</Chip>)}</Chips>
-      <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
+      {/* A grid, not a flex row: `grow` buttons are 100% wide and a flex row pushed Apply out of the flyout. */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginTop: 10 }}>
         <Button size={phone ? 'lg' : 'md'} tone="ghost" grow onClick={() => setTool(null)}>Cancel</Button>
         <Button size={phone ? 'lg' : 'md'} tone="primary" grow disabled={!crop} onClick={() => { if (crop) void cropEdit(crop); }}>Apply</Button>
       </div>

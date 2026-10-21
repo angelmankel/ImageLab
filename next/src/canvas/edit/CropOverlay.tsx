@@ -54,7 +54,7 @@ export function CropOverlay({ engine, W, H }: { engine: GpuCanvas; W: number; H:
   };
   return (
     <div aria-label="Crop" style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden', zIndex: 1 }}>
-      <div onPointerDown={down('move')} onPointerMove={move} onPointerUp={up} onPointerCancel={up}
+      <div data-gpu-ignore onPointerDown={down('move')} onPointerMove={move} onPointerUp={up} onPointerCancel={up}
         style={{ position: 'absolute', ...box, cursor: 'move', pointerEvents: 'auto', touchAction: 'none', boxShadow: '0 0 0 100vmax rgba(0,0,0,.55)', outline: '1px solid rgba(255,255,255,.92)' }}>
         {dragging && (
           <div aria-hidden style={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(90deg, transparent calc(33.333% - .5px), rgba(255,255,255,.4) calc(33.333% - .5px), rgba(255,255,255,.4) calc(33.333% + .5px), transparent calc(33.333% + .5px), transparent calc(66.666% - .5px), rgba(255,255,255,.4) calc(66.666% - .5px), rgba(255,255,255,.4) calc(66.666% + .5px), transparent calc(66.666% + .5px)), linear-gradient(transparent calc(33.333% - .5px), rgba(255,255,255,.4) calc(33.333% - .5px), rgba(255,255,255,.4) calc(33.333% + .5px), transparent calc(33.333% + .5px), transparent calc(66.666% - .5px), rgba(255,255,255,.4) calc(66.666% - .5px), rgba(255,255,255,.4) calc(66.666% + .5px), transparent calc(66.666% + .5px))' }} />
