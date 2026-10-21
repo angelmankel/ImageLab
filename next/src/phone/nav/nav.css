@@ -1,33 +1,33 @@
 /* The phone's nav frame: stacked cards (phone/nav/NavHost.tsx). */
 :root {
   /* the gap above the top card where the layer behind peeks out */
-  --il-nav-peek: 46px;
+  --il-pmap-peek: 46px;
   /* a layer with a card on it: smaller, pulled up so its top edge shows above the card */
-  --il-nav-back: translateY(calc(var(--il-nav-peek) * -0.55)) scale(.93);
+  --il-pmap-back: translateY(calc(var(--il-pmap-peek) * -0.55)) scale(.93);
 }
-.il-nav { position: absolute; inset: 0; display: flex; flex-direction: column; background: #000; overscroll-behavior: none; }
-.il-nav[data-land] { flex-direction: row; padding-left: env(safe-area-inset-left, 0px); background: var(--il-bg-deep); }
-.il-nav-area { position: relative; flex: 1; min-width: 0; min-height: 0; overflow: hidden; }
-.il-nav-page { position: absolute; top: 0; bottom: 0; background: var(--il-bg); transform-origin: 50% 0; }
-.il-nav-page[data-card] { top: calc(env(safe-area-inset-top, 0px) + var(--il-nav-peek)); border-radius: 20px 20px 0 0; overflow: hidden; box-shadow: 0 -10px 30px rgba(0,0,0,.45); }
-.il-nav-page[data-paired] { top: calc(env(safe-area-inset-top, 0px) + 8px); border-radius: 20px 20px 0 0; }
-.il-nav-page[data-role="left"] { top: 0; border-radius: 0; box-shadow: none; border-right: 1px solid var(--il-line); }
-.il-nav-page[data-role="main"] { z-index: 3; }
-.il-nav-page[data-role="under"] { z-index: 1; transform: var(--il-nav-back); filter: brightness(.6); }
-.il-nav-page[data-role="hidden"] { visibility: hidden; content-visibility: hidden; z-index: 0; }
+.il-pmap { position: absolute; inset: 0; display: flex; flex-direction: column; background: #000; overscroll-behavior: none; }
+.il-pmap[data-land] { flex-direction: row; padding-left: env(safe-area-inset-left, 0px); background: var(--il-bg-deep); }
+.il-pmap-area { position: relative; flex: 1; min-width: 0; min-height: 0; overflow: hidden; }
+.il-pmap-page { position: absolute; top: 0; bottom: 0; background: var(--il-bg); transform-origin: 50% 0; }
+.il-pmap-page[data-card] { top: calc(env(safe-area-inset-top, 0px) + var(--il-pmap-peek)); border-radius: 20px 20px 0 0; overflow: hidden; box-shadow: 0 -10px 30px rgba(0,0,0,.45); }
+.il-pmap-page[data-paired] { top: calc(env(safe-area-inset-top, 0px) + 8px); border-radius: 20px 20px 0 0; }
+.il-pmap-page[data-role="left"] { top: 0; border-radius: 0; box-shadow: none; border-right: 1px solid var(--il-line); }
+.il-pmap-page[data-role="main"] { z-index: 3; }
+.il-pmap-page[data-role="under"] { z-index: 1; transform: var(--il-pmap-back); filter: brightness(.6); }
+.il-pmap-page[data-role="hidden"] { visibility: hidden; content-visibility: hidden; z-index: 0; }
 /* the inner box holds position: fixed children inside the layer */
-.il-nav-page-in { position: absolute; inset: 0; display: flex; flex-direction: column; transform: translateZ(0); overflow: hidden; }
-.il-nav-page-body { position: relative; flex: 1; min-height: 0; }
-.il-nav-head { flex: none; height: 44px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding-top: 7px; gap: 4px; }
-.il-nav-grab { width: 38px; height: 4px; border-radius: 2px; background: var(--il-line-strong); flex: none; }
-.il-nav-title { font-size: 14px; font-weight: 800; color: var(--il-fg); max-width: 80%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.il-pmap-page-in { position: absolute; inset: 0; display: flex; flex-direction: column; transform: translateZ(0); overflow: hidden; }
+.il-pmap-page-body { position: relative; flex: 1; min-height: 0; }
+.il-pmap-head { flex: none; height: 44px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding-top: 7px; gap: 4px; }
+.il-pmap-grab { width: 38px; height: 4px; border-radius: 2px; background: var(--il-line-strong); flex: none; }
+.il-pmap-title { font-size: 14px; font-weight: 800; color: var(--il-fg); max-width: 80%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* the peeking layer behind: a tap goes back to it */
-.il-nav-peek { position: absolute; left: 0; right: 0; top: 0; height: calc(env(safe-area-inset-top, 0px) + var(--il-nav-peek)); z-index: 2; border: 0; padding: 0 0 6px; background: transparent; cursor: pointer; display: flex; align-items: flex-end; justify-content: center; }
-.il-nav-peek-label { height: 26px; padding: 0 12px; border-radius: 999px; background: color-mix(in srgb, var(--il-elev) 85%, transparent); color: var(--il-fg2); font-size: 11px; font-weight: 800; display: inline-flex; align-items: center; max-width: 70%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.il-pmap-peek { position: absolute; left: 0; right: 0; top: 0; height: calc(env(safe-area-inset-top, 0px) + var(--il-pmap-peek)); z-index: 2; border: 0; padding: 0 0 6px; background: transparent; cursor: pointer; display: flex; align-items: flex-end; justify-content: center; }
+.il-pmap-peek-label { height: 26px; padding: 0 12px; border-radius: 999px; background: color-mix(in srgb, var(--il-elev) 85%, transparent); color: var(--il-fg2); font-size: 11px; font-weight: 800; display: inline-flex; align-items: center; max-width: 70%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* the sideways neighbours (cheap previews) and their reveal while a swipe drags */
-.il-nav-sib { z-index: 3; visibility: hidden; pointer-events: none; }
-.il-nav-sib[data-reveal] { visibility: visible; }
-.il-nav-sib-blank { height: 100%; display: grid; place-items: center; color: var(--il-dim); font-weight: 800; font-size: 15px; }
+.il-pmap-sib { z-index: 3; visibility: hidden; pointer-events: none; }
+.il-pmap-sib[data-reveal] { visibility: visible; }
+.il-pmap-sib-blank { height: 100%; display: grid; place-items: center; color: var(--il-dim); font-weight: 800; font-size: 15px; }
 /* the map indicator under the HUD */
 .il-map { display: flex; align-items: center; justify-content: center; gap: 6px; opacity: .45; transition: opacity calc(.3s * var(--il-motion, 1)); pointer-events: none; }
 .il-map[data-lit] { opacity: 1; }

@@ -39,7 +39,7 @@ import './nav.css';
 const EASE = 'cubic-bezier(0.22, 1, 0.36, 1)';
 const SLIDE_MS = 320;
 /** How a layer looks when a card sits on it (kept in step with nav.css [data-role="under"]). */
-const BACK = 'var(--il-nav-back)';
+const BACK = 'var(--il-pmap-back)';
 export const PAIR_LEFT = 'clamp(280px, 40%, 420px)';
 
 type Role = 'main' | 'left' | 'under' | 'hidden';
@@ -76,9 +76,9 @@ function scrolledDown(from: Element | null, card: Element): boolean {
 
 function CardHead({ page }: { page: NavPage }) {
   return (
-    <div className="il-nav-head">
-      <span aria-hidden className="il-nav-grab" />
-      <div className="il-nav-title">{pageTitle(page)}</div>
+    <div className="il-pmap-head">
+      <span aria-hidden className="il-pmap-grab" />
+      <div className="il-pmap-title">{pageTitle(page)}</div>
     </div>
   );
 }
@@ -91,12 +91,12 @@ function PageFrame({ page, index, role, paired, setEl }: {
   const style: CSSProperties = role === 'left' ? { left: 0, width: PAIR_LEFT } : paired ? { left: PAIR_LEFT, right: 0 } : { left: 0, right: 0 };
   const card = index > 0;
   return (
-    <div ref={(el) => setEl(page.key, el)} className="il-nav-page" data-role={role} data-kind={page.kind}
+    <div ref={(el) => setEl(page.key, el)} className="il-pmap-page" data-role={role} data-kind={page.kind}
       data-card={card || undefined} data-paired={paired || undefined} style={style}
       aria-hidden={role === 'hidden' || role === 'under' ? true : undefined}>
-      <div className="il-nav-page-in">
+      <div className="il-pmap-page-in">
         {card && (def?.header ?? true) && <CardHead page={page} />}
-        <div className="il-nav-page-body">
+        <div className="il-pmap-page-body">
           <PageCtx.Provider value={{ page, index }}>
             {C ? <C params={(page.params ?? {}) as never} page={page} /> : <div style={{ padding: 16, color: 'var(--il-muted)' }}>{page.kind}</div>}
           </PageCtx.Provider>
@@ -304,28 +304,28 @@ export function NavHost() {
   const mainStyle: CSSProperties = paired ? { left: PAIR_LEFT, right: 0 } : { left: 0, right: 0 };
 
   return (
-    <div className="il-nav" data-land={land || undefined}>
-      <div ref={area} className="il-nav-area">
+    <div className="il-pmap" data-land={land || undefined}>
+      <div ref={area} className="il-pmap-area">
         {stack.map((p, i) => <PageFrame key={p.key} page={p} index={i} role={roleOf(p, i)} paired={paired && p.key === vis.main.key} setEl={setEl} />)}
         {sibRefs && (['prev', 'next'] as const).map((k) => {
           const r = sibRefs[k];
           if (!r) return null;
           const P = phonePageDef(r.kind)?.Peek;
           return (
-            <div key={k} data-sib={k} className="il-nav-page il-nav-sib" data-card={stack.length > 1 || undefined} data-paired={paired || undefined}
+            <div key={k} data-sib={k} className="il-pmap-page il-pmap-sib" data-card={stack.length > 1 || undefined} data-paired={paired || undefined}
               style={{ ...mainStyle, transform: `translateX(calc(${k === 'next' ? 1 : -1} * (100% + ${SIB_GAP}px)))` }} aria-hidden>
-              <div className="il-nav-page-in">
+              <div className="il-pmap-page-in">
                 {stack.length > 1 && <CardHead page={{ key: k, ...r }} />}
-                <div className="il-nav-page-body">
-                  {P ? <P params={(r.params ?? {}) as never} page={{ key: k, ...r }} /> : <div className="il-nav-sib-blank">{pageTitle(r)}</div>}
+                <div className="il-pmap-page-body">
+                  {P ? <P params={(r.params ?? {}) as never} page={{ key: k, ...r }} /> : <div className="il-pmap-sib-blank">{pageTitle(r)}</div>}
                 </div>
               </div>
             </div>
           );
         })}
         {parent && !paired && (
-          <button type="button" className="il-nav-peek" aria-label={`Back to ${pageTitle(parent)}`} onClick={() => phoneNav.pop()}>
-            <span className="il-nav-peek-label">‹ {pageTitle(parent)}</span>
+          <button type="button" className="il-pmap-peek" aria-label={`Back to ${pageTitle(parent)}`} onClick={() => phoneNav.pop()}>
+            <span className="il-pmap-peek-label">‹ {pageTitle(parent)}</span>
           </button>
         )}
       </div>
