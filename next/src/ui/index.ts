@@ -25,3 +25,4 @@ export { MuteToggle } from './MuteToggle';
 export { UiEffects } from './UiEffects';
 export { SearchField } from './SearchField';
 export type { SearchFieldProps } from './SearchField';
+export { TitleTips } from './TitleTips';

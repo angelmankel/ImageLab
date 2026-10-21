@@ -5,14 +5,15 @@
  *     whisper on mouse hover onto a new control, a tick on press, the toggle sound for switches,
  *     checkboxes and pressed-state buttons (direction = the new state). `data-no-sound` on an
  *     element (or an ancestor) opts it out;
- *   - a toast sounds by its colour: red = error, green / teal = success (no edit in the screens).
- * Renders nothing.
+ *   - a toast sounds by its colour: red = error, green / teal = success (no edit in the screens);
+ *   - native `title` tooltips are drawn as ours, never two at once (TitleTips, FIXLIST-2 item 20).
  */
 import { useEffect } from 'react';
 import { notificationsStore } from '@mantine/notifications';
 import { useShortcut, ShortcutPriority } from '@/hooks/useShortcut';
 import { playSound } from '@/lib/sounds';
 import { useHints } from './hints';
+import { TitleTips } from './TitleTips';
 
 const CONTROL = 'button, [role="button"], [role="tab"], [role="switch"], [role="checkbox"], [role="radio"], [role="menuitem"], [role="option"], a[href], input[type="checkbox"], input[type="radio"], summary';
 
@@ -85,5 +86,5 @@ export function UiEffects() {
       document.removeEventListener('pointerdown', down, { capture: true });
     };
   }, []);
-  return null;
+  return <TitleTips />;
 }
