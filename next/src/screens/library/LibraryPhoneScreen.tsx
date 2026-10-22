@@ -17,7 +17,7 @@
  * rotation or going in and out keeps them.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { IconCheck, IconRotateClockwise, IconSquareCheck } from '@tabler/icons-react';
+import { IconCheck, IconRotateClockwise, IconFileZip, IconSquareCheck } from '@tabler/icons-react';
 import { phoneNav, usePhoneBand, usePhoneNav, haptic, type PhonePageProps } from '~/phone';
 import { usePhoneLandscape } from '~/app/useIsPhone';
 import { T } from '~/theme/tokens';
@@ -28,6 +28,8 @@ import { SearchBox } from './SearchBox';
 import { CollectionPicker } from './CollectionPicker';
 import { KindTabs } from './KindTabs';
 import { SortMenu } from './SortMenu';
+import { zipItems } from './zip';
+import { MenuPill } from './MenuPill';
 import { BulkBar } from './BulkBar';
 import { LibraryGrid } from './LibraryGrid';
 import { LibraryViewer } from './LibraryViewer';
@@ -95,6 +97,9 @@ export function LibraryPage({ page }: Partial<PhonePageProps>) {
           <SearchBox style={{ flex: 1, minWidth: 0 }} />
           <CollectionPicker all={all} compact />
           <SortMenu iconOnly />
+          <MenuPill outline onClick={() => void zipItems(all)} disabled={!all.length} aria-label={`Download all ${all.length} as a zip`} style={{ padding: '0 11px' }}>
+            <IconFileZip size={15} stroke={2.2} />
+          </MenuPill>
         </div>
         <KindTabs fill />
       </div>

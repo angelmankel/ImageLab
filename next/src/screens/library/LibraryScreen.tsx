@@ -13,7 +13,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useScrollIntoView } from '~/ui/scrollIntoNearest';
-import { IconSquareCheck } from '@tabler/icons-react';
+import { IconFileZip, IconSquareCheck } from '@tabler/icons-react';
 import { Panel } from '~/ui';
 import { T } from '~/theme/tokens';
 import { GRID_W, useLibrary } from './libraryStore';
@@ -25,6 +25,7 @@ import { CollectionPicker } from './CollectionPicker';
 import { KindTabs } from './KindTabs';
 import { SortMenu } from './SortMenu';
 import { TileSizeSwitch } from './TileSizeSwitch';
+import { zipItems } from './zip';
 import { MenuPill } from './MenuPill';
 import { BulkBar } from './BulkBar';
 import { LibraryGrid } from './LibraryGrid';
@@ -131,6 +132,9 @@ export function LibraryScreen() {
           <div style={{ flex: 1 }} />
           <SortMenu iconOnly={narrow} />
           <TileSizeSwitch />
+          <MenuPill outline onClick={() => void zipItems(all)} disabled={!all.length} title={`Download all ${all.length} as a zip`} style={{ gap: 6, padding: narrow ? '0 11px' : undefined }}>
+            <IconFileZip size={15} stroke={2.2} />{!narrow && 'Zip all'}
+          </MenuPill>
           <MenuPill outline on={selecting} onClick={() => setSelecting(!selecting)} aria-pressed={selecting} title="Select several" style={{ gap: 6, padding: narrow ? '0 11px' : undefined }}>
             <IconSquareCheck size={15} stroke={2.2} />{!narrow && 'Select'}
           </MenuPill>

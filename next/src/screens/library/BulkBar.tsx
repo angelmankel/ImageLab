@@ -10,6 +10,7 @@ import type { LibItem } from './libraryLogic';
 import { confirmDelete, downloadMany, favMany } from './libraryActions';
 import { AddToCollectionMenu } from './AddToCollectionMenu';
 import { MenuPill } from './MenuPill';
+import { zipItems } from './zip';
 
 export function BulkBar({ visible, phone }: { visible: LibItem[]; phone?: boolean }) {
   const picked = useLibrary((s) => s.picked);
@@ -33,7 +34,7 @@ export function BulkBar({ visible, phone }: { visible: LibItem[]; phone?: boolea
         </MenuPill>
       </AddToCollectionMenu>
       <IconBtn icon={allStarred ? <IconStarFilled size={17} /> : <IconStar size={17} />} label={allStarred ? 'Unstar selected' : 'Star selected'} on={allStarred} disabled={!n} onClick={() => favMany(items)} tone="card" size={h} />
-      <IconBtn icon={<IconDownload size={17} />} label="Download selected" disabled={!n} onClick={() => void downloadMany(items)} tone="card" size={h} />
+      <IconBtn icon={<IconDownload size={17} />} label={n > 1 ? 'Download selected as a zip' : 'Download selected'} disabled={!n} onClick={() => void (n > 1 ? zipItems(items, 'imagelab-selected') : downloadMany(items))} tone="card" size={h} />
       <IconBtn icon={<IconTrash size={17} color="var(--il-err)" />} label="Delete selected" disabled={!n} onClick={() => confirmDelete(items, () => setPicked([]))} tone="card" size={h} />
       <MenuPill h={h} light onClick={() => setSelecting(false)} style={{ background: 'var(--il-fg)', color: 'var(--il-bg)', fontWeight: 800 }}>Done</MenuPill>
     </div>
